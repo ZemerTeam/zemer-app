@@ -1,8 +1,6 @@
 package com.jtech.zemer.utils
 
 import android.content.Context
-import android.content.Intent
-import android.net.Uri
 import com.jtech.zemer.BuildConfig
 import com.jtech.zemer.utils.updater.NightlyUpdates
 import io.ktor.client.*
@@ -242,9 +240,4 @@ object UpdateChecker {
         }
     }
 
-    fun openDownloadPage(context: Context) {
-        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(DOWNLOAD_URL))
-        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-        context.startActivity(intent)
-    }
 }

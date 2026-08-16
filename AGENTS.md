@@ -517,9 +517,11 @@ greenlight and evidence live in `handoff-docs/zemer-app-artist-album-innertube-s
 **Remaining InnerTube candidates (the punch list to complete the migration)** - everything still
 reaching YouTube for content, in rough priority order. Pick from here before inventing new scope:
 
-- **Whole-screen discovery surfaces:** `ChartsScreen` and `NewReleaseScreen`
-  (`FEmusic_new_releases`) remain; each wants a Zemer endpoint (or a handoff request) the way
-  home-rows got one. (`MoodAndGenresScreen`, `YouTubeBrowseScreen`, `BrowseScreen` and their
+- **Whole-screen discovery surfaces:** `NewReleaseScreen`
+  (`FEmusic_new_releases`) remains; it wants a Zemer endpoint (or a handoff request) the way
+  home-rows got one. (`ChartsScreen` + `ChartsViewModel` + `YouTube.getChartsPage()` were DELETED -
+  the `charts_screen` route was registered but nothing navigated to it since the Trending row's
+  removal, so the whole cluster was unreachable. `MoodAndGenresScreen`, `YouTubeBrowseScreen`, `BrowseScreen` and their
   `YouTube.moodAndGenres`/`explore`/`ExplorePage` InnerTube paths were DELETED with the Genres
   feature - the Zemer catalog is the replacement moods/genres surface. The legacy `ArtistItemsScreen`
   + its ViewModel + the `artist/{id}/items` route were DELETED - the Zemer per-section see-all had
@@ -574,8 +576,9 @@ Rules that must not regress:
   filtered pool), so See-all can never disagree with the row it opened from - no re-fetch, no re-filter.
   Featured grids are 2-column (long Hebrew+English titles truncate at 3). Latest Releases / Zemer
   Playlists keep their own see-all screens + ViewModels.
-- **The mainstream Trending row is gone** - `YouTube.getChartsPage()` charts carry ~no whitelisted
-  artists (it filtered to empty and never displayed); the `auto-trending` / `auto-top-50` Zemer playlists
+- **The mainstream Trending row is gone** - the old `YouTube.getChartsPage()` charts carried ~no
+  whitelisted artists (it filtered to empty and never displayed; the whole charts screen/API cluster has
+  since been deleted as unreachable); the `auto-trending` / `auto-top-50` Zemer playlists
   in the Zemer-Playlists shelf are the real trending/top surface. Don't reintroduce a charts-scraped row.
 - The `/home-rows` contract and every design decision are recorded in
   `handoff-docs/zemer-app-home-rows-request.md` (the app↔server thread) and
@@ -1415,7 +1418,7 @@ Node ≥20 scripts (deps vendored in `tests/node_modules`, no install needed) th
 - `tests/README.md` + `tests/INVESTIGATION.md` are the methodology and the symptom-indexed runbook - read them first when streaming breaks.
 - The harness mirrors app constants on purpose; when `YouTubeClient.kt` / `PoTokenGenerator.kt` change, update the matching mirror (`clients.mjs` / `potoken.mjs`). Player configs are **not** mirrored - `tests/player-configs.mjs` reads the same `player_configs.json` the app bundles (requires the cipher submodule checked out; if missing, scripts fail with an actionable message).
 - Loader unit tests (no cookie or network needed): `node --test tests/player-configs.test.mjs` - validation rules, collision rejection, the `config-covers.mjs` CLI, and the cross-language parity fixtures shared with the cipher repo's Kotlin tests.
-- **`tests/search/`** is the same idea for the *search* path: faithful Node ports of the app's four search functions (`searchSuggestions`/`searchSummary`/`search(filter)`×6/`searchContinuation`) run against live YouTube Music - `node tests/search/run.mjs [query...]`. It reproduces the app's exact request (WEB_REMIX, `setLogin=false` → visitorData only, no cookie/auth) and reports any error: a strict-deserialization break (a non-null field YouTube dropped → whole response fails → "No results"), a parser drop (with the exact field), the `searchContinuation` NPE, or an empty result. `node --test tests/search/self-test.mjs` proves the checker catches breaks (no network). The kotlinx strict-field table in `tests/search/schema.mjs` is transcribed from the innertube models - keep it in sync when their nullability changes. Zemer's artist-whitelist filter runs *after* these functions (needs the app DB) and is the next suspect when they're healthy but search still looks empty. See `tests/search/README.md`.
+- **`tests/search/`** is the same idea for the *search* path: a faithful Node port of the app's ONE remaining InnerTube search function - `search(filter)`×6, still called by `RecognitionResolver`, the Android Auto voice search, and the add-to-playlist online search - run against live YouTube Music: `node tests/search/run.mjs [query...]`. (The `searchSuggestions`/`searchSummary`/`searchContinuation` ports were retired with their app functions when the YouTube search engine was removed - Zemer serves the search UI.) It reproduces the app's exact request (WEB_REMIX, `setLogin=false` → visitorData only, no cookie/auth) and reports any error: a strict-deserialization break (a non-null field YouTube dropped → whole response fails → "No results"), a parser drop (with the exact field), or an empty result. `node --test tests/search/self-test.mjs` proves the checker catches breaks (no network). The kotlinx strict-field table in `tests/search/schema.mjs` is transcribed from the innertube models - keep it in sync when their nullability changes. Zemer's artist-whitelist filter runs *after* this function (needs the app DB) and is the next suspect when it's healthy but a caller still comes up empty. See `tests/search/README.md`.
 
 ### Modules & app layout
 

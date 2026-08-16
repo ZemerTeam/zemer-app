@@ -220,9 +220,6 @@ fun NavGraphBuilder.navigationBuilder(
         }
         ArtistSectionScreen(navController, scrollBehavior, it.arguments?.getString("title").orEmpty())
     }
-    composable("charts_screen") {
-       ChartsScreen(navController)
-    }
     composable(
         route = "search/{query}?filter={filter}",
         arguments =

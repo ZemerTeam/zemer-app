@@ -31,7 +31,6 @@
 | `mood_and_genres` | `MoodAndGenresScreen` |
 | `account` | `AccountScreen` |
 | `new_release` | `NewReleaseScreen` |
-| `charts_screen` | `ChartsScreen` |
 | `browse/{browseId}` | `BrowseScreen` |
 | `search/{query}?filter={filter}` | `OnlineSearchResult` |
 | `album/{albumId}` | `AlbumScreen` |
@@ -67,7 +66,7 @@
 
 | Group | Files | Observable responsibility |
 | --- | --- | --- |
-| Root screens | `AccountScreen`, `AlbumScreen`, `BrowseScreen`, `ChartsScreen`, `HistoryScreen`, `HomeScreen`, `KidZoneScreen`, `LoginGateScreen`, `LoginScreen`, `MoodAndGenresScreen`, `NewReleaseScreen`, `OnboardingScreen`, `SplashScreen`, `StatsScreen`, `WhitelistedArtistsScreen`, `YouTubeBrowseScreen` | Top-level and feature screens wired from navigation or startup/auth flows. |
+| Root screens | `AccountScreen`, `AlbumScreen`, `HistoryScreen`, `HomeScreen`, `KidZoneScreen`, `LoginGateScreen`, `LoginScreen`, `NewReleaseScreen`, `OnboardingScreen`, `SplashScreen`, `StatsScreen`, `WhitelistedArtistsScreen` | Top-level and feature screens wired from navigation or startup/auth flows. |
 | Onboarding screens | `OnboardingSearchBackupScreen`, `OnboardingChoiceCard` (`screens/onboarding/`) | The search-backup onboarding step and the shared radio-choice card every onboarding step uses. |
 | Stations screens | `ZemerStationsScreen` | The "Zemer Radio" See-all grid of live broadcast stations. |
 | Artist screens | `ArtistScreen`, `ArtistSongsScreen`, `ArtistAlbumsScreen`, `ArtistItemsScreen`, `ArtistSectionScreen` | Artist detail, song, album, extra item, and Zemer per-section see-all views. |
@@ -91,7 +90,6 @@
 | File | Lines | Composable declarations found |
 | --- | ---: | --- |
 | `app/src/main/kotlin/com/jtech/zemer/ui/component/AccountSettingsDialog.kt` | 66 | AccountSettingsDialog |
-| `app/src/main/kotlin/com/jtech/zemer/ui/component/AnonymousAuthEmailDialog.kt` | 121 | AnonymousAuthEmailDialog |
 | `app/src/main/kotlin/com/jtech/zemer/ui/component/AppStateViews.kt` | 111 | AppStateView |
 | `app/src/main/kotlin/com/jtech/zemer/ui/component/AutoResizeText.kt` | 97 | AutoResizeText |
 | `app/src/main/kotlin/com/jtech/zemer/ui/component/BigSeekBar.kt` | 58 | BigSeekBar |
@@ -139,13 +137,12 @@
 | `app/src/main/kotlin/com/jtech/zemer/ui/player/LyricsScreen.kt` | 796 | LyricsScreen |
 | `app/src/main/kotlin/com/jtech/zemer/ui/player/MiniPlayer.kt` | 900 | MiniPlayer, NewMiniPlayer, LegacyMiniPlayer, LegacyMiniMediaInfo |
 | `app/src/main/kotlin/com/jtech/zemer/ui/player/PlaybackError.kt` | 45 | PlaybackError |
-| `app/src/main/kotlin/com/jtech/zemer/ui/player/Player.kt` | 1364 | BottomSheetPlayer, BottomSheetPlayerPreview |
+| `app/src/main/kotlin/com/jtech/zemer/ui/player/Player.kt` | 1531 | BottomSheetPlayer |
 | `app/src/main/kotlin/com/jtech/zemer/ui/player/Queue.kt` | 1131 | Queue |
 | `app/src/main/kotlin/com/jtech/zemer/ui/player/Thumbnail.kt` | 472 | Thumbnail |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/AccountScreen.kt` | 200 | AccountScreen |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/AlbumScreen.kt` | 723 | AlbumScreen |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/BrowseScreen.kt` | 143 | BrowseScreen |
-| `app/src/main/kotlin/com/jtech/zemer/ui/screens/ChartsScreen.kt` | 307 | ChartsScreen |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/HistoryScreen.kt` | 518 | HistoryScreen |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/HomeScreen.kt` | 1037 | HomeScreen |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/KidZoneScreen.kt` | 336 | KidZoneScreen |
@@ -203,7 +200,6 @@
 | File | Lines | Key declarations |
 | --- | ---: | --- |
 | `app/src/main/kotlin/com/jtech/zemer/ui/component/AccountSettingsDialog.kt` | 66 | fun AccountSettingsDialog |
-| `app/src/main/kotlin/com/jtech/zemer/ui/component/AnonymousAuthEmailDialog.kt` | 121 | fun AnonymousAuthEmailDialog, val coroutineScope, var isLoading |
 | `app/src/main/kotlin/com/jtech/zemer/ui/component/AppStateViews.kt` | 111 | fun AppStateView |
 | `app/src/main/kotlin/com/jtech/zemer/ui/component/AutoResizeText.kt` | 97 | fun AutoResizeText, var fontSizeValue, var readyToDraw, val nextFontSizeValue, class FontSizeRange, val min, val max, val step, val DEFAULT_TEXT_STEP |
 | `app/src/main/kotlin/com/jtech/zemer/ui/component/BigSeekBar.kt` | 58 | fun BigSeekBar, var width |
@@ -259,7 +255,6 @@
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/AccountScreen.kt` | 200 | fun AccountScreen, val menuState, val haptic, val coroutineScope, val playlists, val albums, val artists, val selectedContentType |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/AlbumScreen.kt` | 723 | fun AlbumScreen, val context, val menuState, val database, val haptic, val coroutineScope, val playerConnection, val isPlaying, val mediaMetadata, val playlistId, val albumWithSongs, val hideExplicit, val wrappedSongs, val filteredSongs |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/BrowseScreen.kt` | 143 | fun BrowseScreen, val menuState, val playerConnection, val isPlaying, val title, val items, val coroutineScope |
-| `app/src/main/kotlin/com/jtech/zemer/ui/screens/ChartsScreen.kt` | 307 | fun ChartsScreen, val menuState, val database, val haptic, val playerConnection, val isPlaying, val mediaMetadata, val chartsPage, val isLoading, val lazyListState, val horizontalLazyGridItemWidthFactor, val horizontalLazyGridItemWidth, val horizontalLazyGridItemWidthFactor, val horizontalLazyGridItemWidth |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/HistoryScreen.kt` | 518 | fun HistoryScreen, val context, val database, val menuState, val haptic, val playerConnection, val isPlaying, val mediaMetadata, var selection, var isSearching, var query, val focusRequester, val historySource, val historyPage |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/HomeScreen.kt` | 1037 | fun HomeScreen, val viewModel, val menuState, val database, val playerConnection, val haptic, val context, val isPlaying, val mediaMetadata, val homeUiState, val quickPicks, val featuredPlaylists, val trendingSongs, val forgottenFavorites |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/KidZoneScreen.kt` | 336 | fun KidZoneScreen, val menuState, var viewType, val firstFocus, val searchFocus, val firstArtistFocus, val artists, val searchQuery, val syncProgress, val isSyncing, val coroutineScope, var showSyncOverlay, val lazyListState, val lazyGridState |

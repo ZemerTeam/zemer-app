@@ -7,7 +7,6 @@ import android.content.pm.PackageManager
 import android.os.Build
 import androidx.activity.ComponentActivity
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import timber.log.Timber
 
@@ -202,46 +201,4 @@ object PermissionHelper {
         launcher.launch(permissions)
     }
 
-    /**
-     * Check if we should show rationale for storage permissions
-     *
-     * @param activity The activity to check
-     * @return true if we should show permission rationale
-     */
-    fun shouldShowRationale(activity: ComponentActivity): Boolean {
-        val permissions = getRequiredPermissions()
-        return permissions.any { permission ->
-            activity.shouldShowRequestPermissionRationale(permission)
-        }
-    }
-
-    /**
-     * Get a user-friendly description of why storage permission is needed
-     *
-     * @return Explanation string
-     */
-    fun getPermissionRationale(): String {
-        return when {
-            Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU -> {
-                "This app needs access to your audio files and cover art so downloads save correctly to your device's Music and Pictures folders."
-            }
-            Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q -> {
-                "This app needs storage permission to download and save music to your device's Music folder."
-            }
-            else -> {
-                "This app needs storage permissions to download and save music to your device."
-            }
-        }
-    }
-
-    /**
-     * Request storage permission directly from an Activity context.
-     * Returns true if already granted; false if a permission request was started or not possible.
-     */
-    fun requestMediaStorePermissionIfNeeded(context: Context): Boolean {
-        if (hasMediaStoreWritePermission(context)) return true
-        val activity = context as? Activity ?: return false
-        ActivityCompat.requestPermissions(activity, getRequiredWritePermissions(), 2001)
-        return false
-    }
 }

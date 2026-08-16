@@ -4,7 +4,6 @@ package com.jtech.zemer.ui.component
 
 import android.annotation.SuppressLint
 import android.content.Intent
-import android.content.res.Configuration
 import android.os.Build
 import androidx.activity.compose.BackHandler
 import androidx.annotation.RequiresApi
@@ -136,9 +135,6 @@ fun Lyrics(
     val density = LocalDensity.current
     val context = LocalContext.current
     val configuration = LocalConfiguration.current // Get configuration
-
-    val landscapeOffset =
-        configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
 
     val lyricsTextPosition by rememberEnumPreference(LyricsTextPositionKey, LyricsPosition.CENTER)
     val changeLyrics by rememberPreference(LyricsClickKey, true)
@@ -309,19 +305,7 @@ fun Lyrics(
 
     LaunchedEffect(currentLineIndex, lastPreviewTime, initialScrollDone) {
 
-        /**
-         * Calculate the lyric offset Based on how many lines (\n chars)
-         */
-        fun calculateOffset() = with(density) {
-            if (currentLineIndex < 0 || currentLineIndex >= lines.size) return@with 0
-            val currentItem = lines[currentLineIndex]
-            val totalNewLines = currentItem.text.count { it == '\n' }
-
-            val dpValue = if (landscapeOffset) 16.dp else 20.dp
-            dpValue.toPx().toInt() * totalNewLines
-        }
-
-        if (!isSynced) return@LaunchedEffect
+                if (!isSynced) return@LaunchedEffect
         
         // Smooth page animation without sudden jumps - direct animation to center
         suspend fun performSmoothPageScroll(targetIndex: Int, duration: Int = 1500) {

@@ -12,7 +12,6 @@ import com.metrolist.innertube.models.body.CreatePlaylistBody
 import com.metrolist.innertube.models.body.EditPlaylistBody
 import com.metrolist.innertube.models.body.FeedbackBody
 import com.metrolist.innertube.models.body.GetQueueBody
-import com.metrolist.innertube.models.body.GetSearchSuggestionsBody
 import com.metrolist.innertube.models.body.GetTranscriptBody
 import com.metrolist.innertube.models.body.LikeBody
 import com.metrolist.innertube.models.body.NextBody
@@ -361,19 +360,6 @@ class InnerTube {
             FeedbackBody(
                 context = client.toContext(locale, visitorData, dataSyncId),
                 feedbackTokens = tokens
-            )
-        )
-    }
-
-    suspend fun getSearchSuggestions(
-        client: YouTubeClient,
-        input: String,
-    ) = httpClient.post("music/get_search_suggestions") {
-        ytClient(client)
-        setBody(
-            GetSearchSuggestionsBody(
-                context = client.toContext(locale, visitorData, null),
-                input = input
             )
         )
     }

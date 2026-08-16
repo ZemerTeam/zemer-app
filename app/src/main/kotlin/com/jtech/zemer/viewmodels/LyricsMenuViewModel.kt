@@ -55,10 +55,6 @@ constructor(
         }
     }
 
-    fun setCurrentSong(song: Song) {
-        _currentSong.value = song
-    }
-
     fun search(
         mediaId: String,
         title: String,

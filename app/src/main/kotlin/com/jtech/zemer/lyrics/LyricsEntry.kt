@@ -1,11 +1,9 @@
 package com.jtech.zemer.lyrics
 
-import kotlinx.coroutines.flow.MutableStateFlow
 
 data class LyricsEntry(
     val time: Long,
-    val text: String,
-    val romanizedTextFlow: MutableStateFlow<String?> = MutableStateFlow(null)
+    val text: String
 ) : Comparable<LyricsEntry> {
     override fun compareTo(other: LyricsEntry): Int = (time - other.time).toInt()
 

@@ -52,7 +52,6 @@ import javax.inject.Singleton
 data class WhitelistSyncProgress(
     val current: Int = 0,
     val total: Int = 0,
-    val currentArtistName: String = "",
     val isComplete: Boolean = false
 )
 
@@ -1034,38 +1033,7 @@ class SyncUtils @Inject constructor(
         }
     }
 
-    suspend fun clearAllSyncedContent() {
-        try {
-            val likedSongs = database.likedSongsByNameAsc().first()
-            val librarySongs = database.songsByNameAsc().first()
-            val likedAlbums = database.albumsLikedByNameAsc().first()
-            val subscribedArtists = database.artistsBookmarkedByNameAsc().first()
-            val savedPlaylists = database.playlistsByNameAsc().first()
-
-            likedSongs.forEach {
-                try { database.transaction { update(it.song.copy(liked = false, likedDate = null)) } } catch (e: Exception) { }
-            }
-            librarySongs.forEach {
-                if (it.song.inLibrary != null) {
-                    try { database.transaction { update(it.song.copy(inLibrary = null)) } } catch (e: Exception) { }
-                }
-            }
-            likedAlbums.forEach {
-                try { database.transaction { update(it.album.copy(bookmarkedAt = null)) } } catch (e: Exception) { }
-            }
-            subscribedArtists.forEach {
-                try { database.transaction { update(it.artist.copy(bookmarkedAt = null)) } } catch (e: Exception) { }
-            }
-            savedPlaylists.forEach {
-                if (it.playlist.browseId != null) {
-                    try { database.transaction { delete(it.playlist) } } catch (e: Exception) { }
-                }
-            }
-        } catch (e: Exception) {
-        }
-    }
-
-    /**
+        /**
      * Deletes artists and all their associated content from the database.
      * This includes: songs, albums, play history, cached formats, lyrics, and user data.
      * Deletion follows proper order to respect foreign key constraints.

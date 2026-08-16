@@ -9,7 +9,7 @@
 //   N=20 node tests/search/pill-survival.mjs
 import fs from "node:fs";
 import { postSearch, cred, FILTERS, getItems } from "./lib.mjs";
-import { toYTItem, fromMRLIR_summary, fromCardShelf } from "./parsers.mjs";
+import { toYTItem } from "./parsers.mjs";
 
 const FILE = new URL("./.cache/whitelist.json", import.meta.url);
 const N = Number(process.env.N || 12);
@@ -58,19 +58,6 @@ async function search(args) {
 }
 
 async function probe(name, vd) {
-  // summary
-  {
-    const { json } = await search({ query: name, visitorData: vd });
-    const contents = sectionContents(json) || [];
-    const card = contents.find((c) => c.musicCardShelfRenderer)?.musicCardShelfRenderer;
-    const items = [];
-    if (card) { const r = fromCardShelf(card); if (r.ok) items.push(r.item); }
-    for (const s of contents) {
-      if (s.musicShelfRenderer) items.push(...getItems(s.musicShelfRenderer.contents).map(fromMRLIR_summary).filter((r) => r.ok).map((r) => r.item));
-      else if (s.itemSectionRenderer) items.push(...(s.itemSectionRenderer.contents || []).map((c) => c.musicResponsiveListItemRenderer).filter(Boolean).map(fromMRLIR_summary).filter((r) => r.ok).map((r) => r.item));
-    }
-    bump("summary", items.length, items.filter(survives).length);
-  }
   // each filter pill
   for (const [pill, params] of Object.entries(FILTERS)) {
     const { json } = await search({ query: name, params, visitorData: vd });
@@ -99,7 +86,7 @@ for (let i = 0; i < sample.length; i++) {
 process.stderr.write("\n");
 
 console.log("pill".padEnd(22), "YT items", "survive whitelist", "artists w/ items", "artists w/ a survivor");
-for (const pill of ["summary", "SONG", "VIDEO", "ALBUM", "ARTIST", "FEATURED_PLAYLIST", "COMMUNITY_PLAYLIST"]) {
+for (const pill of ["SONG", "VIDEO", "ALBUM", "ARTIST", "FEATURED_PLAYLIST", "COMMUNITY_PLAYLIST"]) {
   const c = cov[pill]; if (!c) continue;
   const sr = c.items ? Math.round((100 * c.survive) / c.items) : 0;
   console.log(

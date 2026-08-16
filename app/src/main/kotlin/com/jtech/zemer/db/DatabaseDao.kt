@@ -466,10 +466,6 @@ interface DatabaseDao {
 
     @Transaction
     @Query("SELECT * FROM song WHERE id = :songId LIMIT 1")
-    suspend fun getSongById(songId: String): Song?
-
-    @Transaction
-    @Query("SELECT * FROM song WHERE id = :songId LIMIT 1")
     fun getSongByIdBlocking(songId: String): Song?
 
     @Transaction
@@ -1115,13 +1111,6 @@ interface DatabaseDao {
     }.map { it.reversed(descending) }
     
     @Transaction
-    @Query("SELECT * FROM song WHERE title LIKE '%' || :query || '%' AND inLibrary IS NOT NULL AND song.id IN (SELECT songId FROM song_artist_map WHERE artistId IN (SELECT artistId FROM artist_whitelist)) LIMIT :previewSize")
-    fun searchSongs(
-        query: String,
-        previewSize: Int = Int.MAX_VALUE,
-    ): Flow<List<Song>>
-
-    @Transaction
     @SuppressWarnings(RoomWarnings.QUERY_MISMATCH)
     @Query(
         "SELECT artist.*, (SELECT COUNT(1) FROM song_artist_map JOIN song ON song_artist_map.songId = song.id WHERE song_artist_map.artistId = artist.id AND song.inLibrary IS NOT NULL AND song.isEpisode = 0) AS songCount FROM artist INNER JOIN artist_whitelist ON artist.id = artist_whitelist.artistId WHERE artist.name LIKE '%' || :query || '%' AND songCount > 0 LIMIT :previewSize",
@@ -1651,9 +1640,6 @@ interface DatabaseDao {
     @Query("SELECT artistId FROM artist_whitelist")
     suspend fun getAllWhitelistedArtistIdsSync(): List<String>
 
-    @Query("SELECT * FROM artist_whitelist")
-    fun getAllWhitelistedArtists(): Flow<List<ArtistWhitelistEntity>>
-
     @Query("SELECT * FROM artist_whitelist WHERE artistId = :artistId LIMIT 1")
     suspend fun getWhitelistEntry(artistId: String): ArtistWhitelistEntity?
 
@@ -1728,10 +1714,6 @@ interface DatabaseDao {
     @Query("DELETE FROM album WHERE id IN (:albumIds)")
     suspend fun deleteAlbumsByIds(albumIds: List<String>)
 
-    // Podcast Whitelist methods
-    @Upsert
-    fun upsertPodcastWhitelist(whitelist: PodcastWhitelistEntity)
-
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     fun insertPodcastWhitelist(whitelistEntries: List<PodcastWhitelistEntity>)
 
@@ -1740,9 +1722,6 @@ interface DatabaseDao {
 
     @Query("SELECT * FROM podcast_whitelist ORDER BY name COLLATE NOCASE")
     fun allWhitelistedPodcastsByName(): Flow<List<PodcastWhitelistEntity>>
-
-    @Query("SELECT * FROM podcast_whitelist WHERE channelId = :channelId LIMIT 1")
-    suspend fun getPodcastWhitelistEntry(channelId: String): PodcastWhitelistEntity?
 
     @Query("SELECT * FROM podcast_whitelist")
     suspend fun getPodcastWhitelistEntriesSync(): List<PodcastWhitelistEntity>

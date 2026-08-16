@@ -70,7 +70,7 @@ data class LibraryPage(
                 )
 
                 // A saved podcast SHOW (MPSP…) tile in the library. Without this branch the tile fell to
-                // `else -> null`, so savedPodcastShows()/libraryPodcasts() always came back empty and no
+                // `else -> null`, so savedPodcastShows() always came back empty and no
                 // saved show ever synced. Mirrors the show parse in ArtistPage.fromMusicTwoRowItemRenderer;
                 // the subtitle's first run is the host channel, so `author.id` carries the UC channelId
                 // that SyncUtils.syncPodcastSubscriptions maps to PodcastEntity.channelId.

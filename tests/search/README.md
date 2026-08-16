@@ -1,20 +1,22 @@
 # tests/search — search-path harness
 
-Exercises **every** YouTube Music search function the app calls, **exactly as the app does**, against
-the live API, and reports any error: a strict-deserialization break, a parser drop, the
-`searchContinuation` `!!` NPE, or an unexpectedly empty result. Built to answer "why is search not
-working?" with measured data instead of guesses (same philosophy as the parent `tests/` harness).
+Exercises the app's **one remaining** YouTube Music search function, **exactly as the app does**,
+against the live API, and reports any error: a strict-deserialization break, a parser drop, or an
+unexpectedly empty result. Built to answer "why is search not working?" with measured data instead
+of guesses (same philosophy as the parent `tests/` harness).
+
+Zemer is the app's only search *engine*: `searchSuggestions`/`searchSummary`/`searchContinuation`
+were deleted from `YouTube.kt` (dead since the engine removal), so their probes are gone from this
+harness too. What survives is `YouTube.search(query, filter)`, still called by `RecognitionResolver`,
+the Android Auto voice search, and the add-to-playlist online search dialog.
 
 ## What it reproduces
 
-The app's search entry points, all on the `WEB_REMIX` client:
+The app's search entry point, on the `WEB_REMIX` client:
 
 | App function (`YouTube.kt`) | Request | Parser |
 | --- | --- | --- |
-| `searchSuggestions(query)` | POST `music/get_search_suggestions` | `SearchSuggestionPage` |
-| `searchSummary(query)` | POST `search` (no params) | `SearchSummaryPage` (card + sections) |
 | `search(query, filter)` x6 filters | POST `search` (params) | `SearchPage.toYTItem` |
-| `searchContinuation(token)` | POST `search?continuation=&ctoken=` | `SearchPage.toYTItem` |
 
 **Faithfulness facts** (verified against `InnerTube.kt`):
 - Search runs with `setLogin = false` — the app sends **visitorData only, no cookie/Authorization**.
@@ -22,14 +24,14 @@ The app's search entry points, all on the `WEB_REMIX` client:
 - The 6 `SearchFilter` param strings, the request body shape, and the section-walking logic
   (`musicShelfRenderer` + `itemSectionRenderer`, `distinctBy id`) are copied verbatim.
 - `lib.mjs` / `parsers.mjs` are line-for-line ports of the InnerTube helpers, the
-  `MusicResponsiveListItemRenderer` accessors, and the four parsers. A drop here = a drop in the app.
+  `MusicResponsiveListItemRenderer` accessors, and the `toYTItem` parser. A drop here = a drop in the app.
 
 ## The strict-deserialization check (the big one)
 
 The app decodes with kotlinx `ignoreUnknownKeys=true`, `explicitNulls=false`, **no
 `coerceInputValues`**. So a Kotlin property that is **non-null and has no default** is REQUIRED: if
 YouTube stops sending it, `body<SearchResponse>()` throws `MissingFieldException` and the **entire**
-response fails — `YouTube.search*().getOrNull()` swallows it to `null` and the UI shows "No results".
+response fails — `YouTube.search().getOrNull()` swallows it to `null` and the caller sees no results.
 One missing field kills every result.
 
 `schema.mjs` encodes, per renderer reachable from a search response, which fields are required vs
@@ -42,20 +44,20 @@ ever met, so the sweep never silently skips something.
 ## Run
 
 ```bash
-node tests/search/run.mjs                       # default query set, every function
+node tests/search/run.mjs                       # default query set, every filter
 node tests/search/run.mjs "mordechai shapiro"   # one query
 node tests/search/run.mjs q1 q2 ...             # several queries
 SAVE=1 node tests/search/run.mjs                # also dump raw JSON to tests/search/out/
 node --test tests/search/self-test.mjs          # prove the checker catches breaks (no network)
 ```
 
-Exit code: `0` = no whole-response killers; `1` = a strict break or continuation NPE was found.
+Exit code: `0` = no whole-response killers; `1` = a strict break was found.
 
 ### Whitelist-driven probes (need a names file at `tests/search/.cache/whitelist.json`, gitignored)
 
 ```bash
 node tests/search/fetch-whitelist.mjs           # pull the whitelist (reads gitignored google-services.json)
-N=300 node tests/search/coverage.mjs            # every function over N real whitelisted artists; aggregates errors
+N=300 node tests/search/coverage.mjs            # every filter over N real whitelisted artists; aggregates errors
 node tests/search/whitelist-findable.mjs        # are whitelisted artists findable in artist search? (drop reasons)
 node tests/search/album-facet-probe.mjs         # ROOT CAUSE: which artists get an "Albums" search chip
 node tests/search/verify-album-fix.mjs          # proves the artist-page album grid (the fix's data source)
@@ -66,21 +68,19 @@ not a model of the app's real (unauthenticated) search path.
 
 ## Out of scope (by design)
 
-Zemer's **artist-whitelist filter** (`app/.../utils/WhitelistFilter.kt`) runs *after* these functions
-in `OnlineSearchViewModel` and drops every item whose artist isn't whitelisted. It needs the app's
-Room DB, so it can't run here — but it is the **next** suspect when these functions are healthy and
-search still looks empty (an empty/un-synced whitelist drops everything).
+Zemer's **artist-whitelist filter** (`app/.../utils/WhitelistFilter.kt`) runs *after* `search()` at
+its call sites and drops every item whose artist isn't whitelisted. It needs the app's Room DB, so it
+can't run here — but it is the **next** suspect when the function is healthy and a caller still
+comes up empty (an empty/un-synced whitelist drops everything).
 
-## Findings (2026-06-12, current `main`)
+## Findings (2026-06-12 sweep; harness trimmed 2026-08-16)
 
-Across `searchSuggestions`, `searchSummary`, all 6 filters, and `searchContinuation` over 300 real
-whitelisted-artist queries: **no strict breaks, no continuation NPE, parsers extract 100% of music
-items.** The InnerTube search layer is structurally healthy. Other observations:
-- `searchSummary` drops a few items per query — all `MUSIC_PAGE_TYPE_USER_CHANNEL` profiles and
-  podcasts, which the app doesn't classify as music (and the whitelist would drop anyway).
-- `searchContinuation` has a `!!` that NPE'd for ~4/300 artists when the continuation came back in a
-  non-`musicShelfContinuation` shape; ~48/300 artist searches drop the artist for a missing
-  shuffle/radio endpoint. Both are latent robustness issues (separate fixes), not the album problem.
+The 2026-06-12 sweep ran every then-existing search function over 300 real whitelisted-artist
+queries: **no strict breaks, parsers extracted 100% of music items** — the InnerTube search layer was
+structurally healthy. Notable then: ~48/300 artist searches dropped the artist row for a missing
+shuffle/radio endpoint (latent robustness issue in `toYTItem`, still present). The
+suggestions/summary/continuation probes (and their findings) were retired on 2026-08-16 when the app
+functions they mirrored were deleted.
 
 ## Why album search is empty for whitelisted artists (root cause)
 
@@ -105,10 +105,9 @@ facet. The albums still exist as real `MPREb_…` entities — **only on the art
 ### The app-side bug + fix
 
 `ArtistScreen` special-cased the "Albums" section's "see all" to navigate to `search?filter=albums`
-(the now-dead facet), while **every other section** navigates via its own `section.moreEndpoint` — the
-artist's item grid loaded by `YouTube.artistItems()`, which sources straight from the `/browse` page
-where the albums still live. The fix removes that special-case so "Albums" uses `moreEndpoint` like the
-rest. Verified: the album grid returns 34 / 19 albums for Shwekey / Levine; artists with no overflow
-(Shapiro) show all albums inline in the carousel. The search `FILTER_ALBUM` chip for free-text queries
-is a separate, optional follow-up (resolve the query to a whitelisted artist, then pull their page
-albums) — not done here.
+(the now-dead facet), while **every other section** navigated via its own `section.moreEndpoint` — the
+artist's item grid (then loaded by `YouTube.artistItems()`), which sourced straight from the `/browse`
+page where the albums still live. The fix removed that special-case so "Albums" used `moreEndpoint`
+like the rest. Verified: the album grid returned 34 / 19 albums for Shwekey / Levine. (Historical:
+the artist page has since moved to the Zemer server entirely and `artistItems()` is deleted — this
+section is kept as the record of why YouTube album search is empty for independent artists.)

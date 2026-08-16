@@ -33,9 +33,6 @@ class ContentFilterSyncService @Inject constructor(
     private val _syncState = MutableStateFlow<SyncState>(SyncState.IDLE)
     val syncState: StateFlow<SyncState> = _syncState.asStateFlow()
 
-    private val _lastSyncResult = MutableStateFlow<Result<Unit>?>(null)
-    val lastSyncResult: StateFlow<Result<Unit>?> = _lastSyncResult.asStateFlow()
-
     private var _isApplyingServerPreferences = false
 
     init {
@@ -105,7 +102,6 @@ class ContentFilterSyncService @Inject constructor(
                     userPreferencesRepository.performSync()
                 }
                 Log.d("ZemerSync", "Sync result: ${result.isSuccess}, error: ${result.exceptionOrNull()?.message}")
-                _lastSyncResult.value = result.map { }
 
                 if (result.isFailure) {
                     val error = result.exceptionOrNull()
@@ -132,12 +128,10 @@ class ContentFilterSyncService @Inject constructor(
                 val result = userPreferencesRepository.syncToServer()
 
                 _syncState.value = SyncState.IDLE
-                _lastSyncResult.value = result
 
                 result
             } catch (e: Exception) {
                 _syncState.value = SyncState.ERROR(e.message ?: "Unknown error")
-                _lastSyncResult.value = Result.failure(e)
                 Result.failure(e)
             }
         }
@@ -154,12 +148,10 @@ class ContentFilterSyncService @Inject constructor(
                 val result = userPreferencesRepository.syncToServer()
 
                 _syncState.value = SyncState.IDLE
-                _lastSyncResult.value = result
 
                 result
             } catch (e: Exception) {
                 _syncState.value = SyncState.ERROR(e.message ?: "Unknown error")
-                _lastSyncResult.value = Result.failure(e)
                 Result.failure(e)
             }
         }
@@ -210,7 +202,6 @@ class ContentFilterSyncService @Inject constructor(
             is AuthState.SignedOut -> {
                 // User signed out - clear sync state
                 _syncState.value = SyncState.IDLE
-                _lastSyncResult.value = null
             }
             else -> {
                 // Loading or error states - do nothing
@@ -255,10 +246,8 @@ class ContentFilterSyncService @Inject constructor(
             }
 
             _syncState.value = SyncState.IDLE
-            _lastSyncResult.value = result.map { }
         } catch (e: Exception) {
             _syncState.value = SyncState.ERROR(e.message ?: "Sync failed")
-            _lastSyncResult.value = Result.failure(e)
         } finally {
             _isApplyingServerPreferences = false
         }

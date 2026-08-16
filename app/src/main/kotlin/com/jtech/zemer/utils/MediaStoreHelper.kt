@@ -676,13 +676,4 @@ class MediaStoreHelper(private val context: Context) {
         return sanitized.ifBlank { "Unknown" }
     }
 
-    /**
-     * Get the public Music/Zemer folder path (for display purposes)
-     * Note: On Android 10+, direct file access is restricted
-     *
-     * @return Folder path string
-     */
-    fun getZemerFolderPath(): String {
-        return DEFAULT_RELATIVE_DOWNLOAD_PATH
-    }
 }

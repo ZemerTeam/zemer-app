@@ -14,7 +14,6 @@ import com.jtech.zemer.sync.models.DeviceContentFilters
 import com.jtech.zemer.sync.models.DeviceMetadata
 import com.jtech.zemer.sync.models.UserDeviceData
 import com.jtech.zemer.utils.ContentFilterConfig
-import com.jtech.zemer.utils.sanitizeEmailForDocumentId
 import com.jtech.zemer.utils.ContentFilterState
 import com.jtech.zemer.utils.DeviceIdGenerator
 import androidx.datastore.preferences.core.longPreferencesKey
@@ -668,24 +667,7 @@ class UserPreferencesRepository @Inject constructor(
         }
     }
 
-    /**
-     * Clear auto-restore state (for testing or migration)
-     */
-    suspend fun clearAutoRestoreState() {
-        syncDataStore.edit { preferences ->
-            preferences.remove(ContentFiltersAutoRestoredKey)
-            preferences.remove(ContentFiltersRestoredEmailKey)
-            preferences.remove(ContentFiltersLockedKey)
-        }
     }
-
-    /**
-     * Public access to deviceIdGenerator for checking device ID generation status
-     */
-    fun getDeviceIdGenerator(): DeviceIdGenerator {
-        return deviceIdGenerator
-    }
-}
 
 /**
  * Data class representing a user's device
@@ -709,5 +691,4 @@ sealed class SyncStatus {
     data class SYNCED(val lastSyncTime: Long) : SyncStatus()
 
     val isSynced: Boolean get() = this is SYNCED
-    val needsSync: Boolean get() = this == NEVER_SYNCED
 }

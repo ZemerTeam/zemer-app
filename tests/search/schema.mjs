@@ -7,7 +7,7 @@
 //     // NO coerceInputValues       // a *non-null* property that is absent OR JSON-null THROWS
 // So a Kotlin property that is non-null AND has no default value is REQUIRED: if YouTube stops
 // sending it (or sends null), `response.body<SearchResponse>()` throws MissingFieldException and the
-// ENTIRE response fails to parse. `YouTube.searchSummary()/search()` wrap that in runCatching and
+// ENTIRE response fails to parse. `YouTube.search()` wraps that in runCatching and
 // `.getOrNull()` swallows it to null -> the ViewModel shows "No results found" / "Search error".
 // That is the highest-impact "search is broken" failure: one missing field kills every result.
 //
@@ -41,15 +41,6 @@ export const SCHEMA = {
     continuations: optList("Continuation"),
   },
   MSC_Content: { musicResponsiveListItemRenderer: req("MRLIR") },
-
-  GetSearchSuggestionsResponse: { contents: optList("GSSR_Content") },
-  GSSR_Content: { searchSuggestionsSectionRenderer: req("SearchSuggestionsSectionRenderer") },
-  SearchSuggestionsSectionRenderer: { contents: reqList("SuggestionContent") },
-  SuggestionContent: {
-    searchSuggestionRenderer: opt("SearchSuggestionRenderer"),
-    musicResponsiveListItemRenderer: opt("MRLIR"),
-  },
-  SearchSuggestionRenderer: { suggestion: req("Runs"), navigationEndpoint: req("NavigationEndpoint") },
 
   Tabs: { tabs: reqList("Tab") },
   Tab: { tabRenderer: req("TabRenderer") },

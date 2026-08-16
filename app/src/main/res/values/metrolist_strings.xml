@@ -20,9 +20,7 @@
     <string name="local_history">Local</string>
     <string name="remote_history">Remote</string>
 
-    <string name="charts">Charts</string>
     <string name="unknown_artist">Unknown artist</string>
-    <string name="trending">Trending</string>
     <string name="latest_releases">Latest Releases</string>
     <string name="zemer_playlists">Zemer Playlists</string>
     <plurals name="n_hour">
@@ -324,7 +322,6 @@
         <item quantity="other">Please wait %d seconds before continuing…</item>
     </plurals>
     <string name="sync_account_create_and_lock">Create Account &amp; Lock</string>
-    <string name="sync_account_create_and_sync">Create Account &amp; Sync</string>
     <string name="sync_account_create">Create Account</string>
     <string name="sync_account_please_wait">Please wait…</string>
 
@@ -354,9 +351,6 @@
     <string name="network_required_setup">An internet connection is required to continue with setup and save your preferences.</string>
 
     <!-- Sync account (auth dialogs and status) -->
-    <string name="sync_account_creating_short">Creating account…</string>
-    <string name="sync_account_intro_no_google">Create an anonymous account to sync and backup your preferences across devices. No Google account required.</string>
-    <string name="sync_account_lock_note">Your settings will be locked and backed up to prevent accidental changes.</string>
     <string name="sync_account_create_desc">Create an account to sync your content filter preferences and restore them after app reinstallation.</string>
     <string name="sync_account_created">Sync Account Created</string>
     <string name="sync_account_optional_create">Optional: Create Sync Account</string>

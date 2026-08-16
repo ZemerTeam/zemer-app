@@ -75,39 +75,6 @@ object ContentFilterState {
     }
 
     /**
-     * Update sync-related metadata
-     */
-    fun updateSyncMetadata(
-        lastSyncTime: Long,
-        isSynced: Boolean
-    ) {
-        updateConfig(
-            lastSyncTime = lastSyncTime,
-            isSynced = isSynced
-        )
-    }
-
-    /**
-     * Mark configuration as modified (not synced)
-     */
-    fun markAsModified() {
-        updateConfig(isSynced = false)
-    }
-
-    /**
-     * Reset to default configuration
-     */
-    fun resetToDefaults() {
-        current = ContentFilterConfig()
-    }
-
-    /**
-     * Check if configuration has been modified since last sync
-     */
-    val hasUnsyncedChanges: Boolean
-        get() = !current.isSynced
-
-    /**
      * Check if any content filters are active
      */
     val hasActiveFilters: Boolean

@@ -36,22 +36,10 @@ sealed class AuthState {
     val isSignedIn: Boolean
         get() = this is SignedIn
 
-    val isSignedOut: Boolean
-        get() = this is SignedOut
-
     val isLoading: Boolean
         get() = this is Loading
 
     val isError: Boolean
         get() = this is Error
 
-    /**
-     * Get signed in user data, or null if not signed in
-     */
-    fun getSignedInUser(): SignedIn? = this as? SignedIn
-
-    /**
-     * Get error details, or null if not in error state
-     */
-    fun getError(): Throwable? = (this as? Error)?.exception
 }

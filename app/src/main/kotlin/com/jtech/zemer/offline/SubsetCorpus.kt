@@ -32,8 +32,6 @@ data class SubsetCorpus(
     val artistsById: Map<String, SubArtist> by lazy { artists.associateBy { it.id } }
     val tracksById: Map<String, SubTrack> by lazy { tracks.associateBy { it.videoId } }
     val albumsById: Map<String, SubAlbum> by lazy { albums.associateBy { it.id } }
-    val communityById: Map<String, SubCommunity> by lazy { community.associateBy { it.id } }
-
     /** Album members in stored order, grouped by album id. */
     val albumTracksByAlbum: Map<String, List<SubAlbumTrack>> by lazy {
         albumTracks.groupBy { it.albumId }.mapValues { (_, v) -> v.sortedBy { it.pos } }
@@ -42,20 +40,6 @@ data class SubsetCorpus(
     /** Community members in stored order, grouped by community playlist id. */
     val communityTracksByPlaylist: Map<String, List<SubCommunityTrack>> by lazy {
         communityTracks.groupBy { it.playlistId }.mapValues { (_, v) -> v.sortedBy { it.pos } }
-    }
-
-    /**
-     * videoId → the album it belongs to with the smallest album id (matches the server's `trackAlbumInfo`
-     * MIN(album_id) tie-break), for the song "View album" link and per-song artwork.
-     */
-    val albumOfTrack: Map<String, SubAlbum> by lazy {
-        val byVideo = HashMap<String, SubAlbum>()
-        for (at in albumTracks) {
-            val album = albumsById[at.albumId] ?: continue
-            val cur = byVideo[at.videoId]
-            if (cur == null || album.id < cur.id) byVideo[at.videoId] = album
-        }
-        byVideo
     }
 
     val zemerItemsByPlaylist: Map<String, List<SubZemerItem>> by lazy {

@@ -563,13 +563,6 @@ constructor(
         viewModelScope.launch(Dispatchers.IO) { syncUtils.syncEpisodesForLater() }
     }
 
-    suspend fun refreshAll() {
-        syncUtils.syncPodcastSubscriptions()
-        syncUtils.syncEpisodesForLater()
-        fetchNewEpisodes()
-        refreshChannels()
-    }
-
     /**
      * Toggle an episode's "saved for later" state. OPTIMISTIC: the local `inLibrary` flips at once
      * (drives the bookmark icon), then the server SE-playlist write runs and is reverted (with a

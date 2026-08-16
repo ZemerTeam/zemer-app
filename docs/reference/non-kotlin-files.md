@@ -11,11 +11,11 @@ Every tracked non-Kotlin path outside `docs/` is listed. Text files report line 
 | `.github/workflows/ui-audit.yml` | 50 lines | text `.yml` |
 | `.gitignore` | 117 lines | text `[none]` |
 | `.gitmodules` | 6 lines | text `[none]` |
-| `AGENTS.md` | 1439 lines | text `.md` |
+| `AGENTS.md` | 1442 lines | text `.md` |
 | `LICENSE` | 674 lines | text `[none]` |
 | `README.md` | 19 lines | text `.md` |
 | `app/.gitignore` | 1 lines | text `[none]` |
-| `app/build.gradle.kts` | 310 lines | text `.kts`; plugins `com.android.application, android, kotlin.serialization, hilt, kotlin.ksp, compose.compiler, google.gms.google.services, firebase.crashlytics, rikka.tools.refine` |
+| `app/build.gradle.kts` | 307 lines | text `.kts`; plugins `com.android.application, android, kotlin.serialization, hilt, kotlin.ksp, compose.compiler, google.gms.google.services, firebase.crashlytics, rikka.tools.refine` |
 | `app/lint.xml` | 12 lines | text `.xml`; XML root `lint` |
 | `app/proguard-rules.pro` | 269 lines | text `.pro` |
 | `app/schemas/com.jtech.zemer.db.InternalDatabase/1.json` | 297 lines | text `.json`; JSON keys `formatVersion, database` |
@@ -264,7 +264,7 @@ Every tracked non-Kotlin path outside `docs/` is listed. Text files report line 
 | `app/src/main/res/values/app_name.xml` | 4 lines | text `.xml`; XML root `resources` |
 | `app/src/main/res/values/colors.xml` | 9 lines | text `.xml`; XML root `resources` |
 | `app/src/main/res/values/ic_launcher_background.xml` | 6 lines | text `.xml`; XML root `resources` |
-| `app/src/main/res/values/metrolist_strings.xml` | 703 lines | text `.xml`; XML root `resources` |
+| `app/src/main/res/values/metrolist_strings.xml` | 697 lines | text `.xml`; XML root `resources` |
 | `app/src/main/res/values/strings.xml` | 438 lines | text `.xml`; XML root `resources` |
 | `app/src/main/res/values/styles.xml` | 26 lines | text `.xml`; XML root `resources` |
 | `app/src/main/res/values/values.xml` | 8 lines | text `.xml`; XML root `resources` |
@@ -280,7 +280,7 @@ Every tracked non-Kotlin path outside `docs/` is listed. Text files report line 
 | `build.gradle.kts` | 37 lines | text `.kts`; plugins `hilt, kotlin.ksp, google.gms.google.services, firebase.crashlytics, rikka.tools.refine` |
 | `cipher` | gitlink/non-file | tracked path is not a regular file in this checkout |
 | `gradle.properties` | 40 lines | text `.properties` |
-| `gradle/libs.versions.toml` | 158 lines | text `.toml` |
+| `gradle/libs.versions.toml` | 153 lines | text `.toml` |
 | `gradle/wrapper/gradle-wrapper.jar` | 45457 bytes | binary `.jar` |
 | `gradle/wrapper/gradle-wrapper.properties` | 8 lines | text `.properties` |
 | `gradlew` | 248 lines | text `[none]` |
@@ -364,17 +364,17 @@ Every tracked non-Kotlin path outside `docs/` is listed. Text files report line 
 | `tests/run.mjs` | 181 lines | text `.mjs` |
 | `tests/scan-live-players.mjs` | 124 lines | text `.mjs` |
 | `tests/scan-live-players.test.mjs` | 44 lines | text `.mjs` |
-| `tests/search/README.md` | 114 lines | text `.md` |
+| `tests/search/README.md` | 113 lines | text `.md` |
 | `tests/search/album-facet-probe.mjs` | 42 lines | text `.mjs` |
-| `tests/search/coverage.mjs` | 202 lines | text `.mjs` |
+| `tests/search/coverage.mjs` | 155 lines | text `.mjs` |
 | `tests/search/diag-auth.mjs` | 77 lines | text `.mjs` |
 | `tests/search/fetch-whitelist.mjs` | 59 lines | text `.mjs` |
-| `tests/search/lib.mjs` | 163 lines | text `.mjs` |
-| `tests/search/parsers.mjs` | 225 lines | text `.mjs` |
-| `tests/search/pill-survival.mjs` | 114 lines | text `.mjs` |
-| `tests/search/run.mjs` | 246 lines | text `.mjs` |
-| `tests/search/schema.mjs` | 239 lines | text `.mjs` |
-| `tests/search/self-test.mjs` | 136 lines | text `.mjs` |
+| `tests/search/lib.mjs` | 155 lines | text `.mjs` |
+| `tests/search/parsers.mjs` | 80 lines | text `.mjs` |
+| `tests/search/pill-survival.mjs` | 101 lines | text `.mjs` |
+| `tests/search/run.mjs` | 169 lines | text `.mjs` |
+| `tests/search/schema.mjs` | 230 lines | text `.mjs` |
+| `tests/search/self-test.mjs` | 103 lines | text `.mjs` |
 | `tests/search/verify-album-fix.mjs` | 61 lines | text `.mjs` |
 | `tests/search/whitelist-findable.mjs` | 114 lines | text `.mjs` |
 | `tests/sts-mismatch.mjs` | 125 lines | text `.mjs` |

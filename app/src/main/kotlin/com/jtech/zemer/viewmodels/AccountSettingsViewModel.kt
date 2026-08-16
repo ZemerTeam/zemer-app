@@ -1,9 +1,7 @@
 package com.jtech.zemer.viewmodels
 
-import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.jtech.zemer.App
 import com.jtech.zemer.utils.SyncUtils
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
@@ -14,22 +12,6 @@ import javax.inject.Inject
 class AccountSettingsViewModel @Inject constructor(
     private val syncUtils: SyncUtils,
 ) : ViewModel() {
-
-    /**
-     * Logout user and clear all synced content to prevent data mixing between accounts.
-     */
-    fun logoutAndClearSyncedContent(context: Context, onCookieChange: (String) -> Unit) {
-        viewModelScope.launch(Dispatchers.IO) {
-            // Clear all YouTube Music synced content first
-            syncUtils.clearAllSyncedContent()
-
-            // Then clear account preferences
-            App.forgetAccount(context)
-
-            // Clear cookie in UI
-            onCookieChange("")
-        }
-    }
 
     /**
      * Clear all library data including songs, albums, artists, playlists.

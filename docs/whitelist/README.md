@@ -34,7 +34,6 @@ The DAO exposes these whitelist-specific operations:
 | Replace-insert a list | `insertWhitelist(whitelistEntries: List<ArtistWhitelistEntity>)` |
 | Flow of IDs | `getAllWhitelistedArtistIds()` |
 | Suspended list of IDs | `getAllWhitelistedArtistIdsSync()` |
-| Flow of rows | `getAllWhitelistedArtists()` |
 | Suspended lookup by ID | `getWhitelistEntry(artistId: String)` |
 | Suspended list of rows | `getWhitelistEntriesSync()` |
 | Boolean membership test | `isArtistWhitelisted(artistId: String)` |
@@ -216,7 +215,6 @@ The whitelist appears in these synchronization paths:
 | `app/src/main/kotlin/com/jtech/zemer/sync/ContentFilterSyncService.kt` | 446 | class ContentFilterSyncService, val userPreferencesRepository, val authManager, val serviceScope, val _syncState, val syncState, val _lastSyncResult, val lastSyncResult, var _isApplyingServerPreferences, fun initialize |
 | `app/src/main/kotlin/com/jtech/zemer/sync/UserPreferencesRepository.kt` | 760 | fun ContentFilterConfig, fun com, class UserPreferencesRepository, val firestore, val authManager, val deviceIdGenerator, fun getDocumentId, fun classifyFirebaseError, val lastSyncTimeKey, val deviceIdKey |
 | `app/src/main/kotlin/com/jtech/zemer/sync/models/DevicePreferencesEntity.kt` | 126 | class DeviceContentFilters, val enableContentFilters, val allowFemaleSingers, val blockVideos, val femalePasscodeHash, fun fromConfig, fun toConfig, class DeviceMetadata, val deviceName, val manufacturer |
-| `app/src/main/kotlin/com/jtech/zemer/sync/models/UserPreferencesEntity.kt` | 92 | class UserPreferencesEntity, val userEmail, val userId, val contentFilters, val currentDevice, val allDevices, val isLocked, val createdAt, val updatedAt, fun fromConfig |
 | `app/src/main/kotlin/com/jtech/zemer/ui/component/Library.kt` | 410 | fun LibraryArtistListItem, fun WhitelistedArtistListItem, fun LibraryArtistGridItem, fun WhitelistedArtistGridItem, fun LibraryAlbumListItem, fun LibraryAlbumGridItem, fun LibraryPlaylistListItem, fun LibraryPlaylistGridItem |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/KidZoneScreen.kt` | 336 | fun KidZoneScreen, val menuState, var viewType, val firstFocus, val searchFocus, val firstArtistFocus, val artists, val searchQuery, val syncProgress, val isSyncing |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/NavigationBuilder.kt` | 338 | fun NavGraphBuilder, val videoId, val title, val artist |
@@ -228,8 +226,8 @@ The whitelist appears in these synchronization paths:
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/settings/ContentSettings.kt` | 681 | class ContentSettingsViewModel, val authManager, val webAuthManager, val syncService, val userPreferencesRepository, val authState, val syncState, val syncStatus, fun formatLastSyncTime, val sdf |
 | `app/src/main/kotlin/com/jtech/zemer/utils/ContentFilterConfig.kt` | 108 | class ContentFilterConfig, val filtersEnabled, val allowFemaleSingers, val blockVideos, val femalePasscodeHash, val lastSyncTime, val isSynced, object ContentFilterState, val _state, val state |
 | `app/src/main/kotlin/com/jtech/zemer/utils/IsraeliArtistRegistry.kt` | 51 | object IsraeliArtistRegistry, var cachedIds, val mutex, fun isIsraeli, val snapshot, val ids |
-| `app/src/main/kotlin/com/jtech/zemer/utils/SyncUtils.kt` | 724 | class WhitelistSyncProgress, val current, val total, val currentArtistName, val isComplete, class SyncUtils, val databaseLazy, val database, val syncScope, val isSyncingLikedSongs |
-| `app/src/main/kotlin/com/jtech/zemer/utils/UrlValidator.kt` | 109 | object UrlValidator, fun validateAndParseUrl, val trimmedUrl, val urlWithScheme, val httpUrl, fun isValidUrl, fun isUrlFromTrustedHost, val httpUrl, fun getQueryParameter, val httpUrl |
+| `app/src/main/kotlin/com/jtech/zemer/utils/SyncUtils.kt` | 1111 | class WhitelistSyncProgress, val current, val total, val isComplete, class SyncUtils, val databaseLazy, val database, val syncScope, val isSyncingLikedSongs |
+| `app/src/main/kotlin/com/jtech/zemer/utils/UrlValidator.kt` | 82 | object UrlValidator, fun validateAndParseUrl, val trimmedUrl, val urlWithScheme, val httpUrl, fun isValidUrl, fun getQueryParameter, val httpUrl |
 | `app/src/main/kotlin/com/jtech/zemer/utils/WhitelistCache.kt` | — | object WhitelistCache, var memory (@Volatile immutable map), fun updateAll (whole-map swap), fun get, fun snapshot, fun allowedEntries, fun isAllowed |
 | `app/src/main/kotlin/com/jtech/zemer/utils/BlockedIdsCache.kt` | 84 | object BlockedIdsCache, const REASON_FEMALE, const REASON_GLOBAL, fun updateAll, fun isBlocked, fun isEmpty, fun snapshot, fun serialize, fun parse |
 | `app/src/main/kotlin/com/jtech/zemer/utils/WhitelistFetcher.kt` | 72 | object WhitelistFetcher, val firestore, var lastFetchTime, val doc, val updatedAt, val update, val value, val now, val whitelistEntities, val snapshot |
@@ -238,7 +236,6 @@ The whitelist appears in these synchronization paths:
 | `app/src/main/kotlin/com/jtech/zemer/viewmodels/ArtistItemsViewModel.kt` | 98 | class ArtistItemsViewModel, val database, val artistId, val browseId, val params, val title, val itemsPage, val hideExplicit, fun loadMore, val oldItemsPage |
 | `app/src/main/kotlin/com/jtech/zemer/viewmodels/ArtistViewModel.kt` | 134 | class ArtistViewModel, val database, val artistId, var artistPage, var isLoading, val libraryArtist, val librarySongs, val libraryAlbums, fun fetchArtistsFromYTM, val hideExplicit |
 | `app/src/main/kotlin/com/jtech/zemer/viewmodels/BrowseViewModel.kt` | 55 | class BrowseViewModel, val database, val browseId, val items, val title, val allItems |
-| `app/src/main/kotlin/com/jtech/zemer/viewmodels/ChartsViewModel.kt` | 87 | class ChartsViewModel, val database, val _chartsPage, val chartsPage, val _isLoading, val isLoading, val _error, val error, fun loadCharts, val hideExplicit |
 | `app/src/main/kotlin/com/jtech/zemer/viewmodels/HistoryViewModel.kt` | 108 | class HistoryViewModel, val database, var historySource, val today, val thisMonday, val lastMonday, val historyPage, val events, val date, val daysAgo |
 | `app/src/main/kotlin/com/jtech/zemer/viewmodels/HomeViewModel.kt` | 1537 | class HomeViewModel, val database, val syncUtils, class HomeArtistProfile, val id, val name, val isAmerican, val isIsraeli, val isFemale, val isFamous |
 | `app/src/main/kotlin/com/jtech/zemer/viewmodels/KidZoneViewModel.kt` | 73 | class KidZoneViewModel, val database, val syncUtils, val searchQuery, val syncProgress, val isSyncing, fun sync, val allArtists, val filteredByQuery, val thumbRequests |
