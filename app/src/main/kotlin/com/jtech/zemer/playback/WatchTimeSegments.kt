@@ -20,8 +20,13 @@ import java.util.Locale
  */
 class WatchTimeSegments {
 
-    /** One watched range in media time, as the `st`/`et` strings of a watchtime ping. */
-    data class Drained(val st: String, val et: String)
+    /**
+     * One drain's watched ranges as the `st`/`et` strings of a watchtime ping, plus [watchedMs] —
+     * the total real media-time these ranges cover (the deferred-offline queue sums it across a
+     * listen to gate and to report `rt`). Defaulted so the zero-length final-ping construction is
+     * unaffected.
+     */
+    data class Drained(val st: String, val et: String, val watchedMs: Long = 0L)
 
     private val pending = mutableListOf<Pair<Long, Long>>()
     private var openStartMs = -1L
@@ -88,6 +93,7 @@ class WatchTimeSegments {
         return Drained(
             st = emitted.joinToString(",") { formatSeconds(it.first) },
             et = emitted.joinToString(",") { formatSeconds(it.second) },
+            watchedMs = emitted.sumOf { (start, end) -> end - start },
         )
     }
 

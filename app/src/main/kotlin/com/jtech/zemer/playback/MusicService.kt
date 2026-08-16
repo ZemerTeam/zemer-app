@@ -157,6 +157,7 @@ import com.metrolist.innertube.utils.parseCookieString
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.FlowPreview
@@ -257,6 +258,44 @@ class MusicService :
             historyPaused = { withContext(Dispatchers.IO) { dataStore.get(PauseListenHistoryKey, false) } },
             fetchTracking = { videoId ->
                 YTPlayerUtils.playerResponseForMetadata(videoId, null).getOrNull()?.playbackTracking
+            },
+            // A genuine OFFLINE listen the live session could not report is queued and re-pushed on
+            // reconnect (additive; the live path is untouched — see DeferredStatsQueue).
+            onOfflineListen = { deferredStatsQueue.enqueue(it) },
+        )
+    }
+
+    // Single-threaded, off-main scope for the deferred-stats queue (file I/O + fire-and-forget beacons);
+    // all queue access is confined here, mirroring the telemetry Tracker's dispatcher confinement.
+    private val deferredStatsScope =
+        CoroutineScope(Dispatchers.IO.limitedParallelism(1) + SupervisorJob())
+
+    // The offline/cached-play recovery queue: captures listens the live watch-time session drops (no
+    // network → no tracking URLs) and re-pushes them as a deferred stats session on reconnect. JSONL
+    // under filesDir (no Room), reusing TrackingQueue + FlushSchedule.
+    private val deferredStatsQueue by lazy {
+        DeferredStatsQueue(
+            file = java.io.File(filesDir, "deferred-stats.jsonl"),
+            scope = deferredStatsScope,
+            isConnected = { isNetworkConnected.value },
+            push = { record ->
+                pushDeferredStats(
+                    record = record,
+                    fetchTracking = { videoId ->
+                        YTPlayerUtils.playerResponseForMetadata(videoId, null).getOrNull()?.playbackTracking
+                    },
+                    cpn = YouTube.generateCpn(),
+                    sendPlayback = { url, cpn ->
+                        YouTube.registerPlayback(playbackTracking = url, cpn = cpn, cmt = "0.0", final = false)
+                            .getOrNull()?.status?.value
+                    },
+                    sendWatchtime = { url, cpn, rec ->
+                        YouTube.registerWatchtime(
+                            watchtimeTracking = url, cpn = cpn,
+                            st = rec.st, et = rec.et, cmt = rec.cmt, rt = rec.rt, final = true,
+                        ).getOrNull()?.status?.value
+                    },
+                )
             },
         )
     }
@@ -568,7 +607,10 @@ class MusicService :
 
         scope.launch {
             connectivityObserver.networkStatus.collect { isConnected ->
+                val reconnected = isConnected && !isNetworkConnected.value
                 isNetworkConnected.value = isConnected
+                // Flush any offline listens queued while disconnected, the moment the network returns.
+                if (reconnected) deferredStatsQueue.onFlushTrigger()
                 if (isConnected && waitingForNetworkConnection.value) {
                     // Simple auto-play logic like OuterTune
                     waitingForNetworkConnection.value = false
@@ -2739,6 +2781,7 @@ class MusicService :
         // Best-effort final watchtime ping for the in-flight listen (the scope may not outlive us,
         // but the enqueue is synchronous and the consumer usually drains before teardown).
         watchTimeReporter.onDestroy()
+        deferredStatsScope.cancel()
         if (dataStore.get(PersistentQueueKey, true)) {
             saveQueueToDisk()
         }

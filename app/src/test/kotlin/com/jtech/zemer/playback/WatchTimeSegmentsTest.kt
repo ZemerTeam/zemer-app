@@ -135,4 +135,27 @@ class WatchTimeSegmentsTest {
     fun `lastKnownPositionMs is zero for a session that never played`() {
         assertEquals(0L, WatchTimeSegments().lastKnownPositionMs())
     }
+
+    // --- Drained.watchedMs: the real watched total the deferred-offline queue sums to gate + report rt ---
+
+    @Test
+    fun `drain reports the watched milliseconds of its ranges`() {
+        val s = WatchTimeSegments()
+        s.onPlay(0)
+        s.onProgress(30_000)
+
+        assertEquals(30_000L, s.drain(30_000, stillPlaying = false)!!.watchedMs)
+    }
+
+    @Test
+    fun `watchedMs sums multiple ranges and excludes seeked-over time`() {
+        val s = WatchTimeSegments()
+        s.onPlay(0)
+        s.onProgress(20_000)
+        s.onSeek(20_000, 60_000, wasPlaying = true) // 20s..60s skipped, not watched
+        s.onProgress(80_000)
+
+        // Watched: 0..20 (20s) + 60..80 (20s) = 40s; the seeked 20..60 is not counted.
+        assertEquals(40_000L, s.drain(80_000, stillPlaying = false)!!.watchedMs)
+    }
 }

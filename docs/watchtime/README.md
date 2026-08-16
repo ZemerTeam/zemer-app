@@ -105,7 +105,8 @@ stream is still InnerTube + cipher), so they beacon.
   showed relay beacons don't even register). Gated at session creation (`isRelay`), fail-safe on the
   unresolved cold-start window (`relayModeNow != false`, so an unknown relay state never beacons).
 - **Cast** — the receiver plays, not this device. Gated (`isCasting`).
-- **Offline local plays** — no tracking URL resolvable; the session reports nothing.
+- **Offline local plays** — no tracking URL resolvable; the LIVE session reports nothing, but the
+  listen is not lost: it is queued and re-pushed on reconnect (see §Deferred offline recovery).
 - **Listen-history paused** (`PauseListenHistoryKey`) — silences beacons, re-checked PER PING so
   enabling the switch mid-listen silences the rest of the in-flight session too.
 
@@ -206,6 +207,44 @@ From a controlled A/B on a test channel. Read this before concluding the system 
 
 Bottom line: ship the direct path as-is. No further beacons (qoe / source / atr / ptracking) are
 warranted, and the retroactive strip under single-account testing is expected behavior, not a bug.
+
+## Deferred offline recovery (`DeferredStatsQueue` — additive, live path untouched)
+
+The live session above needs `/player` tracking URLs, so a downloaded song played with **no network**
+fires nothing — that listen would contribute 0 views and 0 watch time. This path recovers it by pushing
+a **deferred** stats session from a fresh `/player` once the device reconnects. A deferred session is
+accepted at ingestion (proven: fresh WEB_REMIX `/player` → new cpn → playback + `final=1` watchtime pings,
+both `204`), because the fresh response's `ei`/`plid`/`vm` tokens have no expiry problem.
+
+The rules that must not regress:
+
+- **The live DIRECT path is untouched.** Capture happens ONLY in the reporter's existing offline branch
+  (the "no tracking URLs" case that used to do nothing) — so relay/cast (never a session) and online plays
+  (report live) never reach it. An online *cached* play resolves fresh URLs via `fetchTracking` and reports
+  live; only a genuinely unreachable play is deferred.
+- **Honesty is the same hard rule.** The queued `st`/`et` are the SAME real ranges `WatchTimeSegments`
+  computed for the listen (accumulated from the pings, `WatchTimeSegments.Drained.watchedMs` summed); `cmt`
+  is the final position, `rt` the total real watched seconds (≤ played time ≤ duration). Nothing is
+  re-derived or fabricated. Gated at the ≥10s genuine-play threshold (`MIN_DEFERRED_MS`), and **the
+  privacy switch (`PauseListenHistoryKey`) suppresses the deferred capture too** — a deferred beacon is
+  still a beacon.
+- **No Room, no migration.** Durability reuses `tracking/TrackingQueue` (JSONL under `filesDir`,
+  `deferred-stats.jsonl`, cap 500, drop-oldest, atomic rewrite); backoff reuses `tracking/FlushSchedule`.
+  `DeferredStatsRecord` is the serialized row; a corrupt line decodes to null (never crashes the flush).
+- **Flush is single-flight, connectivity-gated, staleness-capped.** Triggered on reconnect (the
+  `connectivityObserver` false→true edge); per record, past a **7-day** staleness drop, `pushDeferredStats`
+  does a fresh `/player` (reusing `fetchTracking`) + a fresh `generateCpn()` (no media to correlate) +
+  `registerPlayback`(cmt=0,final=0) + `registerWatchtime`(the stored ranges, final=1). 2xx → remove;
+  400 → drop (never poison the queue); 5xx/429/offline/no-tracking → keep and retry with backoff. **Never
+  via the relay egress** (fired on the device's own direct connection).
+- **What to expect** (same as the live path, `docs/watchtime/README.md` "what to expect"): the **view** is
+  the realistic win; single-account watch time may still be swept as invalid traffic — the payoff is real
+  distributed users each pushing their own offline listen on reconnect (the good pattern). A deferred play
+  registers at push time, not original play time (`rt` is relative, no app-set absolute time) — a minor,
+  honest analytics skew.
+- **Isolation-tested:** `DeferredStatsRecordTest` (round-trip / staleness / corrupt-line), `DeferredStatsPushTest`
+  (2xx→SUCCESS / 400→DROP / else→RETRY / no-tracking→RETRY), `DeferredStatsQueueTest` (capture, reconnect
+  flush, keep-on-retry, drop-when-stale, quiet while offline).
 
 ## Regression gate
 

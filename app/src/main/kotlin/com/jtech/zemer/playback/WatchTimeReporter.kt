@@ -47,6 +47,13 @@ class WatchTimeReporter(
      * ping did. Null when unavailable (offline local play): the session then reports nothing.
      */
     private val fetchTracking: suspend (videoId: String) -> PlayerResponse.PlaybackTracking?,
+    /**
+     * Sink for a genuine OFFLINE listen the live session could not report (no tracking URLs) — the
+     * additive deferred-stats path re-pushes it on reconnect. Default no-op keeps the reporter
+     * isolated + unit-testable; [MusicService] wires the real [DeferredStatsQueue]. Only fires from the
+     * offline branch, so relay/cast (never a session) and online plays (report live) never reach it.
+     */
+    private val onOfflineListen: (DeferredStatsRecord) -> Unit = {},
 ) {
 
     private data class TrackingUrls(
@@ -340,7 +347,40 @@ class WatchTimeReporter(
                 )
             }
         if (urls?.playbackUrl == null && urls?.watchtimeUrl == null) {
-            for (ping in s.pings) { /* no tracking URLs (offline local play): nothing to report */ }
+            // OFFLINE listen: no live URLs to beacon now. Accumulate the SAME real ranges the reporter
+            // computed (the pings' st/et are honest deltas) and hand ONE record to the deferred sink to
+            // re-push on reconnect. Nothing is fabricated; a listen below the genuine-play gate is dropped.
+            val st = StringBuilder()
+            val et = StringBuilder()
+            var watchedMs = 0L
+            var lastCmtMs = 0L
+            for (ping in s.pings) {
+                if (ping is Ping.Watch) {
+                    if (ping.segments.watchedMs > 0) {
+                        if (st.isNotEmpty()) { st.append(','); et.append(',') }
+                        st.append(ping.segments.st)
+                        et.append(ping.segments.et)
+                        watchedMs += ping.segments.watchedMs
+                    }
+                    lastCmtMs = ping.cmtMs
+                }
+            }
+            // Respect the privacy switch: a deferred beacon is still a beacon, so a listen the user
+            // marked private is never queued for later push either.
+            if (watchedMs >= MIN_DEFERRED_MS && st.isNotEmpty() && !historyPaused()) {
+                runCatching {
+                    onOfflineListen(
+                        DeferredStatsRecord(
+                            videoId = s.videoId,
+                            st = st.toString(),
+                            et = et.toString(),
+                            cmt = WatchTimeSegments.formatSeconds(lastCmtMs),
+                            rt = WatchTimeSegments.formatSeconds(watchedMs),
+                            endedAtMs = System.currentTimeMillis(),
+                        ),
+                    )
+                }
+            }
             return
         }
         // The fmt reported per ping is the LIVE session value (updated by onTrackingResolved, nulled by
@@ -411,5 +451,9 @@ class WatchTimeReporter(
         // enough that a normal next-track preload (played within minutes) is never rejected, tight
         // enough that an hours-later cache-served replay resolves fresh instead of beaconing a dead URL.
         private const val TRACKING_MAX_AGE_MS = 60 * 60 * 1000L
+
+        // The genuine-play gate for a DEFERRED offline capture — a listen shorter than this is not
+        // worth queuing (matches the ≥10s history threshold; a YouTube view qualifies around ~30s).
+        private const val MIN_DEFERRED_MS = 10_000L
     }
 }

@@ -180,6 +180,14 @@ rules that must not regress:
   sessions (the receiver plays). Both are gated at session creation inside the reporter. The
   `PauseListenHistoryKey` privacy switch silences beacons too, re-checked PER PING so enabling it
   mid-listen silences the rest of the in-flight session.
+- **Deferred offline recovery** (`playback/DeferredStatsQueue`, additive — the LIVE path is untouched):
+  a genuinely OFFLINE listen (no network → no tracking URLs) is captured in the reporter's existing
+  offline branch (relay/cast never reach it; an online cached play resolves fresh URLs and reports live)
+  and re-pushed on reconnect as a **deferred** stats session (fresh `/player` → fresh cpn → playback +
+  `final=1` watchtime, the STORED real ranges). Same honesty rule (`rt` ≤ played time; `PauseListenHistory`
+  suppresses capture too), ≥10s gate, **never via the relay egress**. JSONL under `filesDir` reusing
+  `TrackingQueue` + `FlushSchedule` (no Room/migration); single-flight, staleness-capped (7 d), 2xx→remove
+  / 400→drop / else→retry. The realistic win is the VIEW; details + what-to-expect in `docs/watchtime/README.md`.
 - The beacon request shapes (`ver=2&c=WEB_REMIX&cpn&st&et&cmt&rt&final`, `s.youtube.com` →
   `music.youtube.com` host swap, WEB_REMIX headers + SAPISIDHASH via the shared `ytClient`) are the
   replica-verified against live YouTube (every beacon HTTP 204).
