@@ -168,6 +168,29 @@ class DeferredStatsQueueTest {
     }
 
     @Test
+    fun `a backlog larger than one batch fully drains on a stable connection`() {
+        // delayFn is a no-op so the paced self-reschedule runs synchronously (no wall-clock wait).
+        val q = DeferredStatsQueue(
+            file = file,
+            scope = scope,
+            isConnected = { connected },
+            push = { rec -> pushed.add(rec.videoId); DeferredPushOutcome.SUCCESS },
+            now = { nowMs },
+            delayFn = { },
+        )
+        connected = false
+        val total = DeferredStatsQueue.BATCH_SIZE * 3 + 7 // 67, well past one batch
+        repeat(total) { q.enqueue(recordFor("v$it")) }
+        assertEquals(total, queuedLines().size)
+
+        connected = true
+        q.onFlushTrigger() // ONE trigger; the paced reschedule must drain the whole backlog
+
+        assertEquals("no records stall past the first batch", total, pushed.size)
+        assertEquals(0, queuedLines().size)
+    }
+
+    @Test
     fun `a mix of stale and fresh records drops the stale and pushes the fresh`() {
         val q = queue { DeferredPushOutcome.SUCCESS }
         connected = false

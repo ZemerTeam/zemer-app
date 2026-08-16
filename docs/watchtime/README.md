@@ -237,9 +237,14 @@ The rules that must not regress:
   `deferred-stats.jsonl`, cap 500, drop-oldest, atomic rewrite); backoff reuses `tracking/FlushSchedule`.
   `DeferredStatsRecord` is the serialized row; a corrupt line decodes to null (never crashes the flush).
 - **Flush is single-flight, connectivity-gated, staleness-capped, self-rescheduling.** Triggered on
-  reconnect (the `connectivityObserver` false→true edge) AND self-rescheduled after each backoff, so a
-  record that RETRYs while the device stays online still drains (the reconnect edge is not the only
-  trigger). Per record, past a **7-day** staleness drop, `pushDeferredStats` does a fresh `/player`
+  reconnect (the `connectivityObserver` false→true edge); the reconnect edge is the ONLY external
+  trigger, so the flush self-reschedules whenever work remains: after a RETRY it waits out the backoff,
+  and after a full batch (`BATCH_SIZE` = 20) drains with records still queued it waits a short **pace**
+  (`PACE_MS`) before the next batch. That both **fully drains a backlog larger than one batch on a
+  stable connection** (otherwise it would stall past 20 until the next reconnect) AND **trickles the
+  beacons out instead of firing the whole backlog as one burst** (the right mitigation for a
+  long-offline reconnect - pace it, don't drop it; the 7-day cap already bounds how big the backlog
+  gets). Per record, past a **7-day** staleness drop, `pushDeferredStats` does a fresh `/player`
   (reusing `fetchTracking`) + a fresh `generateCpn()` (no media to correlate), then **the watchtime ping
   fires ONLY after the playback (session-open) ping is accepted** - a watchtime with no preceding
   playback ping is the orphan shape, and on a partial failure the whole record is re-pushed under a

@@ -40,11 +40,14 @@ class DeferredStatsQueue(
     private val push: suspend (DeferredStatsRecord) -> DeferredPushOutcome,
     private val now: () -> Long = System::currentTimeMillis,
     private val maxAgeMs: Long = MAX_AGE_MS,
+    private val paceMs: Long = PACE_MS,
+    /** The reschedule wait (real `delay` in prod; a no-op in tests so the paced drain runs synchronously). */
+    private val delayFn: suspend (Long) -> Unit = { delay(it) },
 ) {
     private val queue = TrackingQueue(file, MAX_SIZE)
     private val schedule = FlushSchedule(now)
     private var inFlight = false
-    private var retryScheduled = false
+    private var flushScheduled = false
 
     /** Capture (from the reporter's offline branch): persist one qualifying listen, then try to flush. */
     fun enqueue(record: DeferredStatsRecord) {
@@ -63,10 +66,10 @@ class DeferredStatsQueue(
         if (inFlight || !isConnected() || queue.size == 0) return
         if (schedule.delayUntilAllowed() > 0) return
         inFlight = true
-        var retryAfterMs = 0L
+        var backoffMs = 0L
         try {
-            // Bounded per flush (each record costs a /player round-trip) — a self-reschedule (below) and
-            // the reconnect trigger drain any remainder.
+            // Bounded per flush (each record costs a /player round-trip); the self-reschedule below
+            // drains any remainder over time.
             for (line in queue.peekBatch(BATCH_SIZE)) {
                 if (!isConnected()) break
                 val record = DeferredStatsRecord.decode(line)
@@ -81,7 +84,7 @@ class DeferredStatsQueue(
                     }
                     DeferredPushOutcome.DROP -> queue.removeBatch(listOf(line))
                     DeferredPushOutcome.RETRY -> {
-                        retryAfterMs = schedule.onFailure(rateLimited = false)
+                        backoffMs = schedule.onFailure(rateLimited = false)
                         break // respect the backoff window; the reschedule below retries the rest
                     }
                 }
@@ -89,14 +92,21 @@ class DeferredStatsQueue(
         } finally {
             inFlight = false
         }
-        // Self-reschedule after the backoff: the ONLY external trigger is the reconnect edge, so a
-        // record that RETRYs while the device stays online would otherwise sit until it goes stale. One
-        // pending retry at a time (the guard); the delayUntilAllowed gate makes an early fire a no-op.
-        if (retryAfterMs > 0 && queue.size > 0 && !retryScheduled) {
-            retryScheduled = true
+        // Self-reschedule whenever work remains, since the ONLY external trigger is the reconnect edge:
+        //  - after a RETRY, wait out the backoff before retrying the rest;
+        //  - after a full batch drained but records remain, wait a short PACE so a large backlog fully
+        //    drains on a stable connection (else it would stall past BATCH_SIZE until the next reconnect)
+        //    AND the reconnect flush trickles out instead of firing the whole backlog as one burst.
+        val rescheduleMs = when {
+            backoffMs > 0 -> backoffMs
+            isConnected() && queue.size > 0 -> paceMs
+            else -> 0L
+        }
+        if (rescheduleMs > 0 && !flushScheduled) {
+            flushScheduled = true
             scope.launch {
-                delay(retryAfterMs)
-                retryScheduled = false
+                delayFn(rescheduleMs)
+                flushScheduled = false
                 flush()
             }
         }
@@ -108,7 +118,10 @@ class DeferredStatsQueue(
         /** Beyond this a deferred listen isn't worth reporting (matches the telemetry queue's 7-day cap). */
         const val MAX_AGE_MS = 7L * 24 * 60 * 60 * 1000
 
-        /** How many records one flush processes before yielding to the next trigger. */
+        /** How many records one flush processes before yielding (paced) to the next. */
         const val BATCH_SIZE = 20
+
+        /** Delay between batches when a backlog remains - drains it fully AND trickles the beacons. */
+        const val PACE_MS = 30_000L
     }
 }

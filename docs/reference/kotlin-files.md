@@ -2,7 +2,7 @@
 
 Every tracked Kotlin file is listed with hard metadata extracted from the file text: line count, package, whether it declares any `@Composable`, import count, top-level declaration count (`Decls` - a high value flags a god-file), and the external import roots it depends on. Declaration counting is regex-based (after stripping comments and string literals). For the actual declaration names, read the file or use your editor's outline - they are not duplicated here.
 
-## `app` Kotlin files (669)
+## `app` Kotlin files (671)
 
 | File | Lines | Package | Compose | Imports | Decls | External import roots |
 | --- | ---: | --- | --- | ---: | ---: | --- |
@@ -127,7 +127,7 @@ Every tracked Kotlin file is listed with hard metadata extracted from the file t
 | `app/src/main/kotlin/com/jtech/zemer/playback/CastStreamRelay.kt` | 375 | `com.jtech.zemer.playback` | no | 19 | 75 | java.io, java.net, java.nio, java.security, java.util, timber.log |
 | `app/src/main/kotlin/com/jtech/zemer/playback/CastVolumeKeys.kt` | 57 | `com.jtech.zemer.playback` | no | 1 | 7 | android.view |
 | `app/src/main/kotlin/com/jtech/zemer/playback/DeferredStatsPush.kt` | 48 | `com.jtech.zemer.playback` | no | 1 | 7 |  |
-| `app/src/main/kotlin/com/jtech/zemer/playback/DeferredStatsQueue.kt` | 114 | `com.jtech.zemer.playback` | no | 6 | 19 | java.io, kotlinx.coroutines |
+| `app/src/main/kotlin/com/jtech/zemer/playback/DeferredStatsQueue.kt` | 127 | `com.jtech.zemer.playback` | no | 6 | 23 | java.io, kotlinx.coroutines |
 | `app/src/main/kotlin/com/jtech/zemer/playback/DeferredStatsRecord.kt` | 50 | `com.jtech.zemer.playback` | no | 3 | 11 | kotlinx.serialization |
 | `app/src/main/kotlin/com/jtech/zemer/playback/DownloadMenuLogic.kt` | 68 | `com.jtech.zemer.playback` | no | 0 | 4 |  |
 | `app/src/main/kotlin/com/jtech/zemer/playback/DownloadStateResolver.kt` | 106 | `com.jtech.zemer.playback` | no | 3 | 11 |  |
@@ -142,6 +142,7 @@ Every tracked Kotlin file is listed with hard metadata extracted from the file t
 | `app/src/main/kotlin/com/jtech/zemer/playback/MediaStoreDownloadService.kt` | 302 | `com.jtech.zemer.playback` | no | 27 | 48 | android.app, android.content, android.os, androidx.core, dagger.hilt, javax.inject, kotlin.math, kotlinx.coroutines, timber.log |
 | `app/src/main/kotlin/com/jtech/zemer/playback/MusicService.kt` | 2936 | `com.jtech.zemer.playback` | no | 185 | 309 | android.app, android.content, android.database, android.media, android.net, android.os, androidx.core, androidx.datastore, androidx.media3, com.zemer, dagger.hilt, java.io, java.time, java.util, javax.inject, kotlin.time, kotlinx.coroutines, okhttp3.OkHttpClient, org.fcast, timber.log |
 | `app/src/main/kotlin/com/jtech/zemer/playback/PlaybackNonceRegistry.kt` | 76 | `com.jtech.zemer.playback` | no | 1 | 13 |  |
+| `app/src/main/kotlin/com/jtech/zemer/playback/PlaybackProbe.kt` | 31 | `com.jtech.zemer.playback` | no | 0 | 8 |  |
 | `app/src/main/kotlin/com/jtech/zemer/playback/PlayerConnection.kt` | 370 | `com.jtech.zemer.playback` | no | 28 | 67 | android.content, androidx.media3, kotlinx.coroutines, org.fcast |
 | `app/src/main/kotlin/com/jtech/zemer/playback/PlayerVideoUiLogic.kt` | 49 | `com.jtech.zemer.playback` | no | 0 | 5 |  |
 | `app/src/main/kotlin/com/jtech/zemer/playback/RemoteVolumeTracker.kt` | 54 | `com.jtech.zemer.playback` | no | 3 | 9 | kotlinx.coroutines |
@@ -579,7 +580,7 @@ Every tracked Kotlin file is listed with hard metadata extracted from the file t
 | `app/src/test/kotlin/com/jtech/zemer/playback/CastStreamRelayTest.kt` | 330 | `com.jtech.zemer.playback` | no | 15 | 62 | java.io, java.net, java.nio, java.util, org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/playback/CastVolumeKeysTest.kt` | 93 | `com.jtech.zemer.playback` | no | 3 | 1 | android.view, org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/playback/DeferredStatsPushTest.kt` | 82 | `com.jtech.zemer.playback` | no | 4 | 6 | kotlinx.coroutines, org.junit |
-| `app/src/test/kotlin/com/jtech/zemer/playback/DeferredStatsQueueTest.kt` | 186 | `com.jtech.zemer.playback` | no | 8 | 22 | java.io, kotlinx.coroutines, org.junit |
+| `app/src/test/kotlin/com/jtech/zemer/playback/DeferredStatsQueueTest.kt` | 209 | `com.jtech.zemer.playback` | no | 8 | 24 | java.io, kotlinx.coroutines, org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/playback/DeferredStatsRecordTest.kt` | 51 | `com.jtech.zemer.playback` | no | 5 | 4 | org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/playback/DownloadCancellationContractTest.kt` | 75 | `com.jtech.zemer.playback` | no | 10 | 10 | java.util, kotlinx.coroutines, org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/playback/DownloadMenuLogicTest.kt` | 140 | `com.jtech.zemer.playback` | no | 3 | 21 | org.junit |
@@ -596,6 +597,7 @@ Every tracked Kotlin file is listed with hard metadata extracted from the file t
 | `app/src/test/kotlin/com/jtech/zemer/playback/VideoQualityLogicTest.kt` | 221 | `com.jtech.zemer.playback` | no | 5 | 23 | org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/playback/VideoRenditionTest.kt` | 87 | `com.jtech.zemer.playback` | no | 4 | 6 | org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/playback/VideoSongIdsTest.kt` | 45 | `com.jtech.zemer.playback` | no | 4 | 4 | java.util, org.junit |
+| `app/src/test/kotlin/com/jtech/zemer/playback/WatchTimeReporterTest.kt` | 181 | `com.jtech.zemer.playback` | no | 8 | 28 | kotlinx.coroutines, org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/playback/WatchTimeScheduleTest.kt` | 59 | `com.jtech.zemer.playback` | no | 2 | 6 | org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/playback/WatchTimeSegmentsTest.kt` | 161 | `com.jtech.zemer.playback` | no | 5 | 18 | org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/playback/relay/RelayDeviceIdTest.kt` | 82 | `com.jtech.zemer.playback.relay` | no | 6 | 4 | java.util, org.junit |

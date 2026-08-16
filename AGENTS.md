@@ -199,8 +199,10 @@ rules that must not regress:
   suppresses capture with the SAME per-ping semantics as the live path - paused-at-start captures nothing,
   and accumulation stops at the first paused ping), ≥10s gate, **never via the relay egress**. JSONL under
   `filesDir` reusing `TrackingQueue` + `FlushSchedule` (no Room/migration); single-flight, connectivity-
-  triggered AND self-rescheduled after each backoff (so a device that stays online still drains),
-  staleness-capped (7 d). **The watchtime ping fires only after the playback ping is accepted** (no orphan;
+  triggered, and self-rescheduling whenever work remains (after a RETRY-backoff, and after a full batch
+  of `BATCH_SIZE`=20 with records still queued it waits a short `PACE_MS`) - so a backlog larger than one
+  batch fully drains on a stable connection AND a long-offline reconnect trickles the beacons out instead
+  of firing the whole backlog as one burst; staleness-capped (7 d, which bounds the backlog size). **The watchtime ping fires only after the playback ping is accepted** (no orphan;
   a partial re-push under a fresh cpn would double-count); classification: playback 400→drop / playback
   not-2xx→retry, then watchtime 2xx→remove / 400→drop / else→retry (400 read from the thrown
   `ResponseException`, so DROP is reachable). The realistic win is the VIEW; details in `docs/watchtime/README.md`.
@@ -288,13 +290,13 @@ full detail in `docs/zemer_playlists/README.md`. The rules that must not regress
   Songs and Albums is an empty dead end - those render the plain track list instead. `effectiveFilter`
   pins the filter to ALL whenever the chips are hidden. Rows, Play and Shuffle all read the same
   filtered list; rows never pass `albumIndex` (the shared row renders a number *instead of* artwork).
-- App↔server field changes travel as request docs in `~/zemer-fix/handoff-docs/`, never as direct
+- App↔server field changes travel as request docs in `handoff-docs/`, never as direct
   edits to the zemer-search repo.
 
 ### Genres (the song-level genre layer: Home chips, catalog, detail, radio)
 
 Song-level genre browsing served by the search server's `/genres` family; full detail in
-`docs/genres/README.md`, server contract in `~/zemer-fix/handoff-docs/zemer-app-genres.md`. Genre is
+`docs/genres/README.md`, server contract in `handoff-docs/zemer-app-genres.md`. Genre is
 a property of the SONG (via its release), independent of the artist flags - never conflate the two.
 The rules that must not regress:
 
@@ -492,12 +494,12 @@ the app** with Zemer-served, whitelist-pure data. The home tab migrated first; s
 (seed-first song radio), and search-with-offline-fallback** have followed - each with its InnerTube path
 deleted, not kept as fallback. When you touch any surface that reaches YouTube for *discovery* content
 (explore feeds, charts, recommendations, related, browse shelves, search-adjacent rows), prefer a Zemer
-endpoint - or a handoff request for one (`~/zemer-fix/handoff-docs/`) - over deepening the InnerTube
+endpoint - or a handoff request for one (`handoff-docs/`) - over deepening the InnerTube
 dependency, and delete the InnerTube path once the Zemer source lands. **Streaming/playback itself still
 needs InnerTube + the cipher** (see §The streaming pipeline - that's the irreducible core) and is out of
 scope; this goal is about *content discovery*, where YouTube's global feeds carry almost no kosher
 content anyway. (The YouTube search *engine* is REMOVED - Zemer is the app's only search engine; the
-greenlight and evidence live in `~/zemer-fix/handoff-docs/zemer-app-artist-album-innertube-swap.md`.)
+greenlight and evidence live in `handoff-docs/zemer-app-artist-album-innertube-swap.md`.)
 
 **Remaining InnerTube candidates (the punch list to complete the migration)** - everything still
 reaching YouTube for content, in rough priority order. Pick from here before inventing new scope:
@@ -563,7 +565,7 @@ Rules that must not regress:
   artists (it filtered to empty and never displayed); the `auto-trending` / `auto-top-50` Zemer playlists
   in the Zemer-Playlists shelf are the real trending/top surface. Don't reintroduce a charts-scraped row.
 - The `/home-rows` contract and every design decision are recorded in
-  `~/zemer-fix/handoff-docs/zemer-app-home-rows-request.md` (the app↔server thread) and
+  `handoff-docs/zemer-app-home-rows-request.md` (the app↔server thread) and
   `home-rows-plan.md`. App↔server field changes travel there, never as edits to the zemer-search repo.
 
 ### Zemer Radio (`/radio` - every radio surface; SELECTION only)
@@ -597,7 +599,7 @@ only. Rules that must not regress:
 
 **Zemer Stations** (`playback/queues/StationQueue`, the "Zemer Radio" home row) are the OTHER radio
 product: one shared, server-programmed wall-clock schedule per station - every listener hears the
-same track at the same moment (contract: `~/zemer-fix/handoff-docs/zemer-app-stations.md`). Rules
+same track at the same moment (contract: `handoff-docs/zemer-app-stations.md`). Rules
 that must not regress: ALL drift funnels through the BIDIRECTIONAL `resyncStationPlayback` (seek
 forward when behind, WAIT - pause until startMs - when ahead, full re-tune when nothing queued is
 on-air; never a mid-track jump, never a backward seek into a played/unplayable slot), invoked from
