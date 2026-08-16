@@ -97,6 +97,13 @@ data class PlayerResponse(
         val videostatsWatchtimeUrl: VideostatsWatchtimeUrl?,
         @SerialName("atrUrl")
         val atrUrl: AtrUrl?,
+        // The official WEB_REMIX watchtime flush cadence, server-provided: fire a watchtime ping at
+        // each of these wall-clock seconds since playback start, then every default-interval seconds.
+        // Used to match the real client's ping timing instead of a fixed interval (a timing tell).
+        @SerialName("videostatsScheduledFlushWalltimeSeconds")
+        val videostatsScheduledFlushWalltimeSeconds: List<Int>? = null,
+        @SerialName("videostatsDefaultFlushIntervalSeconds")
+        val videostatsDefaultFlushIntervalSeconds: Int? = null,
     ) {
         @Serializable
         data class VideostatsPlaybackUrl(

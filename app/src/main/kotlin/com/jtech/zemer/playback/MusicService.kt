@@ -241,6 +241,85 @@ class MusicService :
         EpisodePositionTracker(player, scope, database) { discoveryHandler.isConnected }
     }
 
+    // Adapts the real media3 Player to the reporter's PlaybackProbe seam (read-only; each member
+    // returns exactly what the reporter read from the Player directly - the extraction is
+    // behavior-preserving and lets the reporter's event/state machine be JVM-unit-tested with a fake).
+    private val watchTimeProbe = object : PlaybackProbe {
+        override val positionMs get() = player.currentPosition
+        override val isPlaying get() = player.isPlaying
+        override val playbackState get() = player.playbackState
+        override val playWhenReady get() = player.playWhenReady
+        override val currentMediaId get() = player.currentMediaItem?.mediaId
+        override val hasCurrentMetadata get() = player.currentMediaItem?.metadata != null
+        override val volume get() = player.volume
+    }
+
+    // The YouTube playback-stats session per DIRECT listen (playback ping at start + real watchtime
+    // pings; music, video-songs and episodes alike). Never relay, never while casting.
+    private val watchTimeReporter by lazy {
+        WatchTimeReporter(
+            probe = watchTimeProbe,
+            scope = scope,
+            isCasting = { discoveryHandler.isConnected },
+            // Fail-safe on the unresolved (null) cold-start window: only DIRECT (relayModeNow == false)
+            // may beacon. The spec's hard rule is "never in relay" — an unknown relay state must NOT
+            // open a beaconing session (the factory resolves the flag synchronously before playback, so
+            // DIRECT users still beacon their first track).
+            isRelay = { relayModeNow != false },
+            // The sync DataStore accessor must stay off the main thread (the documented exception).
+            historyPaused = { withContext(Dispatchers.IO) { dataStore.get(PauseListenHistoryKey, false) } },
+            fetchTracking = { videoId ->
+                YTPlayerUtils.playerResponseForMetadata(videoId, null).getOrNull()?.playbackTracking
+            },
+            // A genuine OFFLINE listen the live session could not report is queued and re-pushed on
+            // reconnect (additive; the live path is untouched — see DeferredStatsQueue).
+            onOfflineListen = { deferredStatsQueue.enqueue(it) },
+        )
+    }
+
+    // Single-threaded, off-main scope for the deferred-stats queue (file I/O + fire-and-forget beacons);
+    // all queue access is confined here, mirroring the telemetry Tracker's dispatcher confinement.
+    private val deferredStatsScope =
+        CoroutineScope(Dispatchers.IO.limitedParallelism(1) + SupervisorJob())
+
+    // The offline/cached-play recovery queue: captures listens the live watch-time session drops (no
+    // network → no tracking URLs) and re-pushes them as a deferred stats session on reconnect. JSONL
+    // under filesDir (no Room), reusing TrackingQueue + FlushSchedule.
+    private val deferredStatsQueue by lazy {
+        DeferredStatsQueue(
+            file = java.io.File(filesDir, "deferred-stats.jsonl"),
+            scope = deferredStatsScope,
+            isConnected = { isNetworkConnected.value },
+            push = { record ->
+                pushDeferredStats(
+                    record = record,
+                    fetchTracking = { videoId ->
+                        YTPlayerUtils.playerResponseForMetadata(videoId, null).getOrNull()?.playbackTracking
+                    },
+                    cpn = YouTube.generateCpn(),
+                    sendPlayback = { url, cpn, cmt ->
+                        YouTube.registerPlayback(playbackTracking = url, cpn = cpn, cmt = cmt, final = false)
+                            .beaconStatus()
+                    },
+                    sendWatchtime = { url, cpn, rec ->
+                        YouTube.registerWatchtime(
+                            watchtimeTracking = url, cpn = cpn,
+                            st = rec.st, et = rec.et, cmt = rec.cmt, rt = rec.rt, final = true,
+                        ).beaconStatus()
+                    },
+                )
+            },
+        )
+    }
+
+    // The beacon HTTP status, whether the call succeeded (2xx — the InnerTube client is expectSuccess,
+    // so only 2xx returns normally) or threw on a non-2xx (a ResponseException carries the real status,
+    // e.g. a 400 that must classify as DROP, not the null-shaped RETRY a bare getOrNull would yield).
+    private fun Result<io.ktor.client.statement.HttpResponse>.beaconStatus(): Int? = fold(
+        onSuccess = { it.status.value },
+        onFailure = { (it as? io.ktor.client.plugins.ResponseException)?.response?.status?.value },
+    )
+
     private lateinit var audioManager: AudioManager
     private var audioFocusRequest: AudioFocusRequest? = null
     private var lastAudioFocusState = AudioManager.AUDIOFOCUS_NONE
@@ -548,7 +627,10 @@ class MusicService :
 
         scope.launch {
             connectivityObserver.networkStatus.collect { isConnected ->
+                val reconnected = isConnected && !isNetworkConnected.value
                 isNetworkConnected.value = isConnected
+                // Flush any offline listens queued while disconnected, the moment the network returns.
+                if (reconnected) deferredStatsQueue.onFlushTrigger()
                 if (isConnected && waitingForNetworkConnection.value) {
                     // Simple auto-play logic like OuterTune
                     waitingForNetworkConnection.value = false
@@ -920,6 +1002,7 @@ class MusicService :
             updateWidget()
         }
         episodePositionTracker.onIsPlayingChanged(isPlaying)
+        watchTimeReporter.onIsPlayingChanged(isPlaying)
     }
 
     private fun updateNotification() {
@@ -1539,7 +1622,17 @@ class MusicService :
         // real-transition side effects (cast reload, auto-load-more, save-queue) and keep video mode. A
         // real track change instead reverts video to audio (I2) inside the controller, then falls through
         // to the normal handling below. onEvents still updates currentMediaMetadata either way.
-        if (videoModeController.onMediaItemTransition(mediaItem, reason)) return
+        if (videoModeController.onMediaItemTransition(mediaItem, reason)) {
+            // Same listen (one cpn) continues, but neutralise any transition state so a LATER real
+            // transition can't inherit it: a repeat-one loop's captured end position (would fabricate an
+            // unplayed range) and the now-ambiguous single-itag fmt (would report the wrong itag).
+            watchTimeReporter.onOwnSwapTransition()
+            return
+        }
+
+        // A REAL track change ends the departed listen's watch-time session (final=1) and arms the
+        // next one — after the own-swap early-return above, so an audio↔video swap keeps its session.
+        watchTimeReporter.onTransition()
 
         lastPlaybackSpeed = -1.0f // force update song
 
@@ -1622,6 +1715,9 @@ class MusicService :
         // race) - re-tune to the live schedule instead of parking in silence.
         if (playbackState == Player.STATE_ENDED) {
             (currentQueue as? StationQueue)?.let { resyncStationPlayback(it) }
+            // The last queue item ran out: no transition fires, so the watch-time session's final
+            // ping is sent from here.
+            watchTimeReporter.onPlaybackEnded()
         }
         // RELAY: a track that reaches READY has played, which breaks any error streak — so the
         // runaway-skip guard (skipOnError) counts only CONSECUTIVE failures, its intent. Without this
@@ -1646,6 +1742,16 @@ class MusicService :
         if (reason == Player.DISCONTINUITY_REASON_SEEK || reason == Player.DISCONTINUITY_REASON_SEEK_ADJUSTMENT) {
             videoModeController.onSeekDiscontinuity()
         }
+        // Watch-time honesty: a seek closes the watched segment at the departed position (seeking is
+        // never watched time), and an item change captures where the old listen really ended.
+        watchTimeReporter.onPositionDiscontinuity(
+            oldMediaItemIndex = oldPosition.mediaItemIndex,
+            oldPositionMs = oldPosition.positionMs,
+            oldMediaId = oldPosition.mediaItem?.mediaId,
+            newMediaItemIndex = newPosition.mediaItemIndex,
+            newPositionMs = newPosition.positionMs,
+            reason = reason,
+        )
     }
 
     override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) {
@@ -2049,6 +2155,17 @@ class MusicService :
         return null
     }
 
+    /**
+     * Stamp the listen's shared cpn onto a DIRECT googlevideo media URL, matching the official web
+     * client (base.js `cpn=${videoData.clientPlaybackNonce}`) so the watch-time beacon session
+     * correlates with real byte delivery. The cpn is the SAME one [watchTimeReporter] beacons under
+     * for this listen (keyed by base videoId, so audio/video/merge-audio renditions share it). Applied
+     * ONLY to googlevideo stream URLs in the DIRECT factory — never to a downloaded local file uri, a
+     * cache hit (no fetch), or the RELAY factory (which has its own resolver and never calls this).
+     */
+    private fun stampCpn(url: String, mediaId: String): String =
+        PlaybackNonceRegistry.appendCpn(url, watchTimeReporter.mediaCpnFor(VideoRendition.baseVideoId(mediaId)))
+
     private fun createDataSourceFactory(): DataSource.Factory {
         return ResolvingDataSource.Factory(createCacheDataSource()) { dataSpec ->
             val mediaId = dataSpec.key ?: error("No media id")
@@ -2070,7 +2187,7 @@ class MusicService :
                     return@Factory dataSpec
                 }
                 songUrlCache[mediaId]?.takeIf { it.second > System.currentTimeMillis() }?.let {
-                    return@Factory dataSpec.withUri(it.first.toUri())
+                    return@Factory dataSpec.withUri(stampCpn(it.first, mediaId).toUri())
                 }
                 // The shared metered-aware cap (one policy with muxed downloads — VideoRendition).
                 // Governs only the AUTOMATIC pick: an explicit rung is the user's own choice.
@@ -2112,7 +2229,7 @@ class MusicService :
                 // One resolution seeds EVERY rung's URL + the merge-audio partner, so a quality
                 // switch (and the adaptive rung's audio track) never pays another round-trip.
                 seedVideoUrlCaches(renditionId, nonNullVideo)
-                return@Factory dataSpec.withUri(videoUrl.toUri()).subrange(dataSpec.uriPositionOffset, CHUNK_LENGTH)
+                return@Factory dataSpec.withUri(stampCpn(videoUrl, mediaId).toUri()).subrange(dataSpec.uriPositionOffset, CHUNK_LENGTH)
             }
 
             // The audio half of an adaptive (video-only) quality rung — the MergingMediaSource's
@@ -2126,7 +2243,7 @@ class MusicService :
                     return@Factory dataSpec
                 }
                 songUrlCache[mediaId]?.takeIf { it.second > System.currentTimeMillis() }?.let {
-                    return@Factory dataSpec.withUri(it.first.toUri())
+                    return@Factory dataSpec.withUri(stampCpn(it.first, mediaId).toUri())
                 }
                 val mergeAudio = runBlocking(Dispatchers.IO) {
                     YTPlayerUtils.playerResponseForPlayback(
@@ -2156,7 +2273,7 @@ class MusicService :
                 }
                 songUrlCache[mediaId] =
                     nonNullAudio.streamUrl to System.currentTimeMillis() + (nonNullAudio.streamExpiresInSeconds * 1000L)
-                return@Factory dataSpec.withUri(nonNullAudio.streamUrl.toUri()).subrange(dataSpec.uriPositionOffset, CHUNK_LENGTH)
+                return@Factory dataSpec.withUri(stampCpn(nonNullAudio.streamUrl, mediaId).toUri()).subrange(dataSpec.uriPositionOffset, CHUNK_LENGTH)
             }
 
             // Downloaded local file? Decide once at position 0 and honor it later; self-repair a stale
@@ -2184,7 +2301,7 @@ class MusicService :
 
             songUrlCache[mediaId]?.takeIf { it.second > System.currentTimeMillis() }?.let {
                 scope.launch(Dispatchers.IO) { recoverSong(mediaId) }
-                return@Factory dataSpec.withUri(it.first.toUri())
+                return@Factory dataSpec.withUri(stampCpn(it.first, mediaId).toUri())
             }
 
             // Validate current authentication state before fetching stream
@@ -2228,6 +2345,10 @@ class MusicService :
             val nonNullPlayback = requireNotNull(playbackData) {
                 getString(R.string.error_unknown)
             }
+            // Watch-time: hand the playback response's stats URLs + the resolved itag to the reporter
+            // so the session opens without a second /player round-trip (cached/local plays fall back
+            // to one) and `fmt` carries the real streamed format.
+            watchTimeReporter.onTrackingResolved(mediaId, nonNullPlayback.playbackTracking, nonNullPlayback.format.itag)
             run {
                 val format = nonNullPlayback.format
 
@@ -2272,7 +2393,7 @@ class MusicService :
                 // Keep the cast-MIME cache coherent with the URL cache it's written alongside, so a song
                 // played locally first then cast carries its real container (not the "audio/mp4" default).
                 songMimeCache[mediaId] = format.mimeType.split(";")[0]
-                return@Factory dataSpec.withUri(streamUrl.toUri()).subrange(dataSpec.uriPositionOffset, CHUNK_LENGTH)
+                return@Factory dataSpec.withUri(stampCpn(streamUrl, mediaId).toUri()).subrange(dataSpec.uriPositionOffset, CHUNK_LENGTH)
             }
         }
     }
@@ -2539,16 +2660,9 @@ class MusicService :
                 }
             }
 
-            CoroutineScope(Dispatchers.IO).launch {
-                val playbackUrl = YTPlayerUtils.playerResponseForMetadata(mediaItem.mediaId, null)
-                    .getOrNull()?.playbackTracking?.videostatsPlaybackUrl?.baseUrl
-                playbackUrl?.let {
-                    YouTube.registerPlayback(null, playbackUrl)
-                        .onFailure {
-                            reportException(it)
-                        }
-                }
-            }
+            // The view beacon moved to the WatchTimeReporter session (playback ping at play START +
+            // watchtime pings, one cpn per listen — the handoff spec). No end-of-listen ping anymore:
+            // firing one here would double-report the session.
         }
     }
 
@@ -2691,6 +2805,12 @@ class MusicService :
         // ALWAYS SAVE: flush the current episode's position before the player is released, so a
         // swipe-kill still resumes next time.
         episodePositionTracker.onDestroyFlush()
+        // Best-effort final watchtime ping for the in-flight listen (the scope may not outlive us,
+        // but the enqueue is synchronous and the consumer usually drains before teardown).
+        watchTimeReporter.onDestroy()
+        // Do NOT cancel deferredStatsScope here: the offline consumer resumes AFTER onDestroy returns
+        // and enqueues onto this scope, so cancelling would silently drop the very offline listen the
+        // queue exists to recover. The scope dies with the process anyway (nothing to clean up).
         if (dataStore.get(PersistentQueueKey, true)) {
             saveQueueToDisk()
         }

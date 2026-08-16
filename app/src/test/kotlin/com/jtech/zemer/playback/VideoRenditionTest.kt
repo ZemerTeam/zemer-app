@@ -73,4 +73,15 @@ class VideoRenditionTest {
             VideoRendition.allRenditionKeys("abc123", cached),
         )
     }
+
+    @Test
+    fun `baseVideoId maps every rendition key of one listen to the same id`() {
+        // Audio, video (plain + itag rungs) and merge-audio all collapse to one base id, so they share
+        // one watch-time cpn.
+        assertEquals("abc123", VideoRendition.baseVideoId("abc123"))
+        assertEquals("abc123", VideoRendition.baseVideoId("video:abc123"))
+        assertEquals("abc123", VideoRendition.baseVideoId("video:abc123:q137"))
+        assertEquals("abc123", VideoRendition.baseVideoId("video:abc123:p22"))
+        assertEquals("abc123", VideoRendition.baseVideoId("videoaudio:abc123"))
+    }
 }

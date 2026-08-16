@@ -980,23 +980,62 @@ object YouTube {
         innerTube.player(client, videoId, playlistId, signatureTimestamp, webPlayerPot, setLogin).body<PlayerResponse>()
     }
 
-    suspend fun registerPlayback(playlistId: String? = null, playbackTracking: String) = runCatching {
-        val cpn = (1..16).map {
-            "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_"[Random.Default.nextInt(
-                0,
-                64
-            )]
-        }.joinToString("")
+    /**
+     * A 16-char client playback nonce. One cpn identifies ONE playback session: the session's
+     * playback ping and every watchtime ping must share it (handoff: emulate-youtube-music-stream).
+     */
+    fun generateCpn(): String = (1..16).map {
+        "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_"[Random.Default.nextInt(0, 64)]
+    }.joinToString("")
 
-        val playbackUrl = playbackTracking.replace(
-            "https://s.youtube.com",
-            "https://music.youtube.com",
-        )
+    /** `s.youtube.com` stats bases are fired against the music host, like the official web client. */
+    private fun statsUrl(baseUrl: String) = baseUrl.replace(
+        "https://s.youtube.com",
+        "https://music.youtube.com",
+    )
 
+    suspend fun registerPlayback(
+        playlistId: String? = null,
+        playbackTracking: String,
+        cpn: String = generateCpn(),
+        cmt: String? = null,
+        final: Boolean? = null,
+        fmt: Int? = null,
+        muted: Boolean? = null,
+    ) = runCatching {
         innerTube.registerPlayback(
-            url = playbackUrl,
+            url = statsUrl(playbackTracking),
             playlistId = playlistId,
-            cpn = cpn
+            cpn = cpn,
+            cmt = cmt,
+            final = final,
+            fmt = fmt,
+            muted = muted,
+        )
+    }
+
+    /** The watchtime beacon of a playback session — see [InnerTube.registerWatchtime]. */
+    suspend fun registerWatchtime(
+        watchtimeTracking: String,
+        cpn: String,
+        st: String,
+        et: String,
+        cmt: String,
+        rt: String,
+        final: Boolean,
+        fmt: Int? = null,
+        muted: Boolean? = null,
+    ) = runCatching {
+        innerTube.registerWatchtime(
+            url = statsUrl(watchtimeTracking),
+            cpn = cpn,
+            st = st,
+            et = et,
+            cmt = cmt,
+            rt = rt,
+            final = final,
+            fmt = fmt,
+            muted = muted,
         )
     }
 
