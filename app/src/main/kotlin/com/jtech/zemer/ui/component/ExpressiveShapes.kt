@@ -27,3 +27,11 @@ private val AvatarPolygons = listOf(
 @Composable
 fun expressiveAvatarShape(key: Any?): Shape =
     AvatarPolygons[avatarPolygonIndex(key, AvatarPolygons.size)].toShape()
+
+/**
+ * The scalloped "cookie" clip a currently-PLAYING card's artwork morphs to, so the active item reads as
+ * playing with an expressive silhouette (on top of the equalizer badge), not just a rounded square. One
+ * fixed shape so every playing card matches; the shallow cookie scallops never eat the artwork.
+ */
+@Composable
+fun expressivePlayingShape(): Shape = MaterialShapes.Cookie12Sided.toShape()

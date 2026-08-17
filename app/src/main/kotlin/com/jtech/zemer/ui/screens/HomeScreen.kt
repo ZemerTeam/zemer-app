@@ -98,8 +98,12 @@ import com.jtech.zemer.ui.component.MoreVertMenuButton
 import com.jtech.zemer.extensions.toMediaItem
 import com.jtech.zemer.playback.queues.ListQueue
 import com.jtech.zemer.tracking.PlaySource
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.graphicsLayer
 import com.jtech.zemer.ui.component.ActiveBoxAlpha
 import com.jtech.zemer.ui.component.AlbumPlayButton
+import com.jtech.zemer.ui.component.expressivePlayingShape
+import com.jtech.zemer.ui.component.rememberPopScale
 import com.jtech.zemer.ui.component.NavigationTitle
 import com.jtech.zemer.ui.component.OverlayPlayButton
 import com.jtech.zemer.ui.component.PlayingIndicatorBox
@@ -782,24 +786,34 @@ fun HomeScreen(
                                         },
                                     ),
                             ) {
-                                AsyncImage(
-                                    model = release.thumbnail,
-                                    contentDescription = release.title,
-                                    contentScale = ContentScale.Crop,
-                                    modifier = Modifier.fillMaxSize(),
-                                )
                                 // Restore the play affordances LatestReleaseCard rendered before this
                                 // shelf became a cover-only carousel: a now-playing indicator, and - when
                                 // idle - the differentiated play button (a single gets the centred
                                 // "tap to play" icon; an album gets the corner button that plays it
                                 // directly, without opening the page).
                                 val active = release.isNowPlaying(mediaMetadata)
+                                val activePop = rememberPopScale(active)
+                                AsyncImage(
+                                    model = release.thumbnail,
+                                    contentDescription = release.title,
+                                    contentScale = ContentScale.Crop,
+                                    // A playing release morphs its cover to the same scalloped expressive
+                                    // shape the card thumbnails use, and pops once as it becomes active.
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .graphicsLayer { scaleX = activePop; scaleY = activePop }
+                                        .then(if (active) Modifier.clip(expressivePlayingShape()) else Modifier),
+                                )
                                 PlayingIndicatorBox(
                                     isActive = active,
                                     playWhenReady = isPlaying,
                                     modifier = Modifier
                                         .fillMaxSize()
-                                        .background(Color.Black.copy(alpha = ActiveBoxAlpha)),
+                                        .graphicsLayer { scaleX = activePop; scaleY = activePop }
+                                        .background(
+                                            Color.Black.copy(alpha = ActiveBoxAlpha),
+                                            shape = expressivePlayingShape(),
+                                        ),
                                 )
                                 Column(
                                     modifier = Modifier

@@ -28,6 +28,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -1178,12 +1179,17 @@ fun ItemThumbnail(
     isSelected: Boolean = false,
     thumbnailRatio: Float = 1f
 ) {
+        // A currently-PLAYING card morphs its artwork to a scalloped expressive silhouette (and pops
+        // once as it becomes active), so the active item reads as playing beyond the equalizer badge.
+        val effectiveShape = if (isActive) expressivePlayingShape() else shape
+        val activePop = rememberPopScale(isActive)
     Box(
         contentAlignment = Alignment.Center,
         modifier = modifier
             .fillMaxSize()
             .aspectRatio(thumbnailRatio)
-            .clip(shape)
+            .graphicsLayer { scaleX = activePop; scaleY = activePop }
+            .clip(effectiveShape)
     ) {
         if (albumIndex == null) {
             AsyncImage(
@@ -1197,7 +1203,7 @@ fun ItemThumbnail(
                 contentScale = ContentScale.Crop,
                 modifier = Modifier
                     .fillMaxSize()
-                    .clip(shape)
+                    .clip(effectiveShape)
             )
         }
 
@@ -1220,7 +1226,7 @@ fun ItemThumbnail(
                 modifier = Modifier
                     .fillMaxSize()
                     .zIndex(1f)
-                    .clip(shape)
+                    .clip(effectiveShape)
                     .background(Color.Black.copy(alpha = 0.5f))
             ) {
                 Icon(
@@ -1241,7 +1247,7 @@ fun ItemThumbnail(
                         Color.Transparent
                     else
                         Color.Black.copy(alpha = ActiveBoxAlpha),
-                    shape = shape
+                    shape = effectiveShape
                 )
         )
     }
