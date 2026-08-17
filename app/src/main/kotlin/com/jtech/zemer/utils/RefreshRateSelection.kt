@@ -41,3 +41,11 @@ fun selectRefreshRateMode(
             ?: atCurrentResolution.minByOrNull { abs(it.refreshRate - 60f) }
     }
 }
+
+/**
+ * The value to write to `WindowManager.LayoutParams.preferredDisplayModeId` (API >= R) for a chosen
+ * [mode]. A null [mode] (no modes to pick from) maps to 0 = "system default", which CLEARS any
+ * previously-forced mode - the earlier code left the stale high mode in place when selection returned
+ * null, so toggling the setting off while the display briefly reported no modes never reset the panel.
+ */
+fun preferredDisplayModeId(mode: DisplayModeInfo?): Int = mode?.modeId ?: 0

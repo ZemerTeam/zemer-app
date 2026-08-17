@@ -53,4 +53,17 @@ class RefreshRateSelectionTest {
         assertNull(selectRefreshRateMode(emptyList(), current = null, high = true))
         assertNull(selectRefreshRateMode(emptyList(), current = mode60, high = false))
     }
+
+    @Test
+    fun `preferredDisplayModeId maps a chosen mode to its id`() {
+        assertEquals(mode120.modeId, preferredDisplayModeId(mode120))
+    }
+
+    @Test
+    fun `preferredDisplayModeId maps null to 0 so a stale forced mode is cleared`() {
+        // The regression: when selection returns null (no modes to pick from) the window must reset to
+        // system default (0), not keep a previously-forced high mode id.
+        assertEquals(0, preferredDisplayModeId(null))
+        assertEquals(0, preferredDisplayModeId(selectRefreshRateMode(emptyList(), current = mode120, high = true)))
+    }
 }

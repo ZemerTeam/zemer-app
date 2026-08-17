@@ -262,6 +262,7 @@ import com.jtech.zemer.ui.utils.backToMain
 import com.jtech.zemer.ui.utils.resetHeightOffset
 import com.jtech.zemer.utils.ButtonInputCapture
 import com.jtech.zemer.utils.DisplayModeInfo
+import com.jtech.zemer.utils.preferredDisplayModeId
 import com.jtech.zemer.utils.selectRefreshRateMode
 import com.jtech.zemer.utils.ButtonMapperBridge
 import com.jtech.zemer.utils.SyncUtils
@@ -532,7 +533,9 @@ class MainActivity : ComponentActivity() {
                 val target = selectRefreshRateMode(modes, current, high = enableHighRefreshRate)
                 val lp = win.attributes
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                    if (target != null) lp.preferredDisplayModeId = target.modeId
+                    // 0 when there is no mode to pick, which CLEARS a previously-forced high mode
+                    // (leaving it stale kept a 120Hz override the user just turned off).
+                    lp.preferredDisplayModeId = preferredDisplayModeId(target)
                 } else {
                     // Pre-R can only ask for a rate, not a mode id.
                     lp.preferredRefreshRate = target?.refreshRate ?: if (enableHighRefreshRate) 0f else 60f
