@@ -1504,7 +1504,10 @@ fun BoxScope.AlbumPlayButton(
             Icon(
                 painter = painterResource(R.drawable.play),
                 contentDescription = null,
-                tint = Color.White
+                tint = Color.White,
+                // Match OverlayPlayButton's icon so a song's and an album's play button read identically
+                // (same 36dp disc, same tint, same icon) wherever they appear together.
+                modifier = Modifier.size(20.dp)
             )
         }
     }

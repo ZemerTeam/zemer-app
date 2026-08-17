@@ -99,7 +99,9 @@ import com.jtech.zemer.extensions.toMediaItem
 import com.jtech.zemer.playback.queues.ListQueue
 import com.jtech.zemer.tracking.PlaySource
 import com.jtech.zemer.ui.component.ActiveBoxAlpha
+import com.jtech.zemer.ui.component.AlbumPlayButton
 import com.jtech.zemer.ui.component.NavigationTitle
+import com.jtech.zemer.ui.component.OverlayPlayButton
 import com.jtech.zemer.ui.component.PlayingIndicatorBox
 import com.jtech.zemer.ui.component.ChipsRow
 import com.jtech.zemer.ui.utils.whitelistedPodcastRoute
@@ -130,8 +132,11 @@ import com.jtech.zemer.ui.utils.SnapLayoutInfoProvider
 import com.jtech.zemer.ui.utils.navigateToArtist
 import com.jtech.zemer.ui.utils.navigateToAlbum
 import com.jtech.zemer.utils.rememberPreference
+import com.jtech.zemer.di.zemerSearchRepository
 import com.jtech.zemer.latestreleases.isNowPlaying
+import com.jtech.zemer.latestreleases.isPlayableSingle
 import com.jtech.zemer.latestreleases.openOrPlay
+import com.jtech.zemer.latestreleases.playAlbum
 import com.jtech.zemer.latestreleases.relativeDateLabel
 import com.jtech.zemer.latestreleases.toAlbumItem
 import com.jtech.zemer.utils.joinByBullet
@@ -783,11 +788,14 @@ fun HomeScreen(
                                     contentScale = ContentScale.Crop,
                                     modifier = Modifier.fillMaxSize(),
                                 )
-                                // Reflect the currently-playing release as playing (equalizer/play
-                                // overlay), the indication LatestReleaseCard rendered before this shelf
-                                // became a cover-only carousel.
+                                // Restore the play affordances LatestReleaseCard rendered before this
+                                // shelf became a cover-only carousel: a now-playing indicator, and - when
+                                // idle - the differentiated play button (a single gets the centred
+                                // "tap to play" icon; an album gets the corner button that plays it
+                                // directly, without opening the page).
+                                val active = release.isNowPlaying(mediaMetadata)
                                 PlayingIndicatorBox(
-                                    isActive = release.isNowPlaying(mediaMetadata),
+                                    isActive = active,
                                     playWhenReady = isPlaying,
                                     modifier = Modifier
                                         .fillMaxSize()
@@ -823,6 +831,28 @@ fun HomeScreen(
                                             modifier = Modifier.basicMarquee(),
                                         )
                                     }
+                                }
+                                // Drawn LAST so the play button sits ON TOP of the bottom title gradient -
+                                // otherwise that Transparent->Black scrim paints over the disc and muddies
+                                // it (a single gets the centred "tap to play" icon, an album the corner
+                                // button that plays it directly).
+                                if (release.isPlayableSingle()) {
+                                    OverlayPlayButton(visible = !active)
+                                } else {
+                                    AlbumPlayButton(
+                                        visible = !active,
+                                        onClick = {
+                                            scope.launch {
+                                                release.playAlbum(
+                                                    playerConnection = playerConnection,
+                                                    database = database,
+                                                    zemerRepository = context.zemerSearchRepository(),
+                                                    context = context,
+                                                    navController = navController,
+                                                )
+                                            }
+                                        },
+                                    )
                                 }
                             }
                         }
