@@ -689,7 +689,6 @@
         <string name="downloaded_episodes">Downloaded episodes</string>
         <string name="no_subscribed_channels">No subscribed channels</string>
         <string name="no_downloaded_episodes">No downloaded episodes</string>
-        <string name="close_chip">Close</string>
     <string name="action_sync">Sync</string>
     <plurals name="n_episode">
         <item quantity="one">%d episode</item>
