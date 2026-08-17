@@ -11,7 +11,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.TopAppBarScrollBehavior
 import androidx.compose.runtime.Composable
@@ -31,6 +30,7 @@ import com.jtech.zemer.models.toMediaMetadata
 import com.jtech.zemer.playback.queues.ZemerRadioQueue
 import com.jtech.zemer.tracking.PlaySource
 import com.jtech.zemer.ui.component.AppBarTitle
+import com.jtech.zemer.ui.component.ZemerLoadingIndicator
 import com.jtech.zemer.ui.component.BackTopAppBar
 import com.jtech.zemer.ui.component.EmptyPlaceholder
 import com.jtech.zemer.ui.component.LocalMenuState
@@ -182,7 +182,7 @@ fun ArtistSectionScreen(
                 )
             isLoading ->
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator()
+                    ZemerLoadingIndicator()
                 }
             else ->
                 EmptyPlaceholder(
@@ -249,7 +249,7 @@ private fun ChannelEpisodeList(
                         // The drain is still walking older history in - progress, not a premature
                         // "no results". Bounded + failure-terminated, so it always resolves.
                         Box(Modifier.fillMaxWidth().padding(vertical = 24.dp), contentAlignment = Alignment.Center) {
-                            CircularProgressIndicator()
+                            ZemerLoadingIndicator()
                         }
                     !drainComplete ->
                         // The drain stopped before covering the history (failed page / cap):

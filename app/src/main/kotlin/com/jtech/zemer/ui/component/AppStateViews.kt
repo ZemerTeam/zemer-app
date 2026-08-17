@@ -14,7 +14,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.LinearWavyProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -28,6 +29,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun AppStateView(
     title: String,
@@ -97,7 +99,7 @@ fun AppStateView(
 
             progress?.let { value ->
                 Spacer(modifier = Modifier.height(20.dp))
-                LinearProgressIndicator(
+                LinearWavyProgressIndicator(
                     progress = { value.coerceIn(0f, 1f) },
                     modifier = Modifier.fillMaxWidth(),
                 )

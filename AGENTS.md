@@ -1045,8 +1045,14 @@ surface (the two drifting out of sync is exactly what bit a past change):
   width left after the two skip buttons + gaps) so it shrinks to fit narrow widths instead of
   overflowing; `TransportSkipButton` cancels its long-press repeat the moment the press is released.
 
-This UI is **Material 3 *standard*** (`MaterialTheme`, not `MaterialExpressiveTheme`): Expressive-only
-APIs (e.g. `LinearWavyProgressIndicator`) need a newer material3 and are deliberately not used. New
+This UI stays on **standard `MaterialTheme`** (never `MaterialExpressiveTheme` - no global expressive
+theme swap), but individual **Material 3 Expressive** components are adopted component-by-component behind
+per-site `@OptIn(ExperimentalMaterial3ExpressiveApi::class)` (material3 `1.5.0-alpha18`, compose `1.11.4`).
+In use today: the content-loading spinner (`ContainedLoadingIndicator`, wrapped once in the shared
+`ui/component/ZemerLoadingIndicator`), the Home pull-to-refresh indicator, `LinearWavyProgressIndicator`
+for loading bars (`AppStateViews`, the update dialog), and `MaterialShapes` cookie clips on the About
+credits avatars. Tiny in-button spinners and determinate download rings stay standard
+`CircularProgressIndicator` on purpose. New
 transport buttons reuse `TransportSkipButton` + the accent focus border; new D-pad rows reuse
 `Modifier.focusBorder()`. `scripts/ui-audit.sh` ratchets raw `Modifier.blur(` in `ui/` (R12) - route
 player blur through the effective style.
