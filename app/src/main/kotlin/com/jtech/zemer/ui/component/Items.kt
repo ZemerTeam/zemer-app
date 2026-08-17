@@ -147,6 +147,7 @@ inline fun ListItem(
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = modifier
+            .pressBounce()
             .focusable()
             .onFocusChanged { isFocused = it.isFocused }
             .height(ListItemHeight)
@@ -210,6 +211,7 @@ fun GridItem(
         label = "grid_item_focus_border"
     )
     val baseModifier = modifier
+        .pressBounce()
         .padding(12.dp)
         .focusable()
         .onFocusChanged { isFocused = it.isFocused }
