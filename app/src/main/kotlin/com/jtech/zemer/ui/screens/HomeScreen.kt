@@ -33,6 +33,14 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.material3.carousel.HorizontalMultiBrowseCarousel
+import androidx.compose.material3.carousel.rememberCarouselState
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.text.style.TextOverflow
+import coil3.compose.AsyncImage
 import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults.LoadingIndicator
 import androidx.compose.material3.pulltorefresh.pullToRefresh
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
@@ -119,7 +127,7 @@ import com.jtech.zemer.ui.utils.SnapLayoutInfoProvider
 import com.jtech.zemer.ui.utils.navigateToArtist
 import com.jtech.zemer.ui.utils.navigateToAlbum
 import com.jtech.zemer.utils.rememberPreference
-import com.jtech.zemer.latestreleases.LatestReleaseCard
+import com.jtech.zemer.latestreleases.openOrPlay
 import com.jtech.zemer.viewmodels.HomeViewModel
 import com.jtech.zemer.viewmodels.LatestReleasesViewModel
 import com.jtech.zemer.playback.queues.StationQueue
@@ -726,25 +734,51 @@ fun HomeScreen(
                     }
 
                     item(key = "latest_releases_list", contentType = "grid") {
-                        LazyRow(
+                        // Material 3 Expressive: Latest Releases is a multi-browse carousel - a large hero
+                        // cover with shape-morphing, peeking neighbours. Same open/play routing as
+                        // LatestReleaseCard (release.openOrPlay).
+                        val latestCarouselState = rememberCarouselState { releases.size }
+                        HorizontalMultiBrowseCarousel(
+                            state = latestCarouselState,
+                            preferredItemWidth = 220.dp,
+                            itemSpacing = 8.dp,
                             contentPadding = WindowInsets.systemBars
                                 .only(WindowInsetsSides.Horizontal)
                                 .asPaddingValues(),
-                            modifier = Modifier.animateItem()
-                        ) {
-                            items(
-                                items = releases,
-                                key = { it.browseId },
-                                contentType = { "album" }
-                            ) { release ->
-                                LatestReleaseCard(
-                                    release = release,
-                                    navController = navController,
-                                    playerConnection = playerConnection,
-                                    mediaMetadata = mediaMetadata,
-                                    isPlaying = isPlaying,
-                                    asGrid = true,
-                                    coroutineScope = scope,
+                            modifier = Modifier
+                                .height(220.dp)
+                                .animateItem(),
+                        ) { index ->
+                            val release = releases[index]
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .maskClip(MaterialTheme.shapes.extraLarge)
+                                    .combinedClickable(
+                                        onClick = { release.openOrPlay(navController, playerConnection) },
+                                    ),
+                            ) {
+                                AsyncImage(
+                                    model = release.thumbnail,
+                                    contentDescription = release.title,
+                                    contentScale = ContentScale.Crop,
+                                    modifier = Modifier.fillMaxSize(),
+                                )
+                                Text(
+                                    text = release.title,
+                                    color = Color.White,
+                                    style = MaterialTheme.typography.titleSmall,
+                                    maxLines = 2,
+                                    overflow = TextOverflow.Ellipsis,
+                                    modifier = Modifier
+                                        .align(Alignment.BottomStart)
+                                        .fillMaxWidth()
+                                        .background(
+                                            Brush.verticalGradient(
+                                                listOf(Color.Transparent, Color.Black.copy(alpha = 0.65f))
+                                            )
+                                        )
+                                        .padding(horizontal = 14.dp, vertical = 10.dp),
                                 )
                             }
                         }

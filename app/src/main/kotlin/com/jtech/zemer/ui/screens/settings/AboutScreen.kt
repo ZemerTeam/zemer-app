@@ -1,8 +1,7 @@
-@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
-
 package com.jtech.zemer.ui.screens.settings
 
 import com.jtech.zemer.ui.component.RequestInitialDpadFocus
+import com.jtech.zemer.ui.component.expressiveAvatarShape
 import com.jtech.zemer.ui.component.AppNameTitle
 import androidx.annotation.StringRes
 import androidx.compose.foundation.Image
@@ -26,11 +25,8 @@ import androidx.compose.material3.AssistChip
 import androidx.compose.material3.AssistChipDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialShapes
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
-import androidx.compose.material3.toShape
-import kotlin.math.abs
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarScrollBehavior
@@ -84,21 +80,6 @@ private data class Contributor(
     val githubUrl: String get() = "https://github.com/$githubHandle"
     val avatarUrl: String get() = "https://github.com/$githubHandle.png"
 }
-
-/**
- * Expressive "cookie" morph shapes used to clip contributor avatars (Material 3 Expressive
- * [MaterialShapes]). Each contributor gets a stable one derived from their handle, so the credits row
- * reads as a playful set of scalloped avatars rather than plain circles.
- */
-private val ContributorAvatarPolygons = listOf(
-    MaterialShapes.Cookie9Sided,
-    MaterialShapes.Cookie12Sided,
-    MaterialShapes.Cookie7Sided,
-    MaterialShapes.Cookie6Sided,
-)
-
-private fun Contributor.avatarPolygon() =
-    ContributorAvatarPolygons[abs(githubHandle.hashCode()) % ContributorAvatarPolygons.size]
 
 private val leadDevelopers = listOf(
     Contributor(
@@ -402,7 +383,7 @@ private fun ContributorCard(
                         contentDescription = stringResource(R.string.about_avatar_cd, contributor.name),
                         modifier = Modifier
                             .size(56.dp)
-                            .clip(contributor.avatarPolygon().toShape())
+                            .clip(expressiveAvatarShape(contributor.githubHandle))
                             .background(MaterialTheme.colorScheme.surfaceContainerHighest),
                     )
                     Spacer(Modifier.width(16.dp))
