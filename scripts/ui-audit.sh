@@ -161,6 +161,12 @@ violations() {
   # Baseline 0.
   grep -rnE "dpadSession|firstFocus\.requestFocus\(\)" "$UI" --include=*.kt 2>/dev/null \
     | grep -v "/theme/" | grep -v "component/FocusBorder.kt" | grep -v "screens/search/OnlineSearchResult.kt" | sed -E 's/:.*//' | sed 's/$/\tR24-initialfocus/'
+  # R25: a raw Material 3 Expressive `ContainedLoadingIndicator(` outside the shared
+  # component/ZemerLoadingIndicator.kt -> route content-loading spinners through ZemerLoadingIndicator
+  # so the experimental Expressive opt-in lives in ONE place. (Bare `LoadingIndicator(` is exempt: the
+  # Home pull-to-refresh uses PullToRefreshDefaults.LoadingIndicator legitimately.) Baseline 0.
+  grep -rnE "(^|[^.A-Za-z])ContainedLoadingIndicator\(" "$UI" --include=*.kt 2>/dev/null \
+    | grep -v "component/ZemerLoadingIndicator.kt" | sed -E 's/:.*//' | sed 's/$/\tR25-loader/'
 }
 
 # Aggregate to "<path>\t<rule>\t<count>", sorted.

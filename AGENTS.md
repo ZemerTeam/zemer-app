@@ -1046,17 +1046,25 @@ surface (the two drifting out of sync is exactly what bit a past change):
   overflowing; `TransportSkipButton` cancels its long-press repeat the moment the press is released.
 
 This UI stays on **standard `MaterialTheme`** (never `MaterialExpressiveTheme` - no global expressive
-theme swap), but individual **Material 3 Expressive** components are adopted component-by-component behind
-per-site `@OptIn(ExperimentalMaterial3ExpressiveApi::class)` (material3 `1.5.0-alpha18`, compose `1.11.4`).
-In use today: the content-loading spinner (`ContainedLoadingIndicator`, wrapped once in the shared
-`ui/component/ZemerLoadingIndicator`), the Home pull-to-refresh indicator (expressive
-`PullToRefreshDefaults.LoadingIndicator`), `LinearWavyProgressIndicator` for loading bars (`AppStateViews`,
-the update dialog), the filter-chip rows (`ChipsRow` + the shared `ui/component/LibraryFilterChip` render
-as `TonalToggleButton`, shape-morphing on selection, keeping the D-pad focus treatment), the Home Latest
-Releases shelf (`HorizontalMultiBrowseCarousel`), and `MaterialShapes` cookie clips on the About credits
-avatars (via the shared `ui/component/ExpressiveShapes`; deliberately NOT applied app-wide to artist
-avatars, which stay circles). Tiny in-button spinners and determinate download rings stay standard
-`CircularProgressIndicator` on purpose. New
+theme swap; a global `MotionScheme.expressive()` was tried and reverted, because the app's hand-rolled
+animations ignore the theme's motion scheme - springiness is added per-interaction, not by a switch), but
+individual **Material 3 Expressive** components are adopted component-by-component behind per-site
+`@OptIn(ExperimentalMaterial3ExpressiveApi::class)` (material3 `1.5.0-alpha18`, compose `1.11.4`). In use
+today: the content-loading spinner (`ContainedLoadingIndicator`, wrapped once in the shared
+`ui/component/ZemerLoadingIndicator` - a raw `ContainedLoadingIndicator(` outside it fails ui-audit
+**R25**), the Home pull-to-refresh indicator (expressive `PullToRefreshDefaults.LoadingIndicator`),
+`LinearWavyProgressIndicator` for loading bars (`AppStateViews`, the update dialog), the filter-chip rows
+(`ChipsRow` + the shared `ui/component/LibraryFilterChip` render as `TonalToggleButton`, shape-morphing on
+selection, keeping the D-pad focus treatment), the Home Latest Releases shelf
+(`HorizontalMultiBrowseCarousel`), `MaterialShapes` cookie clips on the About credits avatars (via the
+shared `ui/component/ExpressiveShapes`; deliberately NOT applied app-wide to artist avatars, which stay
+circles), a bouncy **pop** on the player like / shuffle / repeat toggles (`ui/component/rememberPopScale`),
+and an app-wide **press bounce** on every card and row (`ui/component/pressBounce`, a NON-consuming press
+observer wired once into the base `GridItem` / `ListItem`, so a tap springs the item without touching the
+caller's click - never per-call-site). Tiny in-button spinners and determinate download rings stay standard
+`CircularProgressIndicator` on purpose. A separate **Enable high refresh rate** setting (Appearance ->
+Theme, default on; `MainActivity` sets the window's `preferredDisplayModeId`/`preferredRefreshRate`) forces
+the display to up to 120Hz so all of this renders smoothly. New
 transport buttons reuse `TransportSkipButton` + the accent focus border; new D-pad rows reuse
 `Modifier.focusBorder()`. `scripts/ui-audit.sh` ratchets raw `Modifier.blur(` in `ui/` (R12) - route
 player blur through the effective style.

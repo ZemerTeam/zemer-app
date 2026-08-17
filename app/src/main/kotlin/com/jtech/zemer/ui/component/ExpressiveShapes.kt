@@ -26,4 +26,4 @@ private val AvatarPolygons = listOf(
  */
 @Composable
 fun expressiveAvatarShape(key: Any?): Shape =
-    AvatarPolygons[Math.floorMod(key?.hashCode() ?: 0, AvatarPolygons.size)].toShape()
+    AvatarPolygons[avatarPolygonIndex(key, AvatarPolygons.size)].toShape()
