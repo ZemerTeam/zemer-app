@@ -212,6 +212,7 @@
     <string name="settings_section_player_content">Player &amp; Content</string>
     <string name="settings_section_storage">Storage &amp; Data</string>
     <string name="settings_section_system">System &amp; About</string>
+    <string name="settings_section_support">Support</string>
 
     <!-- Updater -->
     <string name="updater">Updater</string>
@@ -610,6 +611,8 @@
     <string name="about_releases">Releases thread</string>
     <string name="about_discussion">Discussion &amp; feedback</string>
     <string name="about_source_code">Source code</string>
+    <string name="donate">Buy me a coffee</string>
+    <string name="settings_desc_donate">Support the Zemer project</string>
     <!-- Theme & Colors screen -->
     <string name="theme_colors">Theme &amp; Colors</string>
     <string name="theme_desc">Customize your app theme</string>

@@ -39,6 +39,8 @@ import com.jtech.zemer.ui.component.Material3SettingsItem
 import com.jtech.zemer.ui.component.zemerTopAppBarColors
 import com.jtech.zemer.extensions.toast
 
+private const val DONATE_URL = "https://buymeacoffee.com/zemer"
+
 data class SettingItem(
     val id: String,
     val title: String,
@@ -55,7 +57,7 @@ fun SettingsScreen(
     scrollBehavior: TopAppBarScrollBehavior,
     latestVersionName: String,
 ) {
-    LocalUriHandler.current
+    val uriHandler = LocalUriHandler.current
     val context = LocalContext.current
     Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
     // Android Auto app package; declared in <queries> so getPackageInfo is visible on API 30+.
@@ -176,6 +178,14 @@ fun SettingsScreen(
             icon = R.drawable.info,
             section = stringResource(R.string.settings_section_system),
             route = "settings/about"
+        ),
+        SettingItem(
+            id = "donate",
+            title = stringResource(R.string.donate),
+            description = stringResource(R.string.settings_desc_donate),
+            icon = R.drawable.favorite,
+            section = stringResource(R.string.settings_section_support),
+            route = null
         )
     )
     val androidAutoSettings = if (hasAndroidAuto) {
@@ -237,6 +247,7 @@ fun SettingsScreen(
                 stringResource(R.string.settings_section_privacy),
                 stringResource(R.string.settings_section_storage),
                 stringResource(R.string.settings_section_system),
+                stringResource(R.string.settings_section_support),
             )
             val orderedSectionTitles = sectionOrder.filter { sections.containsKey(it) } +
                 sections.keys.filterNot { it in sectionOrder }
@@ -252,6 +263,8 @@ fun SettingsScreen(
                             onClick = {
                                 if (setting.route != null) {
                                     navController.navigate(setting.route)
+                                } else if (setting.id == "donate") {
+                                    uriHandler.openUri(DONATE_URL)
                                 } else if (setting.id == "logout") {
                                     FirebaseAuth.getInstance().signOut()
                                     context.toast(R.string.logged_out)
