@@ -36,10 +36,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.carousel.HorizontalMultiBrowseCarousel
 import androidx.compose.material3.carousel.rememberCarouselState
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.ContentScale
-import coil3.compose.AsyncImage
 import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults.LoadingIndicator
 import androidx.compose.material3.pulltorefresh.pullToRefresh
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
@@ -98,19 +94,10 @@ import com.jtech.zemer.ui.component.MoreVertMenuButton
 import com.jtech.zemer.extensions.toMediaItem
 import com.jtech.zemer.playback.queues.ListQueue
 import com.jtech.zemer.tracking.PlaySource
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.graphicsLayer
-import com.jtech.zemer.ui.component.ActiveBoxAlpha
-import com.jtech.zemer.ui.component.AlbumPlayButton
-import com.jtech.zemer.ui.component.expressivePlayingShape
-import com.jtech.zemer.ui.component.rememberPopScale
 import com.jtech.zemer.ui.component.NavigationTitle
-import com.jtech.zemer.ui.component.OverlayPlayButton
-import com.jtech.zemer.ui.component.PlayingIndicatorBox
 import com.jtech.zemer.ui.component.ChipsRow
 import com.jtech.zemer.ui.utils.whitelistedPodcastRoute
 import androidx.compose.foundation.background
-import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import com.jtech.zemer.extensions.toEnum
@@ -136,14 +123,7 @@ import com.jtech.zemer.ui.utils.SnapLayoutInfoProvider
 import com.jtech.zemer.ui.utils.navigateToArtist
 import com.jtech.zemer.ui.utils.navigateToAlbum
 import com.jtech.zemer.utils.rememberPreference
-import com.jtech.zemer.di.zemerSearchRepository
-import com.jtech.zemer.latestreleases.isNowPlaying
-import com.jtech.zemer.latestreleases.isPlayableSingle
-import com.jtech.zemer.latestreleases.openOrPlay
-import com.jtech.zemer.latestreleases.playAlbum
-import com.jtech.zemer.latestreleases.relativeDateLabel
-import com.jtech.zemer.latestreleases.toAlbumItem
-import com.jtech.zemer.utils.joinByBullet
+import com.jtech.zemer.latestreleases.LatestReleaseCarouselItem
 import com.jtech.zemer.viewmodels.HomeViewModel
 import com.jtech.zemer.viewmodels.LatestReleasesViewModel
 import com.jtech.zemer.playback.queues.StationQueue
@@ -751,8 +731,9 @@ fun HomeScreen(
 
                     item(key = "latest_releases_list", contentType = "grid") {
                         // Material 3 Expressive: Latest Releases is a multi-browse carousel - a large hero
-                        // cover with shape-morphing, peeking neighbours. Same open/play routing as
-                        // LatestReleaseCard (release.openOrPlay).
+                        // cover with shape-morphing, peeking neighbours. Each hero is the shared
+                        // LatestReleaseCarouselItem (D-pad focus + library badges + play affordances),
+                        // so it can't drift from the "See all" LatestReleaseCard.
                         val latestCarouselState = rememberCarouselState { releases.size }
                         HorizontalMultiBrowseCarousel(
                             state = latestCarouselState,
@@ -766,109 +747,14 @@ fun HomeScreen(
                                 .height(180.dp)
                                 .animateItem(),
                         ) { index ->
-                            val release = releases[index]
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .maskClip(MaterialTheme.shapes.extraLarge)
-                                    .combinedClickable(
-                                        onClick = { release.openOrPlay(navController, playerConnection) },
-                                        onLongClick = {
-                                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                            menuState.show(
-                                                ytItemMenu(
-                                                    item = release.toAlbumItem(),
-                                                    navController = navController,
-                                                    coroutineScope = scope,
-                                                    onDismiss = menuState::dismiss,
-                                                )
-                                            )
-                                        },
-                                    ),
-                            ) {
-                                // Restore the play affordances LatestReleaseCard rendered before this
-                                // shelf became a cover-only carousel: a now-playing indicator, and - when
-                                // idle - the differentiated play button (a single gets the centred
-                                // "tap to play" icon; an album gets the corner button that plays it
-                                // directly, without opening the page).
-                                val active = release.isNowPlaying(mediaMetadata)
-                                val activePop = rememberPopScale(active)
-                                AsyncImage(
-                                    model = release.thumbnail,
-                                    contentDescription = release.title,
-                                    contentScale = ContentScale.Crop,
-                                    // A playing release morphs its cover to the same scalloped expressive
-                                    // shape the card thumbnails use, and pops once as it becomes active.
-                                    modifier = Modifier
-                                        .fillMaxSize()
-                                        .graphicsLayer { scaleX = activePop; scaleY = activePop }
-                                        .then(if (active) Modifier.clip(expressivePlayingShape()) else Modifier),
-                                )
-                                PlayingIndicatorBox(
-                                    isActive = active,
-                                    playWhenReady = isPlaying,
-                                    modifier = Modifier
-                                        .fillMaxSize()
-                                        .graphicsLayer { scaleX = activePop; scaleY = activePop }
-                                        .background(
-                                            Color.Black.copy(alpha = ActiveBoxAlpha),
-                                            shape = expressivePlayingShape(),
-                                        ),
-                                )
-                                Column(
-                                    modifier = Modifier
-                                        .align(Alignment.BottomStart)
-                                        .fillMaxWidth()
-                                        .background(
-                                            Brush.verticalGradient(
-                                                listOf(Color.Transparent, Color.Black.copy(alpha = 0.75f))
-                                            )
-                                        )
-                                        .padding(horizontal = 12.dp, vertical = 8.dp),
-                                ) {
-                                    Text(
-                                        text = release.title,
-                                        color = Color.White,
-                                        style = MaterialTheme.typography.labelLarge,
-                                        maxLines = 1,
-                                        modifier = Modifier.basicMarquee(),
-                                    )
-                                    // Restore the card's "Artist • released N days ago" line, lost when this
-                                    // shelf became a cover-only carousel.
-                                    val subtitle = joinByBullet(release.artistName, release.relativeDateLabel())
-                                    if (subtitle.isNotEmpty()) {
-                                        Text(
-                                            text = subtitle,
-                                            color = Color.White.copy(alpha = 0.75f),
-                                            style = MaterialTheme.typography.bodySmall,
-                                            maxLines = 1,
-                                            modifier = Modifier.basicMarquee(),
-                                        )
-                                    }
-                                }
-                                // Drawn LAST so the play button sits ON TOP of the bottom title gradient -
-                                // otherwise that Transparent->Black scrim paints over the disc and muddies
-                                // it (a single gets the centred "tap to play" icon, an album the corner
-                                // button that plays it directly).
-                                if (release.isPlayableSingle()) {
-                                    OverlayPlayButton(visible = !active)
-                                } else {
-                                    AlbumPlayButton(
-                                        visible = !active,
-                                        onClick = {
-                                            scope.launch {
-                                                release.playAlbum(
-                                                    playerConnection = playerConnection,
-                                                    database = database,
-                                                    zemerRepository = context.zemerSearchRepository(),
-                                                    context = context,
-                                                    navController = navController,
-                                                )
-                                            }
-                                        },
-                                    )
-                                }
-                            }
+                            LatestReleaseCarouselItem(
+                                release = releases[index],
+                                navController = navController,
+                                playerConnection = playerConnection,
+                                mediaMetadata = mediaMetadata,
+                                isPlaying = isPlaying,
+                                coroutineScope = scope,
+                            )
                         }
                     }
                 }

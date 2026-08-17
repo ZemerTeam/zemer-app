@@ -1056,15 +1056,25 @@ today: the content-loading spinner (`ContainedLoadingIndicator`, wrapped once in
 `LinearWavyProgressIndicator` for loading bars (`AppStateViews`, the update dialog), the filter-chip rows
 (`ChipsRow` + the shared `ui/component/LibraryFilterChip` render as `TonalToggleButton`, shape-morphing on
 selection, keeping the D-pad focus treatment), the Home Latest Releases shelf
-(`HorizontalMultiBrowseCarousel`), `MaterialShapes` cookie clips on the About credits avatars (via the
+(`HorizontalMultiBrowseCarousel`, each hero the ONE shared `latestreleases/LatestReleaseCarouselItem` - it
+carries the D-pad focus ring, drawn OVER the full-bleed cover via the carousel's own `maskBorder` so it
+follows the item morph, plus the library badges (download progress / liked / explicit) forced white on the
+dark scrim; it shares the release binding with the "See all" `LatestReleaseCard`, which is now list-only),
+`MaterialShapes` cookie clips on the About credits avatars (via the
 shared `ui/component/ExpressiveShapes`; deliberately NOT applied app-wide to artist avatars, which stay
-circles), a bouncy **pop** on the player like / shuffle / repeat toggles (`ui/component/rememberPopScale`),
-and an app-wide **press bounce** on every card and row (`ui/component/pressBounce`, a NON-consuming press
+circles), a bouncy **pop** on the player shuffle / repeat toggles AND the like heart
+(`ui/component/rememberPopScale`) - the like pop is driven by the USER'S TAP (a per-control counter), NOT
+the liked flag, which also flips on every track transition and bounced the heart on plain skips - plus the
+rising-edge `rememberActivationPopScale` for a card that pops ONCE as it BECOMES the playing item (never
+again when it is left; the currently-playing thumbnail + carousel hero use it), and an app-wide **press
+bounce** on every card and row (`ui/component/pressBounce`, a NON-consuming press
 observer wired once into the base `GridItem` / `ListItem`, so a tap springs the item without touching the
 caller's click - never per-call-site). Tiny in-button spinners and determinate download rings stay standard
 `CircularProgressIndicator` on purpose. A separate **Enable high refresh rate** setting (Appearance ->
-Theme, default on; `MainActivity` sets the window's `preferredDisplayModeId`/`preferredRefreshRate`) forces
-the display to up to 120Hz so all of this renders smoothly. New
+Theme, default on; `MainActivity` sets the window's `preferredDisplayModeId`/`preferredRefreshRate` via the
+pure, unit-tested `utils/RefreshRateSelection` - `preferredDisplayModeId(target)` maps a null selection to
+0 = system default so turning the setting OFF clears a previously-forced high mode, not leaves it stale)
+forces the display to up to 120Hz so all of this renders smoothly. New
 transport buttons reuse `TransportSkipButton` + the accent focus border; new D-pad rows reuse
 `Modifier.focusBorder()`. `scripts/ui-audit.sh` ratchets raw `Modifier.blur(` in `ui/` (R12) - route
 player blur through the effective style.
