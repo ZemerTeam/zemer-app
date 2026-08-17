@@ -261,6 +261,8 @@ import com.jtech.zemer.ui.utils.playHomeEasterEgg
 import com.jtech.zemer.ui.utils.backToMain
 import com.jtech.zemer.ui.utils.resetHeightOffset
 import com.jtech.zemer.utils.ButtonInputCapture
+import com.jtech.zemer.utils.DisplayModeInfo
+import com.jtech.zemer.utils.selectRefreshRateMode
 import com.jtech.zemer.utils.ButtonMapperBridge
 import com.jtech.zemer.utils.SyncUtils
 import com.jtech.zemer.utils.Updater
@@ -521,31 +523,21 @@ class MainActivity : ComponentActivity() {
                 @Suppress("DEPRECATION")
                 val display = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) this@MainActivity.display
                     else win.windowManager.defaultDisplay
-                // Only consider modes at the current physical resolution so forcing the highest refresh
-                // rate never silently switches the display to a lower resolution that happens to be faster.
-                val current = display?.mode
-                val modes = display?.supportedModes.orEmpty().filter { m ->
-                    current == null ||
-                        (m.physicalWidth == current.physicalWidth && m.physicalHeight == current.physicalHeight)
+                val modes = display?.supportedModes.orEmpty().map {
+                    DisplayModeInfo(it.modeId, it.physicalWidth, it.physicalHeight, it.refreshRate)
                 }
+                val current = display?.mode?.let {
+                    DisplayModeInfo(it.modeId, it.physicalWidth, it.physicalHeight, it.refreshRate)
+                }
+                val target = selectRefreshRateMode(modes, current, high = enableHighRefreshRate)
+                val lp = win.attributes
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                    val lp = win.attributes
-                    val target = if (enableHighRefreshRate) {
-                        // Force the highest supported rate (e.g. 120Hz) - preferredDisplayModeId = 0 means
-                        // "system default", which leaves a 120Hz-capable panel at its 60Hz default.
-                        modes.maxByOrNull { it.refreshRate }
-                    } else {
-                        modes.firstOrNull { kotlin.math.abs(it.refreshRate - 60f) < 1f }
-                            ?: modes.minByOrNull { kotlin.math.abs(it.refreshRate - 60f) }
-                    }
                     if (target != null) lp.preferredDisplayModeId = target.modeId
-                    win.attributes = lp
                 } else {
-                    val lp = win.attributes
-                    val maxRate = modes.maxByOrNull { it.refreshRate }?.refreshRate ?: 0f
-                    lp.preferredRefreshRate = if (enableHighRefreshRate) maxRate else 60f
-                    win.attributes = lp
+                    // Pre-R can only ask for a rate, not a mode id.
+                    lp.preferredRefreshRate = target?.refreshRate ?: if (enableHighRefreshRate) 0f else 60f
                 }
+                win.attributes = lp
             }
 
             val checkForUpdates by rememberPreference(CheckForUpdatesKey, defaultValue = false)
