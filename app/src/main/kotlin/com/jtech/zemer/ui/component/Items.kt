@@ -1180,9 +1180,10 @@ fun ItemThumbnail(
     thumbnailRatio: Float = 1f
 ) {
         // A currently-PLAYING card morphs its artwork to a scalloped expressive silhouette (and pops
-        // once as it becomes active), so the active item reads as playing beyond the equalizer badge.
+        // once as it BECOMES active - rising-edge only, so the card it left never bounces too), so the
+        // active item reads as playing beyond the equalizer badge.
         val effectiveShape = if (isActive) expressivePlayingShape() else shape
-        val activePop = rememberPopScale(isActive)
+        val activePop = rememberActivationPopScale(isActive)
     Box(
         contentAlignment = Alignment.Center,
         modifier = modifier

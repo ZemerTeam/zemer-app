@@ -28,14 +28,40 @@ fun rememberPopScale(state: Any?): Float {
             seenFirst = true
             return@LaunchedEffect
         }
-        scale.animateTo(1.3f, spring(stiffness = Spring.StiffnessHigh))
-        scale.animateTo(
-            targetValue = 1f,
-            animationSpec = spring(
-                dampingRatio = Spring.DampingRatioMediumBouncy,
-                stiffness = Spring.StiffnessMedium,
-            ),
-        )
+        scale.popOnce()
     }
     return scale.value
+}
+
+/**
+ * Like [rememberPopScale], but pops ONLY on the rising edge - when [active] goes from false to true
+ * (a card BECOMING the currently-playing item). A true->false change (deactivation) does not pop, so a
+ * track change bounces only the newly-active card, never the one it just left. The first composition
+ * never pops regardless of the initial value.
+ *
+ * Use this for "pops as it becomes active" affordances; [rememberPopScale] (pop on ANY change) is for a
+ * control whose every toggle should bounce.
+ */
+@Composable
+fun rememberActivationPopScale(active: Boolean): Float {
+    val scale = remember { Animatable(1f) }
+    var wasActive by remember { mutableStateOf(active) }
+    LaunchedEffect(active) {
+        val rising = active && !wasActive
+        wasActive = active
+        if (rising) scale.popOnce()
+    }
+    return scale.value
+}
+
+/** The shared spring: a quick jump to 1.3x, then a bouncy settle back to 1. */
+private suspend fun Animatable<Float, *>.popOnce() {
+    animateTo(1.3f, spring(stiffness = Spring.StiffnessHigh))
+    animateTo(
+        targetValue = 1f,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessMedium,
+        ),
+    )
 }

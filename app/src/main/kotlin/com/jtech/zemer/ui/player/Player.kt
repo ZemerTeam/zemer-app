@@ -60,6 +60,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -785,6 +786,7 @@ fun BottomSheetPlayer(
                             )
                         }
 
+                        var favPop by remember { mutableIntStateOf(0) }
                         Box(
                             modifier = Modifier
                                 .size(42.dp)
@@ -794,10 +796,13 @@ fun BottomSheetPlayer(
                                 .focusable()
                                 .onFocusChanged { favFocused.value = it.isFocused }
                                 .clickable {
+                                    // Pop on the USER'S tap, not on the liked flag - that flag also flips
+                                    // on every track transition, which bounced the heart on plain skips.
+                                    favPop++
                                     playerConnection.toggleLike()
                                 }
                         ) {
-                            val likePop = rememberPopScale(currentSong?.song?.isSavedForPlayer == true)
+                            val likePop = rememberPopScale(favPop)
                             Image(
                                 painter = painterResource(
                                     if (currentSong?.song?.isSavedForPlayer == true)
@@ -1251,7 +1256,8 @@ fun BottomSheetPlayer(
                     }
 
                     Box(modifier = Modifier.weight(1f)) {
-                        val likePop = rememberPopScale(currentSong?.song?.isSavedForPlayer == true)
+                        var favPop by remember { mutableIntStateOf(0) }
+                        val likePop = rememberPopScale(favPop)
                         ResizableIconButton(
                             icon = if (currentSong?.song?.isSavedForPlayer == true) R.drawable.favorite else R.drawable.favorite_border,
                             color = if (currentSong?.song?.isSavedForPlayer == true) MaterialTheme.colorScheme.error else TextBackgroundColor,
@@ -1261,7 +1267,11 @@ fun BottomSheetPlayer(
                                 .padding(4.dp)
                                 .align(Alignment.Center)
                                 .graphicsLayer { scaleX = likePop; scaleY = likePop },
-                            onClick = playerConnection::toggleLike,
+                            onClick = {
+                                // Bounce on the tap, not the liked flag (which flips on track changes).
+                                favPop++
+                                playerConnection.toggleLike()
+                            },
                         )
                     }
                 }
