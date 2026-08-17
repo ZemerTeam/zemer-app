@@ -39,7 +39,6 @@ import androidx.compose.material3.carousel.rememberCarouselState
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.text.style.TextOverflow
 import coil3.compose.AsyncImage
 import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults.LoadingIndicator
 import androidx.compose.material3.pulltorefresh.pullToRefresh
@@ -103,7 +102,9 @@ import com.jtech.zemer.ui.component.NavigationTitle
 import com.jtech.zemer.ui.component.ChipsRow
 import com.jtech.zemer.ui.utils.whitelistedPodcastRoute
 import androidx.compose.foundation.background
+import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import com.jtech.zemer.extensions.toEnum
 import com.jtech.zemer.utils.dataStore
 import com.jtech.zemer.ui.component.ZemerCuratedPlaylistGridItem
@@ -128,6 +129,9 @@ import com.jtech.zemer.ui.utils.navigateToArtist
 import com.jtech.zemer.ui.utils.navigateToAlbum
 import com.jtech.zemer.utils.rememberPreference
 import com.jtech.zemer.latestreleases.openOrPlay
+import com.jtech.zemer.latestreleases.relativeDateLabel
+import com.jtech.zemer.latestreleases.toAlbumItem
+import com.jtech.zemer.utils.joinByBullet
 import com.jtech.zemer.viewmodels.HomeViewModel
 import com.jtech.zemer.viewmodels.LatestReleasesViewModel
 import com.jtech.zemer.playback.queues.StationQueue
@@ -740,13 +744,14 @@ fun HomeScreen(
                         val latestCarouselState = rememberCarouselState { releases.size }
                         HorizontalMultiBrowseCarousel(
                             state = latestCarouselState,
-                            preferredItemWidth = 220.dp,
+                            preferredItemWidth = 180.dp,
                             itemSpacing = 8.dp,
                             contentPadding = WindowInsets.systemBars
                                 .only(WindowInsetsSides.Horizontal)
                                 .asPaddingValues(),
                             modifier = Modifier
-                                .height(220.dp)
+                                .padding(vertical = 12.dp)
+                                .height(180.dp)
                                 .animateItem(),
                         ) { index ->
                             val release = releases[index]
@@ -756,6 +761,17 @@ fun HomeScreen(
                                     .maskClip(MaterialTheme.shapes.extraLarge)
                                     .combinedClickable(
                                         onClick = { release.openOrPlay(navController, playerConnection) },
+                                        onLongClick = {
+                                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                            menuState.show(
+                                                ytItemMenu(
+                                                    item = release.toAlbumItem(),
+                                                    navController = navController,
+                                                    coroutineScope = scope,
+                                                    onDismiss = menuState::dismiss,
+                                                )
+                                            )
+                                        },
                                     ),
                             ) {
                                 AsyncImage(
@@ -764,22 +780,37 @@ fun HomeScreen(
                                     contentScale = ContentScale.Crop,
                                     modifier = Modifier.fillMaxSize(),
                                 )
-                                Text(
-                                    text = release.title,
-                                    color = Color.White,
-                                    style = MaterialTheme.typography.titleSmall,
-                                    maxLines = 2,
-                                    overflow = TextOverflow.Ellipsis,
+                                Column(
                                     modifier = Modifier
                                         .align(Alignment.BottomStart)
                                         .fillMaxWidth()
                                         .background(
                                             Brush.verticalGradient(
-                                                listOf(Color.Transparent, Color.Black.copy(alpha = 0.65f))
+                                                listOf(Color.Transparent, Color.Black.copy(alpha = 0.75f))
                                             )
                                         )
-                                        .padding(horizontal = 14.dp, vertical = 10.dp),
-                                )
+                                        .padding(horizontal = 12.dp, vertical = 8.dp),
+                                ) {
+                                    Text(
+                                        text = release.title,
+                                        color = Color.White,
+                                        style = MaterialTheme.typography.labelLarge,
+                                        maxLines = 1,
+                                        modifier = Modifier.basicMarquee(),
+                                    )
+                                    // Restore the card's "Artist • released N days ago" line, lost when this
+                                    // shelf became a cover-only carousel.
+                                    val subtitle = joinByBullet(release.artistName, release.relativeDateLabel())
+                                    if (subtitle.isNotEmpty()) {
+                                        Text(
+                                            text = subtitle,
+                                            color = Color.White.copy(alpha = 0.75f),
+                                            style = MaterialTheme.typography.bodySmall,
+                                            maxLines = 1,
+                                            modifier = Modifier.basicMarquee(),
+                                        )
+                                    }
+                                }
                             }
                         }
                     }
