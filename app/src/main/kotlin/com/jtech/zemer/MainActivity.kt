@@ -175,6 +175,7 @@ import com.jtech.zemer.ui.screens.effectiveHomeTab
 import com.jtech.zemer.constants.BlockPodcastsKey
 import com.jtech.zemer.constants.AppLanguageKey
 import com.jtech.zemer.constants.CheckForUpdatesKey
+import com.jtech.zemer.constants.EnableHighRefreshRateKey
 import com.jtech.zemer.constants.LastNightlyAnnouncedKey
 import com.jtech.zemer.constants.DarkModeKey
 import com.jtech.zemer.constants.DefaultOpenTabKey
@@ -512,6 +513,29 @@ class MainActivity : ComponentActivity() {
         contentFilterSyncService.initialize()
 
         setContent {
+            // Force the display to its highest supported refresh rate (e.g. 120Hz) so the app's
+            // spring animations render buttery-smooth; off pins it to ~60Hz. Ported from Metrolist.
+            val enableHighRefreshRate by rememberPreference(EnableHighRefreshRateKey, defaultValue = true)
+            LaunchedEffect(enableHighRefreshRate) {
+                val win = this@MainActivity.window
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                    val lp = win.attributes
+                    if (enableHighRefreshRate) {
+                        lp.preferredDisplayModeId = 0
+                    } else {
+                        val modes = win.windowManager.defaultDisplay.supportedModes
+                        val mode60 = modes.firstOrNull { kotlin.math.abs(it.refreshRate - 60f) < 1f }
+                            ?: modes.minByOrNull { kotlin.math.abs(it.refreshRate - 60f) }
+                        if (mode60 != null) lp.preferredDisplayModeId = mode60.modeId
+                    }
+                    win.attributes = lp
+                } else {
+                    val lp = win.attributes
+                    lp.preferredRefreshRate = if (enableHighRefreshRate) 0f else 60f
+                    win.attributes = lp
+                }
+            }
+
             val checkForUpdates by rememberPreference(CheckForUpdatesKey, defaultValue = false)
 
             LaunchedEffect(checkForUpdates) {
