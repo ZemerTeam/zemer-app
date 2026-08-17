@@ -586,7 +586,7 @@ fun HomeScreen(
                         Modifier
                             .fillMaxWidth()
                             .background(MaterialTheme.colorScheme.surface)
-                            .padding(vertical = 4.dp)
+                            .padding(top = 12.dp, bottom = 4.dp)
                     ) {
                         ChipsRow(
                             chips = homeContentChips,
