@@ -518,20 +518,32 @@ class MainActivity : ComponentActivity() {
             val enableHighRefreshRate by rememberPreference(EnableHighRefreshRateKey, defaultValue = true)
             LaunchedEffect(enableHighRefreshRate) {
                 val win = this@MainActivity.window
+                @Suppress("DEPRECATION")
+                val display = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) this@MainActivity.display
+                    else win.windowManager.defaultDisplay
+                // Only consider modes at the current physical resolution so forcing the highest refresh
+                // rate never silently switches the display to a lower resolution that happens to be faster.
+                val current = display?.mode
+                val modes = display?.supportedModes.orEmpty().filter { m ->
+                    current == null ||
+                        (m.physicalWidth == current.physicalWidth && m.physicalHeight == current.physicalHeight)
+                }
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
                     val lp = win.attributes
-                    if (enableHighRefreshRate) {
-                        lp.preferredDisplayModeId = 0
+                    val target = if (enableHighRefreshRate) {
+                        // Force the highest supported rate (e.g. 120Hz) - preferredDisplayModeId = 0 means
+                        // "system default", which leaves a 120Hz-capable panel at its 60Hz default.
+                        modes.maxByOrNull { it.refreshRate }
                     } else {
-                        val modes = win.windowManager.defaultDisplay.supportedModes
-                        val mode60 = modes.firstOrNull { kotlin.math.abs(it.refreshRate - 60f) < 1f }
+                        modes.firstOrNull { kotlin.math.abs(it.refreshRate - 60f) < 1f }
                             ?: modes.minByOrNull { kotlin.math.abs(it.refreshRate - 60f) }
-                        if (mode60 != null) lp.preferredDisplayModeId = mode60.modeId
                     }
+                    if (target != null) lp.preferredDisplayModeId = target.modeId
                     win.attributes = lp
                 } else {
                     val lp = win.attributes
-                    lp.preferredRefreshRate = if (enableHighRefreshRate) 0f else 60f
+                    val maxRate = modes.maxByOrNull { it.refreshRate }?.refreshRate ?: 0f
+                    lp.preferredRefreshRate = if (enableHighRefreshRate) maxRate else 60f
                     win.attributes = lp
                 }
             }

@@ -98,7 +98,9 @@ import com.jtech.zemer.ui.component.MoreVertMenuButton
 import com.jtech.zemer.extensions.toMediaItem
 import com.jtech.zemer.playback.queues.ListQueue
 import com.jtech.zemer.tracking.PlaySource
+import com.jtech.zemer.ui.component.ActiveBoxAlpha
 import com.jtech.zemer.ui.component.NavigationTitle
+import com.jtech.zemer.ui.component.PlayingIndicatorBox
 import com.jtech.zemer.ui.component.ChipsRow
 import com.jtech.zemer.ui.utils.whitelistedPodcastRoute
 import androidx.compose.foundation.background
@@ -128,6 +130,7 @@ import com.jtech.zemer.ui.utils.SnapLayoutInfoProvider
 import com.jtech.zemer.ui.utils.navigateToArtist
 import com.jtech.zemer.ui.utils.navigateToAlbum
 import com.jtech.zemer.utils.rememberPreference
+import com.jtech.zemer.latestreleases.isNowPlaying
 import com.jtech.zemer.latestreleases.openOrPlay
 import com.jtech.zemer.latestreleases.relativeDateLabel
 import com.jtech.zemer.latestreleases.toAlbumItem
@@ -779,6 +782,16 @@ fun HomeScreen(
                                     contentDescription = release.title,
                                     contentScale = ContentScale.Crop,
                                     modifier = Modifier.fillMaxSize(),
+                                )
+                                // Reflect the currently-playing release as playing (equalizer/play
+                                // overlay), the indication LatestReleaseCard rendered before this shelf
+                                // became a cover-only carousel.
+                                PlayingIndicatorBox(
+                                    isActive = release.isNowPlaying(mediaMetadata),
+                                    playWhenReady = isPlaying,
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .background(Color.Black.copy(alpha = ActiveBoxAlpha)),
                                 )
                                 Column(
                                     modifier = Modifier
