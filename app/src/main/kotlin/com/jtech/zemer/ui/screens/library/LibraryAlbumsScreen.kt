@@ -59,6 +59,7 @@ import com.jtech.zemer.constants.HideExplicitKey
 import com.jtech.zemer.constants.LibraryViewType
 import com.jtech.zemer.constants.YtmSyncKey
 import com.jtech.zemer.ui.component.ChipsRow
+import com.jtech.zemer.ui.component.LibraryFilterChip
 import com.jtech.zemer.ui.component.EmptyPlaceholder
 import com.jtech.zemer.ui.component.LibraryAlbumGridItem
 import com.jtech.zemer.ui.component.LibraryAlbumListItem
@@ -102,15 +103,9 @@ fun LibraryAlbumsScreen(
     val filterContent = @Composable {
         Row {
             Spacer(Modifier.width(12.dp))
-            FilterChip(
-                label = { Text(stringResource(R.string.albums)) },
-                selected = true,
-                colors = FilterChipDefaults.filterChipColors(containerColor = MaterialTheme.colorScheme.surface),
-                onClick = onDeselect,
-                shape = RoundedCornerShape(16.dp),
-                leadingIcon = {
-                    Icon(painter = painterResource(R.drawable.close), contentDescription = stringResource(R.string.close))
-                },
+            LibraryFilterChip(
+                label = stringResource(R.string.albums),
+                onDeselect = onDeselect,
             )
             ChipsRow(
                 chips =

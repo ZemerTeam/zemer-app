@@ -56,6 +56,7 @@ import com.jtech.zemer.extensions.toMediaItem
 import com.jtech.zemer.extensions.togglePlayPause
 import com.jtech.zemer.playback.queues.ListQueue
 import com.jtech.zemer.ui.component.ChipsRow
+import com.jtech.zemer.ui.component.LibraryFilterChip
 import com.jtech.zemer.ui.component.HideOnScrollFAB
 import com.jtech.zemer.ui.component.LocalMenuState
 import com.jtech.zemer.ui.component.MoreVertMenuButton
@@ -155,18 +156,9 @@ fun LibrarySongsScreen(
             ) {
                 Row {
                     Spacer(Modifier.width(12.dp))
-                    FilterChip(
-                        label = { Text(stringResource(R.string.songs)) },
-                        selected = true,
-                        colors = FilterChipDefaults.filterChipColors(containerColor = MaterialTheme.colorScheme.surface),
-                        onClick = onDeselect,
-                        shape = RoundedCornerShape(16.dp),
-                        leadingIcon = {
-                            Icon(
-                                painter = painterResource(R.drawable.close),
-                                contentDescription = stringResource(R.string.close)
-                            )
-                        },
+                    LibraryFilterChip(
+                        label = stringResource(R.string.songs),
+                        onDeselect = onDeselect,
                     )
                     ChipsRow(
                         chips =

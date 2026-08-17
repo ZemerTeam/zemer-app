@@ -27,6 +27,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.jtech.zemer.LocalPlayerAwareWindowInsets
+import com.jtech.zemer.ui.component.LibraryFilterChip
 import com.jtech.zemer.LocalPlayerConnection
 import com.jtech.zemer.R
 import com.jtech.zemer.constants.CONTENT_TYPE_HEADER
@@ -70,18 +71,9 @@ fun LibraryVideosScreen(
                 key = "filter",
                 contentType = CONTENT_TYPE_HEADER,
             ) {
-                FilterChip(
-                    label = { Text(stringResource(R.string.videos)) },
-                    selected = true,
-                    colors = FilterChipDefaults.filterChipColors(containerColor = MaterialTheme.colorScheme.surface),
-                    onClick = onDeselect,
-                    shape = RoundedCornerShape(16.dp),
-                    leadingIcon = {
-                        Icon(
-                            painter = painterResource(R.drawable.close),
-                            contentDescription = stringResource(R.string.close)
-                        )
-                    },
+                LibraryFilterChip(
+                    label = stringResource(R.string.videos),
+                    onDeselect = onDeselect,
                     modifier = Modifier
                         .padding(horizontal = 12.dp, vertical = 8.dp)
                         .fillMaxWidth()

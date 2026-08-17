@@ -1,3 +1,5 @@
+@file:OptIn(ExperimentalMaterial3ExpressiveApi::class)
+
 package com.jtech.zemer.ui.component
 
 import android.annotation.SuppressLint
@@ -33,11 +35,12 @@ import androidx.compose.material3.AssistChip
 import androidx.compose.material3.AssistChipDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.FilterChipDefaults
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.ToggleButtonDefaults
+import androidx.compose.material3.TonalToggleButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -106,15 +109,13 @@ fun <E> ChipsRow(
                 targetValue = if (isFocused && focusVisualsEnabled()) MaterialTheme.colorScheme.outline else Color.Transparent,
                 label = "chip_focus_border"
             )
-            FilterChip(
-                label = { Text(label) },
-                selected = currentValue == value,
-                colors = FilterChipDefaults.filterChipColors(
-                    containerColor = containerColor,
-                ),
-                onClick = { onValueUpdate(value) },
-                shape = RoundedCornerShape(16.dp),
-                border = null,
+            // Material 3 Expressive: the selected filter morphs its shape (round -> squarer) and
+            // presses springily. Same selection/onClick model as the old FilterChip, so every
+            // ChipsRow caller (library tabs, Home selector, search filters) upgrades at once.
+            TonalToggleButton(
+                checked = currentValue == value,
+                onCheckedChange = { onValueUpdate(value) },
+                colors = ToggleButtonDefaults.tonalToggleButtonColors(containerColor = containerColor),
                 modifier = Modifier
                     // EVERY chip routes D-pad up/down to the same target, not just the first — otherwise
                     // a chip the geometric focus search can't resolve upward from (e.g. the rightmost
@@ -143,7 +144,9 @@ fun <E> ChipsRow(
                     }
                     .focusable()
                     .border(width = 1.5.dp, color = borderColor, shape = RoundedCornerShape(16.dp))
-            )
+            ) {
+                Text(label)
+            }
 
             Spacer(Modifier.width(8.dp))
         }
@@ -265,20 +268,17 @@ fun <Int> ChoiceChipsRow(
                         targetValue = if (isFocused && focusVisualsEnabled()) MaterialTheme.colorScheme.outline else Color.Transparent,
                         label = "chip_focus_border"
                     )
-                    FilterChip(
-                        label = { Text(label) },
-                        selected = currentValue == value,
-                        colors = FilterChipDefaults.filterChipColors(
-                            containerColor = containerColor,
-                        ),
-                        onClick = { onValueUpdate(value) },
-                        shape = RoundedCornerShape(16.dp),
-                        border = null,
+                    TonalToggleButton(
+                        checked = currentValue == value,
+                        onCheckedChange = { onValueUpdate(value) },
+                        colors = ToggleButtonDefaults.tonalToggleButtonColors(containerColor = containerColor),
                         modifier = Modifier
                             .onFocusChanged { isFocused = it.isFocused }
                             .focusable()
                             .border(width = 1.5.dp, color = borderColor, shape = RoundedCornerShape(16.dp))
-                    )
+                    ) {
+                        Text(label)
+                    }
                 }
             }
         }

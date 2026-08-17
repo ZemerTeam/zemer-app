@@ -55,6 +55,7 @@ import com.jtech.zemer.constants.GridThumbnailHeight
 import com.jtech.zemer.constants.LibraryViewType
 import com.jtech.zemer.constants.YtmSyncKey
 import com.jtech.zemer.ui.component.ChipsRow
+import com.jtech.zemer.ui.component.LibraryFilterChip
 import com.jtech.zemer.ui.component.EmptyPlaceholder
 import com.jtech.zemer.ui.component.LibraryArtistGridItem
 import com.jtech.zemer.ui.component.LibraryArtistListItem
@@ -90,15 +91,9 @@ fun LibraryArtistsScreen(
     val filterContent = @Composable {
         Row {
             Spacer(Modifier.width(12.dp))
-            FilterChip(
-                label = { Text(stringResource(R.string.artists)) },
-                selected = true,
-                colors = FilterChipDefaults.filterChipColors(containerColor = MaterialTheme.colorScheme.surface),
-                onClick = onDeselect,
-                shape = RoundedCornerShape(16.dp),
-                leadingIcon = {
-                    Icon(painter = painterResource(R.drawable.close), contentDescription = stringResource(R.string.close))
-                },
+            LibraryFilterChip(
+                label = stringResource(R.string.artists),
+                onDeselect = onDeselect,
             )
             ChipsRow(
                 chips =

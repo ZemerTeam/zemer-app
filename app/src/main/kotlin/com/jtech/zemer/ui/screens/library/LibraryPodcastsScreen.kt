@@ -66,6 +66,7 @@ import com.jtech.zemer.extensions.toMediaItem
 import com.jtech.zemer.extensions.togglePlayPause
 import com.jtech.zemer.playback.queues.ListQueue
 import com.jtech.zemer.ui.component.ChipsRow
+import com.jtech.zemer.ui.component.LibraryFilterChip
 import com.jtech.zemer.ui.component.EmptyPlaceholder
 import com.jtech.zemer.ui.component.HideOnScrollFAB
 import com.jtech.zemer.ui.component.focusBorder
@@ -132,16 +133,9 @@ fun LibraryPodcastsScreen(
     val chipsHeader = @Composable {
         Row {
             Spacer(Modifier.width(12.dp))
-            FilterChip(
-                label = { Text(stringResource(R.string.filter_podcasts)) },
-                selected = true,
-                colors = FilterChipDefaults.filterChipColors(containerColor = MaterialTheme.colorScheme.surface),
-                onClick = onDeselect,
-                shape = RoundedCornerShape(16.dp),
-                border = null,
-                leadingIcon = {
-                    Icon(painter = painterResource(R.drawable.close), contentDescription = stringResource(R.string.close_chip))
-                },
+            LibraryFilterChip(
+                label = stringResource(R.string.filter_podcasts),
+                onDeselect = onDeselect,
             )
             ChipsRow(
                 chips = listOf(
