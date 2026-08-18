@@ -397,6 +397,14 @@ optional action button - the one shell behind the content-filter toggles, the pe
 sign-in card), `OnboardingStatusPill` (the Done/Needed · Active/Optional chip), and `onboardingCardColors`
 (the shared card fill: `secondaryContainer` when active/selected, `surfaceContainer` otherwise - a tone
 below `OnboardingActionButton`'s `surfaceContainerHighest` so an in-card pill never blends into its card).
+The **loading + carousel-hero family** lives here too: `ZemerLoadingIndicator` (the CONTAINED M3 Expressive
+content/section spinner - Home pull-to-refresh look, video buffering, section loads; ratcheted by
+**R25**) and `MediaLoadingSpinner` (the BARE, neutral over-media spinner for a card cover's tap-to-play
+state; ratcheted by **R26**); `PreparingOverlay` (the scrim + `MediaLoadingSpinner` shown while a tapped
+item resolves, shared by `ItemThumbnail` and the video hero); `HeroTitleOverlay` (the bottom gradient
+title/subtitle + optional badges slot) and `CarouselHeroFrame` (the ENTIRE full-bleed carousel-hero
+frame - `maskClip`/`maskBorder` D-pad focus ring, cover-crop artwork, now-playing scrim) shared by the
+Latest Releases and Featured Videos heroes.
 New screens use these; a hand-rolled duplicate is a review miss.
 
 **Componentize on every touch (non-negotiable).** Whenever you touch anything in the app, first check
@@ -1050,6 +1058,15 @@ surface (the two drifting out of sync is exactly what bit a past change):
 - The new-design transport cluster caps the labelled play button via `BoxWithConstraints` (to the
   width left after the two skip buttons + gaps) so it shrinks to fit narrow widths instead of
   overflowing; `TransportSkipButton` cancels its long-press repeat the moment the press is released.
+
+**Prefer Material 3 Expressive when a fitting component exists.** Adding or replacing a UI element for
+which a Material 3 Expressive equivalent fits? Reach for it - behind the per-site
+`@OptIn(ExperimentalMaterial3ExpressiveApi::class)` and through a SHARED wrapper (`ZemerLoadingIndicator`,
+`MediaLoadingSpinner`, `CarouselHeroFrame`, the filter-chip `TonalToggleButton`, `MaterialShapes`, the
+pop/press-bounce helpers), never a global theme swap, and honoring the exclusions below (tiny in-button +
+determinate spinners stay standard `CircularProgressIndicator`; springiness is added per-interaction).
+`scripts/ui-audit.sh` ratchets the two loaders into their wrappers - **R25** (contained ->
+`ZemerLoadingIndicator`) and **R26** (bare -> `MediaLoadingSpinner`).
 
 This UI stays on **standard `MaterialTheme`** (never `MaterialExpressiveTheme` - no global expressive
 theme swap; a global `MotionScheme.expressive()` was tried and reverted, because the app's hand-rolled
