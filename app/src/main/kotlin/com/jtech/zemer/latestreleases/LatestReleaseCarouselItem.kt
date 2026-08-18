@@ -10,21 +10,17 @@ import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
-import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
 import androidx.compose.material3.carousel.CarouselItemScope
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -36,7 +32,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.onFocusChanged
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
@@ -55,9 +50,11 @@ import com.jtech.zemer.ui.component.AlbumPlayButton
 import com.jtech.zemer.ui.component.LocalMenuState
 import com.jtech.zemer.ui.component.OverlayPlayButton
 import com.jtech.zemer.ui.component.PlayingIndicatorBox
+import com.jtech.zemer.ui.component.HeroTitleOverlay
 import com.jtech.zemer.ui.component.expressivePlayingShape
 import com.jtech.zemer.ui.component.focusVisualsEnabled
 import com.jtech.zemer.ui.component.rememberActivationPopScale
+import com.jtech.zemer.ui.component.rememberIsPreparing
 import com.jtech.zemer.ui.menu.ytItemMenu
 import com.jtech.zemer.utils.joinByBullet
 import kotlinx.coroutines.CoroutineScope
@@ -92,6 +89,11 @@ fun CarouselItemScope.LatestReleaseCarouselItem(
     val menuState = LocalMenuState.current
     val haptic = LocalHapticFeedback.current
     val isActive = release.isNowPlaying(mediaMetadata)
+    // A single that is resolving/buffering shows the loading spinner instead of the play icon (an album
+    // resolves its own spinner inside AlbumPlayButton). `showActive` withholds the now-playing treatment
+    // until audio actually starts.
+    val preparing = rememberIsPreparing(if (release.isPlayableSingle()) release.sampleVideoId else null)
+    val showActive = isActive && !preparing
 
     val itemShape = MaterialTheme.shapes.extraLarge
     var focused by remember { mutableStateOf(false) }
@@ -101,7 +103,7 @@ fun CarouselItemScope.LatestReleaseCarouselItem(
     )
     // A playing release pops once as it BECOMES active (rising-edge only) and morphs its cover to the
     // same scalloped expressive shape the card thumbnails use. Resolved once and shared by both layers.
-    val activePop = rememberActivationPopScale(isActive)
+    val activePop = rememberActivationPopScale(showActive)
     val playingShape = expressivePlayingShape()
 
     Box(
@@ -133,42 +135,20 @@ fun CarouselItemScope.LatestReleaseCarouselItem(
             modifier = Modifier
                 .fillMaxSize()
                 .graphicsLayer { scaleX = activePop; scaleY = activePop }
-                .then(if (isActive) Modifier.clip(playingShape) else Modifier),
+                .then(if (showActive) Modifier.clip(playingShape) else Modifier),
         )
         PlayingIndicatorBox(
-            isActive = isActive,
+            isActive = showActive,
             playWhenReady = isPlaying,
             modifier = Modifier
                 .fillMaxSize()
                 .graphicsLayer { scaleX = activePop; scaleY = activePop }
                 .background(Color.Black.copy(alpha = ActiveBoxAlpha), shape = playingShape),
         )
-        Column(
-            modifier = Modifier
-                .align(Alignment.BottomStart)
-                .fillMaxWidth()
-                .background(
-                    Brush.verticalGradient(listOf(Color.Transparent, Color.Black.copy(alpha = 0.75f)))
-                )
-                .padding(horizontal = 12.dp, vertical = 8.dp),
+        HeroTitleOverlay(
+            title = release.title,
+            subtitle = joinByBullet(release.artistName, release.relativeDateLabel()).ifEmpty { null },
         ) {
-            Text(
-                text = release.title,
-                color = Color.White,
-                style = MaterialTheme.typography.labelLarge,
-                maxLines = 1,
-                modifier = Modifier.basicMarquee(),
-            )
-            val subtitle = joinByBullet(release.artistName, release.relativeDateLabel())
-            if (subtitle.isNotEmpty()) {
-                Text(
-                    text = subtitle,
-                    color = Color.White.copy(alpha = 0.75f),
-                    style = MaterialTheme.typography.bodySmall,
-                    maxLines = 1,
-                    modifier = Modifier.basicMarquee(),
-                )
-            }
             // The library badges (download progress / liked / explicit) the card carried before this
             // shelf became a cover-only carousel; forced white so they read on the dark scrim.
             CompositionLocalProvider(LocalContentColor provides Color.White) {
@@ -183,10 +163,13 @@ fun CarouselItemScope.LatestReleaseCarouselItem(
         // Drawn LAST so the play button sits ON TOP of the bottom title gradient (a single gets the
         // centred "tap to play" icon, an album the corner button that plays it directly).
         if (release.isPlayableSingle()) {
-            OverlayPlayButton(visible = !isActive)
+            OverlayPlayButton(visible = !showActive, loading = preparing)
         } else {
             AlbumPlayButton(
-                visible = !isActive,
+                visible = !showActive,
+                // The carousel is index-keyed, so scope the disc's loading state to this release (else a
+                // feed refresh could bleed a spinning state onto a different album at the same slot).
+                itemKey = release.browseId,
                 onClick = {
                     coroutineScope.launch {
                         release.playAlbum(

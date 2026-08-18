@@ -69,6 +69,9 @@ fun LatestReleaseCard(
         centeredPlayButton = release.isPlayableSingle(),
         isActive = release.isNowPlaying(mediaMetadata),
         isPlaying = isPlaying,
+        // A single is an AlbumItem (id = browseId) but plays its sampleVideoId, so the tap-to-play spinner
+        // must track that id, not the browseId (the carousel already does this).
+        preparingIdOverride = if (release.isPlayableSingle()) release.sampleVideoId else null,
         badges = { ReleaseBadges(release) },
         modifier = clickable,
     )

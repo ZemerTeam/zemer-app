@@ -34,8 +34,10 @@ import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.carousel.CarouselDefaults
 import androidx.compose.material3.carousel.HorizontalMultiBrowseCarousel
 import androidx.compose.material3.carousel.rememberCarouselState
+import androidx.compose.animation.core.tween
 import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults.LoadingIndicator
 import androidx.compose.material3.pulltorefresh.pullToRefresh
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
@@ -739,6 +741,13 @@ fun HomeScreen(
                             state = latestCarouselState,
                             preferredItemWidth = 180.dp,
                             itemSpacing = 8.dp,
+                            // Advance ONE item per swipe at a FIXED animation speed, so the carousel moves
+                            // the same regardless of how hard it is flung (no velocity-scaled multi-item
+                            // fling).
+                            flingBehavior = CarouselDefaults.singleAdvanceFlingBehavior(
+                                latestCarouselState,
+                                tween(durationMillis = 400),
+                            ),
                             contentPadding = WindowInsets.systemBars
                                 .only(WindowInsetsSides.Horizontal)
                                 .asPaddingValues(),
@@ -1075,6 +1084,25 @@ fun HomeScreen(
             if (homeTab == HomeContentTab.VIDEO) {
             // Shown to blocked-video users too — the rows play audio-first, so for them each shelf is
             // simply their "video songs" (relabelled, watch/download-video affordances gated off).
+
+            // Trending Videos leads the tab as a full 16:9 hero carousel (moved to the top). It keeps the
+            // same surface/playSource/impressions the row had (impressions now per settled hero).
+            videoHeroCarousel(
+                row = HomeSeeAllRow.TRENDING_VIDEOS,
+                keyPrefix = "trending_videos",
+                surface = TrackingSurface.home("video-trending"),
+                playSource = PlaySource.HOME_VIDEO_TRENDING,
+                videos = uniqueTrendingVideos,
+                blockVideos = blockVideos,
+                navController = navController,
+                playerConnection = playerConnection,
+                menuState = menuState,
+                haptic = haptic,
+                scope = scope,
+                mediaMetadata = mediaMetadata,
+                isPlaying = isPlaying,
+            )
+
             videoSongsRow(
                 row = HomeSeeAllRow.FEATURED_VIDEOS,
                 keyPrefix = "featured_videos",
@@ -1092,22 +1120,6 @@ fun HomeScreen(
                 isPlaying = isPlaying,
             )
 
-            videoSongsRow(
-                row = HomeSeeAllRow.TRENDING_VIDEOS,
-                keyPrefix = "trending_videos",
-                surface = TrackingSurface.home("video-trending"),
-                playSource = PlaySource.HOME_VIDEO_TRENDING,
-                videos = uniqueTrendingVideos,
-                blockVideos = blockVideos,
-                parentListState = lazylistState,
-                navController = navController,
-                playerConnection = playerConnection,
-                menuState = menuState,
-                haptic = haptic,
-                scope = scope,
-                mediaMetadata = mediaMetadata,
-                isPlaying = isPlaying,
-            )
             videoSongsRow(
                 row = HomeSeeAllRow.NEW_VIDEOS,
                 keyPrefix = "new_videos",
