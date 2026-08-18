@@ -718,21 +718,22 @@ class HomeViewModel @Inject constructor(
             // row rather than falling back to a scrape. All featured content is therefore Zemer-sourced.
             val albumsPool = homeRows?.albums.orEmpty().filter { it.isAllowedRanked() }
             val artistsPool = homeRows?.artists.orEmpty().filter { it.isAllowedRanked() }
-            // Featured Videos must be ACTUAL music videos, not audio tracks that merely carry a square
-            // cover: a real video's thumbnail is a 16:9 i.ytimg.com frame, an audio track's is square
-            // album art (googleusercontent). Keep only the ytimg-framed items (the same video/art split
-            // the mapper's headerCovers uses), so the hero carousel never crops a square cover to 16:9.
-            val videosPool = homeRows?.videos.orEmpty()
-                .filter { it.isAllowedRanked() }
-                .filter { it.thumbnail?.contains("i.ytimg.com") == true }
+            // Featured Videos is the Videos-tab HERO CAROUSEL, which crops each cover to 16:9 - so it must
+            // show only ACTUAL filmed videos, not audio singles with a designed cover graphic (those are
+            // typed OMV with a real 16:9 thumbnail, so no client-side signal separates them). The server
+            // flags real videos per topVideos row (a CLIP classifier); the app keeps the FULL pool for the
+            // See-all and filters only the HERO to the flagged ids. Absent/false = out of the hero (the
+            // conservative default). Contract: handoff-docs/zemer-app-featured-videos-real-videos-request.md.
+            val videosPool = homeRows?.videos.orEmpty().filter { it.isAllowedRanked() }
+            val realVideoIds = homeRows?.realVideoIds.orEmpty()
+            val realVideosPool = videosPool.filter { it.id in realVideoIds }
             val communityPool = homeRows?.community.orEmpty().filter { it.isAllowedRanked() }
             val finalFeaturedAlbums = rotateByArtist(albumsPool, maxPerArtist = 1, target = 20)
             val finalFeaturedArtists = rotateByArtist(artistsPool, maxPerArtist = 1, target = 20)
-            // Featured Videos is the Videos-tab HERO CAROUSEL you swipe through, so show the full
-            // one-per-artist set (the pool is ~14-19 whitelisted music videos over ~14 distinct artists
-            // that clear the 30-day reach floor) rather than the old curated 8-of-a-row. rotateByArtist
-            // still keeps it to one video per artist for variety; the See-all shows the whole pool.
-            val finalFeaturedVideos = rotateByArtist(videosPool, maxPerArtist = 1, target = 20)
+            // The hero shows the full one-per-artist set of REAL (server-flagged) videos, up to 20;
+            // rotateByArtist keeps it one video per artist for variety. The See-all (displayedFirst below)
+            // still leads with these but then shows the WHOLE videosPool, real-flagged or not.
+            val finalFeaturedVideos = rotateByArtist(realVideosPool, maxPerArtist = 1, target = 20)
             // Community has no artist id (so no rotateByArtist recent-avoidance): shuffle, then prefer the
             // playlists NOT shown on the previous load so a pull-to-refresh turns the 8-of-16 row over fully.
             val communityShuffled = communityPool.shuffled(Random(System.nanoTime()))

@@ -65,6 +65,13 @@ data class ZemerTrack(
     // instead of the letterboxed video frame). Absent on surfaces that don't provide it yet;
     // [ZemerResultMapper.toSongItem] then falls back to the videoId-derived thumbnail.
     val thumbnail: String? = null,
+    // `/home-rows` `topVideos` only: true = a REAL filmed music video (kept in the Featured Videos hero
+    // carousel); false/absent = an audio single with a designed cover graphic, or not-yet-classified -
+    // stays in the See-all but OUT of the hero, which crops a square cover wrong at 16:9. A server-side
+    // CLIP classifier over the thumbnail sets it (contract:
+    // handoff-docs/zemer-app-featured-videos-real-videos-request.md); absent on the other surfaces and on
+    // older servers, so it defaults false = conservative (out of the hero).
+    val realVideo: Boolean = false,
     // The track's album {id (browseId), name}, when the server links it — powers the song menu's
     // "View album". Null for standalone singles / videos (no album in the corpus).
     val album: ZemerTrackAlbum? = null,
