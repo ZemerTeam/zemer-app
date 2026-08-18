@@ -43,10 +43,14 @@ fun rememberPopScale(state: Any?): Float {
  * control whose every toggle should bounce.
  */
 @Composable
-fun rememberActivationPopScale(active: Boolean): Float {
+fun rememberActivationPopScale(active: Boolean, key: Any? = Unit): Float {
     val scale = remember { Animatable(1f) }
-    var wasActive by remember { mutableStateOf(active) }
-    LaunchedEffect(active) {
+    // [key] identifies the item. In an INDEX-keyed carousel a composition slot is reused for different
+    // items as it scrolls, so reset the rising-edge tracking (to the current [active], never popping)
+    // whenever the item at this slot changes - else the now-playing item scrolling into a slot fires a
+    // spurious "became active" pop.
+    var wasActive by remember(key) { mutableStateOf(active) }
+    LaunchedEffect(active, key) {
         val rising = active && !wasActive
         wasActive = active
         if (rising) scale.popOnce()

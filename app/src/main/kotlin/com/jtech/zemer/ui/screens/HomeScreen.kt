@@ -1094,6 +1094,7 @@ fun HomeScreen(
                 playSource = null, // resolver default — the pre-rows attribution, unchanged
                 videos = uniqueFeaturedVideos,
                 blockVideos = blockVideos,
+                parentListState = lazylistState,
                 navController = navController,
                 playerConnection = playerConnection,
                 menuState = menuState,

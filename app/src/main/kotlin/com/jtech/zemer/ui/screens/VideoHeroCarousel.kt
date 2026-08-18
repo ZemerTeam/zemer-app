@@ -6,20 +6,13 @@
 
 package com.jtech.zemer.ui.screens
 
-import androidx.annotation.StringRes
-import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.background
-import androidx.compose.foundation.combinedClickable
-import androidx.compose.foundation.focusable
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyListScope
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.MaterialTheme
@@ -28,35 +21,27 @@ import androidx.compose.material3.carousel.CarouselItemScope
 import androidx.compose.material3.carousel.HorizontalUncontainedCarousel
 import androidx.compose.material3.carousel.rememberCarouselState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.focus.onFocusChanged
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedback
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
-import coil3.compose.AsyncImage
-import com.jtech.zemer.R
 import com.jtech.zemer.models.toMediaMetadata
 import com.jtech.zemer.models.MediaMetadata
 import com.jtech.zemer.playback.PlayerConnection
 import com.jtech.zemer.playback.queues.ZemerRadioQueue
 import com.jtech.zemer.tracking.Tracker
-import com.jtech.zemer.ui.component.ActiveBoxAlpha
+import com.jtech.zemer.ui.component.CarouselHeroFrame
 import com.jtech.zemer.ui.component.HeroTitleOverlay
 import com.jtech.zemer.ui.component.MenuState
 import com.jtech.zemer.ui.component.NavigationTitle
-import com.jtech.zemer.ui.component.PlayingIndicatorBox
 import com.jtech.zemer.ui.component.PreparingOverlay
-import com.jtech.zemer.ui.component.focusVisualsEnabled
 import com.jtech.zemer.ui.component.rememberIsPreparing
 import com.jtech.zemer.ui.menu.YouTubeSongMenu
 import com.jtech.zemer.viewmodels.HomeSeeAllRow
@@ -83,6 +68,7 @@ fun LazyListScope.videoHeroCarousel(
     playSource: String?,
     videos: List<SongItem>,
     blockVideos: Boolean,
+    parentListState: LazyListState,
     navController: NavController,
     playerConnection: PlayerConnection,
     menuState: MenuState,
@@ -91,8 +77,8 @@ fun LazyListScope.videoHeroCarousel(
     mediaMetadata: MediaMetadata?,
     isPlaying: Boolean,
 ) {
-    val unique = videos.distinctBy { it.id }
-    if (unique.isEmpty()) return
+    // Callers pass a pre-deduped list (uniqueFeaturedVideos); no second dedup pass here.
+    if (videos.isEmpty()) return
     item(key = "${keyPrefix}_title", contentType = "header") {
         NavigationTitle(
             title = stringResource(row.displayTitleRes(blockVideos)),
@@ -101,7 +87,14 @@ fun LazyListScope.videoHeroCarousel(
         )
     }
     item(key = "${keyPrefix}_carousel", contentType = "video_hero_carousel") {
-        val carouselState = rememberCarouselState { unique.size }
+        val carouselKey = "${keyPrefix}_carousel"
+        val carouselState = rememberCarouselState { videos.size }
+        // The carousel item's OWN visibility in the Home column: impressions must not fire while the shelf
+        // is composed-ahead but off-screen (the strict on-screen impression rule the videoSongsRow gated
+        // via its parentListState).
+        val onScreen by remember(parentListState, carouselKey) {
+            derivedStateOf { parentListState.layoutInfo.visibleItemsInfo.any { it.key == carouselKey } }
+        }
         // ONE big 16:9 hero that nearly fills the width with a small peek of the next - a uniform-size
         // (UNCONTAINED) carousel, NOT multi-browse (which shrinks the neighbours into small cards).
         val screenWidthDp = LocalConfiguration.current.screenWidthDp
@@ -122,12 +115,13 @@ fun LazyListScope.videoHeroCarousel(
                 .height(heroH.dp)
                 .animateItem(),
         ) { index ->
-            val video = unique[index]
+            val video = videos[index]
             VideoHeroCarouselItem(
                 video = video,
                 isActive = mediaMetadata?.id == video.id,
                 isPlaying = isPlaying,
                 surface = surface,
+                onScreen = { onScreen },
                 onClick = {
                     // Audio-first always (I2); video is a per-play in-player toggle (D3).
                     playerConnection.playQueue(
@@ -171,45 +165,29 @@ fun CarouselItemScope.VideoHeroCarouselItem(
     isActive: Boolean,
     isPlaying: Boolean,
     surface: String,
+    onScreen: () -> Boolean,
     onClick: () -> Unit,
     onLongClick: () -> Unit,
 ) {
     val itemShape = MaterialTheme.shapes.extraLarge
-    var focused by remember { mutableStateOf(false) }
-    val ringColor by animateColorAsState(
-        targetValue = if (focused && focusVisualsEnabled()) MaterialTheme.colorScheme.primary else Color.Transparent,
-        label = "video_hero_focus",
-    )
     val preparing = rememberIsPreparing(video.id)
     val showActive = isActive && !preparing
 
     // Report an impression when this hero is the fully-revealed, settled item (~300ms). carouselItemDrawInfo
     // exposes the item's live revealed size; size >= maxSize means it is the centred hero.
     val drawInfo = carouselItemDrawInfo
-    LaunchedEffectImpression(video.id, surface, drawInfo::size, drawInfo::maxSize)
+    LaunchedEffectImpression(video.id, surface, onScreen, drawInfo::size, drawInfo::maxSize)
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .maskClip(itemShape)
-            .maskBorder(BorderStroke(3.dp, ringColor), itemShape)
-            .onFocusChanged { focused = it.isFocused }
-            .focusable()
-            .combinedClickable(onClick = onClick, onLongClick = onLongClick),
+    CarouselHeroFrame(
+        thumbnailUrl = video.thumbnail,
+        contentDescription = video.title,
+        isActive = showActive,
+        isPlaying = isPlaying,
+        shape = itemShape,
+        focusLabel = "video_hero_focus",
+        onClick = onClick,
+        onLongClick = onLongClick,
     ) {
-        AsyncImage(
-            model = video.thumbnail,
-            contentDescription = video.title,
-            contentScale = ContentScale.Crop,
-            modifier = Modifier.fillMaxSize(),
-        )
-        PlayingIndicatorBox(
-            isActive = showActive,
-            playWhenReady = isPlaying,
-            modifier = Modifier
-                .fillMaxSize()
-                .background(Color.Black.copy(alpha = ActiveBoxAlpha), shape = itemShape),
-        )
         HeroTitleOverlay(
             title = video.title,
             subtitle = video.artists.joinToString { it.name }.ifEmpty { null },
@@ -231,11 +209,14 @@ fun CarouselItemScope.VideoHeroCarouselItem(
 private fun LaunchedEffectImpression(
     videoId: String,
     surface: String,
+    onScreen: () -> Boolean,
     size: () -> Float,
     maxSize: () -> Float,
 ) {
     androidx.compose.runtime.LaunchedEffect(videoId, surface) {
-        snapshotFlow { size() >= maxSize() - 0.5f }
+        // Fully revealed (size reached a REAL maxSize) AND the carousel is on-screen in the Home column.
+        // maxSize() > 0 rejects the initial 0/0 draw-info state, which would otherwise read as "settled".
+        snapshotFlow { onScreen() && maxSize() > 0f && size() >= maxSize() - 0.5f }
             .distinctUntilChanged()
             .collectLatest { settled ->
                 if (settled) {

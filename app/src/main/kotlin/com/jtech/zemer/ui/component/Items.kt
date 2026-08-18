@@ -1208,7 +1208,9 @@ fun ItemThumbnail(
         modifier = modifier
             .fillMaxSize()
             .aspectRatio(thumbnailRatio)
-            .graphicsLayer { scaleX = activePop; scaleY = activePop }
+            // Only the ACTIVE card pops (rising-edge), so add the scale layer just for it - a graphicsLayer
+            // on every thumbnail across a long scrolling grid is wasted compositing otherwise.
+            .then(if (effectiveActive) Modifier.graphicsLayer { scaleX = activePop; scaleY = activePop } else Modifier)
             .clip(effectiveShape)
     ) {
         if (albumIndex == null) {
@@ -1559,7 +1561,10 @@ fun BoxScope.AlbumPlayButton(
     LaunchedEffect(itemKey) { loading = false }
     LaunchedEffect(loading) {
         if (loading) {
-            delay(30_000L)
+            // A successful play flips `visible` off within a few seconds (the queue's first track becomes
+            // current); this backstop only matters when the play never activates - e.g. the album fetch
+            // 404s and navigates to the page instead - so keep it short rather than a long hang.
+            delay(12_000L)
             loading = false
         }
     }

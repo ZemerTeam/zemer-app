@@ -6,17 +6,9 @@
 
 package com.jtech.zemer.latestreleases
 
-import androidx.compose.animation.animateColorAsState
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.background
-import androidx.compose.foundation.combinedClickable
-import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.LocalContentColor
@@ -24,35 +16,23 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.carousel.CarouselItemScope
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
-import coil3.compose.AsyncImage
 import com.jtech.zemer.LocalDatabase
 import com.jtech.zemer.di.zemerSearchRepository
 import com.jtech.zemer.models.MediaMetadata
 import com.jtech.zemer.playback.PlayerConnection
-import com.jtech.zemer.ui.component.ActiveBoxAlpha
 import com.jtech.zemer.ui.component.AlbumPlayButton
+import com.jtech.zemer.ui.component.CarouselHeroFrame
+import com.jtech.zemer.ui.component.HeroTitleOverlay
 import com.jtech.zemer.ui.component.LocalMenuState
 import com.jtech.zemer.ui.component.OverlayPlayButton
-import com.jtech.zemer.ui.component.PlayingIndicatorBox
-import com.jtech.zemer.ui.component.HeroTitleOverlay
 import com.jtech.zemer.ui.component.expressivePlayingShape
-import com.jtech.zemer.ui.component.focusVisualsEnabled
 import com.jtech.zemer.ui.component.rememberActivationPopScale
 import com.jtech.zemer.ui.component.rememberIsPreparing
 import com.jtech.zemer.ui.menu.ytItemMenu
@@ -96,55 +76,35 @@ fun CarouselItemScope.LatestReleaseCarouselItem(
     val showActive = isActive && !preparing
 
     val itemShape = MaterialTheme.shapes.extraLarge
-    var focused by remember { mutableStateOf(false) }
-    val ringColor by animateColorAsState(
-        targetValue = if (focused && focusVisualsEnabled()) MaterialTheme.colorScheme.primary else Color.Transparent,
-        label = "latest_carousel_focus",
-    )
     // A playing release pops once as it BECOMES active (rising-edge only) and morphs its cover to the
-    // same scalloped expressive shape the card thumbnails use. Resolved once and shared by both layers.
-    val activePop = rememberActivationPopScale(showActive)
+    // same scalloped expressive shape the card thumbnails use. Keyed to the release: the carousel is
+    // index-keyed, so without the key a slot reused for a different release (or the now-playing release
+    // scrolling between slots) would fire a spurious pop.
+    val activePop = rememberActivationPopScale(showActive, key = release.browseId)
     val playingShape = expressivePlayingShape()
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .maskClip(itemShape)
-            .maskBorder(BorderStroke(3.dp, ringColor), itemShape)
-            .onFocusChanged { focused = it.isFocused }
-            .focusable()
-            .combinedClickable(
-                onClick = { release.openOrPlay(navController, playerConnection) },
-                onLongClick = {
-                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                    menuState.show(
-                        ytItemMenu(
-                            item = release.toAlbumItem(),
-                            navController = navController,
-                            coroutineScope = coroutineScope,
-                            onDismiss = menuState::dismiss,
-                        )
-                    )
-                },
-            ),
+    CarouselHeroFrame(
+        thumbnailUrl = release.thumbnail,
+        contentDescription = release.title,
+        isActive = showActive,
+        isPlaying = isPlaying,
+        shape = itemShape,
+        activeShape = playingShape,
+        activePop = activePop,
+        focusLabel = "latest_carousel_focus",
+        onClick = { release.openOrPlay(navController, playerConnection) },
+        onLongClick = {
+            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+            menuState.show(
+                ytItemMenu(
+                    item = release.toAlbumItem(),
+                    navController = navController,
+                    coroutineScope = coroutineScope,
+                    onDismiss = menuState::dismiss,
+                )
+            )
+        },
     ) {
-        AsyncImage(
-            model = release.thumbnail,
-            contentDescription = release.title,
-            contentScale = ContentScale.Crop,
-            modifier = Modifier
-                .fillMaxSize()
-                .graphicsLayer { scaleX = activePop; scaleY = activePop }
-                .then(if (showActive) Modifier.clip(playingShape) else Modifier),
-        )
-        PlayingIndicatorBox(
-            isActive = showActive,
-            playWhenReady = isPlaying,
-            modifier = Modifier
-                .fillMaxSize()
-                .graphicsLayer { scaleX = activePop; scaleY = activePop }
-                .background(Color.Black.copy(alpha = ActiveBoxAlpha), shape = playingShape),
-        )
         HeroTitleOverlay(
             title = release.title,
             subtitle = joinByBullet(release.artistName, release.relativeDateLabel()).ifEmpty { null },
