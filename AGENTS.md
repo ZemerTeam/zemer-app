@@ -499,7 +499,13 @@ handoff `zemer-app-video-home-rows-request.md`) ride the isolated fail-soft `Vid
 emit impressions on the matching `home:video-*` surfaces (append-only tracking contract:
 `zemer-app-video-home-rows-tracking-request.md`); the artists row needs neither (its plays attribute
 `artist:UC…` from the artist page). Blocked-video users get both video rows relabeled + audio-gated,
-never hidden, like every video shelf.
+never hidden, like every video shelf. **Trending Videos LEADS the tab as a full 16:9 hero carousel**
+(`ui/screens/VideoHeroCarousel.kt` - the video sibling of the Latest Releases hero, cover-fill 16:9 + the
+shared `HeroTitleOverlay`), moved above Featured/New. It keeps the SAME `home:video-trending` surface: since
+the M3 carousel is not a `LazyList`, each hero reports its OWN impression when it is the fully-revealed,
+SETTLED item ~300ms (via `CarouselItemScope.carouselItemDrawInfo`; `Tracker.impression` dedups per
+surface+videoId), so the exposure-dampener signal survives the row→carousel move. Featured / New Videos
+stay as the small-square `videoSongsRow` shelves below.
 
 **Project direction (a real, ongoing goal):** progressively **replace as much InnerTube as we can across
 the app** with Zemer-served, whitelist-pure data. The home tab migrated first; since then **artist opens
@@ -1070,7 +1076,26 @@ again when it is left; the currently-playing thumbnail + carousel hero use it), 
 bounce** on every card and row (`ui/component/pressBounce`, a NON-consuming press
 observer wired once into the base `GridItem` / `ListItem`, so a tap springs the item without touching the
 caller's click - never per-call-site). Tiny in-button spinners and determinate download rings stay standard
-`CircularProgressIndicator` on purpose. A separate **Enable high refresh rate** setting (Appearance ->
+`CircularProgressIndicator` on purpose - the ONE exception is the **play-preparing spinner** (owner-requested
+to match pull-to-refresh): a tapped song / video / episode whose audio has not started yet shows the
+expressive `LoadingIndicator` over its cover instead of a hanging play button, from tap until the player
+reaches READY. It is driven by `PlayerConnection.preparingMediaId` (set from the queue's `preparingItemId`
+in `playQueue` - the preload for most queues, and a `ListQueue`'s tapped startIndex item so episodes /
+one-off plays that carry NO preload are covered - cleared on the first READY / error / a 30s timeout, and
+skipped when the tapped item is already the loaded/current one) and read by the `rememberIsPreparing(id)`
+helper; `ItemThumbnail`, the `OverlayPlayButton` overlay and the video hero carousel render it through the
+shared `ui/component/PreparingOverlay` (a scrim + the shared `ui/component/MediaLoadingSpinner`, the bare
+expressive indicator in a NEUTRAL color - the SAME color as the now-playing equalizer, never the accent -
+so a card's spinner is never a different color from its playing animation). The `YouTubeGridItem` play
+button now shows for `EpisodeItem`s too, not just songs, while `AlbumPlayButton` resolves its OWN
+self-contained spinner during the pre-play album fetch (an album's play id is a track, not the album, so it
+can't ride the shared signal). The **in-player VIDEO buffering** spinner is deliberately DIFFERENT: the
+CONTAINED, theme-colored `ZemerLoadingIndicator` (bigger, exactly the Home pull-to-refresh look - a video
+buffer is a content load), NOT the small neutral card spinner. The two full-bleed **carousel heroes**
+(Latest Releases + Trending Videos) share their focus ring + `ui/component/HeroTitleOverlay` (the bottom
+gradient title/subtitle, with an optional badges slot) and advance ONE item per swipe at a fixed speed
+(`CarouselDefaults.singleAdvanceFlingBehavior` + a fixed `tween`, so a fling never scrolls many items). A
+separate **Enable high refresh rate** setting (Appearance ->
 Theme, default on; `MainActivity` sets the window's `preferredDisplayModeId`/`preferredRefreshRate` via the
 pure, unit-tested `utils/RefreshRateSelection` - `preferredDisplayModeId(target)` maps a null selection to
 0 = system default so turning the setting OFF clears a previously-forced high mode, not leaves it stale)
