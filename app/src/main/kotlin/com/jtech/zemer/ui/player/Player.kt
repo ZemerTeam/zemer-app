@@ -60,6 +60,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -134,6 +135,8 @@ import com.jtech.zemer.ui.component.LocalBottomSheetPageState
 import com.jtech.zemer.ui.component.LocalMenuState
 import com.jtech.zemer.ui.component.PlayerSliderTrack
 import com.jtech.zemer.ui.component.ResizableIconButton
+import com.jtech.zemer.ui.component.rememberPopScale
+import androidx.compose.ui.graphics.graphicsLayer
 import com.jtech.zemer.ui.component.rememberBottomSheetState
 import com.jtech.zemer.ui.menu.PlayerMenu
 import com.jtech.zemer.ui.screens.settings.DarkMode
@@ -783,6 +786,7 @@ fun BottomSheetPlayer(
                             )
                         }
 
+                        var favPop by remember { mutableIntStateOf(0) }
                         Box(
                             modifier = Modifier
                                 .size(42.dp)
@@ -792,9 +796,13 @@ fun BottomSheetPlayer(
                                 .focusable()
                                 .onFocusChanged { favFocused.value = it.isFocused }
                                 .clickable {
+                                    // Pop on the USER'S tap, not on the liked flag - that flag also flips
+                                    // on every track transition, which bounced the heart on plain skips.
+                                    favPop++
                                     playerConnection.toggleLike()
                                 }
                         ) {
+                            val likePop = rememberPopScale(favPop)
                             Image(
                                 painter = painterResource(
                                     if (currentSong?.song?.isSavedForPlayer == true)
@@ -806,6 +814,7 @@ fun BottomSheetPlayer(
                                 modifier = Modifier
                                     .align(Alignment.Center)
                                     .size(24.dp)
+                                    .graphicsLayer { scaleX = likePop; scaleY = likePop }
                             )
                         }
                     }
@@ -1134,6 +1143,7 @@ fun BottomSheetPlayer(
                         .padding(horizontal = PlayerHorizontalPadding),
                 ) {
                     Box(modifier = Modifier.weight(1f)) {
+                        val shufflePop = rememberPopScale(shuffleModeEnabled)
                         ResizableIconButton(
                             icon = shuffleIconRes(shuffleModeEnabled),
                             color = TextBackgroundColor,
@@ -1141,7 +1151,8 @@ fun BottomSheetPlayer(
                                 .size(32.dp)
                                 .padding(4.dp)
                                 .align(Alignment.Center)
-                                .alpha(if (shuffleModeEnabled) 1f else 0.5f),
+                                .alpha(if (shuffleModeEnabled) 1f else 0.5f)
+                                .graphicsLayer { scaleX = shufflePop; scaleY = shufflePop },
                             onClick = {
                                 // A station broadcast masks shuffle (synchronized timeline) — same
                                 // gate as repeat below and the queue sheet's controls.
@@ -1154,6 +1165,7 @@ fun BottomSheetPlayer(
                     }
 
                     Box(modifier = Modifier.weight(1f)) {
+                        val repeatPop = rememberPopScale(repeatMode)
                         ResizableIconButton(
                             icon = repeatModeIconRes(repeatMode),
                             color = TextBackgroundColor,
@@ -1161,7 +1173,8 @@ fun BottomSheetPlayer(
                                 .size(32.dp)
                                 .padding(4.dp)
                                 .align(Alignment.Center)
-                                .alpha(if (repeatMode == Player.REPEAT_MODE_OFF) 0.5f else 1f),
+                                .alpha(if (repeatMode == Player.REPEAT_MODE_OFF) 0.5f else 1f)
+                                .graphicsLayer { scaleX = repeatPop; scaleY = repeatPop },
                             onClick = {
                                 if (!isStationBroadcast) playerConnection.player.toggleRepeatMode()
                             },
@@ -1243,6 +1256,8 @@ fun BottomSheetPlayer(
                     }
 
                     Box(modifier = Modifier.weight(1f)) {
+                        var favPop by remember { mutableIntStateOf(0) }
+                        val likePop = rememberPopScale(favPop)
                         ResizableIconButton(
                             icon = if (currentSong?.song?.isSavedForPlayer == true) R.drawable.favorite else R.drawable.favorite_border,
                             color = if (currentSong?.song?.isSavedForPlayer == true) MaterialTheme.colorScheme.error else TextBackgroundColor,
@@ -1250,8 +1265,13 @@ fun BottomSheetPlayer(
                             Modifier
                                 .size(32.dp)
                                 .padding(4.dp)
-                                .align(Alignment.Center),
-                            onClick = playerConnection::toggleLike,
+                                .align(Alignment.Center)
+                                .graphicsLayer { scaleX = likePop; scaleY = likePop },
+                            onClick = {
+                                // Bounce on the tap, not the liked flag (which flips on track changes).
+                                favPop++
+                                playerConnection.toggleLike()
+                            },
                         )
                     }
                 }

@@ -16,7 +16,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Card
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -38,6 +37,7 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.jtech.zemer.viewmodels.OnboardingViewModel
 import com.jtech.zemer.R
 import com.jtech.zemer.ui.component.SyncAccountWarning
+import com.jtech.zemer.ui.component.ZemerLoadingIndicator
 import com.jtech.zemer.ui.component.DefaultDialog
 import androidx.datastore.core.DataStore
 import com.jtech.zemer.constants.EnableContentFiltersKey
@@ -168,9 +168,9 @@ internal fun ContentFiltersScreen(
                     OnboardingStepTitle(
                         text = stringResource(R.string.onboarding_restoring_filters),
                     )
-                    CircularProgressIndicator(
+                    ZemerLoadingIndicator(
                         modifier = Modifier.size(48.dp),
-                        color = MaterialTheme.colorScheme.primary
+                        color = MaterialTheme.colorScheme.primary,
                     )
                     Text(
                         text = stringResource(R.string.onboarding_checking_saved),

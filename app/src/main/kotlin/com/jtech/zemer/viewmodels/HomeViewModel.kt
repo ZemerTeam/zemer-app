@@ -718,14 +718,21 @@ class HomeViewModel @Inject constructor(
             // row rather than falling back to a scrape. All featured content is therefore Zemer-sourced.
             val albumsPool = homeRows?.albums.orEmpty().filter { it.isAllowedRanked() }
             val artistsPool = homeRows?.artists.orEmpty().filter { it.isAllowedRanked() }
-            val videosPool = homeRows?.videos.orEmpty().filter { it.isAllowedRanked() }
+            // Featured Videos must be ACTUAL music videos, not audio tracks that merely carry a square
+            // cover: a real video's thumbnail is a 16:9 i.ytimg.com frame, an audio track's is square
+            // album art (googleusercontent). Keep only the ytimg-framed items (the same video/art split
+            // the mapper's headerCovers uses), so the hero carousel never crops a square cover to 16:9.
+            val videosPool = homeRows?.videos.orEmpty()
+                .filter { it.isAllowedRanked() }
+                .filter { it.thumbnail?.contains("i.ytimg.com") == true }
             val communityPool = homeRows?.community.orEmpty().filter { it.isAllowedRanked() }
             val finalFeaturedAlbums = rotateByArtist(albumsPool, maxPerArtist = 1, target = 20)
             val finalFeaturedArtists = rotateByArtist(artistsPool, maxPerArtist = 1, target = 20)
-            // Videos are content-limited (only ~19 whitelisted music videos clear the 30-day reach floor,
-            // ~14 distinct artists) — a 20-slot row would just show all of them every time. Cap the shown
-            // count so the row stays curated AND has headroom to turn over on refresh (server RESPONSE 18).
-            val finalFeaturedVideos = rotateByArtist(videosPool, maxPerArtist = 1, target = 8)
+            // Featured Videos is the Videos-tab HERO CAROUSEL you swipe through, so show the full
+            // one-per-artist set (the pool is ~14-19 whitelisted music videos over ~14 distinct artists
+            // that clear the 30-day reach floor) rather than the old curated 8-of-a-row. rotateByArtist
+            // still keeps it to one video per artist for variety; the See-all shows the whole pool.
+            val finalFeaturedVideos = rotateByArtist(videosPool, maxPerArtist = 1, target = 20)
             // Community has no artist id (so no rotateByArtist recent-avoidance): shuffle, then prefer the
             // playlists NOT shown on the previous load so a pull-to-refresh turns the 8-of-16 row over fully.
             val communityShuffled = communityPool.shuffled(Random(System.nanoTime()))

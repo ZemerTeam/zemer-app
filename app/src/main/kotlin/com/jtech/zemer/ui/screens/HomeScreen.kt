@@ -30,9 +30,15 @@ import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults.Indicator
+import androidx.compose.material3.Text
+import androidx.compose.material3.carousel.CarouselDefaults
+import androidx.compose.material3.carousel.HorizontalMultiBrowseCarousel
+import androidx.compose.material3.carousel.rememberCarouselState
+import androidx.compose.animation.core.tween
+import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults.LoadingIndicator
 import androidx.compose.material3.pulltorefresh.pullToRefresh
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.Composable
@@ -95,6 +101,7 @@ import com.jtech.zemer.ui.component.ChipsRow
 import com.jtech.zemer.ui.utils.whitelistedPodcastRoute
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import com.jtech.zemer.extensions.toEnum
 import com.jtech.zemer.utils.dataStore
 import com.jtech.zemer.ui.component.ZemerCuratedPlaylistGridItem
@@ -118,7 +125,7 @@ import com.jtech.zemer.ui.utils.SnapLayoutInfoProvider
 import com.jtech.zemer.ui.utils.navigateToArtist
 import com.jtech.zemer.ui.utils.navigateToAlbum
 import com.jtech.zemer.utils.rememberPreference
-import com.jtech.zemer.latestreleases.LatestReleaseCard
+import com.jtech.zemer.latestreleases.LatestReleaseCarouselItem
 import com.jtech.zemer.viewmodels.HomeViewModel
 import com.jtech.zemer.viewmodels.LatestReleasesViewModel
 import com.jtech.zemer.playback.queues.StationQueue
@@ -144,7 +151,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlin.math.min
 
-@OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun HomeScreen(
     navController: NavController,
@@ -570,7 +577,7 @@ fun HomeScreen(
                         Modifier
                             .fillMaxWidth()
                             .background(MaterialTheme.colorScheme.surface)
-                            .padding(vertical = 4.dp)
+                            .padding(top = 12.dp, bottom = 4.dp)
                     ) {
                         ChipsRow(
                             chips = homeContentChips,
@@ -725,27 +732,38 @@ fun HomeScreen(
                     }
 
                     item(key = "latest_releases_list", contentType = "grid") {
-                        LazyRow(
+                        // Material 3 Expressive: Latest Releases is a multi-browse carousel - a large hero
+                        // cover with shape-morphing, peeking neighbours. Each hero is the shared
+                        // LatestReleaseCarouselItem (D-pad focus + library badges + play affordances),
+                        // so it can't drift from the "See all" LatestReleaseCard.
+                        val latestCarouselState = rememberCarouselState { releases.size }
+                        HorizontalMultiBrowseCarousel(
+                            state = latestCarouselState,
+                            preferredItemWidth = 180.dp,
+                            itemSpacing = 8.dp,
+                            // Advance ONE item per swipe at a FIXED animation speed, so the carousel moves
+                            // the same regardless of how hard it is flung (no velocity-scaled multi-item
+                            // fling).
+                            flingBehavior = CarouselDefaults.singleAdvanceFlingBehavior(
+                                latestCarouselState,
+                                tween(durationMillis = 400),
+                            ),
                             contentPadding = WindowInsets.systemBars
                                 .only(WindowInsetsSides.Horizontal)
                                 .asPaddingValues(),
-                            modifier = Modifier.animateItem()
-                        ) {
-                            items(
-                                items = releases,
-                                key = { it.browseId },
-                                contentType = { "album" }
-                            ) { release ->
-                                LatestReleaseCard(
-                                    release = release,
-                                    navController = navController,
-                                    playerConnection = playerConnection,
-                                    mediaMetadata = mediaMetadata,
-                                    isPlaying = isPlaying,
-                                    asGrid = true,
-                                    coroutineScope = scope,
-                                )
-                            }
+                            modifier = Modifier
+                                .padding(vertical = 12.dp)
+                                .height(180.dp)
+                                .animateItem(),
+                        ) { index ->
+                            LatestReleaseCarouselItem(
+                                release = releases[index],
+                                navController = navController,
+                                playerConnection = playerConnection,
+                                mediaMetadata = mediaMetadata,
+                                isPlaying = isPlaying,
+                                coroutineScope = scope,
+                            )
                         }
                     }
                 }
@@ -1066,7 +1084,10 @@ fun HomeScreen(
             if (homeTab == HomeContentTab.VIDEO) {
             // Shown to blocked-video users too — the rows play audio-first, so for them each shelf is
             // simply their "video songs" (relabelled, watch/download-video affordances gated off).
-            videoSongsRow(
+
+            // Featured Videos leads the tab as a full 16:9 hero carousel (moved to the top). It keeps the
+            // same surface/playSource (resolver-default attribution); impressions are now per settled hero.
+            videoHeroCarousel(
                 row = HomeSeeAllRow.FEATURED_VIDEOS,
                 keyPrefix = "featured_videos",
                 surface = TrackingSurface.home("featured-videos"),
@@ -1099,6 +1120,7 @@ fun HomeScreen(
                 mediaMetadata = mediaMetadata,
                 isPlaying = isPlaying,
             )
+
             videoSongsRow(
                 row = HomeSeeAllRow.NEW_VIDEOS,
                 keyPrefix = "new_videos",
@@ -1344,7 +1366,7 @@ fun HomeScreen(
             }
         }
 
-        Indicator(
+        LoadingIndicator(
             isRefreshing = isRefreshing,
             state = pullRefreshState,
             modifier = Modifier

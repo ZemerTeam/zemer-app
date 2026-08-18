@@ -86,7 +86,6 @@ fun LatestReleasesScreen(
                     playerConnection = playerConnection,
                     mediaMetadata = mediaMetadata,
                     isPlaying = isPlaying,
-                    asGrid = false,
                 )
             }
         }

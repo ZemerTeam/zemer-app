@@ -24,21 +24,16 @@ import com.jtech.zemer.playback.PlayerConnection
 import com.jtech.zemer.ui.component.AlbumBadges
 import com.jtech.zemer.ui.component.SongDownloadBadge
 import com.jtech.zemer.ui.component.LocalMenuState
-import com.jtech.zemer.ui.component.YouTubeGridItem
 import com.jtech.zemer.ui.component.YouTubeListItem
 import com.jtech.zemer.ui.menu.YouTubeAlbumMenu
 import com.jtech.zemer.utils.joinByBullet
-import kotlinx.coroutines.CoroutineScope
 
 /**
- * One Latest Releases card, shared by the Home shelf ([asGrid] = true, a [YouTubeGridItem]) and the
- * "See all" list ([asGrid] = false, a [YouTubeListItem]). Keeping the binding here — album mapping,
- * the "Artist • <relative date>" subtitle, the single's centred play button, the now-playing state,
- * the tap ([openOrPlay]: play a single / open an album) and the long-press [YouTubeAlbumMenu] — means
- * it exists once and can't drift between the two surfaces.
- *
- * [coroutineScope] is only used by the grid variant (the album play button); the list variant ignores
- * it, so callers that render a list may pass null.
+ * One Latest Releases card for the "See all" LIST ([YouTubeListItem]). The Home shelf renders the same
+ * release as a Material 3 Expressive carousel hero ([LatestReleaseCarouselItem]); both share the release
+ * binding helpers — album mapping, the "Artist • <relative date>" subtitle, the single's centred play
+ * button, the now-playing state, the tap ([openOrPlay]: play a single / open an album), the long-press
+ * [YouTubeAlbumMenu] and the [ReleaseBadges] — so the two surfaces can't drift.
  */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -48,8 +43,6 @@ fun LatestReleaseCard(
     playerConnection: PlayerConnection,
     mediaMetadata: MediaMetadata?,
     isPlaying: Boolean,
-    asGrid: Boolean,
-    coroutineScope: CoroutineScope? = null,
 ) {
     val menuState = LocalMenuState.current
     val haptic = LocalHapticFeedback.current
@@ -70,29 +63,18 @@ fun LatestReleaseCard(
         },
     )
 
-    if (asGrid) {
-        YouTubeGridItem(
-            item = album,
-            subtitleOverride = subtitle,
-            centeredPlayButton = release.isPlayableSingle(),
-            isActive = release.isNowPlaying(mediaMetadata),
-            isPlaying = isPlaying,
-            coroutineScope = coroutineScope,
-            thumbnailRatio = 1f,
-            badges = { ReleaseBadges(release) },
-            modifier = clickable,
-        )
-    } else {
-        YouTubeListItem(
-            item = album,
-            subtitleOverride = subtitle,
-            centeredPlayButton = release.isPlayableSingle(),
-            isActive = release.isNowPlaying(mediaMetadata),
-            isPlaying = isPlaying,
-            badges = { ReleaseBadges(release) },
-            modifier = clickable,
-        )
-    }
+    YouTubeListItem(
+        item = album,
+        subtitleOverride = subtitle,
+        centeredPlayButton = release.isPlayableSingle(),
+        isActive = release.isNowPlaying(mediaMetadata),
+        isPlaying = isPlaying,
+        // A single is an AlbumItem (id = browseId) but plays its sampleVideoId, so the tap-to-play spinner
+        // must track that id, not the browseId (the carousel already does this).
+        preparingIdOverride = if (release.isPlayableSingle()) release.sampleVideoId else null,
+        badges = { ReleaseBadges(release) },
+        modifier = clickable,
+    )
 }
 
 /**
@@ -103,7 +85,7 @@ fun LatestReleaseCard(
  * in the DB. Matches the single-vs-album split the card already uses for tap behaviour.
  */
 @Composable
-private fun RowScope.ReleaseBadges(release: LatestRelease) {
+internal fun RowScope.ReleaseBadges(release: LatestRelease) {
     val database = LocalDatabase.current
     val videoId = release.sampleVideoId
     if (release.isPlayableSingle() && !videoId.isNullOrEmpty()) {

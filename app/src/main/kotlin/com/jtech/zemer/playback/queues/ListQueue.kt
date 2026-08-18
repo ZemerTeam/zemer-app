@@ -27,6 +27,9 @@ class ListQueue(
     }
     override val preloadItem: MediaMetadata? = null
 
+    // No preload - the tapped item is the startIndex item; expose its id for the play spinner only.
+    override val preparingItemId: String? get() = items.getOrNull(startIndex)?.mediaId?.takeIf { it.isNotEmpty() }
+
     override suspend fun getInitialStatus() = Queue.Status(title, items, startIndex, position)
 
     override fun hasNextPage(): Boolean = false

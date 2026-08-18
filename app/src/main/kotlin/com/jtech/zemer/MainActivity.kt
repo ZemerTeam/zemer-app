@@ -175,6 +175,7 @@ import com.jtech.zemer.ui.screens.effectiveHomeTab
 import com.jtech.zemer.constants.BlockPodcastsKey
 import com.jtech.zemer.constants.AppLanguageKey
 import com.jtech.zemer.constants.CheckForUpdatesKey
+import com.jtech.zemer.constants.EnableHighRefreshRateKey
 import com.jtech.zemer.constants.LastNightlyAnnouncedKey
 import com.jtech.zemer.constants.DarkModeKey
 import com.jtech.zemer.constants.DefaultOpenTabKey
@@ -260,6 +261,9 @@ import com.jtech.zemer.ui.utils.playHomeEasterEgg
 import com.jtech.zemer.ui.utils.backToMain
 import com.jtech.zemer.ui.utils.resetHeightOffset
 import com.jtech.zemer.utils.ButtonInputCapture
+import com.jtech.zemer.utils.DisplayModeInfo
+import com.jtech.zemer.utils.preferredDisplayModeId
+import com.jtech.zemer.utils.selectRefreshRateMode
 import com.jtech.zemer.utils.ButtonMapperBridge
 import com.jtech.zemer.utils.SyncUtils
 import com.jtech.zemer.utils.Updater
@@ -512,6 +516,33 @@ class MainActivity : ComponentActivity() {
         contentFilterSyncService.initialize()
 
         setContent {
+            // Force the display to its highest supported refresh rate (e.g. 120Hz) so the app's
+            // spring animations render buttery-smooth; off pins it to ~60Hz. Ported from Metrolist.
+            val enableHighRefreshRate by rememberPreference(EnableHighRefreshRateKey, defaultValue = true)
+            LaunchedEffect(enableHighRefreshRate) {
+                val win = this@MainActivity.window
+                @Suppress("DEPRECATION")
+                val display = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) this@MainActivity.display
+                    else win.windowManager.defaultDisplay
+                val modes = display?.supportedModes.orEmpty().map {
+                    DisplayModeInfo(it.modeId, it.physicalWidth, it.physicalHeight, it.refreshRate)
+                }
+                val current = display?.mode?.let {
+                    DisplayModeInfo(it.modeId, it.physicalWidth, it.physicalHeight, it.refreshRate)
+                }
+                val target = selectRefreshRateMode(modes, current, high = enableHighRefreshRate)
+                val lp = win.attributes
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                    // 0 when there is no mode to pick, which CLEARS a previously-forced high mode
+                    // (leaving it stale kept a 120Hz override the user just turned off).
+                    lp.preferredDisplayModeId = preferredDisplayModeId(target)
+                } else {
+                    // Pre-R can only ask for a rate, not a mode id.
+                    lp.preferredRefreshRate = target?.refreshRate ?: if (enableHighRefreshRate) 0f else 60f
+                }
+                win.attributes = lp
+            }
+
             val checkForUpdates by rememberPreference(CheckForUpdatesKey, defaultValue = false)
 
             LaunchedEffect(checkForUpdates) {

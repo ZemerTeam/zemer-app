@@ -7,7 +7,8 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.LinearWavyProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -31,6 +32,7 @@ import java.io.File
  * heads-up + errors (download or install, including async Shizuku failures) are surfaced here
  * rather than only as a toast.
  */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun UpdateDownloadDialog(
     currentVersion: String,
@@ -76,11 +78,11 @@ fun UpdateDownloadDialog(
                 Text(stringResource(R.string.downloading_update), style = MaterialTheme.typography.labelMedium)
                 Spacer(Modifier.height(8.dp))
                 if (downloadProgress >= 0) {
-                    LinearProgressIndicator(progress = { downloadProgress }, modifier = Modifier.fillMaxWidth())
+                    LinearWavyProgressIndicator(progress = { downloadProgress }, modifier = Modifier.fillMaxWidth())
                     Spacer(Modifier.height(4.dp))
                     Text("${(downloadProgress * 100).toInt()}%", style = MaterialTheme.typography.bodySmall)
                 } else {
-                    LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                    LinearWavyProgressIndicator(modifier = Modifier.fillMaxWidth())
                 }
             }
 

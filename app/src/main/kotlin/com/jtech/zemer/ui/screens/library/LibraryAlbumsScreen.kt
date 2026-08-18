@@ -19,8 +19,6 @@ import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -59,6 +57,7 @@ import com.jtech.zemer.constants.HideExplicitKey
 import com.jtech.zemer.constants.LibraryViewType
 import com.jtech.zemer.constants.YtmSyncKey
 import com.jtech.zemer.ui.component.ChipsRow
+import com.jtech.zemer.ui.component.LibraryFilterChip
 import com.jtech.zemer.ui.component.EmptyPlaceholder
 import com.jtech.zemer.ui.component.LibraryAlbumGridItem
 import com.jtech.zemer.ui.component.LibraryAlbumListItem
@@ -102,15 +101,9 @@ fun LibraryAlbumsScreen(
     val filterContent = @Composable {
         Row {
             Spacer(Modifier.width(12.dp))
-            FilterChip(
-                label = { Text(stringResource(R.string.albums)) },
-                selected = true,
-                colors = FilterChipDefaults.filterChipColors(containerColor = MaterialTheme.colorScheme.surface),
-                onClick = onDeselect,
-                shape = RoundedCornerShape(16.dp),
-                leadingIcon = {
-                    Icon(painter = painterResource(R.drawable.close), contentDescription = stringResource(R.string.close))
-                },
+            LibraryFilterChip(
+                label = stringResource(R.string.albums),
+                onDeselect = onDeselect,
             )
             ChipsRow(
                 chips =

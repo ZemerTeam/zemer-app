@@ -397,6 +397,14 @@ optional action button - the one shell behind the content-filter toggles, the pe
 sign-in card), `OnboardingStatusPill` (the Done/Needed · Active/Optional chip), and `onboardingCardColors`
 (the shared card fill: `secondaryContainer` when active/selected, `surfaceContainer` otherwise - a tone
 below `OnboardingActionButton`'s `surfaceContainerHighest` so an in-card pill never blends into its card).
+The **loading + carousel-hero family** lives here too: `ZemerLoadingIndicator` (the CONTAINED M3 Expressive
+content/section spinner - Home pull-to-refresh look, video buffering, section loads; ratcheted by
+**R25**) and `MediaLoadingSpinner` (the BARE, neutral over-media spinner for a card cover's tap-to-play
+state; ratcheted by **R26**); `PreparingOverlay` (the scrim + `MediaLoadingSpinner` shown while a tapped
+item resolves, shared by `ItemThumbnail` and the video hero); `HeroTitleOverlay` (the bottom gradient
+title/subtitle + optional badges slot) and `CarouselHeroFrame` (the ENTIRE full-bleed carousel-hero
+frame - `maskClip`/`maskBorder` D-pad focus ring, cover-crop artwork, now-playing scrim) shared by the
+Latest Releases and Featured Videos heroes.
 New screens use these; a hand-rolled duplicate is a review miss.
 
 **Componentize on every touch (non-negotiable).** Whenever you touch anything in the app, first check
@@ -499,7 +507,13 @@ handoff `zemer-app-video-home-rows-request.md`) ride the isolated fail-soft `Vid
 emit impressions on the matching `home:video-*` surfaces (append-only tracking contract:
 `zemer-app-video-home-rows-tracking-request.md`); the artists row needs neither (its plays attribute
 `artist:UC…` from the artist page). Blocked-video users get both video rows relabeled + audio-gated,
-never hidden, like every video shelf.
+never hidden, like every video shelf. **Featured Videos LEADS the tab as a full 16:9 hero carousel**
+(`ui/screens/VideoHeroCarousel.kt` - the video sibling of the Latest Releases hero, cover-fill 16:9 + the
+shared `HeroTitleOverlay`), at the top of the tab. It keeps the SAME `home:featured-videos` surface: since
+the M3 carousel is not a `LazyList`, each hero reports its OWN impression when it is the fully-revealed,
+SETTLED item ~300ms (via `CarouselItemScope.carouselItemDrawInfo`; `Tracker.impression` dedups per
+surface+videoId), so the exposure-dampener signal survives the row→carousel move. Trending / New Videos
+stay as the small-square `videoSongsRow` shelves below.
 
 **Project direction (a real, ongoing goal):** progressively **replace as much InnerTube as we can across
 the app** with Zemer-served, whitelist-pure data. The home tab migrated first; since then **artist opens
@@ -1045,8 +1059,64 @@ surface (the two drifting out of sync is exactly what bit a past change):
   width left after the two skip buttons + gaps) so it shrinks to fit narrow widths instead of
   overflowing; `TransportSkipButton` cancels its long-press repeat the moment the press is released.
 
-This UI is **Material 3 *standard*** (`MaterialTheme`, not `MaterialExpressiveTheme`): Expressive-only
-APIs (e.g. `LinearWavyProgressIndicator`) need a newer material3 and are deliberately not used. New
+**Prefer Material 3 Expressive when a fitting component exists.** Adding or replacing a UI element for
+which a Material 3 Expressive equivalent fits? Reach for it - behind the per-site
+`@OptIn(ExperimentalMaterial3ExpressiveApi::class)` and through a SHARED wrapper (`ZemerLoadingIndicator`,
+`MediaLoadingSpinner`, `CarouselHeroFrame`, the filter-chip `TonalToggleButton`, `MaterialShapes`, the
+pop/press-bounce helpers), never a global theme swap, and honoring the exclusions below (tiny in-button +
+determinate spinners stay standard `CircularProgressIndicator`; springiness is added per-interaction).
+`scripts/ui-audit.sh` ratchets the two loaders into their wrappers - **R25** (contained ->
+`ZemerLoadingIndicator`) and **R26** (bare -> `MediaLoadingSpinner`).
+
+This UI stays on **standard `MaterialTheme`** (never `MaterialExpressiveTheme` - no global expressive
+theme swap; a global `MotionScheme.expressive()` was tried and reverted, because the app's hand-rolled
+animations ignore the theme's motion scheme - springiness is added per-interaction, not by a switch), but
+individual **Material 3 Expressive** components are adopted component-by-component behind per-site
+`@OptIn(ExperimentalMaterial3ExpressiveApi::class)` (material3 `1.5.0-alpha18`, compose `1.11.4`). In use
+today: the content-loading spinner (`ContainedLoadingIndicator`, wrapped once in the shared
+`ui/component/ZemerLoadingIndicator` - a raw `ContainedLoadingIndicator(` outside it fails ui-audit
+**R25**), the Home pull-to-refresh indicator (expressive `PullToRefreshDefaults.LoadingIndicator`),
+`LinearWavyProgressIndicator` for loading bars (`AppStateViews`, the update dialog), the filter-chip rows
+(`ChipsRow` + the shared `ui/component/LibraryFilterChip` render as `TonalToggleButton`, shape-morphing on
+selection, keeping the D-pad focus treatment), the Home Latest Releases shelf
+(`HorizontalMultiBrowseCarousel`, each hero the ONE shared `latestreleases/LatestReleaseCarouselItem` - it
+carries the D-pad focus ring, drawn OVER the full-bleed cover via the carousel's own `maskBorder` so it
+follows the item morph, plus the library badges (download progress / liked / explicit) forced white on the
+dark scrim; it shares the release binding with the "See all" `LatestReleaseCard`, which is now list-only),
+`MaterialShapes` cookie clips on the About credits avatars (via the
+shared `ui/component/ExpressiveShapes`; deliberately NOT applied app-wide to artist avatars, which stay
+circles), a bouncy **pop** on the player shuffle / repeat toggles AND the like heart
+(`ui/component/rememberPopScale`) - the like pop is driven by the USER'S TAP (a per-control counter), NOT
+the liked flag, which also flips on every track transition and bounced the heart on plain skips - plus the
+rising-edge `rememberActivationPopScale` for a card that pops ONCE as it BECOMES the playing item (never
+again when it is left; the currently-playing thumbnail + carousel hero use it), and an app-wide **press
+bounce** on every card and row (`ui/component/pressBounce`, a NON-consuming press
+observer wired once into the base `GridItem` / `ListItem`, so a tap springs the item without touching the
+caller's click - never per-call-site). Tiny in-button spinners and determinate download rings stay standard
+`CircularProgressIndicator` on purpose - the ONE exception is the **play-preparing spinner** (owner-requested
+to match pull-to-refresh): a tapped song / video / episode whose audio has not started yet shows the
+expressive `LoadingIndicator` over its cover instead of a hanging play button, from tap until the player
+reaches READY. It is driven by `PlayerConnection.preparingMediaId` (set from the queue's `preparingItemId`
+in `playQueue` - the preload for most queues, and a `ListQueue`'s tapped startIndex item so episodes /
+one-off plays that carry NO preload are covered - cleared on the first READY / error / a 30s timeout, and
+skipped when the tapped item is already the loaded/current one) and read by the `rememberIsPreparing(id)`
+helper; `ItemThumbnail`, the `OverlayPlayButton` overlay and the video hero carousel render it through the
+shared `ui/component/PreparingOverlay` (a scrim + the shared `ui/component/MediaLoadingSpinner`, the bare
+expressive indicator in a NEUTRAL color - the SAME color as the now-playing equalizer, never the accent -
+so a card's spinner is never a different color from its playing animation). The `YouTubeGridItem` play
+button now shows for `EpisodeItem`s too, not just songs, while `AlbumPlayButton` resolves its OWN
+self-contained spinner during the pre-play album fetch (an album's play id is a track, not the album, so it
+can't ride the shared signal). The **in-player VIDEO buffering** spinner is deliberately DIFFERENT: the
+CONTAINED, theme-colored `ZemerLoadingIndicator` (bigger, exactly the Home pull-to-refresh look - a video
+buffer is a content load), NOT the small neutral card spinner. The two full-bleed **carousel heroes**
+(Latest Releases + Featured Videos) share their focus ring + `ui/component/HeroTitleOverlay` (the bottom
+gradient title/subtitle, with an optional badges slot) and advance ONE item per swipe at a fixed speed
+(`CarouselDefaults.singleAdvanceFlingBehavior` + a fixed `tween`, so a fling never scrolls many items). A
+separate **Enable high refresh rate** setting (Appearance ->
+Theme, default on; `MainActivity` sets the window's `preferredDisplayModeId`/`preferredRefreshRate` via the
+pure, unit-tested `utils/RefreshRateSelection` - `preferredDisplayModeId(target)` maps a null selection to
+0 = system default so turning the setting OFF clears a previously-forced high mode, not leaves it stale)
+forces the display to up to 120Hz so all of this renders smoothly. New
 transport buttons reuse `TransportSkipButton` + the accent focus border; new D-pad rows reuse
 `Modifier.focusBorder()`. `scripts/ui-audit.sh` ratchets raw `Modifier.blur(` in `ui/` (R12) - route
 player blur through the effective style.

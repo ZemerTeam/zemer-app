@@ -161,6 +161,19 @@ violations() {
   # Baseline 0.
   grep -rnE "dpadSession|firstFocus\.requestFocus\(\)" "$UI" --include=*.kt 2>/dev/null \
     | grep -v "/theme/" | grep -v "component/FocusBorder.kt" | grep -v "screens/search/OnlineSearchResult.kt" | sed -E 's/:.*//' | sed 's/$/\tR24-initialfocus/'
+  # R25: a raw Material 3 Expressive `ContainedLoadingIndicator(` outside the shared
+  # component/ZemerLoadingIndicator.kt -> route content-loading spinners through ZemerLoadingIndicator
+  # so the experimental Expressive opt-in lives in ONE place. Baseline 0.
+  grep -rnE "(^|[^.A-Za-z])ContainedLoadingIndicator\(" "$UI" --include=*.kt 2>/dev/null \
+    | grep -v "component/ZemerLoadingIndicator.kt" | sed -E 's/:.*//' | sed 's/$/\tR25-loader/'
+  # R26: a raw Material 3 Expressive `LoadingIndicator(` (the BARE, un-contained morphing spinner) outside
+  # the shared component/MediaLoadingSpinner.kt -> route over-media / card tap-to-play spinners through
+  # MediaLoadingSpinner so the experimental Expressive opt-in lives in ONE place (the complement to R25's
+  # contained variant). The Home pull-to-refresh (PullToRefreshDefaults.LoadingIndicator, called bare via
+  # a member import) is the one baselined legit site. The [^.A-Za-z] guard skips ContainedLoadingIndicator
+  # and ZemerLoadingIndicator (they end in ...LoadingIndicator but are preceded by a letter).
+  grep -rnE "(^|[^.A-Za-z])LoadingIndicator\(" "$UI" --include=*.kt 2>/dev/null \
+    | grep -v "/theme/" | grep -v "component/MediaLoadingSpinner.kt" | sed -E 's/:.*//' | sed 's/$/\tR26-loader-bare/'
 }
 
 # Aggregate to "<path>\t<rule>\t<count>", sorted.

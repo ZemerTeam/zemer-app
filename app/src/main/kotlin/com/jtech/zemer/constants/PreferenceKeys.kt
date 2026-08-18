@@ -23,6 +23,7 @@ val PlaybackModeKey = stringPreferencesKey("playbackMode")
 val RelayDeviceIdKey = stringPreferencesKey("relayDeviceId")
 
 val DynamicThemeKey = booleanPreferencesKey("dynamicTheme")
+val EnableHighRefreshRateKey = booleanPreferencesKey("enableHighRefreshRate")
 val SelectedThemeColorKey = intPreferencesKey("selectedThemeColor")
 val DarkModeKey = stringPreferencesKey("darkMode")
 val PureBlackKey = booleanPreferencesKey("pureBlack")

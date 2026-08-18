@@ -9,8 +9,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -22,14 +20,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.media3.common.Player
 import androidx.media3.common.VideoSize
 import com.jtech.zemer.LocalPlayerConnection
+import com.jtech.zemer.ui.component.ZemerLoadingIndicator
 
 /**
  * The single `TextureView` host for video mode (I6: one player, one surface). Used by BOTH the inline
@@ -98,31 +95,17 @@ fun PlayerVideoSurface(modifier: Modifier = Modifier) {
         )
 
         // Buffering indicator — built into the ONE shared surface so the inline art slot and the
-        // fullscreen overlay show the identical treatment (prepare after a video-mode entry, a
-        // quality switch, or a mid-play stall). The over-media idiom shared with VideoModePill /
-        // VideoQualitySelector: a theme-scrim circle lifting a round-capped white ring off whatever
-        // frame is underneath.
+        // fullscreen overlay show the identical treatment (prepare after a video-mode entry, a quality
+        // switch, or a mid-play stall). The M3 Expressive CONTAINED loading indicator - the SAME family,
+        // theme colors and size as the Home pull-to-refresh (a video buffer is a content load, which is
+        // exactly what ZemerLoadingIndicator is for), centered by the parent Box.
         val playbackState by playerConnection.playbackState.collectAsState()
         AnimatedVisibility(
             visible = playbackState == Player.STATE_BUFFERING,
             enter = fadeIn(),
             exit = fadeOut(),
         ) {
-            Box(
-                contentAlignment = Alignment.Center,
-                // The shared over-media chrome (passive variant — no ring, lighter scrim).
-                modifier = Modifier
-                    .overMediaChrome(CircleShape, scrimAlpha = OverMediaPassiveScrimAlpha, ring = false)
-                    .padding(14.dp),
-            ) {
-                CircularProgressIndicator(
-                    color = Color.White,
-                    trackColor = Color.White.copy(alpha = 0.15f),
-                    strokeWidth = 3.5.dp,
-                    strokeCap = StrokeCap.Round,
-                    modifier = Modifier.size(36.dp),
-                )
-            }
+            ZemerLoadingIndicator(modifier = Modifier.size(56.dp))
         }
     }
 }
