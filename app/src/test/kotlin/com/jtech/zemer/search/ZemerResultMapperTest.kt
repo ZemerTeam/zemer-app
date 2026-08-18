@@ -603,6 +603,28 @@ class ZemerResultMapperTest {
     }
 
     @Test
+    fun `home rows expose only realVideo-flagged ids while videos row stays full`() {
+        // The Featured Videos hero shows only server-flagged REAL videos (topVideos[].realVideo); the
+        // See-all still gets the full videos row. realVideoIds carries which of them are real; an absent
+        // flag counts as not-real (the server's conservative default).
+        val resp = ZemerHomeRowsResponse(
+            topVideos = listOf(
+                ZemerTrack(videoId = "real1", title = "Filmed", artist = "A", artistId = "UCa", realVideo = true),
+                ZemerTrack(videoId = "cover1", title = "Cover graphic", artist = "B", artistId = "UCb", realVideo = false),
+                ZemerTrack(videoId = "unset1", title = "Not classified", artist = "C", artistId = "UCc"), // realVideo absent
+                ZemerTrack(videoId = "real2", title = "Filmed 2", artist = "D", artistId = "UCd", realVideo = true),
+            ),
+        )
+
+        val rows = ZemerResultMapper.homeRows(resp)
+
+        // The videos row itself is unfiltered — the See-all shows all four.
+        assertEquals(listOf("real1", "cover1", "unset1", "real2"), rows.videos.map { it.id })
+        // Only the flagged videos are real; absent/false are excluded.
+        assertEquals(setOf("real1", "real2"), rows.realVideoIds)
+    }
+
+    @Test
     fun `home rows drop blank and duplicate ids per row`() {
         val resp = ZemerHomeRowsResponse(
             topAlbums = listOf(

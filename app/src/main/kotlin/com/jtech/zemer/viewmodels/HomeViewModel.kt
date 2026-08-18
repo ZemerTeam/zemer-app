@@ -730,10 +730,13 @@ class HomeViewModel @Inject constructor(
             val communityPool = homeRows?.community.orEmpty().filter { it.isAllowedRanked() }
             val finalFeaturedAlbums = rotateByArtist(albumsPool, maxPerArtist = 1, target = 20)
             val finalFeaturedArtists = rotateByArtist(artistsPool, maxPerArtist = 1, target = 20)
-            // The hero shows the full one-per-artist set of REAL (server-flagged) videos, up to 20;
-            // rotateByArtist keeps it one video per artist for variety. The See-all (displayedFirst below)
-            // still leads with these but then shows the WHOLE videosPool, real-flagged or not.
-            val finalFeaturedVideos = rotateByArtist(realVideosPool, maxPerArtist = 1, target = 20)
+            // The hero shows the one-per-artist set of REAL (server-flagged) videos, up to 20. If the pool
+            // has NONE flagged real - a heavily-filtered user whose ranked videos are all cover-graphics, an
+            // older server that omits the flag, or the offline snapshot (no CLIP classifier) - fall back to
+            // the FULL pool so the shelf AND its See-all never vanish (an empty carousel returns early,
+            // taking the title + See-all arrow with it - worse than showing cover-graphics). The See-all
+            // (displayedFirst below) shows the WHOLE videosPool either way.
+            val finalFeaturedVideos = rotateByArtist(realVideosPool.ifEmpty { videosPool }, maxPerArtist = 1, target = 20)
             // Community has no artist id (so no rotateByArtist recent-avoidance): shuffle, then prefer the
             // playlists NOT shown on the previous load so a pull-to-refresh turns the 8-of-16 row over fully.
             val communityShuffled = communityPool.shuffled(Random(System.nanoTime()))

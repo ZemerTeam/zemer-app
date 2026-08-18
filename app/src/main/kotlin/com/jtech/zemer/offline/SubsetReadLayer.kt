@@ -296,9 +296,9 @@ fun offlineHomeRows(
             contentGatePasses(femInv, artist?.isKidZone == true, isVideo = false, allowFemale, blockVideos, kidZone) &&
                 !corpus.idDropped(t.videoId, allowFemale) && !corpus.idDropped(t.artistId, allowFemale)
         }
-        // realVideo = true offline: the on-device snapshot has no server CLIP classification, so it shows
-        // its whole video set in the Featured hero (the pre-flag behaviour) rather than an empty row.
-        .map { ZemerTrack(videoId = it.videoId, title = it.title, artist = corpus.artistsById[it.artistId]?.name ?: "", artistId = it.artistId, explicit = it.explicit, durationSec = it.durationSec, realVideo = true) }
+        // realVideo left at its default false: the snapshot has no CLIP classifier, so no video is flagged
+        // real -> the ViewModel's empty-pool fallback shows the whole set in the hero (no special-case here).
+        .map { ZemerTrack(videoId = it.videoId, title = it.title, artist = corpus.artistsById[it.artistId]?.name ?: "", artistId = it.artistId, explicit = it.explicit, durationSec = it.durationSec) }
 
     // top-artists → ZemerArtist. Gate by the artist's own flags + id-override; no _female cross-credit.
     val topArtists = ranked("top-artists").mapNotNull { corpus.artistsById[it.refId] }
