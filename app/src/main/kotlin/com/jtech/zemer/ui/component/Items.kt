@@ -164,11 +164,20 @@ inline fun ListItem(
     ) {
         Box(Modifier.padding(ListThumbnailPadding), contentAlignment = Alignment.Center) { thumbnailContent() }
         Column(Modifier.weight(1f).padding(horizontal = 6.dp)) {
-            Text(
-                text = title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold,
-                maxLines = 1, overflow = TextOverflow.Ellipsis,
-                modifier = if (titleMarquee) Modifier.gentleMarquee() else Modifier
-            )
+            if (titleMarquee) {
+                RefocusableMarqueeTitle(focused = isFocused) {
+                    Text(
+                        text = title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold,
+                        maxLines = 1, overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.gentleMarquee()
+                    )
+                }
+            } else {
+                Text(
+                    text = title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold,
+                    maxLines = 1, overflow = TextOverflow.Ellipsis
+                )
+            }
             if (subtitle != null) Row(verticalAlignment = Alignment.CenterVertically) { subtitle() }
         }
         trailingContent()
@@ -209,6 +218,9 @@ fun GridItem(
     thumbnailContent: @Composable BoxWithConstraintsScope.() -> Unit,
     thumbnailRatio: Float = 1f,
     fillMaxWidth: Boolean = false,
+    // Set by the string overload when its title marquees, so the card can re-arm the glide on focus
+    // (D-pad/TV) - the title composable itself is opaque here, hence the flag.
+    titleMarquee: Boolean = false,
 ) {
     var isFocused by remember { mutableStateOf(false) }
     val backgroundColor by animateColorAsState(
@@ -249,7 +261,11 @@ fun GridItem(
 
         Spacer(modifier = Modifier.height(6.dp))
 
-        title()
+        if (titleMarquee) {
+            RefocusableMarqueeTitle(focused = isFocused) { title() }
+        } else {
+            title()
+        }
 
         Row(verticalAlignment = Alignment.CenterVertically) {
             badges()
@@ -273,6 +289,7 @@ fun GridItem(
     titleMarquee: Boolean = false,
 ) = GridItem(
     modifier = modifier,
+    titleMarquee = titleMarquee,
     title = {
         Text(
             text = title,
@@ -281,7 +298,9 @@ fun GridItem(
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             textAlign = TextAlign.Start,
-            modifier = if (titleMarquee) Modifier.gentleMarquee().fillMaxWidth() else Modifier.fillMaxWidth()
+            // A marquee measures its child unbounded, so fillMaxWidth would be inert under it (dead);
+            // only the ellipsizing branch needs it to fill the card width.
+            modifier = if (titleMarquee) Modifier.gentleMarquee() else Modifier.fillMaxWidth()
         )
     },
     subtitle = {
