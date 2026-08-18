@@ -115,7 +115,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `.github/workflows/ui-audit.yml` | 50 lines | `.yml` |
 | `.gitignore` | 117 lines | `[none]` |
 | `.gitmodules` | 6 lines | `[none]` |
-| `AGENTS.md` | 1495 lines | `.md` |
+| `AGENTS.md` | 1512 lines | `.md` |
 | `LICENSE` | 674 lines | `[none]` |
 | `README.md` | 19 lines | `.md` |
 | `app/.gitignore` | 1 lines | `[none]` |
@@ -1121,7 +1121,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `docs/status/yidstatus-api.md` | 238 lines | `.md` |
 | `docs/tracking/README.md` | 347 lines | `.md` |
 | `docs/ui/README.md` | 321 lines | `.md` |
-| `docs/ui/standards.md` | 375 lines | `.md` |
+| `docs/ui/standards.md` | 387 lines | `.md` |
 | `docs/video_quality/README.md` | 134 lines | `.md` |
 | `docs/watchtime/README.md` | 278 lines | `.md` |
 | `docs/whitelist/README.md` | 250 lines | `.md` |
@@ -1231,8 +1231,8 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `scripts/check-download-unification.sh` | 58 lines | `.sh` |
 | `scripts/dead-resources-baseline.txt` | 9 lines | `.txt` |
 | `scripts/telegram-chats.sh` | 38 lines | `.sh` |
-| `scripts/ui-audit-baseline.tsv` | 20 lines | `.tsv` |
-| `scripts/ui-audit.sh` | 241 lines | `.sh` |
+| `scripts/ui-audit-baseline.tsv` | 21 lines | `.tsv` |
+| `scripts/ui-audit.sh` | 248 lines | `.sh` |
 | `scripts/ui-strings-scan.py` | 96 lines | `.py` |
 | `settings.gradle.kts` | 56 lines | `.kts` |
 | `simpmusic/build.gradle.kts` | 15 lines | `.kts` |
