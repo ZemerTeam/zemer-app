@@ -718,7 +718,13 @@ class HomeViewModel @Inject constructor(
             // row rather than falling back to a scrape. All featured content is therefore Zemer-sourced.
             val albumsPool = homeRows?.albums.orEmpty().filter { it.isAllowedRanked() }
             val artistsPool = homeRows?.artists.orEmpty().filter { it.isAllowedRanked() }
-            val videosPool = homeRows?.videos.orEmpty().filter { it.isAllowedRanked() }
+            // Featured Videos must be ACTUAL music videos, not audio tracks that merely carry a square
+            // cover: a real video's thumbnail is a 16:9 i.ytimg.com frame, an audio track's is square
+            // album art (googleusercontent). Keep only the ytimg-framed items (the same video/art split
+            // the mapper's headerCovers uses), so the hero carousel never crops a square cover to 16:9.
+            val videosPool = homeRows?.videos.orEmpty()
+                .filter { it.isAllowedRanked() }
+                .filter { it.thumbnail?.contains("i.ytimg.com") == true }
             val communityPool = homeRows?.community.orEmpty().filter { it.isAllowedRanked() }
             val finalFeaturedAlbums = rotateByArtist(albumsPool, maxPerArtist = 1, target = 20)
             val finalFeaturedArtists = rotateByArtist(artistsPool, maxPerArtist = 1, target = 20)
