@@ -1085,14 +1085,14 @@ fun HomeScreen(
             // Shown to blocked-video users too — the rows play audio-first, so for them each shelf is
             // simply their "video songs" (relabelled, watch/download-video affordances gated off).
 
-            // Trending Videos leads the tab as a full 16:9 hero carousel (moved to the top). It keeps the
-            // same surface/playSource/impressions the row had (impressions now per settled hero).
+            // Featured Videos leads the tab as a full 16:9 hero carousel (moved to the top). It keeps the
+            // same surface/playSource (resolver-default attribution); impressions are now per settled hero.
             videoHeroCarousel(
-                row = HomeSeeAllRow.TRENDING_VIDEOS,
-                keyPrefix = "trending_videos",
-                surface = TrackingSurface.home("video-trending"),
-                playSource = PlaySource.HOME_VIDEO_TRENDING,
-                videos = uniqueTrendingVideos,
+                row = HomeSeeAllRow.FEATURED_VIDEOS,
+                keyPrefix = "featured_videos",
+                surface = TrackingSurface.home("featured-videos"),
+                playSource = null, // resolver default — the pre-rows attribution, unchanged
+                videos = uniqueFeaturedVideos,
                 blockVideos = blockVideos,
                 navController = navController,
                 playerConnection = playerConnection,
@@ -1104,11 +1104,11 @@ fun HomeScreen(
             )
 
             videoSongsRow(
-                row = HomeSeeAllRow.FEATURED_VIDEOS,
-                keyPrefix = "featured_videos",
-                surface = TrackingSurface.home("featured-videos"),
-                playSource = null, // resolver default — the pre-rows attribution, unchanged
-                videos = uniqueFeaturedVideos,
+                row = HomeSeeAllRow.TRENDING_VIDEOS,
+                keyPrefix = "trending_videos",
+                surface = TrackingSurface.home("video-trending"),
+                playSource = PlaySource.HOME_VIDEO_TRENDING,
+                videos = uniqueTrendingVideos,
                 blockVideos = blockVideos,
                 parentListState = lazylistState,
                 navController = navController,

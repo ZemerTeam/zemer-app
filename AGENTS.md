@@ -499,12 +499,12 @@ handoff `zemer-app-video-home-rows-request.md`) ride the isolated fail-soft `Vid
 emit impressions on the matching `home:video-*` surfaces (append-only tracking contract:
 `zemer-app-video-home-rows-tracking-request.md`); the artists row needs neither (its plays attribute
 `artist:UC…` from the artist page). Blocked-video users get both video rows relabeled + audio-gated,
-never hidden, like every video shelf. **Trending Videos LEADS the tab as a full 16:9 hero carousel**
+never hidden, like every video shelf. **Featured Videos LEADS the tab as a full 16:9 hero carousel**
 (`ui/screens/VideoHeroCarousel.kt` - the video sibling of the Latest Releases hero, cover-fill 16:9 + the
-shared `HeroTitleOverlay`), moved above Featured/New. It keeps the SAME `home:video-trending` surface: since
+shared `HeroTitleOverlay`), at the top of the tab. It keeps the SAME `home:featured-videos` surface: since
 the M3 carousel is not a `LazyList`, each hero reports its OWN impression when it is the fully-revealed,
 SETTLED item ~300ms (via `CarouselItemScope.carouselItemDrawInfo`; `Tracker.impression` dedups per
-surface+videoId), so the exposure-dampener signal survives the row→carousel move. Featured / New Videos
+surface+videoId), so the exposure-dampener signal survives the row→carousel move. Trending / New Videos
 stay as the small-square `videoSongsRow` shelves below.
 
 **Project direction (a real, ongoing goal):** progressively **replace as much InnerTube as we can across
@@ -1092,7 +1092,7 @@ self-contained spinner during the pre-play album fetch (an album's play id is a 
 can't ride the shared signal). The **in-player VIDEO buffering** spinner is deliberately DIFFERENT: the
 CONTAINED, theme-colored `ZemerLoadingIndicator` (bigger, exactly the Home pull-to-refresh look - a video
 buffer is a content load), NOT the small neutral card spinner. The two full-bleed **carousel heroes**
-(Latest Releases + Trending Videos) share their focus ring + `ui/component/HeroTitleOverlay` (the bottom
+(Latest Releases + Featured Videos) share their focus ring + `ui/component/HeroTitleOverlay` (the bottom
 gradient title/subtitle, with an optional badges slot) and advance ONE item per swipe at a fixed speed
 (`CarouselDefaults.singleAdvanceFlingBehavior` + a fixed `tween`, so a fling never scrolls many items). A
 separate **Enable high refresh rate** setting (Appearance ->
