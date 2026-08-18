@@ -50,6 +50,8 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.LaunchedEffect
+import kotlinx.coroutines.delay
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -336,7 +338,8 @@ fun SongListItem(
                     isActive = isActive,
                     isPlaying = isPlaying,
                     shape = RoundedCornerShape(ThumbnailCornerRadius),
-                    modifier = Modifier.size(ListThumbnailSize)
+                    modifier = Modifier.size(ListThumbnailSize),
+                    isPreparing = rememberIsPreparing(song.song.id)
                 )
             },
             trailingContent = trailingContent,
@@ -406,14 +409,16 @@ fun SongGridItem(
     },
     badges = badges,
     thumbnailContent = {
+        val preparing = rememberIsPreparing(song.song.id)
         ItemThumbnail(
             thumbnailUrl = song.song.thumbnailUrl,
             isActive = isActive,
             isPlaying = isPlaying,
             shape = RoundedCornerShape(ThumbnailCornerRadius),
-            modifier = Modifier.size(GridThumbnailHeight)
+            modifier = Modifier.size(GridThumbnailHeight),
+            isPreparing = preparing
         )
-        if (!isActive) {
+        if (!isActive && !preparing) {
             OverlayPlayButton(
                 visible = true
             )
@@ -816,6 +821,10 @@ fun YouTubeListItem(
     isSwipeable: Boolean = true,
     subtitleOverride: String? = null,
     centeredPlayButton: Boolean = false,
+    // The id whose play the tap-to-play spinner should track, when it differs from [item].id. A Latest
+    // Releases single is an AlbumItem (id = browseId) but plays its sampleVideoId, so the See-all list
+    // passes that here; null falls back to item.id (the normal case).
+    preparingIdOverride: String? = null,
     trailingContent: @Composable RowScope.() -> Unit = {},
     badges: @Composable RowScope.() -> Unit = {
         val database = LocalDatabase.current
@@ -866,6 +875,7 @@ fun YouTubeListItem(
             },
             badges = badges,
             thumbnailContent = {
+                val preparing = rememberIsPreparing(preparingIdOverride ?: item.id)
                 Box(contentAlignment = Alignment.Center) {
                     ItemThumbnail(
                         thumbnailUrl = item.thumbnail,
@@ -874,10 +884,11 @@ fun YouTubeListItem(
                         isActive = isActive,
                         isPlaying = isPlaying,
                         shape = if (item is ArtistItem) CircleShape else RoundedCornerShape(ThumbnailCornerRadius),
-                        modifier = Modifier.size(ListThumbnailSize)
+                        modifier = Modifier.size(ListThumbnailSize),
+                        isPreparing = preparing
                     )
                     // A single shows the centred play button on its artwork (album rows stay plain).
-                    if (centeredPlayButton && !isActive) {
+                    if (centeredPlayButton && !isActive && !preparing) {
                         OverlayPlayButton(visible = true)
                     }
                 }
@@ -930,7 +941,8 @@ fun EpisodeListItem(
                 isActive = isActive,
                 isPlaying = isPlaying,
                 shape = RoundedCornerShape(ThumbnailCornerRadius),
-                modifier = Modifier.size(ListThumbnailSize)
+                modifier = Modifier.size(ListThumbnailSize),
+                isPreparing = rememberIsPreparing(episode.id)
             )
         },
         trailingContent = trailingContent,
@@ -1032,6 +1044,7 @@ fun YouTubeGridItem(
         val context = LocalContext.current
         val playerConnection = LocalPlayerConnection.current ?: return@GridItem
         val scope = rememberCoroutineScope()
+        val preparing = rememberIsPreparing(item.id)
 
         ItemThumbnail(
             // A video's derived thumbnail is `.../hqdefault.jpg` (4:3, letterboxed) so the square
@@ -1046,11 +1059,12 @@ fun YouTubeGridItem(
             isActive = isActive,
             isPlaying = isPlaying,
             shape = if (item is ArtistItem) CircleShape else RoundedCornerShape(ThumbnailCornerRadius),
+            isPreparing = preparing,
         )
 
-        // A single (centeredPlayButton) gets the song-style centred play button instead of the
-        // album's corner one, so it reads as "tap to play" like the Keep Listening song cards.
-        if ((item is SongItem || centeredPlayButton) && !isActive) {
+        // A single / episode (or an explicit centeredPlayButton) gets the song-style centred play button
+        // instead of the album's corner one, so it reads as "tap to play" like the Keep Listening cards.
+        if ((item is SongItem || item is EpisodeItem || centeredPlayButton) && !isActive && !preparing) {
             OverlayPlayButton(
                 visible = true
             )
@@ -1177,13 +1191,18 @@ fun ItemThumbnail(
     modifier: Modifier = Modifier,
     albumIndex: Int? = null,
     isSelected: Boolean = false,
-    thumbnailRatio: Float = 1f
+    thumbnailRatio: Float = 1f,
+    // The tapped item is resolving/buffering (see PlayerConnection.preparingMediaId): show a loading
+    // spinner over the cover instead of the play / now-playing overlays until audio actually starts.
+    isPreparing: Boolean = false
 ) {
         // A currently-PLAYING card morphs its artwork to a scalloped expressive silhouette (and pops
         // once as it BECOMES active - rising-edge only, so the card it left never bounces too), so the
-        // active item reads as playing beyond the equalizer badge.
-        val effectiveShape = if (isActive) expressivePlayingShape() else shape
-        val activePop = rememberActivationPopScale(isActive)
+        // active item reads as playing beyond the equalizer badge. While PREPARING it is not playing yet,
+        // so the active treatment (morph, pop, equalizer) waits for real playback.
+        val effectiveActive = isActive && !isPreparing
+        val effectiveShape = if (effectiveActive) expressivePlayingShape() else shape
+        val activePop = rememberActivationPopScale(effectiveActive)
     Box(
         contentAlignment = Alignment.Center,
         modifier = modifier
@@ -1237,10 +1256,14 @@ fun ItemThumbnail(
             }
         }
 
+        // The on-cover overlay neutral - the SAME color the now-playing equalizer, the play icon and the
+        // over-cover titles use - so the loading spinner is never a different color from the playing
+        // animation (a neutral, never the theme accent).
+        val overlayColor = if (albumIndex != null) MaterialTheme.colorScheme.onBackground else Color.White
         PlayingIndicatorBox(
-            isActive = isActive,
+            isActive = effectiveActive,
             playWhenReady = isPlaying,
-            color = if (albumIndex != null) MaterialTheme.colorScheme.onBackground else Color.White,
+            color = overlayColor,
             modifier = Modifier
                 .fillMaxSize()
                 .background(
@@ -1251,6 +1274,17 @@ fun ItemThumbnail(
                     shape = effectiveShape
                 )
         )
+
+        if (isPreparing) {
+            // Resolving/buffering the tapped item: the shared PreparingOverlay uses the SAME neutral as the
+            // equalizer (never the accent) and dims EXACTLY like it - transparent for an album track
+            // (albumIndex) so a dark onBackground spinner is never lost on a black scrim.
+            PreparingOverlay(
+                shape = effectiveShape,
+                color = overlayColor,
+                scrimColor = if (albumIndex != null) Color.Transparent else Color.Black.copy(alpha = ActiveBoxAlpha),
+            )
+        }
     }
 }
 
@@ -1426,9 +1460,24 @@ fun PlaylistThumbnail(
     }
 }
 
+/**
+ * Whether the player is currently PREPARING [id] to play - the user tapped it and audio has not started
+ * yet (stream resolve + buffer), so a card shows a loading spinner instead of a hanging play affordance.
+ * Reads PlayerConnection.preparingMediaId; false when [id] is null or there is no player connection.
+ */
+@Composable
+fun rememberIsPreparing(id: String?): Boolean {
+    val connection = LocalPlayerConnection.current ?: return false
+    val preparing by connection.preparingMediaId.collectAsState()
+    return id != null && preparing == id
+}
+
 @Composable
 fun BoxScope.OverlayPlayButton(
-    visible: Boolean
+    visible: Boolean,
+    // While the tapped item resolves/buffers, the disc shows the M3 Expressive loading indicator instead
+    // of the play icon (surfaces that use ItemThumbnail get the spinner from it and leave this false).
+    loading: Boolean = false,
 ) {
     AnimatedVisibility(
         visible = visible,
@@ -1444,12 +1493,17 @@ fun BoxScope.OverlayPlayButton(
                 .clip(CircleShape)
                 .background(Color.Black.copy(alpha = ActiveBoxAlpha))
         ) {
-            Icon(
-                painter = painterResource(R.drawable.play),
-                contentDescription = null,
-                tint = Color.White,
-                modifier = Modifier.size(20.dp)
-            )
+            if (loading) {
+                // The neutral white of the play icon it replaces - never the theme accent.
+                MediaLoadingSpinner()
+            } else {
+                Icon(
+                    painter = painterResource(R.drawable.play),
+                    contentDescription = null,
+                    tint = Color.White,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
         }
     }
 }
@@ -1491,7 +1545,24 @@ fun BoxScope.OverlayEditButton(
 fun BoxScope.AlbumPlayButton(
     visible: Boolean,
     onClick: () -> Unit,
+    // Resets the internal loading state when the item at this slot changes. The Latest Releases carousel
+    // is index-keyed (no per-item key), so without this a spinning disc's loading=true would bleed onto a
+    // different release that later occupies the same slot; pass the release/album id there.
+    itemKey: Any? = null,
 ) {
+    // An album resolves + fetches its tracks before any audio, so the static play disc used to just hang.
+    // Show the shared M3 Expressive over-media spinner from tap until the album becomes active (the caller
+    // flips `visible` off), then it fades into the now-playing indicator. A timeout reverts to the play
+    // icon so a failed / aborted play never spins forever.
+    var loading by remember { mutableStateOf(false) }
+    LaunchedEffect(visible) { if (!visible) loading = false }
+    LaunchedEffect(itemKey) { loading = false }
+    LaunchedEffect(loading) {
+        if (loading) {
+            delay(30_000L)
+            loading = false
+        }
+    }
     AnimatedVisibility(
         visible = visible,
         enter = fadeIn(),
@@ -1506,16 +1577,29 @@ fun BoxScope.AlbumPlayButton(
                 .size(36.dp)
                 .clip(CircleShape)
                 .background(Color.Black.copy(alpha = ActiveBoxAlpha))
-                .clickable(onClick = onClick)
+                // Always clickable (never enabled=false) so the tap is CONSUMED and cannot fall through to
+                // the card behind it (which would navigate to the album page mid-fetch); a re-tap while
+                // loading is simply ignored.
+                .clickable {
+                    if (!loading) {
+                        loading = true
+                        onClick()
+                    }
+                }
         ) {
-            Icon(
-                painter = painterResource(R.drawable.play),
-                contentDescription = null,
-                tint = Color.White,
-                // Match OverlayPlayButton's icon so a song's and an album's play button read identically
-                // (same 36dp disc, same tint, same icon) wherever they appear together.
-                modifier = Modifier.size(20.dp)
-            )
+            if (loading) {
+                // The neutral white of the play icon it replaces - never the theme accent.
+                MediaLoadingSpinner()
+            } else {
+                Icon(
+                    painter = painterResource(R.drawable.play),
+                    contentDescription = null,
+                    tint = Color.White,
+                    // Match OverlayPlayButton's icon so a song's and an album's play button read identically
+                    // (same 36dp disc, same tint, same icon) wherever they appear together.
+                    modifier = Modifier.size(20.dp)
+                )
+            }
         }
     }
 }

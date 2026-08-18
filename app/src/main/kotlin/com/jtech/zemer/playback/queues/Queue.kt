@@ -9,6 +9,14 @@ interface Queue {
     val preloadItem: MediaMetadata?
 
     /**
+     * The id of the item the user just tapped to play, for the tap-to-play loading spinner
+     * (PlayerConnection.preparingMediaId + rememberIsPreparing). Defaults to [preloadItem]'s id; a queue
+     * whose target is NOT the preload (ListQueue plays its startIndex item, with no preload) overrides
+     * this so the tapped card shows the spinner. UI-feedback only - never affects playback.
+     */
+    val preparingItemId: String? get() = preloadItem?.id
+
+    /**
      * Tracking (docs/tracking/README.md): where plays of this queue's user-chosen items report as
      * starting. Surfaces with a spec taxonomy value (search, album:…, zemer:…) pass it at
      * construction; everything else defaults to "other".
