@@ -96,6 +96,7 @@ import com.jtech.zemer.utils.rememberPreference
 import androidx.compose.ui.graphics.toArgb
 import kotlinx.coroutines.launch
 import com.jtech.zemer.ui.component.focusBorder
+import com.jtech.zemer.ui.component.gentleMarquee
 import kotlin.math.absoluteValue
 import kotlin.math.roundToInt
 import androidx.compose.ui.res.stringResource
@@ -542,7 +543,7 @@ private fun NewMiniPlayer(
                                 fontWeight = FontWeight.Medium,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
-                                modifier = Modifier.basicMarquee(iterations = 1, initialDelayMillis = 3000, velocity = 30.dp),
+                                modifier = Modifier.gentleMarquee(),
                             )
                         }
 
@@ -566,7 +567,7 @@ private fun NewMiniPlayer(
                                         style = MaterialTheme.typography.bodySmall,
                                         maxLines = 1,
                                         overflow = TextOverflow.Ellipsis,
-                                        modifier = Modifier.basicMarquee(iterations = 1, initialDelayMillis = 3000, velocity = 30.dp),
+                                        modifier = Modifier.gentleMarquee(),
                                     )
                                 }
                             }

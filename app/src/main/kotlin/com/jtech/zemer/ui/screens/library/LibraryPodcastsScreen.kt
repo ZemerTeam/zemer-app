@@ -68,6 +68,7 @@ import com.jtech.zemer.ui.component.LibraryFilterChip
 import com.jtech.zemer.ui.component.EmptyPlaceholder
 import com.jtech.zemer.ui.component.HideOnScrollFAB
 import com.jtech.zemer.ui.component.focusBorder
+import com.jtech.zemer.ui.component.gentleMarquee
 import com.jtech.zemer.ui.component.LocalMenuState
 import com.jtech.zemer.ui.component.Material3MenuGroup
 import com.jtech.zemer.ui.component.Material3MenuItemData
@@ -362,6 +363,7 @@ fun LibraryPodcastsScreen(
                             showInLibraryIcon = false,
                             showLikedIcon = false,
                             showDownloadIcon = true,
+                            titleMarquee = true,
                             isActive = episode.id == mediaMetadata?.id,
                             isPlaying = isPlaying,
                             trailingContent = {
@@ -510,7 +512,7 @@ private fun AutoPlaylistCard(
         }
         Spacer(Modifier.width(12.dp))
         Column(modifier = Modifier.weight(1f)) {
-            Text(text = title, style = MaterialTheme.typography.bodyLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(text = title, style = MaterialTheme.typography.bodyLarge, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.gentleMarquee())
             Text(
                 text = buildString {
                     append(stringResource(R.string.auto_playlist))
@@ -543,7 +545,7 @@ private fun PodcastEpisodePlaylistItem(
         PodcastRowThumbnail(podcast.thumbnailUrl)
         Spacer(Modifier.width(12.dp))
         Column(modifier = Modifier.weight(1f)) {
-            Text(text = podcast.title, style = MaterialTheme.typography.bodyLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(text = podcast.title, style = MaterialTheme.typography.bodyLarge, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.gentleMarquee())
             if (!podcast.author.isNullOrBlank()) {
                 Text(
                     text = podcast.author,
@@ -612,7 +614,7 @@ private fun PodcastArtistChannelItem(
             style = MaterialTheme.typography.bodyLarge,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.weight(1f),
+            modifier = Modifier.weight(1f).gentleMarquee(),
         )
     }
 }
@@ -635,6 +637,7 @@ private fun EpisodeSongListItem(
         showLikedIcon = false,
         showInLibraryIcon = false,
         showDownloadIcon = true,
+        titleMarquee = true,
         isActive = isActive,
         isPlaying = isPlaying,
         trailingContent = {

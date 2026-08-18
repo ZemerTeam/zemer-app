@@ -128,7 +128,10 @@ inline fun ListItem(
     noinline subtitle: (@Composable RowScope.() -> Unit)? = null,
     thumbnailContent: @Composable () -> Unit,
     trailingContent: @Composable RowScope.() -> Unit = {},
-    isActive: Boolean = false
+    isActive: Boolean = false,
+    // Gently scroll a title too long for one line instead of ellipsizing it (podcast rows: long
+    // show/episode titles). Off by default so music rows are unchanged.
+    titleMarquee: Boolean = false
 ) {
     var isFocused by remember { mutableStateOf(false) }
     val backgroundColor by animateColorAsState(
@@ -163,7 +166,8 @@ inline fun ListItem(
         Column(Modifier.weight(1f).padding(horizontal = 6.dp)) {
             Text(
                 text = title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold,
-                maxLines = 1, overflow = TextOverflow.Ellipsis
+                maxLines = 1, overflow = TextOverflow.Ellipsis,
+                modifier = if (titleMarquee) Modifier.gentleMarquee() else Modifier
             )
             if (subtitle != null) Row(verticalAlignment = Alignment.CenterVertically) { subtitle() }
         }
@@ -179,11 +183,13 @@ fun ListItem(
     badges: @Composable RowScope.() -> Unit = {},
     thumbnailContent: @Composable () -> Unit,
     trailingContent: @Composable RowScope.() -> Unit = {},
-    isActive: Boolean = false
+    isActive: Boolean = false,
+    titleMarquee: Boolean = false
 ) = ListItem(
     title = title,
     modifier = modifier,
     isActive = isActive,
+    titleMarquee = titleMarquee,
     subtitle = {
         badges()
         if (!subtitle.isNullOrEmpty()) {
@@ -262,6 +268,9 @@ fun GridItem(
     thumbnailContent: @Composable BoxWithConstraintsScope.() -> Unit,
     thumbnailRatio: Float = 1f,
     fillMaxWidth: Boolean = false,
+    // Gently scroll a title too long for one narrow card instead of ellipsizing it (podcast browse
+    // cards) - the same one-glide feel as the podcast list rows. Off by default.
+    titleMarquee: Boolean = false,
 ) = GridItem(
     modifier = modifier,
     title = {
@@ -272,7 +281,7 @@ fun GridItem(
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             textAlign = TextAlign.Start,
-            modifier = Modifier.fillMaxWidth()
+            modifier = if (titleMarquee) Modifier.gentleMarquee().fillMaxWidth() else Modifier.fillMaxWidth()
         )
     },
     subtitle = {
@@ -318,6 +327,7 @@ fun SongListItem(
     isActive: Boolean = false,
     isPlaying: Boolean = false,
     isSwipeable: Boolean = true,
+    titleMarquee: Boolean = false,
     trailingContent: @Composable RowScope.() -> Unit = {},
 ) {
     val swipeEnabled by rememberPreference(SwipeToSongKey, defaultValue = false)
@@ -325,6 +335,7 @@ fun SongListItem(
     val content: @Composable () -> Unit = {
         ListItem(
             title = song.song.title,
+            titleMarquee = titleMarquee,
             subtitle = joinByBullet(
                 song.artists.joinToString { it.name },
                 makeTimeString(song.song.duration * 1000L)
@@ -865,6 +876,8 @@ fun YouTubeListItem(
     val content: @Composable () -> Unit = {
         ListItem(
             title = item.title,
+            // Podcast shows/episodes carry long titles; gently scroll them instead of clipping.
+            titleMarquee = item is PodcastItem || item is EpisodeItem,
             subtitle = subtitleOverride ?: when (item) {
                 is SongItem -> joinByBullet(item.artists.joinToString { it.name }, makeTimeString(item.duration?.times(1000L)))
                 is AlbumItem -> joinByBullet(item.artists?.joinToString { it.name }, item.year?.toString())
@@ -927,6 +940,7 @@ fun EpisodeListItem(
         ?.let { pos -> durationMs?.let { d -> makeTimeString((d - pos).coerceAtLeast(0)) } }
     ListItem(
         title = episode.title,
+        titleMarquee = true,
         subtitle = joinByBullet(
             episode.publishDateText,
             if (timeLeft != null) stringResource(R.string.episode_time_left, timeLeft)

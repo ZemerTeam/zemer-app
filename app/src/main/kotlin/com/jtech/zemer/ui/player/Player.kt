@@ -15,7 +15,6 @@ import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
@@ -109,6 +108,7 @@ import com.jtech.zemer.LocalPlayerConnection
 import com.jtech.zemer.R
 import com.jtech.zemer.playback.PlayerConnection
 import com.jtech.zemer.ui.component.focusBorder
+import com.jtech.zemer.ui.component.gentleMarquee
 import com.jtech.zemer.constants.DarkModeKey
 import com.jtech.zemer.constants.FloatingMiniPlayerKey
 import com.jtech.zemer.constants.PlayerBackgroundStyle
@@ -627,7 +627,7 @@ fun BottomSheetPlayer(
                                 color = TextBackgroundColor,
                                 modifier =
                                 Modifier
-                                    .basicMarquee(iterations = 1, initialDelayMillis = 3000, velocity = 30.dp)
+                                    .gentleMarquee()
                                     .combinedClickable(
                                         enabled = true,
                                         indication = null,
@@ -676,7 +676,7 @@ fun BottomSheetPlayer(
                                 .fillMaxWidth()
                                 .border(2.dp, artistBorderColor.value, RoundedCornerShape(4.dp))
                                 .padding(4.dp)
-                                .basicMarquee(iterations = 1, initialDelayMillis = 3000, velocity = 30.dp)
+                                .gentleMarquee()
                                 .focusable()
                                 .onFocusChanged { artistFocused.value = it.isFocused }
                         ) {
