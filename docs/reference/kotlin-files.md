@@ -106,7 +106,7 @@ Every tracked Kotlin file is listed with hard metadata extracted from the file t
 | `app/src/main/kotlin/com/jtech/zemer/offline/SubsetLiveWhitelist.kt` | 123 | `com.jtech.zemer.offline` | no | 1 | 20 | java.util |
 | `app/src/main/kotlin/com/jtech/zemer/offline/SubsetManifest.kt` | 74 | `com.jtech.zemer.offline` | no | 1 | 21 | kotlinx.serialization |
 | `app/src/main/kotlin/com/jtech/zemer/offline/SubsetNormalize.kt` | 115 | `com.jtech.zemer.offline` | no | 2 | 29 | java.text, kotlin.math |
-| `app/src/main/kotlin/com/jtech/zemer/offline/SubsetReadLayer.kt` | 761 | `com.jtech.zemer.offline` | no | 23 | 123 | java.util |
+| `app/src/main/kotlin/com/jtech/zemer/offline/SubsetReadLayer.kt` | 763 | `com.jtech.zemer.offline` | no | 23 | 123 | java.util |
 | `app/src/main/kotlin/com/jtech/zemer/offline/SubsetSearch.kt` | 315 | `com.jtech.zemer.offline` | no | 4 | 116 | kotlin.math |
 | `app/src/main/kotlin/com/jtech/zemer/offline/SubsetStore.kt` | 115 | `com.jtech.zemer.offline` | no | 5 | 26 | android.content, java.io, kotlinx.serialization |
 | `app/src/main/kotlin/com/jtech/zemer/offline/SubsetSyncClient.kt` | 61 | `com.jtech.zemer.offline` | no | 12 | 10 | io.ktor, java.io, javax.inject, kotlinx.serialization |
@@ -185,10 +185,10 @@ Every tracked Kotlin file is listed with hard metadata extracted from the file t
 | `app/src/main/kotlin/com/jtech/zemer/search/ResultDedupe.kt` | 78 | `com.jtech.zemer.search` | no | 2 | 9 |  |
 | `app/src/main/kotlin/com/jtech/zemer/search/ZemerGenresModels.kt` | 149 | `com.jtech.zemer.search` | no | 1 | 42 | kotlinx.serialization |
 | `app/src/main/kotlin/com/jtech/zemer/search/ZemerPodcastGenresModels.kt` | 81 | `com.jtech.zemer.search` | no | 1 | 26 | kotlinx.serialization |
-| `app/src/main/kotlin/com/jtech/zemer/search/ZemerResultMapper.kt` | 699 | `com.jtech.zemer.search` | no | 21 | 103 |  |
+| `app/src/main/kotlin/com/jtech/zemer/search/ZemerResultMapper.kt` | 703 | `com.jtech.zemer.search` | no | 21 | 104 |  |
 | `app/src/main/kotlin/com/jtech/zemer/search/ZemerRoutes.kt` | 71 | `com.jtech.zemer.search` | no | 1 | 14 |  |
 | `app/src/main/kotlin/com/jtech/zemer/search/ZemerSearchClient.kt` | 599 | `com.jtech.zemer.search` | no | 16 | 62 | io.ktor, java.io, javax.inject, kotlinx.serialization, timber.log |
-| `app/src/main/kotlin/com/jtech/zemer/search/ZemerSearchModels.kt` | 410 | `com.jtech.zemer.search` | no | 2 | 158 | kotlinx.serialization |
+| `app/src/main/kotlin/com/jtech/zemer/search/ZemerSearchModels.kt` | 417 | `com.jtech.zemer.search` | no | 2 | 159 | kotlinx.serialization |
 | `app/src/main/kotlin/com/jtech/zemer/search/ZemerSearchOptions.kt` | 32 | `com.jtech.zemer.search` | no | 5 | 6 | android.content |
 | `app/src/main/kotlin/com/jtech/zemer/search/ZemerSearchRepository.kt` | 474 | `com.jtech.zemer.search` | no | 34 | 68 | android.content, dagger.hilt, java.io, java.nio, javax.inject, kotlinx.coroutines |
 | `app/src/main/kotlin/com/jtech/zemer/search/ZemerStationsModels.kt` | 135 | `com.jtech.zemer.search` | no | 1 | 39 | kotlinx.serialization |
@@ -520,7 +520,7 @@ Every tracked Kotlin file is listed with hard metadata extracted from the file t
 | `app/src/main/kotlin/com/jtech/zemer/viewmodels/DownloadedVideosViewModel.kt` | 46 | `com.jtech.zemer.viewmodels` | no | 20 | 5 | android.content, androidx.lifecycle, dagger.hilt, javax.inject, kotlinx.coroutines |
 | `app/src/main/kotlin/com/jtech/zemer/viewmodels/HistoryViewModel.kt` | 108 | `com.jtech.zemer.viewmodels` | no | 20 | 22 | androidx.lifecycle, dagger.hilt, java.time, javax.inject, kotlinx.coroutines |
 | `app/src/main/kotlin/com/jtech/zemer/viewmodels/HomeSeeAllStore.kt` | 131 | `com.jtech.zemer.viewmodels` | no | 14 | 38 | androidx.annotation, kotlinx.coroutines |
-| `app/src/main/kotlin/com/jtech/zemer/viewmodels/HomeViewModel.kt` | 989 | `com.jtech.zemer.viewmodels` | no | 57 | 197 | android.content, androidx.datastore, androidx.lifecycle, com.google, dagger.hilt, javax.inject, kotlin.random, kotlinx.coroutines, timber.log |
+| `app/src/main/kotlin/com/jtech/zemer/viewmodels/HomeViewModel.kt` | 993 | `com.jtech.zemer.viewmodels` | no | 57 | 199 | android.content, androidx.datastore, androidx.lifecycle, com.google, dagger.hilt, javax.inject, kotlin.random, kotlinx.coroutines, timber.log |
 | `app/src/main/kotlin/com/jtech/zemer/viewmodels/KidZoneViewModel.kt` | 56 | `com.jtech.zemer.viewmodels` | no | 15 | 11 | androidx.lifecycle, dagger.hilt, javax.inject, kotlinx.coroutines, timber.log |
 | `app/src/main/kotlin/com/jtech/zemer/viewmodels/LatestReleasesViewModel.kt` | 74 | `com.jtech.zemer.viewmodels` | no | 18 | 12 | android.content, androidx.lifecycle, dagger.hilt, javax.inject, kotlinx.coroutines, timber.log |
 | `app/src/main/kotlin/com/jtech/zemer/viewmodels/LibraryVideosViewModel.kt` | 47 | `com.jtech.zemer.viewmodels` | no | 17 | 9 | android.content, androidx.lifecycle, dagger.hilt, javax.inject, kotlinx.coroutines |
@@ -622,7 +622,7 @@ Every tracked Kotlin file is listed with hard metadata extracted from the file t
 | `app/src/test/kotlin/com/jtech/zemer/search/ZemerCuratedPlaylistsTest.kt` | 187 | `com.jtech.zemer.search` | no | 8 | 15 | org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/search/ZemerGenresTest.kt` | 272 | `com.jtech.zemer.search` | no | 5 | 24 | org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/search/ZemerPodcastMapperTest.kt` | 177 | `com.jtech.zemer.search` | no | 14 | 19 | org.junit |
-| `app/src/test/kotlin/com/jtech/zemer/search/ZemerResultMapperTest.kt` | 748 | `com.jtech.zemer.search` | no | 18 | 89 | org.junit |
+| `app/src/test/kotlin/com/jtech/zemer/search/ZemerResultMapperTest.kt` | 770 | `com.jtech.zemer.search` | no | 18 | 91 | org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/search/ZemerRoutesTest.kt` | 75 | `com.jtech.zemer.search` | no | 3 | 3 | org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/search/ZemerSearchJsonTest.kt` | 89 | `com.jtech.zemer.search` | no | 3 | 10 | org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/search/ZemerSearchParametersTest.kt` | 45 | `com.jtech.zemer.search` | no | 2 | 4 | org.junit |

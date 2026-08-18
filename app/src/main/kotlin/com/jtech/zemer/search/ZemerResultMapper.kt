@@ -186,6 +186,7 @@ object ZemerResultMapper {
                 .distinctBy { it.id }
                 .dropBlocked(),
             community = playlistItems(resp.topCommunity, formatSongCount),
+            realVideoIds = resp.topVideos.filter { it.realVideo }.map { it.videoId }.toSet(),
         )
 
     /** The four telemetry/discovery-ranked home rows in native item types (see [homeRows]). */
@@ -194,6 +195,9 @@ object ZemerResultMapper {
         val videos: List<SongItem>,
         val artists: List<ArtistItem>,
         val community: List<PlaylistItem>,
+        // The videoIds among [videos] the server classified as REAL filmed videos (topVideos[].realVideo).
+        // The Featured Videos hero carousel shows only these; the See-all shows the full [videos] row.
+        val realVideoIds: Set<String> = emptySet(),
     )
 
     /**

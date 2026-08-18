@@ -266,7 +266,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/main/kotlin/com/jtech/zemer/offline/SubsetLiveWhitelist.kt` | 123 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/offline/SubsetManifest.kt` | 74 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/offline/SubsetNormalize.kt` | 115 lines | `.kt` |
-| `app/src/main/kotlin/com/jtech/zemer/offline/SubsetReadLayer.kt` | 761 lines | `.kt` |
+| `app/src/main/kotlin/com/jtech/zemer/offline/SubsetReadLayer.kt` | 763 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/offline/SubsetSearch.kt` | 315 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/offline/SubsetStore.kt` | 115 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/offline/SubsetSyncClient.kt` | 61 lines | `.kt` |
@@ -345,10 +345,10 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/main/kotlin/com/jtech/zemer/search/ResultDedupe.kt` | 78 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/search/ZemerGenresModels.kt` | 149 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/search/ZemerPodcastGenresModels.kt` | 81 lines | `.kt` |
-| `app/src/main/kotlin/com/jtech/zemer/search/ZemerResultMapper.kt` | 699 lines | `.kt` |
+| `app/src/main/kotlin/com/jtech/zemer/search/ZemerResultMapper.kt` | 703 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/search/ZemerRoutes.kt` | 71 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/search/ZemerSearchClient.kt` | 599 lines | `.kt` |
-| `app/src/main/kotlin/com/jtech/zemer/search/ZemerSearchModels.kt` | 410 lines | `.kt` |
+| `app/src/main/kotlin/com/jtech/zemer/search/ZemerSearchModels.kt` | 417 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/search/ZemerSearchOptions.kt` | 32 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/search/ZemerSearchRepository.kt` | 474 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/search/ZemerStationsModels.kt` | 135 lines | `.kt` |
@@ -680,7 +680,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/main/kotlin/com/jtech/zemer/viewmodels/DownloadedVideosViewModel.kt` | 46 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/viewmodels/HistoryViewModel.kt` | 108 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/viewmodels/HomeSeeAllStore.kt` | 131 lines | `.kt` |
-| `app/src/main/kotlin/com/jtech/zemer/viewmodels/HomeViewModel.kt` | 989 lines | `.kt` |
+| `app/src/main/kotlin/com/jtech/zemer/viewmodels/HomeViewModel.kt` | 993 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/viewmodels/KidZoneViewModel.kt` | 56 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/viewmodels/LatestReleasesViewModel.kt` | 74 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/viewmodels/LibraryVideosViewModel.kt` | 47 lines | `.kt` |
@@ -994,7 +994,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/test/kotlin/com/jtech/zemer/search/ZemerCuratedPlaylistsTest.kt` | 187 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/search/ZemerGenresTest.kt` | 272 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/search/ZemerPodcastMapperTest.kt` | 177 lines | `.kt` |
-| `app/src/test/kotlin/com/jtech/zemer/search/ZemerResultMapperTest.kt` | 748 lines | `.kt` |
+| `app/src/test/kotlin/com/jtech/zemer/search/ZemerResultMapperTest.kt` | 770 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/search/ZemerRoutesTest.kt` | 75 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/search/ZemerSearchJsonTest.kt` | 89 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/search/ZemerSearchParametersTest.kt` | 45 lines | `.kt` |
