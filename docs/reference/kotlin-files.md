@@ -156,7 +156,7 @@ Every tracked Kotlin file is listed with hard metadata extracted from the file t
 | `app/src/main/kotlin/com/jtech/zemer/playback/VideoQualityLogic.kt` | 204 | `com.jtech.zemer.playback` | no | 1 | 39 |  |
 | `app/src/main/kotlin/com/jtech/zemer/playback/VideoRendition.kt` | 95 | `com.jtech.zemer.playback` | no | 0 | 20 |  |
 | `app/src/main/kotlin/com/jtech/zemer/playback/VideoSongIds.kt` | 28 | `com.jtech.zemer.playback` | no | 0 | 6 |  |
-| `app/src/main/kotlin/com/jtech/zemer/playback/WatchTimeReporter.kt` | 488 | `com.jtech.zemer.playback` | no | 11 | 86 | androidx.media3, java.util, kotlinx.coroutines, timber.log |
+| `app/src/main/kotlin/com/jtech/zemer/playback/WatchTimeReporter.kt` | 491 | `com.jtech.zemer.playback` | no | 11 | 85 | androidx.media3, java.util, kotlinx.coroutines, timber.log |
 | `app/src/main/kotlin/com/jtech/zemer/playback/WatchTimeSchedule.kt` | 41 | `com.jtech.zemer.playback` | no | 0 | 6 |  |
 | `app/src/main/kotlin/com/jtech/zemer/playback/WatchTimeSegments.kt` | 117 | `com.jtech.zemer.playback` | no | 1 | 20 | java.util |
 | `app/src/main/kotlin/com/jtech/zemer/playback/queues/EmptyQueue.kt` | 14 | `com.jtech.zemer.playback.queues` | no | 2 | 5 | androidx.media3 |
@@ -604,7 +604,7 @@ Every tracked Kotlin file is listed with hard metadata extracted from the file t
 | `app/src/test/kotlin/com/jtech/zemer/playback/VideoQualityLogicTest.kt` | 221 | `com.jtech.zemer.playback` | no | 5 | 23 | org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/playback/VideoRenditionTest.kt` | 87 | `com.jtech.zemer.playback` | no | 4 | 6 | org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/playback/VideoSongIdsTest.kt` | 45 | `com.jtech.zemer.playback` | no | 4 | 4 | java.util, org.junit |
-| `app/src/test/kotlin/com/jtech/zemer/playback/WatchTimeReporterTest.kt` | 181 | `com.jtech.zemer.playback` | no | 8 | 28 | kotlinx.coroutines, org.junit |
+| `app/src/test/kotlin/com/jtech/zemer/playback/WatchTimeReporterTest.kt` | 201 | `com.jtech.zemer.playback` | no | 8 | 29 | kotlinx.coroutines, org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/playback/WatchTimeScheduleTest.kt` | 59 | `com.jtech.zemer.playback` | no | 2 | 6 | org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/playback/WatchTimeSegmentsTest.kt` | 161 | `com.jtech.zemer.playback` | no | 5 | 18 | org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/playback/relay/RelayDeviceIdTest.kt` | 82 | `com.jtech.zemer.playback.relay` | no | 6 | 4 | java.util, org.junit |

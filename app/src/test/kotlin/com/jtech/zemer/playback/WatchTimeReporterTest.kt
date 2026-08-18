@@ -13,7 +13,7 @@ import org.junit.Test
  * Drives the [WatchTimeReporter] STATE MACHINE with a pure [PlaybackProbe] fake (no media3, no
  * Robolectric) and asserts via the observable OFFLINE-capture sink - which exercises the shared
  * session/segment/transition orchestration end to end: session open, segment accumulation, seek
- * exclusion, the genuine-play gate, the pause-history privacy semantics, the teardown end-position,
+ * exclusion, the sub-500ms jitter floor, the pause-history privacy semantics, the teardown end-position,
  * the buffering-is-not-a-pause rule, and the relay exclusion.
  *
  * The reporter's scope is Unconfined, so every `launch` (the ping consumer) runs synchronously and a
@@ -101,11 +101,31 @@ class WatchTimeReporterTest {
     }
 
     @Test
-    fun `a listen shorter than the genuine-play gate is dropped`() {
+    fun `a short offline listen still mints a view - no minimum-duration gate`() {
+        // Since 2026-08-24 YouTube counts a view from the very first frame (previously ~30s of engaged
+        // watching), so even a brief offline play is re-pushed on reconnect - the live path likewise
+        // fires its playback ping with no duration gate. A 5s play is well under the old 10s gate.
         val r = reporter()
         play(0)
         r.onIsPlayingChanged(true)
-        probe.positionMs = 5_000 // below the 10s gate
+        probe.positionMs = 5_000
+        r.onPlaybackEnded()
+
+        with(captured.single()) {
+            assertEquals("0.0", st)
+            assertEquals("5.0", et)
+            assertEquals("5.0", rt)
+        }
+    }
+
+    @Test
+    fun `a sub-500ms blip is dropped as jitter, not a listen`() {
+        // The honest floor that remains: below WatchTimeSegments.MIN_SEGMENT_MS nothing was genuinely
+        // watched (double events / rounding), so no view is minted.
+        val r = reporter()
+        play(0)
+        r.onIsPlayingChanged(true)
+        probe.positionMs = 300
         r.onPlaybackEnded()
 
         assertEquals(0, captured.size)

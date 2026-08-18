@@ -115,7 +115,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `.github/workflows/ui-audit.yml` | 50 lines | `.yml` |
 | `.gitignore` | 117 lines | `[none]` |
 | `.gitmodules` | 6 lines | `[none]` |
-| `AGENTS.md` | 1512 lines | `.md` |
+| `AGENTS.md` | 1515 lines | `.md` |
 | `LICENSE` | 674 lines | `[none]` |
 | `README.md` | 19 lines | `.md` |
 | `app/.gitignore` | 1 lines | `[none]` |
@@ -316,7 +316,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/main/kotlin/com/jtech/zemer/playback/VideoQualityLogic.kt` | 204 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/playback/VideoRendition.kt` | 95 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/playback/VideoSongIds.kt` | 28 lines | `.kt` |
-| `app/src/main/kotlin/com/jtech/zemer/playback/WatchTimeReporter.kt` | 488 lines | `.kt` |
+| `app/src/main/kotlin/com/jtech/zemer/playback/WatchTimeReporter.kt` | 491 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/playback/WatchTimeSchedule.kt` | 41 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/playback/WatchTimeSegments.kt` | 117 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/playback/queues/EmptyQueue.kt` | 14 lines | `.kt` |
@@ -976,7 +976,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/test/kotlin/com/jtech/zemer/playback/VideoQualityLogicTest.kt` | 221 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/playback/VideoRenditionTest.kt` | 87 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/playback/VideoSongIdsTest.kt` | 45 lines | `.kt` |
-| `app/src/test/kotlin/com/jtech/zemer/playback/WatchTimeReporterTest.kt` | 181 lines | `.kt` |
+| `app/src/test/kotlin/com/jtech/zemer/playback/WatchTimeReporterTest.kt` | 201 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/playback/WatchTimeScheduleTest.kt` | 59 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/playback/WatchTimeSegmentsTest.kt` | 161 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/playback/relay/RelayDeviceIdTest.kt` | 82 lines | `.kt` |
@@ -1123,7 +1123,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `docs/ui/README.md` | 321 lines | `.md` |
 | `docs/ui/standards.md` | 387 lines | `.md` |
 | `docs/video_quality/README.md` | 134 lines | `.md` |
-| `docs/watchtime/README.md` | 278 lines | `.md` |
+| `docs/watchtime/README.md` | 304 lines | `.md` |
 | `docs/whitelist/README.md` | 250 lines | `.md` |
 | `docs/zemer_playlists/README.md` | 110 lines | `.md` |
 | `gradle.properties` | 40 lines | `.properties` |
