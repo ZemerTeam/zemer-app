@@ -1,11 +1,25 @@
 // Validate the WHOLE client roster over SABR: which clients stream a whole song via
-// serverAbrStreamingUrl with the app's bgutils pot (usable), and which the server identity-caps.
+// serverAbrStreamingUrl with the app's bgutils pot (usable), and which the server caps.
 //
 //   node tests/sabr-clients.mjs [videoId]
 //
-// Shares the SABR request/UMP machinery with tests/sabr-stream.mjs (which documents the protocol +
-// field numbers). Reports one row per client: player status, whether it exposes SABR inputs
-// (serverAbrStreamingUrl + ustreamer config), and the drain result (whole-song N/N or capped at K).
+// Reports one row per client: player status, whether it exposes SABR inputs (serverAbrStreamingUrl
+// + ustreamer config), and the drain result (whole-song N/N or capped at K). Handles the two things
+// the direct clients don't need: web clients' serverAbrStreamingUrl is CIPHERED, so its `n` param
+// must be n-transformed (via the cipher) before POSTing - that was the missing piece that made the
+// whole web family usable; and some clients gate media behind a SABR_CONTEXT_UPDATE that must be
+// echoed back as streamerContext.sabr_contexts (SabrContext{type,value}).
+//
+// FINDINGS (2026-08-19, live, itag 251, multiple videos):
+//   RELIABLE over SABR (whole song on every video, app's bgutils pot):
+//     WEB_REMIX (auth), TVHTML5_SIMPLY, VISIONOS, VISIONOS_0_1     <- WEB_REMIX = the app's MAIN client
+//   INCONSISTENT: MWEB (whole on some videos, context-challenge stall on others)
+//   CONTENT-CAPPED (~60s on most videos; whole only on rare unrestricted ones e.g. dQw4w9WgXcQ):
+//     IOS, IPADOS, WEB_CREATOR, ANDROID_VR
+//   NOT REACHABLE app-side: WEB (desktop; needs browser-grade attestation), ANDROID/*_MUSIC (app-
+//     context auth), TVHTML5 7.x (server-killed).
+// Bottom line: SABR is a proven whole-song transport for the app's real clients (WEB_REMIX +
+// TVHTML5_SIMPLY + VISIONOS) - the fallback for when progressive gets walled for them too.
 
 import crypto from "node:crypto";
 import { getCred, describeCred } from "./cred.mjs";
@@ -43,13 +57,13 @@ const fB = (f, b) => Buffer.concat([tag(f, 2), varint(b.length), b]);
 const fS = (f, s) => fB(f, Buffer.from(s, "utf8"));
 const fmtId = (itag, lm) => Buffer.concat([fV(1, itag), lm ? fV(2, BigInt(lm)) : Buffer.alloc(0)]);
 const clientInfo = (c) => Buffer.concat([c.deviceMake ? fS(12, c.deviceMake) : Buffer.alloc(0), c.deviceModel ? fS(13, c.deviceModel) : Buffer.alloc(0), fV(16, c.clientId), fS(17, c.clientVersion), c.osName ? fS(18, c.osName) : Buffer.alloc(0), c.osVersion ? fS(19, c.osVersion) : Buffer.alloc(0), c.androidSdkVersion ? fV(64, c.androidSdkVersion) : Buffer.alloc(0)]);
-const streamerCtx = (c, pot, cookie) => Buffer.concat([fB(1, clientInfo(c)), fB(2, pot), cookie ? fB(3, cookie) : Buffer.alloc(0)]);
+const streamerCtx = (c, pot, cookie, ctx) => Buffer.concat([fB(1, clientInfo(c)), fB(2, pot), cookie ? fB(3, cookie) : Buffer.alloc(0), ...(ctx || []).map((u) => fB(5, u))]);
 const bufRange = (fmt, endMs, endSeg) => Buffer.concat([fB(1, fmtId(fmt.itag, fmt.lastModified)), fV(2, 0), fV(3, Math.round(endMs)), fV(4, 1), fV(5, endSeg)]);
-function buildAbrRequest(ust, fmt, pot, c, ptMs, ranges, cookie, selected) {
-  return Buffer.concat([fB(1, Buffer.concat([fV(28, Math.round(ptMs)), fV(40, 1)])), selected ? fB(2, fmtId(fmt.itag, fmt.lastModified)) : Buffer.alloc(0), ...ranges.map((r) => fB(3, bufRange(fmt, r.endMs, r.endSeg))), ptMs ? fV(4, Math.round(ptMs)) : Buffer.alloc(0), fB(5, ust), fB(16, fmtId(fmt.itag, fmt.lastModified)), fB(19, streamerCtx(c, pot, cookie))]);
+function buildAbrRequest(ust, fmt, pot, c, ptMs, ranges, cookie, selected, ctx) {
+  return Buffer.concat([fB(1, Buffer.concat([fV(28, Math.round(ptMs)), fV(40, 1)])), selected ? fB(2, fmtId(fmt.itag, fmt.lastModified)) : Buffer.alloc(0), ...ranges.map((r) => fB(3, bufRange(fmt, r.endMs, r.endSeg))), ptMs ? fV(4, Math.round(ptMs)) : Buffer.alloc(0), fB(5, ust), fB(16, fmtId(fmt.itag, fmt.lastModified)), fB(19, streamerCtx(c, pot, cookie, ctx))]);
 }
 function umpVar(buf, pos) { const b0 = buf[pos]; let sz = 1; if (b0 >= 128) sz = 2; if (b0 >= 192) sz = 3; if (b0 >= 224) sz = 4; if (b0 >= 240) sz = 5; let v; if (sz === 1) v = b0; else if (sz === 2) v = (b0 & 0x3f) + buf[pos + 1] * 64; else if (sz === 3) v = (b0 & 0x1f) + buf[pos + 1] * 32 + buf[pos + 2] * 8192; else if (sz === 4) v = (b0 & 0x0f) + buf[pos + 1] * 16 + buf[pos + 2] * 4096 + buf[pos + 3] * 1048576; else v = buf[pos + 1] + buf[pos + 2] * 256 + buf[pos + 3] * 65536 + buf[pos + 4] * 16777216; return [v, sz]; }
-const PART = { 20: "MEDIA_HEADER", 21: "MEDIA", 42: "FMT_INIT", 43: "REDIR", 44: "SABR_ERROR", 35: "NEXT" };
+const PART = { 20: "MEDIA_HEADER", 21: "MEDIA", 42: "FMT_INIT", 43: "REDIR", 44: "SABR_ERROR", 35: "NEXT", 57: "CTX" };
 function parseUmp(buf) { const parts = []; let p = 0; while (p < buf.length) { const [t, ts] = umpVar(buf, p); p += ts; if (p >= buf.length) break; const [sz, ss] = umpVar(buf, p); p += ss; parts.push({ name: PART[t] || `#${t}`, payload: buf.subarray(p, p + sz) }); p += sz; } return parts; }
 function pbv(buf, pos) { let sh = 0n, r = 0n, p = pos; for (;;) { const b = buf[p++]; r |= BigInt(b & 0x7f) << sh; if (!(b & 0x80)) break; sh += 7n; } return [r, p - pos]; }
 function readProto(buf) { const o = {}; let p = 0; while (p < buf.length) { const [t, ts] = pbv(buf, p); p += ts; const tn = Number(t), f = tn >> 3, w = tn & 7; let val; if (w === 0) { const [v, vs] = pbv(buf, p); p += vs; val = v; } else if (w === 2) { const [l, ls] = pbv(buf, p); p += ls; const ln = Number(l); val = buf.subarray(p, p + ln); p += ln; } else if (w === 5) { val = BigInt(buf.readUInt32LE(p)); p += 4; } else if (w === 1) { val = buf.readBigUInt64LE(p); p += 8; } else break; (o[f] ||= []).push(val); } return o; }
@@ -74,13 +88,13 @@ async function playerRequest(c, visitorData, cred, webPot, sts) {
 const bestAudio = (j) => (j?.streamingData?.adaptiveFormats || []).filter((f) => f.width == null && (!f.audioTrack || f.audioTrack.isAutoDubbed == null)).sort((a, b) => b.bitrate - a.bitrate)[0] || null;
 
 const withPot = (u, p) => p ? u + (u.includes('?') ? '&' : '?') + 'pot=' + encodeURIComponent(p) : u;
-async function drainSabr(c, sd, ust, fmt, pot, urlPot) {
+async function drainSabr(c, sd, ust, fmt, pot, urlPot, xform) {
   const clen = Number(fmt.contentLength);
-  const segs = new Map(); let initBytes = 0, url = withPot(sd.serverAbrStreamingUrl, urlPot), ptMs = 0, bufEndMs = 0, lastSeq = 0, endSeg = 0, cookie = null, iter = 0, dry = 0;
+  const segs = new Map(); let initBytes = 0, url = withPot(xform(sd.serverAbrStreamingUrl), urlPot), ptMs = 0, bufEndMs = 0, lastSeq = 0, endSeg = 0, cookie = null, iter = 0, dry = 0; const ctxByType = new Map();
   while (iter < 120 && dry < 4) {
     iter++;
     const ranges = lastSeq ? [{ endMs: bufEndMs, endSeg: lastSeq }] : [];
-    const res = await fetch(url, { method: "POST", headers: { "User-Agent": c.ua, "Content-Type": "application/x-protobuf" }, body: buildAbrRequest(ust, fmt, pot, c, ptMs, ranges, cookie, lastSeq > 0) });
+    const res = await fetch(url, { method: "POST", headers: { "User-Agent": c.ua, "Content-Type": "application/x-protobuf" }, body: buildAbrRequest(ust, fmt, pot, c, ptMs, ranges, cookie, lastSeq > 0, [...ctxByType.values()]) });
     if (res.status >= 400) return { http: res.status, segs, endSeg, clen, err: `HTTP ${res.status}` };
     const parts = parseUmp(Buffer.from(await res.arrayBuffer()));
     const hdr = {}; let newSeg = false, redirect = null, sabrErr = false;
@@ -89,13 +103,15 @@ async function drainSabr(c, sd, ust, fmt, pot, urlPot) {
       else if (p.name === "FMT_INIT") { endSeg = N(readProto(p.payload)[4]?.[0]) || endSeg; }
       else if (p.name === "REDIR") { const [len, s] = umpVar(p.payload, 1); redirect = p.payload.subarray(1 + s, 1 + s + len).toString("utf8"); }
       else if (p.name === "NEXT") { const np = readProto(p.payload); if (np[7]?.[0]) cookie = np[7][0]; }
+      else if (p.name === "CTX") { const u = readProto(p.payload); const t = N(u[1]?.[0]); const val = u[3]?.[0] || Buffer.alloc(0); ctxByType.set(t, Buffer.concat([fV(1, t), fB(2, val)])); }
       else if (p.name === "SABR_ERROR") sabrErr = true;
     }
     for (const id in hdr) { const h = hdr[id]; if (h.init) { if (initBytes === 0) initBytes = h.clen; continue; } if (!segs.has(h.seq)) segs.set(h.seq, h.clen); if (h.seq > lastSeq) lastSeq = h.seq; const end = h.startMs + h.durMs; if (end > bufEndMs) bufEndMs = end; newSeg = true; }
     ptMs = bufEndMs;
     if (sabrErr) return { segs, endSeg, clen, initBytes, err: "SABR_ERROR" };
-    if (redirect && !newSeg) { url = withPot(redirect, urlPot); iter--; continue; }
-    dry = newSeg ? 0 : dry + 1;
+    if (redirect && !newSeg) { url = withPot(xform(redirect), urlPot); iter--; continue; }
+    const gotCtx = parts.some((p) => p.name === 'CTX');
+    dry = (newSeg || gotCtx) ? 0 : dry + 1;
     if (endSeg && lastSeq >= endSeg) break;
   }
   const sum = [...segs.values()].reduce((a, b) => a + b, 0);
@@ -125,7 +141,7 @@ async function drainSabr(c, sd, ust, fmt, pot, urlPot) {
       if (ps !== "OK" || !hasSabr || !ustB64 || !fmt) {
         line = [c.key.padEnd(16), ps.padEnd(7), (hasSabr ? "yes" : "no").padEnd(5), (ustB64 ? "yes" : "no").padEnd(4), String(fmt?.itag ?? "-").padEnd(5), ps !== "OK" ? `not playable (${j?.playabilityStatus?.reason?.slice(0, 40) || ""})` : "no SABR inputs"];
       } else {
-        const r = await drainSabr(c, sd, Buffer.from(ustB64, "base64"), fmt, potBytes, c.web ? videoPot : null);
+        const r = await drainSabr(c, sd, Buffer.from(ustB64, "base64"), fmt, potBytes, c.web ? videoPot : null, c.web ? ((u) => cipher.transformNParamInUrl(u)) : ((u) => u));
         const verdict = r.err ? `✗ ${r.err} (${r.segs.size}/${r.endSeg})` : r.whole ? `✓ WHOLE SONG (${r.segs.size}/${r.endSeg})` : `✗ capped ${r.segs.size}/${r.endSeg} (~${r.secs}s)`;
         if (r.whole) usable.push(c.key + (c.auth ? " (auth)" : ""));
         line = [c.key.padEnd(16), ps.padEnd(7), "yes".padEnd(5), "yes".padEnd(4), String(fmt.itag).padEnd(5), verdict];

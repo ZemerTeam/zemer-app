@@ -8,22 +8,24 @@
 // every media segment 1..N, whose content-lengths sum EXACTLY to the format contentLength — a
 // resend can't inflate a distinct-segment set, unlike a naive byte counter).
 //
-// WHAT IT PROVED (2026-08-19, live, itag 251 opus, JTF9fLJvniI 330s):
-//   VISIONOS  -> 34/34 segments, EXACT byte match  (whole song over SABR, app's bgutils pot)
-//   ANDROID_VR-> 6/34  segments  (server caps at ~60s)         <- see the cap note below
-//   IOS/IPADOS-> 6/34  segments  (server caps at ~60s)
-//   short clip-> full (fits under the cap)
-// The cap is SERVER-SIDE BY CLIENT IDENTITY, not this code: the identical continuation loop and
-// the identical bgutils pot drain VISIONOS whole but cap VR/IOS at exactly 60s across every song
-// and every request-shape tried (player_state, elapsed_wall_time, backoff, playhead sweep/lead,
-// sliding buffered_range, player-session refresh). YouTube requires ANDROID_VR/IOS to present
-// their NATIVE attestation (DroidGuard / iOS BotGuard) for full playback; the app's WebView
-// BotGuard mints only a web pot, which buys a ~60s grace on both progressive and SABR. VISIONOS
-// (and WEB/TVHTML5_SIMPLY/MWEB) are not identity-capped, so they stream whole with that same pot.
+// WHAT IT PROVED (2026-08-19, live, itag 251 opus). This script is the DIRECT-client reference
+// (no cipher); the full roster + the web path (n-transform, sts, context updates) is in the
+// companion `tests/sabr-clients.mjs`, which validated whole-song SABR delivery per client:
+//   RELIABLE (whole song on every video tested, app's bgutils pot):
+//     WEB_REMIX (auth), TVHTML5_SIMPLY, VISIONOS, VISIONOS_0_1   <- WEB_REMIX is the app's MAIN client
+//   INCONSISTENT: MWEB (whole on some videos, context-challenge stall on others)
+//   CONTENT-CAPPED (~60s on most videos, whole only on rare unrestricted ones like dQw4w9WgXcQ):
+//     IOS, IPADOS, WEB_CREATOR, ANDROID_VR
+// So the cap is NOT a pure per-client wall: it varies by (client x video). The identical loop and
+// bgutils pot drain VISIONOS/WEB_REMIX/TVHTML5_SIMPLY whole on all content; the sensitive clients
+// (android_vr/ios/creator) are throttled to ~60s on most (esp. premium/label) content. The web
+// family only works once the serverAbrStreamingUrl is n-transformed (its URL is ciphered, unlike
+// the direct clients here) - that was the missing piece for WEB_REMIX/TVHTML5_SIMPLY/MWEB.
 //
 // USAGE (needs innertube_cookie.txt at repo root, like the other harness scripts):
 //   node tests/sabr-stream.mjs                 # VISIONOS JTF9fLJvniI (whole song)
 //   node tests/sabr-stream.mjs <videoId> <VISIONOS|ANDROID_VR|IOS|IPADOS>
+//   node tests/sabr-clients.mjs [videoId]      # validate the WHOLE roster (incl. the web clients)
 //
 // PROTOCOL (reference for a native port): POST a protobuf VideoPlaybackAbrRequest to
 // serverAbrStreamingUrl -> parse the UMP-framed response (MEDIA_HEADER/MEDIA/FORMAT_INIT/
