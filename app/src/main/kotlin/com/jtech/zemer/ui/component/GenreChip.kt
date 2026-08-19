@@ -2,9 +2,12 @@
 
 package com.jtech.zemer.ui.component
 
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
+import androidx.compose.foundation.border
+import androidx.compose.foundation.focusable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.PaddingValues
@@ -22,8 +25,12 @@ import androidx.compose.material3.TonalToggleButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.Dp
@@ -61,6 +68,14 @@ fun GenreChip(
         animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMedium),
         label = "genre_chip_icon_jump",
     )
+    // D-pad focus ring the ChipsRow way (onFocusChanged + focusable + border, NO clip): focusBorder()
+    // opens with a STATIC clip, which slices the corners off TonalToggleButton's animated round->squarer
+    // press morph - the very animation this chip exists for. Border-only leaves the morph intact.
+    var isFocused by remember { mutableStateOf(false) }
+    val focusRingColor by animateColorAsState(
+        targetValue = if (isFocused && focusVisualsEnabled()) MaterialTheme.colorScheme.outline else Color.Transparent,
+        label = "genre_chip_focus_border",
+    )
     // Lift the 48dp min-interactive floor so the chip can be a compact secondary control (the button
     // still keeps its own visual height from the content padding below).
     CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides Dp.Unspecified) {
@@ -76,8 +91,11 @@ fun GenreChip(
             // Tight padding so the chip sits well below the full-size tab selector in the hierarchy.
             contentPadding = PaddingValues(horizontal = 10.dp, vertical = 2.dp),
             // The stock toggle paints no visible focus indication of its own; add the D-pad ring on the
-            // chip's rounded shape (the button's resting shape).
-            modifier = modifier.focusBorder(RoundedCornerShape(20.dp)),
+            // chip's rounded resting shape (border only - see the clip note above).
+            modifier = modifier
+                .onFocusChanged { isFocused = it.isFocused }
+                .focusable()
+                .border(width = 1.5.dp, color = focusRingColor, shape = RoundedCornerShape(20.dp)),
         ) {
             Icon(
                 painter = painterResource(iconOverride ?: genreIcon(slug)),
