@@ -248,7 +248,7 @@ Every tracked Kotlin file is listed with hard metadata extracted from the file t
 | `app/src/main/kotlin/com/jtech/zemer/ui/component/FocusBorder.kt` | 93 | `com.jtech.zemer.ui.component` | yes | 22 | 8 | androidx.compose |
 | `app/src/main/kotlin/com/jtech/zemer/ui/component/GenreCard.kt` | 166 | `com.jtech.zemer.ui.component` | yes | 39 | 19 | androidx.compose |
 | `app/src/main/kotlin/com/jtech/zemer/ui/component/GenreCardGrid.kt` | 84 | `com.jtech.zemer.ui.component` | yes | 15 | 3 | androidx.compose |
-| `app/src/main/kotlin/com/jtech/zemer/ui/component/GenreChip.kt` | 84 | `com.jtech.zemer.ui.component` | yes | 22 | 4 | androidx.compose |
+| `app/src/main/kotlin/com/jtech/zemer/ui/component/GenreChip.kt` | 97 | `com.jtech.zemer.ui.component` | yes | 26 | 4 | androidx.compose |
 | `app/src/main/kotlin/com/jtech/zemer/ui/component/GenreDetailHeader.kt` | 118 | `com.jtech.zemer.ui.component` | yes | 28 | 6 | androidx.annotation, androidx.compose, coil3.compose, coil3.request |
 | `app/src/main/kotlin/com/jtech/zemer/ui/component/GenreIcons.kt` | 85 | `com.jtech.zemer.ui.component` | no | 2 | 2 | androidx.annotation |
 | `app/src/main/kotlin/com/jtech/zemer/ui/component/HeroTitleOverlay.kt` | 65 | `com.jtech.zemer.ui.component` | yes | 17 | 1 | androidx.compose |

@@ -1,3 +1,5 @@
+@file:OptIn(ExperimentalMaterial3ExpressiveApi::class)
+
 package com.jtech.zemer.ui.component
 
 import androidx.compose.animation.core.Spring
@@ -5,14 +7,18 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.AssistChip
-import androidx.compose.material3.AssistChipDefaults
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LocalMinimumInteractiveComponentSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.ToggleButtonDefaults
+import androidx.compose.material3.TonalToggleButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
@@ -24,14 +30,20 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
 /**
- * A genre chip for the Home strip (owner direction, 2026-07-30 voice notes): the stock
- * [AssistChip], but SQUARISH (10dp corners, "do it more squarely") with its outline clearly
- * visible, and a small per-genre motif icon ([genreIcon]) tinted with the ONE theme accent —
- * monochrome everywhere else ("zero color, only nice accents"). Keyed off the server slug.
+ * A genre chip for the Home strip. Material 3 Expressive: a filled tonal [TonalToggleButton] — the SAME
+ * component the Home content-tab selector and the library filter chips render as — so a chip presses with
+ * the springy shape-morph (round → squarer) instead of sitting as a flat hollow outline. It is a
+ * navigation chip, not a real toggle, so it is permanently `checked = false` and its `onCheckedChange`
+ * just fires [onClick] (the [LibraryFilterChip] uses the mirror trick of a permanently-checked one).
  *
- * The 48dp minimum-interactive-size enforcement is disabled HERE ONLY: it wraps every 32dp chip in
- * ~8dp of invisible padding on all sides, which blew the rows apart with phantom gaps. A dense
- * chip strip is the platform convention; the chip itself remains its full stock height.
+ * The chip keeps its two hand-tuned notes: a small per-genre motif icon ([genreIcon]) tinted with the ONE
+ * theme accent (monochrome everywhere else), and that icon giving a springy little jump while pressed —
+ * the chip body stays put beyond the button's own shape morph. Keyed off the server slug. The mandatory
+ * D-pad focus treatment (docs/ui/standards.md §11) rides the chip's rounded shape.
+ *
+ * Deliberately SMALLER than the Home content-tab selector above it (which is the primary control): the
+ * 48dp minimum-interactive floor is lifted, content padding is tight, and the icon/label are compact, so
+ * a genre chip reads as a secondary strip instead of competing with the tab chips for attention.
  */
 @Composable
 fun GenreChip(
@@ -44,41 +56,42 @@ fun GenreChip(
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val pressed by interactionSource.collectIsPressedAsState()
-    // The one playful note (owner ask: "do something cool with them"): the motif icon gives a
-    // springy little jump while the chip is pressed. Icon only — the chip body stays put.
     val iconScale by animateFloatAsState(
         targetValue = if (pressed) 1.35f else 1f,
         animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMedium),
         label = "genre_chip_icon_jump",
     )
+    // Lift the 48dp min-interactive floor so the chip can be a compact secondary control (the button
+    // still keeps its own visual height from the content padding below).
     CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides Dp.Unspecified) {
-        AssistChip(
-            onClick = onClick,
+        TonalToggleButton(
+            checked = false,
+            onCheckedChange = { onClick() },
             interactionSource = interactionSource,
-            shape = RoundedCornerShape(10.dp),
-            // A whisper of the accent on the outline (full-strength gold read as heavy next to the
-            // gold icon); the icon stays the accent's one loud note per chip.
-            border = AssistChipDefaults.assistChipBorder(
-                enabled = true,
-                borderColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.35f),
+            // Dim tonal fill (surfaceContainer, a step below the tab selector's) so the chip recedes
+            // against the near-black background instead of reading as heavy chrome.
+            colors = ToggleButtonDefaults.tonalToggleButtonColors(
+                containerColor = MaterialTheme.colorScheme.surfaceContainer,
             ),
-            label = { Text(title) },
-            // The mandatory D-pad treatment (docs/ui/standards.md §11) on the chip's own shape —
-            // the stock chip is focusable but paints no visible focus indication of its own.
-            modifier = modifier.focusBorder(RoundedCornerShape(10.dp)),
-            leadingIcon = {
-                Icon(
-                    painter = painterResource(iconOverride ?: genreIcon(slug)),
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier
-                        .size(AssistChipDefaults.IconSize)
-                        .graphicsLayer {
-                            scaleX = iconScale
-                            scaleY = iconScale
-                        },
-                )
-            },
-        )
+            // Tight padding so the chip sits well below the full-size tab selector in the hierarchy.
+            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 2.dp),
+            // The stock toggle paints no visible focus indication of its own; add the D-pad ring on the
+            // chip's rounded shape (the button's resting shape).
+            modifier = modifier.focusBorder(RoundedCornerShape(20.dp)),
+        ) {
+            Icon(
+                painter = painterResource(iconOverride ?: genreIcon(slug)),
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier
+                    .size(14.dp)
+                    .graphicsLayer {
+                        scaleX = iconScale
+                        scaleY = iconScale
+                    },
+            )
+            Spacer(Modifier.width(5.dp))
+            Text(title, style = MaterialTheme.typography.labelMedium)
+        }
     }
 }
