@@ -6,7 +6,6 @@
 
 package com.jtech.zemer.ui.screens
 
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.height
@@ -104,11 +103,10 @@ fun LazyListScope.videoHeroCarousel(
             state = carouselState,
             itemWidth = heroW.dp,
             itemSpacing = 8.dp,
-            // One item per swipe at a fixed speed, matching the Latest Releases carousel.
-            flingBehavior = CarouselDefaults.singleAdvanceFlingBehavior(
-                carouselState,
-                tween(durationMillis = 400),
-            ),
+            // One item per swipe, matching the Latest Releases carousel. The DEFAULT spring snap is
+            // deliberate: it consumes the fling's release velocity for a continuous hand-off - the old
+            // fixed-duration tween ignored it and hitched on every swipe (the "choppy carousel" bug).
+            flingBehavior = CarouselDefaults.singleAdvanceFlingBehavior(carouselState),
             contentPadding = PaddingValues(horizontal = 12.dp),
             modifier = Modifier
                 .padding(vertical = 12.dp)

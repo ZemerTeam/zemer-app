@@ -37,7 +37,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.carousel.CarouselDefaults
 import androidx.compose.material3.carousel.HorizontalMultiBrowseCarousel
 import androidx.compose.material3.carousel.rememberCarouselState
-import androidx.compose.animation.core.tween
+import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults.LoadingIndicator
 import androidx.compose.material3.pulltorefresh.pullToRefresh
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.Composable
@@ -741,13 +741,12 @@ fun HomeScreen(
                             state = latestCarouselState,
                             preferredItemWidth = 180.dp,
                             itemSpacing = 8.dp,
-                            // Advance ONE item per swipe at a FIXED animation speed, so the carousel moves
-                            // the same regardless of how hard it is flung (no velocity-scaled multi-item
-                            // fling).
-                            flingBehavior = CarouselDefaults.singleAdvanceFlingBehavior(
-                                latestCarouselState,
-                                tween(durationMillis = 400),
-                            ),
+                            // Advance ONE item per swipe (the behavior's PagerSnapDistance.atMost(1) -
+                            // never a velocity-scaled multi-item fling). The DEFAULT spring snap is
+                            // deliberate: it consumes the fling's release velocity, so finger-up hands
+                            // off continuously - the old fixed-duration tween ignored that velocity and
+                            // hitched on every swipe (the "choppy carousel" bug).
+                            flingBehavior = CarouselDefaults.singleAdvanceFlingBehavior(latestCarouselState),
                             contentPadding = WindowInsets.systemBars
                                 .only(WindowInsetsSides.Horizontal)
                                 .asPaddingValues(),
