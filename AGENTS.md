@@ -402,8 +402,11 @@ sign-in card), `OnboardingStatusPill` (the Done/Needed · Active/Optional chip),
 below `OnboardingActionButton`'s `surfaceContainerHighest` so an in-card pill never blends into its card).
 The **loading + carousel-hero family** lives here too: `ZemerLoadingIndicator` (the CONTAINED M3 Expressive
 content/section spinner - Home pull-to-refresh look, video buffering, section loads; ratcheted by
-**R25**) and `MediaLoadingSpinner` (the BARE, neutral over-media spinner for a card cover's tap-to-play
-state; ratcheted by **R26**); `PreparingOverlay` (the scrim + `MediaLoadingSpinner` shown while a tapped
+**R25**), its inline convenience `ZemerLoadingSection` (that spinner centered in a full-width box with
+vertical padding - the drop-in "this section is loading" block inside a scrolling column, used by the
+song-details sheet + the lyrics list; a fixed-footprint slot like the recognition mic button centers the
+raw indicator itself) and `MediaLoadingSpinner` (the BARE, neutral over-media spinner for a card cover's
+tap-to-play state; ratcheted by **R26**); `PreparingOverlay` (the scrim + `MediaLoadingSpinner` shown while a tapped
 item resolves, shared by `ItemThumbnail` and the video hero); `HeroTitleOverlay` (the bottom gradient
 title/subtitle + optional badges slot) and `CarouselHeroFrame` (the ENTIRE full-bleed carousel-hero
 frame - `maskClip`/`maskBorder` D-pad focus ring, cover-crop artwork, now-playing scrim) shared by the

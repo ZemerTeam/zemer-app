@@ -424,14 +424,7 @@ fun Lyrics(
 
             if (lyrics == null) {
                 item {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 24.dp),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        ZemerLoadingIndicator()
-                    }
+                    ZemerLoadingSection()
                 }
             } else {
                 itemsIndexed(

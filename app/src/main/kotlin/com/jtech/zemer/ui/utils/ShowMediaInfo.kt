@@ -11,7 +11,6 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
@@ -43,7 +42,7 @@ import com.jtech.zemer.db.entities.Song
 import com.jtech.zemer.utils.rememberEnumPreference
 import com.jtech.zemer.ui.component.Material3MenuGroup
 import com.jtech.zemer.ui.component.Material3MenuItemData
-import com.jtech.zemer.ui.component.ZemerLoadingIndicator
+import com.jtech.zemer.ui.component.ZemerLoadingSection
 import com.jtech.zemer.extensions.copyToClipboard
 import com.metrolist.innertube.YouTube
 import com.metrolist.innertube.models.MediaInfo
@@ -97,10 +96,7 @@ fun ShowMediaInfo(videoId: String, isEpisodeHint: Boolean = false) {
         // In DIRECT mode wait for the YouTube media info; in RELAY mode it may never load (filtered
         // device), so render from local `song` + the relay info rather than spinning forever.
         if (info == null && !relayMode) {
-            Box(
-                modifier = Modifier.fillMaxWidth().padding(vertical = 24.dp),
-                contentAlignment = Alignment.Center,
-            ) { ZemerLoadingIndicator() }
+            ZemerLoadingSection()
             return
         }
 
