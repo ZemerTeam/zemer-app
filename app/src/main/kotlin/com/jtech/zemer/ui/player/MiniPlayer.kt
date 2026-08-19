@@ -13,6 +13,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
+import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.focusable
@@ -1074,7 +1075,9 @@ private fun LegacyMiniMediaInfo(
                     fontWeight = FontWeight.Bold,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.gentleMarquee(),
+                    // Deliberately the default marquee (3 loops, ~1.2s in), NOT gentleMarquee: the
+                    // legacy mini bar is glanced at briefly, so a 3s one-shot would never be seen.
+                    modifier = Modifier.basicMarquee(),
                 )
             }
 

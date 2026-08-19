@@ -404,7 +404,14 @@ state; ratcheted by **R26**); `PreparingOverlay` (the scrim + `MediaLoadingSpinn
 item resolves, shared by `ItemThumbnail` and the video hero); `HeroTitleOverlay` (the bottom gradient
 title/subtitle + optional badges slot) and `CarouselHeroFrame` (the ENTIRE full-bleed carousel-hero
 frame - `maskClip`/`maskBorder` D-pad focus ring, cover-crop artwork, now-playing scrim) shared by the
-Latest Releases and Featured Videos heroes.
+Latest Releases and Featured Videos heroes. The **title marquee** is `gentleMarquee(focused)`
+(`ui/component/Marquee.kt`): the calm one-shot glide for an overflowing title (settle ~3s, glide once,
+stop), shared by the now-playing/mini-player titles and every podcast row/card title. Pass the owning
+row/card's D-pad focus state so a focus GAIN re-arms the glide promptly; the param spec is the
+JVM-tested `gentleMarqueeParams`, whose focus-LOSS state must stay `iterations = 0` (the marquee node
+restarts on any param change, so falling back to the resting params would replay the glide behind the
+D-pad cursor on every row the user leaves). `ListItem`/`GridItem` expose it as `titleMarquee` -
+GridItem applies it AROUND the opaque title slot, so slot content must not add its own marquee.
 New screens use these; a hand-rolled duplicate is a review miss.
 
 **Componentize on every touch (non-negotiable).** Whenever you touch anything in the app, first check
