@@ -2,13 +2,11 @@ package com.jtech.zemer.ui.utils
 
 import android.text.format.Formatter
 import androidx.annotation.DrawableRes
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.asPaddingValues
@@ -45,8 +43,7 @@ import com.jtech.zemer.db.entities.Song
 import com.jtech.zemer.utils.rememberEnumPreference
 import com.jtech.zemer.ui.component.Material3MenuGroup
 import com.jtech.zemer.ui.component.Material3MenuItemData
-import com.jtech.zemer.ui.component.shimmer.ShimmerHost
-import com.jtech.zemer.ui.component.shimmer.TextPlaceholder
+import com.jtech.zemer.ui.component.ZemerLoadingIndicator
 import com.jtech.zemer.extensions.copyToClipboard
 import com.metrolist.innertube.YouTube
 import com.metrolist.innertube.models.MediaInfo
@@ -98,15 +95,12 @@ fun ShowMediaInfo(videoId: String, isEpisodeHint: Boolean = false) {
             .padding(top = 8.dp, bottom = 16.dp),
     ) {
         // In DIRECT mode wait for the YouTube media info; in RELAY mode it may never load (filtered
-        // device), so render from local `song` + the relay info rather than shimmering forever.
+        // device), so render from local `song` + the relay info rather than spinning forever.
         if (info == null && !relayMode) {
-            ShimmerHost {
-                Row(
-                    horizontalArrangement = Arrangement.Center,
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.fillMaxWidth().padding(all = 16.dp),
-                ) { TextPlaceholder() }
-            }
+            Box(
+                modifier = Modifier.fillMaxWidth().padding(vertical = 24.dp),
+                contentAlignment = Alignment.Center,
+            ) { ZemerLoadingIndicator() }
             return
         }
 
