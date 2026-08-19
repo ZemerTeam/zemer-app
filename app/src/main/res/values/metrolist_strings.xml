@@ -278,6 +278,14 @@
     <string name="stream_source_visionos_desc">Apple direct-URL client: most reliable fallback, no cipher or sign-in</string>
     <string name="stream_source_web_creator">WEB_CREATOR</string>
     <string name="stream_source_web_creator_desc">YouTube Studio web client: requires sign-in</string>
+    <string name="stream_source_experimental">Experimental</string>
+    <string name="stream_source_sabr">SABR streaming</string>
+    <string name="stream_source_sabr_desc">Stream via the SABR protocol instead of a direct URL. Off by default; takes effect on the next track.</string>
+    <string name="stream_source_sabr_clients">SABR clients</string>
+    <string name="stream_source_sabr_web_remix_desc">Main web client. Streams whole songs over SABR; tried first.</string>
+    <string name="stream_source_sabr_visionos_desc">Apple direct client: no sign-in, no cipher. Reliable SABR fallback.</string>
+    <string name="stream_source_sabr_tvhtml5_desc">TV client: no sign-in. Reliable SABR fallback.</string>
+    <string name="stream_source_sabr_mweb_desc">Mobile web client: streams over SABR on most content.</string>
 
     <!-- Mixes / suggested playlists -->
     <string name="mixes">Mixes</string>

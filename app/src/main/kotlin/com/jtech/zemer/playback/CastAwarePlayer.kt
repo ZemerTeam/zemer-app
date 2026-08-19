@@ -182,4 +182,22 @@ class CastAwarePlayer(
     override fun getContentDuration(): Long = if (casting) remoteDurationMs else super.getContentDuration()
     override fun getBufferedPosition(): Long = if (casting) remotePositionMs else super.getBufferedPosition()
     override fun getContentBufferedPosition(): Long = if (casting) remotePositionMs else super.getContentBufferedPosition()
+
+    /**
+     * Crash-safe buffered percentage. media3's default (`BasePlayer.getBufferedPercentage` ->
+     * `Util.percentInt`) throws `IllegalArgumentException: Out of range` when a data source reports a
+     * pathological duration/position (the value overflows Int) — and because the media session polls it
+     * on every player-info change (including on RESTORE at launch), one bad value would crash-loop the
+     * app on every start with no way out short of clearing data. Computing in double and clamping to
+     * 0..100 makes it structurally impossible for a buffered-percentage read to crash the session, for
+     * any current or future stream. Uses the same (cast-aware) duration/position getters above.
+     */
+    override fun getBufferedPercentage(): Int {
+        val duration = getDuration()
+        val position = getBufferedPosition()
+        if (position == androidx.media3.common.C.TIME_UNSET || duration == androidx.media3.common.C.TIME_UNSET || duration <= 0L) return 0
+        val pct = position.toDouble() / duration.toDouble() * 100.0
+        if (pct.isNaN()) return 0
+        return pct.toInt().coerceIn(0, 100)
+    }
 }

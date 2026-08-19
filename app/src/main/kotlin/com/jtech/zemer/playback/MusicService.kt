@@ -81,6 +81,11 @@ import com.jtech.zemer.constants.AndroidAutoTargetPlaylistKey
 import com.jtech.zemer.constants.AudioNormalizationKey
 import com.jtech.zemer.constants.PlaybackMode
 import com.jtech.zemer.constants.PlaybackModeKey
+import com.jtech.zemer.constants.StreamSabrKey
+import com.jtech.zemer.constants.StreamSabrWebRemixKey
+import com.jtech.zemer.constants.StreamSabrVisionOSKey
+import com.jtech.zemer.constants.StreamSabrTVHTML5Key
+import com.jtech.zemer.constants.StreamSabrMWEBKey
 import com.jtech.zemer.playback.relay.RelayDataSourceFactory
 import com.jtech.zemer.playback.relay.RelayDeviceId
 import com.jtech.zemer.constants.AudioOffload
@@ -2482,8 +2487,54 @@ class MusicService :
         }
     }
 
-    // Per-open selector: RELAY -> the isolated relay factory, everyone else -> the DIRECT factory verbatim.
-    // Reading the flag per open gives the "takes effect on the next track" toggle behavior.
+    // ---- EXPERIMENTAL SABR playback (opt-in via StreamSabrKey, OFF by default). Isolated exactly like
+    // RELAY: a downloaded file still plays from disk; otherwise each open resolves WEB_REMIX's SABR/UMP
+    // stream (playback/sabr/) instead of a progressive URL. Never runs when the flag is off, so the DIRECT
+    // path is untouched. The SABR engine is JVM-tested and validated whole-song against the live CDN by
+    // tests/sabr-stream.mjs; the on-device gate is the remaining verification before this is user-facing.
+    private val sabrDataSourceFactory: DataSource.Factory by lazy {
+        ResolvingDataSource.Factory(
+            com.jtech.zemer.playback.sabr.SabrStreamResolver.dataSourceFactory()
+        ) { dataSpec ->
+            val mediaId = dataSpec.key ?: dataSpec.uri.toString()
+            resolveDownloadedFileUri(mediaId, dataSpec.position)?.let {
+                return@Factory dataSpec.withUri(it.toUri())
+            }
+            val enabledSabrClients = buildSet {
+                if (dataStore.get(StreamSabrWebRemixKey, true)) add(com.jtech.zemer.playback.sabr.SabrPlayerResolver.KEY_WEB_REMIX)
+                if (dataStore.get(StreamSabrVisionOSKey, true)) add(com.jtech.zemer.playback.sabr.SabrPlayerResolver.KEY_VISIONOS)
+                if (dataStore.get(StreamSabrTVHTML5Key, true)) add(com.jtech.zemer.playback.sabr.SabrPlayerResolver.KEY_TVHTML5_SIMPLY)
+                if (dataStore.get(StreamSabrMWEBKey, true)) add(com.jtech.zemer.playback.sabr.SabrPlayerResolver.KEY_MWEB)
+            }
+            val uri = kotlinx.coroutines.runBlocking {
+                com.jtech.zemer.playback.sabr.SabrPlayerResolver.resolve(mediaId, enabledSabrClients)
+            } ?: throw java.io.IOException("SABR resolve failed for $mediaId")
+            // Persist a FormatEntity (overwriting any stale DIRECT one) so the song-details sheet shows the
+            // SABR client + format for this play, exactly like the DIRECT resolver above.
+            com.jtech.zemer.playback.sabr.SabrStreamRegistry.get(mediaId)?.let { cfg ->
+                database.query {
+                    upsert(
+                        FormatEntity(
+                            id = mediaId,
+                            itag = cfg.format.itag,
+                            mimeType = cfg.mimeType.substringBefore(";").ifBlank { "audio" },
+                            codecs = cfg.mimeType.substringAfter("codecs=\"", "").substringBefore("\"").ifBlank { "opus" },
+                            bitrate = cfg.bitrate,
+                            sampleRate = cfg.audioSampleRate,
+                            contentLength = cfg.format.contentLength,
+                            loudnessDb = null,
+                            playbackUrl = null,
+                            streamClient = cfg.streamClientLabel,
+                        )
+                    )
+                }
+            }
+            dataSpec.withUri(uri)
+        }
+    }
+
+    // Per-open selector: RELAY -> the isolated relay factory; else SABR (opt-in) -> the isolated SABR
+    // factory; else the DIRECT factory verbatim. Reading the flags per open gives "takes effect next track".
     private val playbackDataSourceFactory = DataSource.Factory {
         // Resolve null (mirror not yet emitted) with a one-time synchronous read so a relay user's first
         // open is never mis-routed to DIRECT. createDataSource() runs on ExoPlayer's loading thread, so the
@@ -2492,7 +2543,11 @@ class MusicService :
             (dataStore.get(PlaybackModeKey, PlaybackMode.DIRECT.name) == PlaybackMode.RELAY.name)
                 .also { relayModeNow = it }
         }
-        if (relay) relayDataSourceFactory.createDataSource() else dataSourceFactory.createDataSource()
+        when {
+            relay -> relayDataSourceFactory.createDataSource()
+            dataStore.get(StreamSabrKey, false) -> sabrDataSourceFactory.createDataSource()
+            else -> dataSourceFactory.createDataSource()
+        }
     }
 
     private fun createMediaSourceFactory(): MediaSource.Factory {

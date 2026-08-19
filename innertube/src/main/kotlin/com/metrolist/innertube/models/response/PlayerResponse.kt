@@ -27,12 +27,25 @@ data class PlayerResponse(
     @Serializable
     data class PlayerConfig(
         val audioConfig: AudioConfig,
+        // SABR streaming input (additive; unknown keys are ignored on clients that omit it). The base64
+        // protobuf the app POSTs in every VideoPlaybackAbrRequest — see playback/sabr/.
+        val mediaCommonConfig: MediaCommonConfig? = null,
     ) {
         @Serializable
         data class AudioConfig(
             val loudnessDb: Double?,
             val perceptualLoudnessDb: Double?,
         )
+
+        @Serializable
+        data class MediaCommonConfig(
+            val mediaUstreamerRequestConfig: MediaUstreamerRequestConfig? = null,
+        ) {
+            @Serializable
+            data class MediaUstreamerRequestConfig(
+                val videoPlaybackUstreamerConfig: String? = null,
+            )
+        }
     }
 
     @Serializable
@@ -40,6 +53,9 @@ data class PlayerResponse(
         val formats: List<Format>?,
         val adaptiveFormats: List<Format>,
         val expiresInSeconds: Int,
+        // The SABR/UMP media endpoint (additive). Present on modern clients; the app POSTs a
+        // VideoPlaybackAbrRequest here to stream when SABR mode is on (see playback/sabr/).
+        val serverAbrStreamingUrl: String? = null,
     ) {
         @Serializable
         data class Format(

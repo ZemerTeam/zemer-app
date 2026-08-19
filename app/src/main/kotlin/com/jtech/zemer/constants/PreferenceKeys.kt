@@ -131,6 +131,18 @@ val StreamSourceWebCreatorKey = booleanPreferencesKey("streamSourceWebCreator")
 val StreamSourceVisionOSKey   = booleanPreferencesKey("streamSourceVisionOS")
 val StreamSourceMWEBKey       = booleanPreferencesKey("streamSourceMWEB")
 
+// EXPERIMENTAL, off by default: route DIRECT playback through the SABR/UMP transport instead of a
+// progressive URL. Fully isolated (playback/sabr/) - the fallback for when progressive gets walled.
+val StreamSabrKey             = booleanPreferencesKey("streamSabr")
+
+// Which SABR clients the resolver may use, tried in this order until one yields a stream. Only the
+// clients validated to deliver a whole song over SABR with the app's pot (tests/sabr-clients.mjs) are
+// offered. Default on, like the DIRECT client list.
+val StreamSabrWebRemixKey     = booleanPreferencesKey("streamSabrWebRemix")
+val StreamSabrVisionOSKey     = booleanPreferencesKey("streamSabrVisionOS")
+val StreamSabrTVHTML5Key      = booleanPreferencesKey("streamSabrTVHTML5")
+val StreamSabrMWEBKey         = booleanPreferencesKey("streamSabrMWEB")
+
 /**
  * The audio download format choice. BEST selects the highest-quality stream YouTube
  * serves (Opus itag 251, saved as a fully tagged .ogg; needs API 29+ for the Ogg
