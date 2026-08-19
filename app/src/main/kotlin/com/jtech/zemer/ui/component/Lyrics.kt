@@ -102,8 +102,6 @@ import com.jtech.zemer.db.entities.LyricsEntity.Companion.LYRICS_NOT_FOUND
 import com.jtech.zemer.lyrics.LyricsEntry
 import com.jtech.zemer.lyrics.LyricsUtils.findCurrentLineIndex
 import com.jtech.zemer.lyrics.LyricsUtils.parseLyrics
-import com.jtech.zemer.ui.component.shimmer.ShimmerHost
-import com.jtech.zemer.ui.component.shimmer.TextPlaceholder
 import com.jtech.zemer.ui.screens.settings.DarkMode
 import com.jtech.zemer.ui.screens.settings.LyricsPosition
 import com.jtech.zemer.ui.utils.fadingEdge
@@ -426,21 +424,13 @@ fun Lyrics(
 
             if (lyrics == null) {
                 item {
-                    ShimmerHost {
-                        repeat(10) {
-                            Box(
-                                contentAlignment = when (lyricsTextPosition) {
-                                    LyricsPosition.LEFT -> Alignment.CenterStart
-                                    LyricsPosition.CENTER -> Alignment.Center
-                                    LyricsPosition.RIGHT -> Alignment.CenterEnd
-                                },
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(horizontal = 24.dp, vertical = 4.dp)
-                            ) {
-                                TextPlaceholder()
-                            }
-                        }
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 24.dp),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        ZemerLoadingIndicator()
                     }
                 }
             } else {

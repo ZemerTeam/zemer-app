@@ -27,7 +27,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -58,6 +57,7 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import coil3.compose.AsyncImage
 import com.jtech.zemer.R
 import com.jtech.zemer.recognition.RecognitionAudioCapture
+import com.jtech.zemer.ui.component.ZemerLoadingIndicator
 import com.jtech.zemer.ui.theme.ZemerAppTheme
 import com.jtech.zemer.ui.utils.resize
 import com.jtech.zemer.viewmodels.RecognizeMusicViewModel
@@ -245,21 +245,26 @@ private fun DialogStatus(
         label = "dialog_mic_scale",
     )
 
-    Box(
-        modifier = Modifier
-            .size(112.dp)
-            .scale(if (listening) scale else 1f)
-            .clip(CircleShape)
-            .background(MaterialTheme.colorScheme.primary)
-            .clickable(enabled = tappable, onClick = onAction),
-        contentAlignment = Alignment.Center,
-    ) {
-        if (working) {
-            CircularProgressIndicator(
-                color = MaterialTheme.colorScheme.onPrimary,
-                modifier = Modifier.size(44.dp),
-            )
-        } else {
+    if (working) {
+        // Identifying/searching: show the app's shared content-loading spinner (the same reused
+        // pull-to-refresh / song-details indicator), in the mic button's 112dp footprint so the
+        // layout doesn't jump. No primary circle behind it - the contained indicator brings its own.
+        Box(
+            modifier = Modifier.size(112.dp),
+            contentAlignment = Alignment.Center,
+        ) {
+            ZemerLoadingIndicator()
+        }
+    } else {
+        Box(
+            modifier = Modifier
+                .size(112.dp)
+                .scale(if (listening) scale else 1f)
+                .clip(CircleShape)
+                .background(MaterialTheme.colorScheme.primary)
+                .clickable(enabled = tappable, onClick = onAction),
+            contentAlignment = Alignment.Center,
+        ) {
             Icon(
                 painter = painterResource(R.drawable.mic),
                 contentDescription = stringResource(R.string.recognize_music_mic_button),
