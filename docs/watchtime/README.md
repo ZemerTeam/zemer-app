@@ -18,6 +18,29 @@ durable; watch time from concentrated single-account testing is **retroactively 
 invalid traffic - expected, not a bug (see "what to expect" for why, and why real distributed
 users are the payoff).
 
+## View counting (first-frame, effective 2026-08-24)
+
+YouTube changed how public views are counted: from **2026-08-24** a view is counted **the moment a
+video begins to play - from the very first frame** (long-form previously needed roughly ~30s of
+engaged watching; first-frame counting is how Shorts already worked and now applies to all formats).
+The old "did they keep watching" number becomes **Engaged views** in Studio > Analytics > Advanced
+mode. Separately, YPP eligibility rose to **8000** qualified watch hours / 365 days (from 4000),
+effective 2027-02-01.
+
+Why this system needed almost no change:
+
+- **The view is minted by the playback ping** (`videostatsPlaybackUrl`, `cmt=<start>`, `final=0`),
+  which this system already fires at play START with **no duration gate** on the live path. A real
+  Zemer play credits a view from the first frame exactly as intended - the design was already aligned.
+- **Watch time matters more, not less.** It no longer gates the view, but it is what feeds Engaged
+  views AND the (now doubled) YPP qualified-watch-hours bar. The honest `WatchTimeSegments` reporting
+  is the payoff - and honesty stays the hard rule (fabricated watch time is invalid traffic).
+- **The one code change made for this:** the deferred *offline* path dropped its stale ≥10s
+  `MIN_DEFERRED_MS` gate (whose rationale was the old ~30s view threshold), so a short offline play now
+  also mints a first-frame view on reconnect - matching the live path for any genuinely-watched play. The
+  honest ≥500ms segment floor remains (only the sub-500ms jitter window still differs from the live
+  playback ping). See "Deferred offline recovery".
+
 ## The invariant that rules everything
 
 **Watch time reported MUST equal what the user actually played.** Fabricated watch time is invalid
@@ -228,7 +251,10 @@ The rules that must not regress:
 - **Honesty is the same hard rule.** The queued `st`/`et` are the SAME real ranges `WatchTimeSegments`
   computed for the listen (accumulated from the pings, `WatchTimeSegments.Drained.watchedMs` summed); `cmt`
   is the final position, `rt` the total real watched seconds (≤ played time ≤ duration). Nothing is
-  re-derived or fabricated. Gated at the ≥10s genuine-play threshold (`MIN_DEFERRED_MS`), and **the
+  re-derived or fabricated. Gated only at the honest ≥500ms floor (`st` non-empty - `WatchTimeSegments`
+  drops sub-`MIN_SEGMENT_MS` jitter); there is deliberately **no minimum-duration gate**, so a short
+  offline play mints a view on reconnect just as a live play does above that honest ≥500ms floor (below it
+  only the live playback ping fires; see "View counting" above). **The
   privacy switch (`PauseListenHistoryKey`) suppresses capture with the SAME per-ping semantics as the
   live path** - nothing is captured if history was paused at the Start ping, and accumulation stops at
   the first paused ping, so a mostly-private listen is never queued even if unpaused before it ends (a

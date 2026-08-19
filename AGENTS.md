@@ -162,8 +162,8 @@ rules that must not regress:
   currentMediaId/hasCurrentMetadata/volume) are behind `playback/PlaybackProbe`, `MusicService` adapts
   the real `Player`, and `onPositionDiscontinuity` takes primitive params instead of `Player.PositionInfo`.
   `WatchTimeReporterTest` drives the whole machine with a pure fake probe (Unconfined scope) and asserts
-  via the observable offline-capture sink - played-range capture, seek exclusion, the ≥10s gate,
-  paused-at-start privacy, the teardown end-position, rebuffer-is-not-a-pause, and the relay exclusion.
+  via the observable offline-capture sink - played-range capture, seek exclusion, the sub-500ms jitter
+  floor, paused-at-start privacy, the teardown end-position, rebuffer-is-not-a-pause, and the relay exclusion.
   The extraction is behavior-preserving; keep the probe returning exactly the `Player` values.
 - **Boundary-capture hardening (never fabricate, never orphan) - these must not regress:**
   - On a track/queue CHANGE (a real transition, or `ensureSession` replacing a still-open session) the
@@ -210,7 +210,10 @@ rules that must not regress:
   and re-pushed on reconnect as a **deferred** stats session (fresh `/player` → fresh cpn → playback +
   `final=1` watchtime, the STORED real ranges). Same honesty rule (`rt` ≤ played time; `PauseListenHistory`
   suppresses capture with the SAME per-ping semantics as the live path - paused-at-start captures nothing,
-  and accumulation stops at the first paused ping), ≥10s gate, **never via the relay egress**. JSONL under
+  and accumulation stops at the first paused ping), the honest ≥500ms segment floor (NO minimum-duration
+  gate - since YouTube counts a view from the first frame as of 2026-08-24, any genuinely-watched offline
+  play (>=500ms real time) mints a view on reconnect, like the live path above that floor - only the
+  sub-500ms jitter window differs), **never via the relay egress**. JSONL under
   `filesDir` reusing `TrackingQueue` + `FlushSchedule` (no Room/migration); single-flight, connectivity-
   triggered, and self-rescheduling whenever work remains (after a RETRY-backoff, and after a full batch
   of `BATCH_SIZE`=20 with records still queued it waits a short `PACE_MS`) - so a backlog larger than one
@@ -399,8 +402,11 @@ sign-in card), `OnboardingStatusPill` (the Done/Needed · Active/Optional chip),
 below `OnboardingActionButton`'s `surfaceContainerHighest` so an in-card pill never blends into its card).
 The **loading + carousel-hero family** lives here too: `ZemerLoadingIndicator` (the CONTAINED M3 Expressive
 content/section spinner - Home pull-to-refresh look, video buffering, section loads; ratcheted by
-**R25**) and `MediaLoadingSpinner` (the BARE, neutral over-media spinner for a card cover's tap-to-play
-state; ratcheted by **R26**); `PreparingOverlay` (the scrim + `MediaLoadingSpinner` shown while a tapped
+**R25**), its inline convenience `ZemerLoadingSection` (that spinner centered in a full-width box with
+vertical padding - the drop-in "this section is loading" block inside a scrolling column, used by the
+song-details sheet + the lyrics list; a fixed-footprint slot like the recognition mic button centers the
+raw indicator itself) and `MediaLoadingSpinner` (the BARE, neutral over-media spinner for a card cover's
+tap-to-play state; ratcheted by **R26**); `PreparingOverlay` (the scrim + `MediaLoadingSpinner` shown while a tapped
 item resolves, shared by `ItemThumbnail` and the video hero); `HeroTitleOverlay` (the bottom gradient
 title/subtitle + optional badges slot) and `CarouselHeroFrame` (the ENTIRE full-bleed carousel-hero
 frame - `maskClip`/`maskBorder` D-pad focus ring, cover-crop artwork, now-playing scrim) shared by the

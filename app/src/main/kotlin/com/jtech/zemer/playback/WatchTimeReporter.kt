@@ -368,7 +368,8 @@ class WatchTimeReporter(
         if (urls?.playbackUrl == null && urls?.watchtimeUrl == null) {
             // OFFLINE listen: no live URLs to beacon now. Accumulate the SAME real ranges the reporter
             // computed (the pings' st/et are honest deltas) and hand ONE record to the deferred sink to
-            // re-push on reconnect. Nothing is fabricated; a listen below the genuine-play gate is dropped.
+            // re-push on reconnect. Nothing is fabricated; a listen with no real watched range
+            // (< WatchTimeSegments.MIN_SEGMENT_MS) simply produces no record.
             // Privacy MUST match the live path exactly (a deferred beacon is still a beacon): the live
             // consumer opens nothing if paused at the Start ping, and silences forward pings once paused
             // mid-listen. Mirror both here — capture nothing if paused at start, and stop accumulating at
@@ -395,7 +396,13 @@ class WatchTimeReporter(
                     }
                 }
             }
-            if (!startedPaused && watchedMs >= MIN_DEFERRED_MS && st.isNotEmpty()) {
+            // No minimum-duration gate: since 2026-08-24 YouTube counts a view from the very first frame
+            // (it previously needed ~30s of engaged watching), so any genuinely-watched offline play mints a
+            // view on reconnect. st.isNotEmpty() means >= MIN_SEGMENT_MS of REAL watched media time (the
+            // segment layer drops sub-500ms jitter) — the honest floor to report on. This matches the live
+            // path for any real listen; only the sub-500ms jitter window differs (there the live playback
+            // ping still fires, while this branch has no watched range to defer). A private listen is never queued.
+            if (!startedPaused && st.isNotEmpty()) {
                 runCatching {
                     onOfflineListen(
                         DeferredStatsRecord(
@@ -480,9 +487,5 @@ class WatchTimeReporter(
         // enough that a normal next-track preload (played within minutes) is never rejected, tight
         // enough that an hours-later cache-served replay resolves fresh instead of beaconing a dead URL.
         private const val TRACKING_MAX_AGE_MS = 60 * 60 * 1000L
-
-        // The genuine-play gate for a DEFERRED offline capture — a listen shorter than this is not
-        // worth queuing (matches the ≥10s history threshold; a YouTube view qualifies around ~30s).
-        private const val MIN_DEFERRED_MS = 10_000L
     }
 }

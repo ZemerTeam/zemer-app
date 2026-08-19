@@ -2,7 +2,7 @@
 
 Every tracked Kotlin file is listed with hard metadata extracted from the file text: line count, package, whether it declares any `@Composable`, import count, top-level declaration count (`Decls` - a high value flags a god-file), and the external import roots it depends on. Declaration counting is regex-based (after stripping comments and string literals). For the actual declaration names, read the file or use your editor's outline - they are not duplicated here.
 
-## `app` Kotlin files (681)
+## `app` Kotlin files (682)
 
 | File | Lines | Package | Compose | Imports | Decls | External import roots |
 | --- | ---: | --- | --- | ---: | ---: | --- |
@@ -156,7 +156,7 @@ Every tracked Kotlin file is listed with hard metadata extracted from the file t
 | `app/src/main/kotlin/com/jtech/zemer/playback/VideoQualityLogic.kt` | 204 | `com.jtech.zemer.playback` | no | 1 | 39 |  |
 | `app/src/main/kotlin/com/jtech/zemer/playback/VideoRendition.kt` | 95 | `com.jtech.zemer.playback` | no | 0 | 20 |  |
 | `app/src/main/kotlin/com/jtech/zemer/playback/VideoSongIds.kt` | 28 | `com.jtech.zemer.playback` | no | 0 | 6 |  |
-| `app/src/main/kotlin/com/jtech/zemer/playback/WatchTimeReporter.kt` | 488 | `com.jtech.zemer.playback` | no | 11 | 86 | androidx.media3, java.util, kotlinx.coroutines, timber.log |
+| `app/src/main/kotlin/com/jtech/zemer/playback/WatchTimeReporter.kt` | 491 | `com.jtech.zemer.playback` | no | 11 | 85 | androidx.media3, java.util, kotlinx.coroutines, timber.log |
 | `app/src/main/kotlin/com/jtech/zemer/playback/WatchTimeSchedule.kt` | 41 | `com.jtech.zemer.playback` | no | 0 | 6 |  |
 | `app/src/main/kotlin/com/jtech/zemer/playback/WatchTimeSegments.kt` | 117 | `com.jtech.zemer.playback` | no | 1 | 20 | java.util |
 | `app/src/main/kotlin/com/jtech/zemer/playback/queues/EmptyQueue.kt` | 14 | `com.jtech.zemer.playback.queues` | no | 2 | 5 | androidx.media3 |
@@ -259,7 +259,7 @@ Every tracked Kotlin file is listed with hard metadata extracted from the file t
 | `app/src/main/kotlin/com/jtech/zemer/ui/component/LetterFastScrollbar.kt` | 217 | `com.jtech.zemer.ui.component` | yes | 37 | 23 | androidx.compose, kotlin.math |
 | `app/src/main/kotlin/com/jtech/zemer/ui/component/Library.kt` | 524 | `com.jtech.zemer.ui.component` | yes | 41 | 12 | android.annotation, androidx.compose, androidx.navigation, coil3.compose, coil3.request, coil3.size, kotlinx.coroutines |
 | `app/src/main/kotlin/com/jtech/zemer/ui/component/LibraryFilterChip.kt` | 43 | `com.jtech.zemer.ui.component` | yes | 13 | 1 | androidx.compose |
-| `app/src/main/kotlin/com/jtech/zemer/ui/component/Lyrics.kt` | 956 | `com.jtech.zemer.ui.component` | yes | 117 | 107 | android.annotation, android.content, android.os, androidx.activity, androidx.annotation, androidx.compose, androidx.lifecycle, androidx.palette, coil3.imageLoader, coil3.request, coil3.toBitmap, kotlin.time, kotlinx.coroutines |
+| `app/src/main/kotlin/com/jtech/zemer/ui/component/Lyrics.kt` | 939 | `com.jtech.zemer.ui.component` | yes | 115 | 107 | android.annotation, android.content, android.os, androidx.activity, androidx.annotation, androidx.compose, androidx.lifecycle, androidx.palette, coil3.imageLoader, coil3.request, coil3.toBitmap, kotlin.time, kotlinx.coroutines |
 | `app/src/main/kotlin/com/jtech/zemer/ui/component/LyricsImageCard.kt` | 287 | `com.jtech.zemer.ui.component` | yes | 28 | 34 | android.annotation, androidx.compose, coil3.compose, coil3.request |
 | `app/src/main/kotlin/com/jtech/zemer/ui/component/Marquee.kt` | 65 | `com.jtech.zemer.ui.component` | yes | 9 | 7 | androidx.compose |
 | `app/src/main/kotlin/com/jtech/zemer/ui/component/Material3MenuItem.kt` | 135 | `com.jtech.zemer.ui.component` | yes | 31 | 13 | androidx.compose |
@@ -294,7 +294,7 @@ Every tracked Kotlin file is listed with hard metadata extracted from the file t
 | `app/src/main/kotlin/com/jtech/zemer/ui/component/UpdateDownloadDialog.kt` | 131 | `com.jtech.zemer.ui.component` | yes | 21 | 7 | androidx.compose, java.io |
 | `app/src/main/kotlin/com/jtech/zemer/ui/component/ZemerCuratedPlaylistCard.kt` | 82 | `com.jtech.zemer.ui.component` | yes | 8 | 7 | androidx.compose, kotlin.math |
 | `app/src/main/kotlin/com/jtech/zemer/ui/component/ZemerFab.kt` | 38 | `com.jtech.zemer.ui.component` | yes | 8 | 1 | androidx.annotation, androidx.compose |
-| `app/src/main/kotlin/com/jtech/zemer/ui/component/ZemerLoadingIndicator.kt` | 35 | `com.jtech.zemer.ui.component` | yes | 5 | 1 | androidx.compose |
+| `app/src/main/kotlin/com/jtech/zemer/ui/component/ZemerLoadingIndicator.kt` | 60 | `com.jtech.zemer.ui.component` | yes | 10 | 2 | androidx.compose |
 | `app/src/main/kotlin/com/jtech/zemer/ui/component/ZemerStationCard.kt` | 70 | `com.jtech.zemer.ui.component` | yes | 15 | 1 | androidx.compose, coil3.compose |
 | `app/src/main/kotlin/com/jtech/zemer/ui/component/shimmer/BoxPlaceholder.kt` | 30 | `com.jtech.zemer.ui.component.shimmer` | yes | 9 | 1 | androidx.compose |
 | `app/src/main/kotlin/com/jtech/zemer/ui/component/shimmer/ButtonPlaceholder.kt` | 15 | `com.jtech.zemer.ui.component.shimmer` | yes | 5 | 1 | androidx.compose |
@@ -404,7 +404,7 @@ Every tracked Kotlin file is listed with hard metadata extracted from the file t
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/playlist/ZemerCuratedPlaylistScreen.kt` | 474 | `com.jtech.zemer.ui.screens.playlist` | yes | 85 | 24 | androidx.compose, androidx.hilt, androidx.navigation, coil3.compose, coil3.request |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/podcast/OnlinePodcastScreen.kt` | 496 | `com.jtech.zemer.ui.screens.podcast` | yes | 95 | 17 | androidx.compose, androidx.hilt, androidx.navigation, coil3.compose, coil3.request, coil3.size, kotlinx.coroutines |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/recognition/RecognitionHistoryScreen.kt` | 186 | `com.jtech.zemer.ui.screens.recognition` | yes | 53 | 5 | androidx.compose, androidx.hilt, androidx.navigation, coil3.compose |
-| `app/src/main/kotlin/com/jtech/zemer/ui/screens/recognition/RecognizeMusicDialogActivity.kt` | 335 | `com.jtech.zemer.ui.screens.recognition` | yes | 64 | 19 | android.content, android.os, androidx.activity, androidx.compose, androidx.core, androidx.hilt, coil3.compose, dagger.hilt |
+| `app/src/main/kotlin/com/jtech/zemer/ui/screens/recognition/RecognizeMusicDialogActivity.kt` | 340 | `com.jtech.zemer.ui.screens.recognition` | yes | 64 | 19 | android.content, android.os, androidx.activity, androidx.compose, androidx.core, androidx.hilt, coil3.compose, dagger.hilt |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/search/OnlineSearchResult.kt` | 522 | `com.jtech.zemer.ui.screens.search` | yes | 90 | 36 | androidx.compose, androidx.hilt, androidx.navigation, kotlinx.coroutines |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/search/OnlineSearchScreen.kt` | 531 | `com.jtech.zemer.ui.screens.search` | yes | 99 | 28 | androidx.compose, androidx.hilt, androidx.navigation, kotlinx.coroutines |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/search/SearchFilterPolicy.kt` | 26 | `com.jtech.zemer.ui.screens.search` | no | 6 | 2 |  |
@@ -451,7 +451,7 @@ Every tracked Kotlin file is listed with hard metadata extracted from the file t
 | `app/src/main/kotlin/com/jtech/zemer/ui/utils/ScrollUtils.kt` | 59 | `com.jtech.zemer.ui.utils` | yes | 9 | 8 | androidx.compose |
 | `app/src/main/kotlin/com/jtech/zemer/ui/utils/SeeAll.kt` | 22 | `com.jtech.zemer.ui.utils` | no | 0 | 3 |  |
 | `app/src/main/kotlin/com/jtech/zemer/ui/utils/ShapeUtils.kt` | 8 | `com.jtech.zemer.ui.utils` | no | 3 | 1 | androidx.compose |
-| `app/src/main/kotlin/com/jtech/zemer/ui/utils/ShowMediaInfo.kt` | 224 | `com.jtech.zemer.ui.utils` | yes | 52 | 20 | android.text, androidx.annotation, androidx.compose, com.zemer |
+| `app/src/main/kotlin/com/jtech/zemer/ui/utils/ShowMediaInfo.kt` | 214 | `com.jtech.zemer.ui.utils` | yes | 48 | 20 | android.text, androidx.annotation, androidx.compose, com.zemer |
 | `app/src/main/kotlin/com/jtech/zemer/ui/utils/StatusNavigation.kt` | 17 | `com.jtech.zemer.ui.utils` | no | 0 | 2 |  |
 | `app/src/main/kotlin/com/jtech/zemer/ui/utils/StringUtils.kt` | 34 | `com.jtech.zemer.ui.utils` | no | 2 | 5 | java.text, kotlin.math |
 | `app/src/main/kotlin/com/jtech/zemer/ui/utils/VideoThumbnail.kt` | 45 | `com.jtech.zemer.ui.utils` | yes | 9 | 6 | android.graphics, android.media, android.util, androidx.compose, androidx.core, kotlinx.coroutines |
@@ -605,7 +605,7 @@ Every tracked Kotlin file is listed with hard metadata extracted from the file t
 | `app/src/test/kotlin/com/jtech/zemer/playback/VideoQualityLogicTest.kt` | 221 | `com.jtech.zemer.playback` | no | 5 | 23 | org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/playback/VideoRenditionTest.kt` | 87 | `com.jtech.zemer.playback` | no | 4 | 6 | org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/playback/VideoSongIdsTest.kt` | 45 | `com.jtech.zemer.playback` | no | 4 | 4 | java.util, org.junit |
-| `app/src/test/kotlin/com/jtech/zemer/playback/WatchTimeReporterTest.kt` | 181 | `com.jtech.zemer.playback` | no | 8 | 28 | kotlinx.coroutines, org.junit |
+| `app/src/test/kotlin/com/jtech/zemer/playback/WatchTimeReporterTest.kt` | 201 | `com.jtech.zemer.playback` | no | 8 | 29 | kotlinx.coroutines, org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/playback/WatchTimeScheduleTest.kt` | 59 | `com.jtech.zemer.playback` | no | 2 | 6 | org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/playback/WatchTimeSegmentsTest.kt` | 161 | `com.jtech.zemer.playback` | no | 5 | 18 | org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/playback/relay/RelayDeviceIdTest.kt` | 82 | `com.jtech.zemer.playback.relay` | no | 6 | 4 | java.util, org.junit |
@@ -649,6 +649,7 @@ Every tracked Kotlin file is listed with hard metadata extracted from the file t
 | `app/src/test/kotlin/com/jtech/zemer/ui/HomeTitleEasterEggTest.kt` | 36 | `com.jtech.zemer.ui` | no | 5 | 6 | org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/ui/component/AlphabetIndexTest.kt` | 28 | `com.jtech.zemer.ui.component` | no | 2 | 1 | org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/ui/component/AvatarShapeIndexTest.kt` | 37 | `com.jtech.zemer.ui.component` | no | 3 | 4 | org.junit |
+| `app/src/test/kotlin/com/jtech/zemer/ui/component/GentleMarqueeTest.kt` | 42 | `com.jtech.zemer.ui.component` | no | 3 | 3 | org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/ui/component/SettingsCardGroupTest.kt` | 20 | `com.jtech.zemer.ui.component` | no | 2 | 2 | org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/ui/menu/DownloadMenuItemsTest.kt` | 71 | `com.jtech.zemer.ui.menu` | no | 5 | 33 | org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/ui/menu/ViewCollectionMenuItemTest.kt` | 31 | `com.jtech.zemer.ui.menu` | no | 3 | 1 | org.junit |
