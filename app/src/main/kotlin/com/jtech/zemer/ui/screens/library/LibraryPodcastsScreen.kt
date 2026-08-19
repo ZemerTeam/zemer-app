@@ -26,7 +26,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -68,6 +71,7 @@ import com.jtech.zemer.ui.component.LibraryFilterChip
 import com.jtech.zemer.ui.component.EmptyPlaceholder
 import com.jtech.zemer.ui.component.HideOnScrollFAB
 import com.jtech.zemer.ui.component.focusBorder
+import com.jtech.zemer.ui.component.gentleMarquee
 import com.jtech.zemer.ui.component.LocalMenuState
 import com.jtech.zemer.ui.component.Material3MenuGroup
 import com.jtech.zemer.ui.component.Material3MenuItemData
@@ -291,11 +295,8 @@ fun LibraryPodcastsScreen(
                         PodcastArtistChannelItem(
                             thumbnailUrl = channel.thumbnailUrl,
                             channelName = channel.name,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .focusBorder()
-                                .clickable { navController.navigateToArtist(channel.id, isPodcastChannel = true) }
-                                .animateItem(),
+                            onClick = { navController.navigateToArtist(channel.id, isPodcastChannel = true) },
+                            modifier = Modifier.animateItem(),
                         )
                     }
 
@@ -484,9 +485,12 @@ private fun AutoPlaylistCard(
     // look), instead of the first episode's thumbnail — theme-aware (seeded from the chosen accent).
     gradientCover: Boolean = false,
 ) {
+    // Observed BEFORE focusBorder (whose focusable is the row's focus target) so the title glide
+    // re-arms when a D-pad user focuses the row - a bare gentleMarquee would fire once and never again.
+    var focused by remember { mutableStateOf(false) }
     Row(
         verticalAlignment = Alignment.CenterVertically,
-        modifier = modifier.fillMaxWidth().focusBorder().clickable(onClick = onClick).padding(horizontal = 16.dp, vertical = 10.dp),
+        modifier = modifier.fillMaxWidth().onFocusChanged { focused = it.isFocused }.focusBorder().clickable(onClick = onClick).padding(horizontal = 16.dp, vertical = 10.dp),
     ) {
         if (gradientCover) {
             Box(
@@ -510,7 +514,7 @@ private fun AutoPlaylistCard(
         }
         Spacer(Modifier.width(12.dp))
         Column(modifier = Modifier.weight(1f)) {
-            Text(text = title, style = MaterialTheme.typography.bodyLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(text = title, style = MaterialTheme.typography.bodyLarge, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.gentleMarquee(focused = focused))
             Text(
                 text = buildString {
                     append(stringResource(R.string.auto_playlist))
@@ -536,14 +540,16 @@ private fun PodcastEpisodePlaylistItem(
     onMenuClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    // Same focus wiring as AutoPlaylistCard - re-arm the title glide when the row gains D-pad focus.
+    var focused by remember { mutableStateOf(false) }
     Row(
         verticalAlignment = Alignment.CenterVertically,
-        modifier = modifier.focusBorder().clickable(onClick = onClick).padding(horizontal = 16.dp, vertical = 8.dp),
+        modifier = modifier.onFocusChanged { focused = it.isFocused }.focusBorder().clickable(onClick = onClick).padding(horizontal = 16.dp, vertical = 8.dp),
     ) {
         PodcastRowThumbnail(podcast.thumbnailUrl)
         Spacer(Modifier.width(12.dp))
         Column(modifier = Modifier.weight(1f)) {
-            Text(text = podcast.title, style = MaterialTheme.typography.bodyLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(text = podcast.title, style = MaterialTheme.typography.bodyLarge, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.gentleMarquee(focused = focused))
             if (!podcast.author.isNullOrBlank()) {
                 Text(
                     text = podcast.author,
@@ -589,16 +595,27 @@ private fun PodcastEpisodePlaylistMenu(
     Spacer(Modifier.size(12.dp))
 }
 
-/** A podcast host channel row shown in the Channels tab. */
+/**
+ * A podcast host channel row shown in the Channels tab. Owns its focusBorder + click chain like its
+ * sibling rows (AutoPlaylistCard / PodcastEpisodePlaylistItem) so it can observe its own focus and
+ * re-arm the title glide on D-pad focus - a caller-side focusBorder would be invisible to it.
+ */
 @Composable
 private fun PodcastArtistChannelItem(
     thumbnailUrl: String?,
     channelName: String,
+    onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    var focused by remember { mutableStateOf(false) }
     Row(
         verticalAlignment = Alignment.CenterVertically,
-        modifier = modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+        modifier = modifier
+            .fillMaxWidth()
+            .onFocusChanged { focused = it.isFocused }
+            .focusBorder()
+            .clickable(onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 8.dp),
     ) {
         AsyncImage(
             model = thumbnailUrl,
@@ -612,7 +629,7 @@ private fun PodcastArtistChannelItem(
             style = MaterialTheme.typography.bodyLarge,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.weight(1f),
+            modifier = Modifier.weight(1f).gentleMarquee(focused = focused),
         )
     }
 }

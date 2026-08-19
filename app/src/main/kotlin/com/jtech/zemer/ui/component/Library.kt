@@ -412,6 +412,7 @@ fun WhitelistedPodcastListItem(
     @SuppressLint("ModifierParameter") modifier: Modifier = Modifier
 ) = ListItem(
     title = podcast.name,
+    titleMarquee = true,
     subtitle = "",
     badges = {},
     thumbnailContent = {
@@ -469,6 +470,7 @@ fun WhitelistedPodcastGridItem(
     @SuppressLint("ModifierParameter") modifier: Modifier = Modifier
 ) = GridItem(
     title = podcast.name,
+    titleMarquee = true,
     subtitle = "",
     badges = {},
     thumbnailContent = {

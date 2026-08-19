@@ -128,7 +128,10 @@ inline fun ListItem(
     noinline subtitle: (@Composable RowScope.() -> Unit)? = null,
     thumbnailContent: @Composable () -> Unit,
     trailingContent: @Composable RowScope.() -> Unit = {},
-    isActive: Boolean = false
+    isActive: Boolean = false,
+    // Gently scroll a title too long for one line instead of ellipsizing it (podcast rows: long
+    // show/episode titles). Off by default so music rows are unchanged.
+    titleMarquee: Boolean = false
 ) {
     var isFocused by remember { mutableStateOf(false) }
     val backgroundColor by animateColorAsState(
@@ -151,8 +154,10 @@ inline fun ListItem(
         verticalAlignment = Alignment.CenterVertically,
         modifier = modifier
             .pressBounce()
-            .focusable()
+            // onFocusChanged only observes focus targets AFTER it in the chain, so it must precede
+            // focusable() (the FocusBorder.kt order) - reversed, the row's own focus is never seen.
             .onFocusChanged { isFocused = it.isFocused }
+            .focusable()
             .height(ListItemHeight)
             .padding(horizontal = ListItemHorizontalPadding)
             .clip(RoundedCornerShape(8.dp))
@@ -163,7 +168,9 @@ inline fun ListItem(
         Column(Modifier.weight(1f).padding(horizontal = 6.dp)) {
             Text(
                 text = title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold,
-                maxLines = 1, overflow = TextOverflow.Ellipsis
+                maxLines = 1, overflow = TextOverflow.Ellipsis,
+                // The row's own focus re-arms the one-shot glide for D-pad/TV users.
+                modifier = if (titleMarquee) Modifier.gentleMarquee(focused = isFocused) else Modifier
             )
             if (subtitle != null) Row(verticalAlignment = Alignment.CenterVertically) { subtitle() }
         }
@@ -179,11 +186,13 @@ fun ListItem(
     badges: @Composable RowScope.() -> Unit = {},
     thumbnailContent: @Composable () -> Unit,
     trailingContent: @Composable RowScope.() -> Unit = {},
-    isActive: Boolean = false
+    isActive: Boolean = false,
+    titleMarquee: Boolean = false
 ) = ListItem(
     title = title,
     modifier = modifier,
     isActive = isActive,
+    titleMarquee = titleMarquee,
     subtitle = {
         badges()
         if (!subtitle.isNullOrEmpty()) {
@@ -203,6 +212,10 @@ fun GridItem(
     thumbnailContent: @Composable BoxWithConstraintsScope.() -> Unit,
     thumbnailRatio: Float = 1f,
     fillMaxWidth: Boolean = false,
+    // Gently scroll an overflowing title once instead of ellipsizing, re-armed on D-pad focus. The
+    // card applies gentleMarquee AROUND the opaque title slot, so the slot content itself must not
+    // carry its own marquee when this is set.
+    titleMarquee: Boolean = false,
 ) {
     var isFocused by remember { mutableStateOf(false) }
     val backgroundColor by animateColorAsState(
@@ -216,8 +229,10 @@ fun GridItem(
     val baseModifier = modifier
         .pressBounce()
         .padding(12.dp)
-        .focusable()
+        // onFocusChanged only observes focus targets AFTER it in the chain, so it must precede
+        // focusable() (the FocusBorder.kt order) - reversed, the card's own focus is never seen.
         .onFocusChanged { isFocused = it.isFocused }
+        .focusable()
         .clip(RoundedCornerShape(12.dp))
         .background(backgroundColor)
         .border(width = 1.5.dp, color = borderColor, shape = RoundedCornerShape(12.dp))
@@ -243,7 +258,14 @@ fun GridItem(
 
         Spacer(modifier = Modifier.height(6.dp))
 
-        title()
+        if (titleMarquee) {
+            // The title slot is opaque here, so the marquee wraps it (basicMarquee animates any
+            // overflowing child); the card's own focus re-arms the glide for D-pad/TV users. The
+            // slot content must NOT carry its own marquee - two nested marquees fight.
+            Box(Modifier.gentleMarquee(focused = isFocused)) { title() }
+        } else {
+            title()
+        }
 
         Row(verticalAlignment = Alignment.CenterVertically) {
             badges()
@@ -262,8 +284,12 @@ fun GridItem(
     thumbnailContent: @Composable BoxWithConstraintsScope.() -> Unit,
     thumbnailRatio: Float = 1f,
     fillMaxWidth: Boolean = false,
+    // Gently scroll a title too long for one narrow card instead of ellipsizing it (podcast browse
+    // cards) - the same one-glide feel as the podcast list rows. Off by default.
+    titleMarquee: Boolean = false,
 ) = GridItem(
     modifier = modifier,
+    titleMarquee = titleMarquee,
     title = {
         Text(
             text = title,
@@ -272,6 +298,9 @@ fun GridItem(
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             textAlign = TextAlign.Start,
+            // The marquee (when titleMarquee) is applied by GridItem around the title slot; under it
+            // this fillMaxWidth is inert (a marquee measures its child unbounded), and without it
+            // fillMaxWidth is what lets the text fill the card.
             modifier = Modifier.fillMaxWidth()
         )
     },
@@ -325,6 +354,9 @@ fun SongListItem(
     val content: @Composable () -> Unit = {
         ListItem(
             title = song.song.title,
+            // Episodes carry long titles; decided by type HERE so every caller (library tabs,
+            // auto-playlists, history) gets the glide without a per-call-site flag to forget.
+            titleMarquee = song.song.isEpisode,
             subtitle = joinByBullet(
                 song.artists.joinToString { it.name },
                 makeTimeString(song.song.duration * 1000L)
@@ -865,6 +897,8 @@ fun YouTubeListItem(
     val content: @Composable () -> Unit = {
         ListItem(
             title = item.title,
+            // Podcast shows/episodes carry long titles; gently scroll them instead of clipping.
+            titleMarquee = item is PodcastItem || item is EpisodeItem,
             subtitle = subtitleOverride ?: when (item) {
                 is SongItem -> joinByBullet(item.artists.joinToString { it.name }, makeTimeString(item.duration?.times(1000L)))
                 is AlbumItem -> joinByBullet(item.artists?.joinToString { it.name }, item.year?.toString())
@@ -927,6 +961,7 @@ fun EpisodeListItem(
         ?.let { pos -> durationMs?.let { d -> makeTimeString((d - pos).coerceAtLeast(0)) } }
     ListItem(
         title = episode.title,
+        titleMarquee = true,
         subtitle = joinByBullet(
             episode.publishDateText,
             if (timeLeft != null) stringResource(R.string.episode_time_left, timeLeft)
@@ -1004,6 +1039,10 @@ fun YouTubeGridItem(
     // Suppress the sub-label entirely (the compact Home curated card is just the cover).
     showSubtitle: Boolean = true,
 ) = GridItem(
+    // Podcast shows/episodes carry long titles; give their cards the same calm one-shot glide
+    // (re-armed on D-pad focus) as their list rows, instead of the looping music-card marquee -
+    // otherwise the Podcasts Home shelves/see-alls/genre grids loop forever while the rows below glide.
+    titleMarquee = showTitle && (item is PodcastItem || item is EpisodeItem),
     title = {
         if (showTitle) {
             Text(
@@ -1013,7 +1052,10 @@ fun YouTubeGridItem(
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
                 textAlign = if (item is ArtistItem) TextAlign.Center else TextAlign.Start,
-                modifier = Modifier.basicMarquee().fillMaxWidth()
+                // Podcast/episode cards marquee via GridItem's titleMarquee wrapper (never doubled);
+                // every other card keeps its pre-existing looping marquee.
+                modifier = if (item is PodcastItem || item is EpisodeItem) Modifier.fillMaxWidth()
+                else Modifier.basicMarquee().fillMaxWidth()
             )
         }
     },
