@@ -34,7 +34,6 @@ import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.carousel.CarouselDefaults
 import androidx.compose.material3.carousel.HorizontalMultiBrowseCarousel
 import androidx.compose.material3.carousel.rememberCarouselState
 import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults.LoadingIndicator
@@ -91,6 +90,7 @@ import com.jtech.zemer.ui.component.AlbumGridItem
 import com.jtech.zemer.ui.component.ArtistGridItem
 import com.jtech.zemer.ui.component.LocalBottomSheetPageState
 import com.jtech.zemer.ui.component.LocalMenuState
+import com.jtech.zemer.ui.component.heroCarouselFlingBehavior
 import com.jtech.zemer.ui.component.MoreVertMenuButton
 import com.jtech.zemer.extensions.toMediaItem
 import com.jtech.zemer.playback.queues.ListQueue
@@ -741,12 +741,8 @@ fun HomeScreen(
                             state = latestCarouselState,
                             preferredItemWidth = 180.dp,
                             itemSpacing = 8.dp,
-                            // Advance ONE item per swipe (the behavior's PagerSnapDistance.atMost(1) -
-                            // never a velocity-scaled multi-item fling). The DEFAULT spring snap is
-                            // deliberate: it consumes the fling's release velocity, so finger-up hands
-                            // off continuously - the old fixed-duration tween ignored that velocity and
-                            // hitched on every swipe (the "choppy carousel" bug).
-                            flingBehavior = CarouselDefaults.singleAdvanceFlingBehavior(latestCarouselState),
+                            // One item per swipe; the spec + rationale live in heroCarouselFlingBehavior.
+                            flingBehavior = heroCarouselFlingBehavior(latestCarouselState),
                             contentPadding = WindowInsets.systemBars
                                 .only(WindowInsetsSides.Horizontal)
                                 .asPaddingValues(),
