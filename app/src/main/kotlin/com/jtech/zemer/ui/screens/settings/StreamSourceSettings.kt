@@ -299,6 +299,9 @@ fun StreamSourceSettings(
             )
         }
         } // end if (!relayEnabled): DIRECT-only client list
+
+        // Breathing room below the last card group (and clearance for the mini-player insets).
+        Spacer(Modifier.height(SettingsScreenTopSpacing))
     }
 
     TopAppBar(
