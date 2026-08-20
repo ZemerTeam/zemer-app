@@ -174,8 +174,10 @@ byte-for-byte unchanged. The engine is a faithful Kotlin port of the proven Node
   DataSources; `VideoModeController.enterVideoModeSabr` resolves async then swaps to an item keyed
   `video:<id>` (exit/own-swap machinery) with a `sabrvideo://<id>` URI (merge routing); fixed rendition
   like RELAY (no live switcher, target = the Settings quality mapped to a max height). SABR video
-  DOWNLOADS are not yet wired (video downloads stay on the DIRECT muxed path); dual-track SABR download +
-  remux is the follow-up. Full detail: `docs/sabr/README.md` sec 9.
+  DOWNLOADS are wired too (`MediaStoreDownloadManager` `sabrVideoMode`): the dual-track session drains to
+  two temp files and remuxes on-device (`VideoMuxer`), like a DIRECT adaptive download. The SABR
+  DataSources fire `transferEnded()` only after `transferStarted()` (a MergingMediaSource sibling teardown
+  mid-open otherwise NPEs media3's bandwidth meter -> "Source error"). Full detail: `docs/sabr/README.md` sec 9.
 - **The harness is the proof + validator** (`tests/sabr-stream.mjs` whole-song drain, `tests/sabr-clients.mjs`
   roster; `tests/sabr-video.mjs` + `tests/sabr-video-clients.mjs` for video). SABR is the danger zone:
   prove any change against the live CDN there first, then on-device.

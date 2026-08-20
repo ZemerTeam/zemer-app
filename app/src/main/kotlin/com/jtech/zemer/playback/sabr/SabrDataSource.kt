@@ -42,6 +42,9 @@ internal class SabrDataSource(private val client: OkHttpClient) : BaseDataSource
     private var thread: Thread? = null
     private var position: Long = 0
     private var bytesRemaining: Long = 0
+    // See SabrVideoDataSource: only fire transferEnded() when transferStarted() ran, or media3's
+    // DefaultBandwidthMeter NPEs (null dataSpec) and closeQuietly won't swallow it.
+    private var started = false
 
     override fun open(dataSpec: DataSpec): Long {
         transferInitializing(dataSpec)
@@ -60,6 +63,7 @@ internal class SabrDataSource(private val client: OkHttpClient) : BaseDataSource
         position = dataSpec.position
         bytesRemaining = if (length > 0) length - dataSpec.position else C.LENGTH_UNSET.toLong()
         transferStarted(dataSpec)
+        started = true
         return bytesRemaining
     }
 
@@ -87,7 +91,7 @@ internal class SabrDataSource(private val client: OkHttpClient) : BaseDataSource
         // here is safe. (The download path removes in its own finally.)
         mediaId?.let { SabrStreamRegistry.remove(it) }
         mediaId = null
-        uri?.let { transferEnded() }
+        if (started) { transferEnded(); started = false }
         uri = null
     }
 }

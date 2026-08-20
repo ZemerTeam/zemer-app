@@ -336,11 +336,20 @@ and adds an isolated dual-track layer in `playback/sabr/`:
 - `MusicService.isSabrPlaybackMode()` mirrors `StreamSabrKey` synchronously (a `@Volatile`, collector-fed),
   so the user's video toggle reads it on the main thread without a blocking DataStore read.
 
-**Scope note:** SABR video **playback** is wired; SABR video **downloads** are not yet — a video download
-still uses the DIRECT muxed-video path (`sabrMode` is forced off for a video download). The dual-track
-SABR download + on-device remux (`VideoMuxer`, as DIRECT adaptive downloads already do) is the remaining
-follow-up. Audio downloads over SABR already work (§7.1). On-device soak of SABR video playback is the
-next validation gate before it is promoted from experimental.
+**Downloads** are wired too: a SABR video download runs the dual-track session to completion
+(`SabrVideoResolver.download` → two byte-exact temp files) and remuxes on-device
+(`VideoMuxer.mux`, mp4 for avc1 / webm for vp9), exactly like a DIRECT adaptive video download — the
+saved file plays as an ordinary video. `MediaStoreDownloadManager` splits SABR into `sabrAudioMode`
+(one track) and `sabrVideoMode` (dual-track + remux); an incomplete SABR drain throws (retryable), and
+the mux-result handling mirrors the DIRECT adaptive path (INCOMPATIBLE clears the requested quality so a
+retry falls back; TRANSIENT preserves it).
+
+**DataSource lifecycle note:** the SABR `DataSource`s (audio + the two video children) fire
+`transferEnded()` only after `transferStarted()` ran — media3's `DefaultBandwidthMeter` NPEs on a null
+`dataSpec` otherwise, and `closeQuietly` swallows only `IOException`, so an unguarded `transferEnded()`
+surfaced as a "Source error" when a `MergingMediaSource` tore down a sibling mid-open (found on-device).
+
+On-device soak of SABR video playback + downloads is the remaining validation gate before promotion.
 
 ---
 

@@ -2453,10 +2453,12 @@ class MusicService :
      * ordinary on-demand resolution path is untouched and runs on the actual tap).
      */
     fun prefetchVideoRendition(videoId: String) {
-        // Never prefetch what won't stream: RELAY (fixed rendition), a DOWNLOADED muxed video (LOCAL
-        // rendition plays from disk — a resolution would be pure waste, and offline it just fails),
-        // or when offline. Mirrors requestVideoAvailability's own network guard.
-        if (isRelayPlaybackMode()) return
+        // Never prefetch what won't stream: RELAY (fixed rendition), SABR (its own dual-track resolver
+        // runs on the toggle — the DIRECT /player prefetch would just fail "all stream sources disabled"
+        // when the user has DIRECT clients off), a DOWNLOADED muxed video (LOCAL rendition plays from
+        // disk — a resolution would be pure waste, and offline it just fails), or when offline. Mirrors
+        // requestVideoAvailability's own network guard.
+        if (isRelayPlaybackMode() || isSabrPlaybackMode()) return
         if (!isNetworkConnected.value) return
         if (playbackSourceIsLocalFile(videoId)) return
         val plainKey = VideoRendition.key(videoId)

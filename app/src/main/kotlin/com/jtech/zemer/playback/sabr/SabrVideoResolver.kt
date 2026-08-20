@@ -12,6 +12,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import timber.log.Timber
+import java.io.File
 
 /**
  * Dual-track (video + audio) SABR resolution — the video counterpart of [SabrPlayerResolver]. Fetches the
@@ -57,18 +58,67 @@ object SabrVideoResolver {
      * reverts to audio). The paired audio uri is [SabrVideoRegistry.audioUri] of the same id.
      */
     suspend fun resolve(videoId: String, enabled: Set<String>, maxHeightPx: Int): Uri? = withContext(Dispatchers.IO) {
-        val visitorData = YouTube.visitorData ?: return@withContext null
-        val pot = poTokenGenerator.getWebClientPoToken(videoId, visitorData) ?: return@withContext null
+        val config = firstWorkingConfig(videoId, enabled, maxHeightPx) ?: return@withContext null
+        SabrVideoRegistry.put(videoId, SabrVideoStream(config, SabrStreamResolver.sharedClient()))
+        SabrVideoRegistry.videoUri(videoId)
+    }
+
+    /** The mime of the video track SABR downloaded, so the caller picks the muxer container (mp4/webm). */
+    class VideoDownloadInfo(val videoMimeType: String, val audioMimeType: String, val webm: Boolean)
+
+    /**
+     * Download the WHOLE video + audio for [videoId] (over the first working [enabled] client, pinned at
+     * or under [maxHeightPx]) to [videoFile] and [audioFile], byte-exact. Returns null on an incomplete
+     * drain (a capped client) so the caller retries / falls back — a truncated track is never muxed.
+     */
+    suspend fun download(videoId: String, enabled: Set<String>, maxHeightPx: Int, videoFile: File, audioFile: File): VideoDownloadInfo? =
+        withContext(Dispatchers.IO) {
+            val config = firstWorkingConfig(videoId, enabled, maxHeightPx) ?: return@withContext null
+            val videoBuf = SabrBuffer(config.videoFormat.contentLength)
+            val audioBuf = SabrBuffer(config.audioFormat.contentLength)
+            SabrVideoSession(config, SabrStreamResolver.sharedClient(), videoBuf, audioBuf).run() // blocks until drained
+            if (!drainWhole(videoBuf, config.videoFormat.contentLength) || !drainWhole(audioBuf, config.audioFormat.contentLength)) {
+                Timber.tag(TAG).w("SABR video download incomplete for $videoId: video ${videoBuf.available()}/${config.videoFormat.contentLength}, audio ${audioBuf.available()}/${config.audioFormat.contentLength}")
+                return@withContext null
+            }
+            writeBuffer(videoBuf, videoFile)
+            writeBuffer(audioBuf, audioFile)
+            if (videoFile.length() <= 0L || audioFile.length() <= 0L) return@withContext null
+            val webm = config.videoMimeType.contains("webm")
+            VideoDownloadInfo(config.videoMimeType, if (webm) "audio/webm" else "audio/mp4", webm)
+        }
+
+    private fun drainWhole(buf: SabrBuffer, contentLength: Long): Boolean =
+        contentLength > 0 && buf.available() >= contentLength
+
+    private fun writeBuffer(buf: SabrBuffer, file: File) {
+        val size = buf.available()
+        file.outputStream().use { out ->
+            val chunk = ByteArray(64 * 1024)
+            var pos = 0L
+            while (pos < size) {
+                val n = buf.read(pos, chunk, 0, chunk.size)
+                if (n <= 0) break
+                out.write(chunk, 0, n)
+                pos += n
+            }
+        }
+    }
+
+    /** Resolve the first ENABLED client that exposes SABR video inputs into a ready [SabrVideoConfig]. */
+    private suspend fun firstWorkingConfig(videoId: String, enabled: Set<String>, maxHeightPx: Int): SabrVideoConfig? {
+        val visitorData = YouTube.visitorData ?: return null
+        val pot = poTokenGenerator.getWebClientPoToken(videoId, visitorData) ?: return null
         val sts = NewPipeUtils.getSignatureTimestamp(videoId).getOrNull()
         for (spec in ROSTER) {
             if (spec.key !in enabled) continue
-            val uri = tryClient(spec, videoId, pot, sts, maxHeightPx)
-            if (uri != null) return@withContext uri
+            val config = buildConfig(spec, videoId, pot, sts, maxHeightPx)
+            if (config != null) return config
         }
-        null
+        return null
     }
 
-    private suspend fun tryClient(spec: Spec, videoId: String, pot: PoTokenResult, sts: Int?, maxHeightPx: Int): Uri? {
+    private suspend fun buildConfig(spec: Spec, videoId: String, pot: PoTokenResult, sts: Int?, maxHeightPx: Int): SabrVideoConfig? {
         return try {
             val response = YouTube.player(
                 videoId,
@@ -115,8 +165,7 @@ object SabrVideoResolver {
                 videoMimeType = videoFmt.mimeType,
                 videoBitrate = videoFmt.bitrate,
             )
-            SabrVideoRegistry.put(videoId, SabrVideoStream(config, SabrStreamResolver.sharedClient()))
-            SabrVideoRegistry.videoUri(videoId)
+            config
         } catch (e: Exception) {
             Timber.tag(TAG).w(e, "SABR video resolve via ${spec.label} failed for $videoId: ${e.message}")
             null

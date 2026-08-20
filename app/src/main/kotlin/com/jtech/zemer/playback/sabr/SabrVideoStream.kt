@@ -80,6 +80,11 @@ internal class SabrVideoDataSource(private val client: OkHttpClient, private val
     private var buffer: SabrBuffer? = null
     private var position: Long = 0
     private var bytesRemaining: Long = 0
+    // True once transferStarted() ran. media3's DefaultBandwidthMeter NPEs if transferEnded() fires
+    // without a matching transferStarted() (its dataSpec is null) — and closeQuietly only swallows
+    // IOException, so that NPE would surface as a "Source error". A MergingMediaSource tears down BOTH
+    // children when one fails, so a child whose open() never reached transferStarted() gets close()d.
+    private var started = false
 
     override fun open(dataSpec: DataSpec): Long {
         transferInitializing(dataSpec)
@@ -95,6 +100,7 @@ internal class SabrVideoDataSource(private val client: OkHttpClient, private val
         position = dataSpec.position
         bytesRemaining = if (length > 0) length - dataSpec.position else C.LENGTH_UNSET.toLong()
         transferStarted(dataSpec)
+        started = true
         return bytesRemaining
     }
 
@@ -117,7 +123,7 @@ internal class SabrVideoDataSource(private val client: OkHttpClient, private val
         stream = null
         buffer = null
         mediaId = null
-        uri?.let { transferEnded() }
+        if (started) { transferEnded(); started = false }
         uri = null
     }
 }
