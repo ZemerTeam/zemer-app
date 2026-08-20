@@ -239,12 +239,94 @@ mirrors (`tests/clients.mjs`, etc.) in step, exactly as for the DIRECT harness.
 
 ---
 
-## 9. Known limitations / future work
+## 9. Video over SABR (dual-track, quality-pinnable)
+
+SABR is not audio-only. One SABR stream can carry **video + audio interleaved**, and — the key finding —
+the **exact video itag is pinnable**, so the app's progressive-style quality ladder carries straight over
+to SABR. Proven end-to-end in `tests/sabr-video.mjs` (single client) and `tests/sabr-video-clients.mjs`
+(whole roster), live against the CDN.
+
+### 9.1 The dual-track request
+
+A video listen requests **two** adaptive formats in one SABR session — a **video-only** format and an
+**audio** format — and the server interleaves both tracks' segments in each UMP response. The differences
+from the audio-only request (§3.1):
+
+- `clientAbrState.enabledTrackTypesBitfield` = **0** (video + audio), not 1 (audio only).
+- **`preferredAudioFormatId` = field 16** AND **`preferredVideoFormatId` = field 17** — both carry a
+  `FormatId { itag, lastModified }`.
+- `selected_format_ids` (field 2, repeated) echoes **both** locked formats once streaming.
+- `bufferedRange` (field 3) is sent **per track** (each format has its own segment sequence + buffered
+  end time); `playerTimeMs` advances to the **minimum** buffered end across the two tracks (you can't play
+  past the least-buffered track).
+
+Each response part is routed to its track by the **`MediaHeader.itag` (field 3)**: a `MEDIA` part names a
+`header_id`, whose `MEDIA_HEADER` carries the itag, so video and audio bytes land in separate reassembly
+buffers. Reassembly is positional (§4) **per track**, so each stream is byte-exact independent of interleave
+order.
+
+### 9.2 Quality is pinnable — field 17 is the lever (the full story)
+
+The **critical** finding, because it decides whether the app can offer a video quality ladder over SABR at
+all. Initially the server appeared to ignore any requested video format and serve its own pick (av01 720p,
+itag 398) regardless of what we asked — which looked like uncontrollable server-side ABR. That was a
+**wrong field number**, not a real limitation:
+
+- Sweeping `clientAbrState` sub-fields with a max-height value (12/16/17/18/21/23/37/38/46/55/60): **no
+  effect**. `selected_format_ids` (field 2) from the first request: **no effect**.
+- Sweeping the **top-level preferred-video field number** with a forced target itag: **only field 17**
+  made the server obey. (`preferredAudioFormatId` is field 16 — so video sits right beside it, which is
+  why 15 — the earlier guess — silently missed.)
+- Verified across the ladder on VISIONOS: request itag **133/134/135/136/137** → the server serves
+  **exactly** that itag (240p/360p/480p/720p/1080p), each **whole and byte-exact**. So the app can pin
+  **avc1 720p (broadly decodable)** instead of the server's av01 default, and map its existing quality
+  targets to SABR itags directly.
+
+The lesson matches the DIRECT resolver's: **never reason from convention against this CDN — prove the field
+against live bytes.** The wrong-guess → "looks like server-ABR" → field-sweep → field-17 path is preserved
+in the harness header comment so the reasoning is not lost.
+
+### 9.3 What works — the roster (live, two videos, pinned avc1 ≤720p)
+
+`node tests/sabr-video-clients.mjs <videoId> 720` pins itag 136 on every client (apples-to-apples) and
+drains **both** tracks. Reliable = whole video **and** whole audio on **both** `dQw4w9WgXcQ` and
+`JTF9fLJvniI`:
+
+| Client | Video+Audio over SABR | In the app's SABR roster? |
+|---|---|---|
+| **WEB_REMIX** (main client) | ✅ whole, both videos | yes |
+| **TVHTML5_SIMPLY** | ✅ whole, both videos | yes |
+| **VISIONOS** / VISIONOS_0_1 | ✅ whole, both videos | yes |
+| **MWEB** | ✅ whole, both videos | yes (last) |
+| WEB_CREATOR / IOS / IPADOS | ▲ whole on unrestricted, ~60s cap on some | no |
+| ANDROID_VR | ✖ ~60s cap | no |
+| WEB (desktop) / TVHTML5 7.x | ✖ no SABR inputs / unplayable | no |
+
+This is the **same reliable set as SABR audio** (§2) — video adds no new usable/unusable clients, so the
+app's existing SABR roster (WEB_REMIX → VISIONOS → TVHTML5_SIMPLY → MWEB) covers video unchanged. The cap
+on the sensitive clients is the same server-side identity throttle as audio, content-dependent.
+
+### 9.4 Planned app integration (RELAY/SABR isolation pattern)
+
+Video-over-SABR reuses the audio engine (`SabrSession`/`SabrBuffer`/`SabrProto`/`SabrUmp`) and adds:
+
+- a **dual-format resolve** (best video-only rung at/under the quality target + best audio) with the
+  `preferredVideoFormatId`=17 pin, and
+- two `SabrBuffer`s fed by one session, surfaced as a **`MergingMediaSource`** (a video-only SABR
+  `DataSource` + an audio-only SABR `DataSource`) — the same merge shape the DIRECT adaptive quality rungs
+  already use (`videoaudio:<id>`), so the media-source factory and the quality ladder need no new concept.
+- The quality target maps to a SABR video itag exactly like the DIRECT ladder; **downloads** run the same
+  dual-track session to completion and remux video+audio on-device (`VideoMuxer`, as DIRECT adaptive
+  downloads already do).
+
+Every branch stays gated behind `StreamSabrKey` and isolated in `playback/sabr/`; DIRECT is untouched.
+
+---
+
+## 10. Known limitations / future work
 
 - **Seeking** is served from the in-memory buffer (backward seeks are free; a forward seek blocks until the
   sequential drain reaches that offset). A true SABR seek (jump `playerTimeMs`) is not implemented.
-- **Audio only.** The roster + request select the best audio format; video-over-SABR is out of scope —
-  both for playback and for downloads (a video download stays on the DIRECT muxed-video path).
 - **MWEB** is inconsistent (context-challenge stall on some content) — it sits last so it's only reached
   when the reliable clients are disabled.
 - **On-device soak** (more clients/content, long tracks, network transitions) is the remaining gate before
