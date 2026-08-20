@@ -111,6 +111,53 @@ source** onto the whitelisted relay host `stream.zemer.io`. Full contract + the 
 - **Streaming is still the danger zone:** any change here is proven with `tests/` (the DIRECT resolver
   refactor was), and app↔relay contract changes travel as handoff-doc edits, never as guesses.
 
+### SABR playback (`playback/sabr/` - the experimental UMP transport; opt-in, OFF by default)
+
+An alternative to progressive stream URLs: YouTube has migrated several clients OFF progressive (the
+`formats[].url` is a ~1-MiB preview stub) and serves the real media over the **SABR/UMP** protocol at
+`serverAbrStreamingUrl` - a POST-a-`VideoPlaybackAbrRequest`, parse-a-UMP-response, repeat dance. This is
+the fallback for when progressive gets walled for the app's own clients too. **Fully isolated exactly like
+RELAY** - every SABR branch is gated behind the `StreamSabrKey` toggle; with it off the DIRECT path is
+byte-for-byte unchanged. The engine is a faithful Kotlin port of the proven Node reference
+(`tests/sabr-stream.mjs`), and the pure protocol core is JVM-tested. Rules that must not regress:
+
+- **The engine is pure + testable, isolated in `playback/sabr/`:** `SabrProto` (protobuf wire codec),
+  `SabrUmp` (UMP frame parser - the custom leading-bits varint, NOT the protobuf one), `SabrMessages`
+  (request builder + response parsers; field numbers pinned to the reference), `SabrSession` (the
+  continuation state machine), `SabrBuffer` (thread-safe reassembly), `SabrDataSource` (the ExoPlayer
+  `DataSource`). Regression tests: `SabrProtoTest` / `SabrUmpTest` / `SabrMessagesTest` / `SabrBufferTest`.
+- **Reassembly is by ABSOLUTE byte offset, never sequential append** (`SabrSession` writes each segment at
+  its `startRange`, `SabrBuffer` tracks a contiguous-from-0 watermark). Sequential append corrupted the
+  container, which made the extractor report a garbage duration -> `getBufferedPercentage` overflow ->
+  crash. Keep the positional write (`SabrBufferTest` pins out-of-order writes reassembling byte-exact).
+- **`CastAwarePlayer.getBufferedPercentage` is crash-safe** (double math, clamped 0..100, guards
+  TIME_UNSET/zero/NaN). media3's default throws `IllegalArgumentException: Out of range` on a pathological
+  duration/position, and the session polls it on every info change INCLUDING restore - one bad value would
+  crash-loop the app on launch with no recovery short of clearing data. Never let a buffered-percentage
+  read crash the session, for any source. This is a general hardening, not SABR-specific.
+- **The resolver is a roster of SABR-USABLE clients only** (`SabrPlayerResolver`): WEB_REMIX (main),
+  VISIONOS, TVHTML5_SIMPLY, MWEB - each toggleable (`StreamSabr{WebRemix,VisionOS,TVHTML5,MWEB}Key`),
+  tried in that order, first-working wins. Only clients validated to deliver a WHOLE song over SABR with
+  the app's pot (`tests/sabr-clients.mjs`) are offered; ANDROID_VR/IOS/IPADOS/WEB_CREATOR are throttled to
+  ~60s on most content and are NOT in the roster. Reuses the app's `/player`, the `PoTokenGenerator`
+  WebView pot, and the `CipherDeobfuscator` n-transform.
+- **Web clients cipher the SABR url, direct clients don't:** WEB_REMIX/TVHTML5_SIMPLY/MWEB have a CIPHERED
+  `serverAbrStreamingUrl` - its `n` is n-transformed (the key unlock that made the web family usable) and
+  the videoId-bound pot is appended as `&pot=`; VISIONOS is a direct client (identity transform, no
+  url-pot). The streamerContext poToken is the session (visitorData-bound) token for ALL of them. Decode
+  the pot tolerantly (standard `+/` OR url-safe `-_`) - the app's `PoTokenGenerator` emits standard base64.
+- **The seam is `MusicService`** (RELAY pattern): a per-open `sabrDataSourceFactory` (a `ResolvingDataSource`
+  whose callback runBlocks `SabrPlayerResolver.resolve`) is chosen only when `StreamSabrKey` is on; it
+  persists a `FormatEntity` (streamClient = e.g. `WEB_REMIX (SABR)`) so the song-details sheet shows the
+  SABR client + format (`ShowMediaInfo` strips the ` (SABR)` suffix so a web SABR client still resolves its
+  player hash; VISIONOS SABR stays N/A - no cipher). A downloaded file still plays from disk.
+- **innertube exposes the SABR inputs additively:** `StreamingData.serverAbrStreamingUrl` +
+  `PlayerConfig.mediaCommonConfig.mediaUstreamerRequestConfig.videoPlaybackUstreamerConfig` (defaulted null,
+  ignored where absent).
+- **The harness is the proof + validator** (`tests/sabr-stream.mjs` whole-song drain, `tests/sabr-clients.mjs`
+  roster). SABR is the danger zone: prove any change against the live CDN there first, then on-device.
+  Settings: Stream Sources -> Experimental (SABR toggle) + the "SABR clients" sub-list.
+
 ### Watch-time reporting (the YouTube playback-stats session; DIRECT only)
 
 Every DIRECT listen - music, video-songs and podcast episodes alike - emulates a genuine YouTube Music
