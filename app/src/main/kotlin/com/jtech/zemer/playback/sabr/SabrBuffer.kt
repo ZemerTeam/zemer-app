@@ -12,7 +12,12 @@ import java.util.TreeMap
  */
 internal class SabrBuffer(val expectedLength: Long) {
     private val lock = Object()
-    private val data = ByteArray(if (expectedLength in 1..(64L * 1024 * 1024)) expectedLength.toInt() else 0)
+    // Whole-stream in-memory buffer sized to the format's contentLength. The cap is a safety net against a
+    // bogus/huge contentLength allocating unbounded RAM — NOT a real-content limit: a long opus podcast at
+    // itag 251 (~160 kbps) passes 64 MiB after only ~53 min, so a smaller cap silently dropped every write
+    // (data = ByteArray(0), writeAt no-ops) and made long episodes reassemble to nothing. 512 MiB clears
+    // multi-hour audio while still refusing an absurd length.
+    private val data = ByteArray(if (expectedLength in 1..MAX_BUFFER_BYTES) expectedLength.toInt() else 0)
     // Filled byte intervals [start, endExclusive), merged; used to compute the contiguous watermark from 0.
     private val intervals = TreeMap<Long, Long>()
     private var contiguous = 0L
@@ -69,5 +74,10 @@ internal class SabrBuffer(val expectedLength: Long) {
     private fun recomputeContiguous() {
         val first = intervals.firstEntry() ?: return
         if (first.key == 0L) contiguous = first.value
+    }
+
+    companion object {
+        // 512 MiB ceiling: covers multi-hour opus audio, refuses an absurd/bogus contentLength.
+        private const val MAX_BUFFER_BYTES = 512L * 1024 * 1024
     }
 }

@@ -51,4 +51,20 @@ class SabrUmpTest {
         assertEquals(1, parts.size)
         assertArrayEquals(bytes(1, 2), parts[0].payload)
     }
+
+    @Test
+    fun `parse does not crash on a body truncated mid-varint`() {
+        // A trailing byte announcing a width-3 varint (0xC0) with no continuation bytes must NOT throw
+        // IndexOutOfBounds — the "stops cleanly on truncation" contract. One clean part, then bail.
+        val parts = SabrUmp.parse(bytes(20, 1, 7, 0xC0))
+        assertEquals(1, parts.size)
+        assertArrayEquals(bytes(7), parts[0].payload)
+    }
+
+    @Test
+    fun `parse does not crash when the size varint is truncated`() {
+        // type=20 read, then a width-4 size varint (0xE0) with only 1 of 4 bytes present -> bail, no crash.
+        val parts = SabrUmp.parse(bytes(20, 0xE0))
+        assertEquals(0, parts.size)
+    }
 }

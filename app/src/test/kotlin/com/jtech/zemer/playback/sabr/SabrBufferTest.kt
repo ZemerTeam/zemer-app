@@ -55,4 +55,15 @@ class SabrBufferTest {
         buf.writeAt(0, bytes(1, 2), 0, 2)
         assertEquals(2L, buf.available())
     }
+
+    @Test
+    fun `a content length above the old 64 MiB cap still buffers`() {
+        // A long opus podcast passes 64 MiB after ~53 min; the old 64 MiB cap made the buffer zero-length
+        // so EVERY write was silently dropped (available stayed 0) and the episode reassembled to nothing.
+        // A length just over the old cap must now allocate a real buffer and accept writes.
+        val len = 64L * 1024 * 1024 + 16
+        val buf = SabrBuffer(expectedLength = len)
+        buf.writeAt(0, bytes(1, 2, 3, 4), 0, 4)
+        assertEquals(4L, buf.available()) // under the old cap this was 0 (dropped write)
+    }
 }

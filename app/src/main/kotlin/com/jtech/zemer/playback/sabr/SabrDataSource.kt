@@ -36,6 +36,7 @@ internal object SabrStreamRegistry {
 internal class SabrDataSource(private val client: OkHttpClient) : BaseDataSource(true) {
 
     private var uri: Uri? = null
+    private var mediaId: String? = null
     private var buffer: SabrBuffer? = null
     private var session: SabrSession? = null
     private var thread: Thread? = null
@@ -46,6 +47,7 @@ internal class SabrDataSource(private val client: OkHttpClient) : BaseDataSource
         transferInitializing(dataSpec)
         uri = dataSpec.uri
         val mediaId = SabrStreamRegistry.mediaId(dataSpec.uri) ?: throw IOException("SABR: no media id in ${dataSpec.uri}")
+        this.mediaId = mediaId
         val config = SabrStreamRegistry.get(mediaId) ?: throw IOException("SABR: no session config for $mediaId")
 
         val length = config.format.contentLength
@@ -80,6 +82,11 @@ internal class SabrDataSource(private val client: OkHttpClient) : BaseDataSource
         session = null
         buffer = null
         thread = null
+        // Drop the registered config so it is not retained per unique track for the whole listening
+        // session. The ResolvingDataSource re-resolves (and re-registers) on the next open, so removing
+        // here is safe. (The download path removes in its own finally.)
+        mediaId?.let { SabrStreamRegistry.remove(it) }
+        mediaId = null
         uri?.let { transferEnded() }
         uri = null
     }

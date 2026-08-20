@@ -42,13 +42,25 @@ internal object SabrUmp {
         return value to size
     }
 
-    /** Split a response body into its UMP parts. Stops cleanly on truncation. */
+    /** Byte width a UMP varint starting with [b0] occupies (1..5), from its leading bits. */
+    private fun varintWidth(b0: Int): Int = when {
+        b0 < 128 -> 1
+        b0 < 192 -> 2
+        b0 < 224 -> 3
+        b0 < 240 -> 4
+        else -> 5
+    }
+
+    /** Split a response body into its UMP parts. Stops cleanly on truncation (a partial trailing frame). */
     fun parse(buf: ByteArray): List<Part> {
         val parts = ArrayList<Part>()
         var p = 0
         while (p < buf.size) {
+            // A multi-byte varint reads buf[p+i] up to its full width — a body truncated mid-varint would
+            // otherwise throw IndexOutOfBounds. Bail before reading past the end (type, then size).
+            if (p + varintWidth(buf[p].toInt() and 0xff) > buf.size) break
             val (type, ts) = readVarint(buf, p); p += ts
-            if (p >= buf.size) break
+            if (p >= buf.size || p + varintWidth(buf[p].toInt() and 0xff) > buf.size) break
             val (size, ss) = readVarint(buf, p); p += ss
             val end = (p + size.toInt()).coerceAtMost(buf.size)
             parts.add(Part(type.toInt(), buf.copyOfRange(p, end)))
