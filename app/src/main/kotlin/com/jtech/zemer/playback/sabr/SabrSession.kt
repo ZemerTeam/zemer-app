@@ -48,6 +48,8 @@ internal class SabrSession(
     private val config: SabrConfig,
     private val client: OkHttpClient,
     private val buffer: SabrBuffer,
+    /** Optional per-iteration progress hook (contiguous bytes reassembled) — the download UI ring. */
+    private val onProgress: ((Long) -> Unit)? = null,
 ) : Runnable {
 
     @Volatile private var cancelled = false
@@ -160,6 +162,7 @@ internal class SabrSession(
                 }
             }
             playerTimeMs = bufEndMs
+            onProgress?.invoke(buffer.available())
 
             if (redirect != null && !newSeg) { url = prepared(redirect); continue }
             dry = if (newSeg || gotContext) 0 else dry + 1
@@ -169,9 +172,14 @@ internal class SabrSession(
         if (buffer.available() >= config.format.contentLength && config.format.contentLength > 0) {
             buffer.markComplete()
         } else if (!cancelled) {
-            // Delivered less than the whole format (e.g. an identity-capped client on restricted content).
+            // Delivered less than the whole format (dry-counter expiry / the iteration cap — e.g. an
+            // identity-capped client, or a mid-stream context-challenge stall). Mark ERROR, never
+            // complete: markComplete converted the shortfall into a clean EOF, silently truncating the
+            // track (fragment-aligned) or surfacing an opaque extractor EOF (mid-atom). The reader still
+            // serves every reassembled byte first (SabrBuffer.read), so playback reaches the stall point
+            // and then surfaces a real player error — the same shortfall the download path rejects.
             Timber.tag(TAG).w("SABR incomplete: ${buffer.available()}/${config.format.contentLength} (seq $lastSeq/$endSeg)")
-            buffer.markComplete()
+            buffer.markError("incomplete drain: ${buffer.available()}/${config.format.contentLength}")
         }
     }
 

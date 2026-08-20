@@ -166,9 +166,15 @@ internal object SabrMessages {
     /** SabrRedirect: a length-delimited url at field 1. */
     fun parseRedirectUrl(payload: ByteArray): String? = SabrProto.read(payload).bytesAt(1)?.toString(Charsets.UTF_8)
 
-    /** The header_id prefix on a MEDIA part -> (headerId, prefixBytes). */
+    /**
+     * The header_id prefix on a MEDIA part -> (headerId, prefixBytes). This prefix is a UMP
+     * leading-bits varint (the harness reads it with `umpVar` — tests/sabr-stream.mjs MEDIA branch),
+     * NOT the protobuf LEB128 varint: the two encodings agree only for ids < 128, so a session whose
+     * server-assigned header ids grow past 127 would mis-route (dropped segments -> stalled watermark)
+     * or mis-size the prefix (shifted media write -> container corruption) under the protobuf parse.
+     */
     fun mediaHeaderId(payload: ByteArray): Pair<Int, Int> {
-        val (v, s) = SabrProto.readVarint(payload, 0)
+        val (v, s) = SabrUmp.readVarint(payload, 0)
         return v.toInt() to s
     }
 }

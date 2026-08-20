@@ -143,12 +143,26 @@ Pure, isolated, JVM-tested where possible:
 | `SabrMessages.kt` | request builder + response part parsers; field numbers | `SabrMessagesTest` |
 | `SabrBuffer.kt` | thread-safe positional reassembly + contiguous watermark | `SabrBufferTest` |
 | `SabrSession.kt` | the continuation state machine -> fills the buffer | (network; proven by the harness) |
-| `SabrDataSource.kt` | the ExoPlayer `DataSource` + the `sabr://<mediaId>` registry | - |
-| `SabrStreamResolver.kt` | builds/registers a `SabrConfig`; the SABR OkHttp client | - |
+| `SabrDataSource.kt` | the ExoPlayer `DataSource` + `SabrAudioStream` + the `sabr://<mediaId>` registry | `SabrStreamLifecycleTest` |
+| `SabrStreamResolver.kt` | builds a `SabrConfig`; the SABR OkHttp client; the audio download | - |
 | `SabrPlayerResolver.kt` | resolves over the client roster (`/player` + pot + cipher) | (network) |
 
 `SabrConfig` is everything one session needs; `SabrStreamRegistry` passes it from the resolver to the
-DataSource keyed by media id (the DataSpec carries only a `sabr://<id>` uri).
+DataSource keyed by media id (the DataSpec carries only a `sabr://<id>` uri) AND owns the id's live
+`SabrAudioStream` (buffer + session) — the same explicit lifecycle as the video registry (sec 9.4):
+media3 closes/reopens the DataSource on every seek outside its sample buffer, so the stream must
+survive close (`close()` drops only the source's refs) or every seek re-resolved (/player + poToken)
+and re-drained the whole track from byte 0. Replace/evict (a small cap keeps current + gapless-next)
+/`clear` (service destroy) are the explicit ends of a stream, and `destroy()` **marks the buffer
+errored** so a reader parked in `SabrBuffer.read`'s wait is always woken, never left hanging.
+
+Two engine-level honesty rules (both JVM-pinned): the `MEDIA` part's header-id prefix is read with the
+**UMP leading-bits varint** (`SabrUmp.readVarint` — the harness `umpVar`; the protobuf LEB128 agrees
+only below 128, so it mis-routed/mis-sized past that), and an **incomplete drain marks ERROR, never
+complete** — the buffer still serves everything it reassembled first, so playback reaches the stall
+point and then surfaces a real player error instead of a silent truncation. `SabrBuffer` also refuses
+an out-of-range contentLength at construction (`lengthValid`, 1..512 MiB) — the old degenerate
+zero-length buffer silently dropped every write while the session drained the whole stream anyway.
 
 ---
 
@@ -185,9 +199,18 @@ song are in the roster - the ~60s-capped ones are deliberately absent.
 - A per-open `sabrDataSourceFactory` - a `ResolvingDataSource` whose callback `runBlocking`s
   `SabrPlayerResolver.resolve` and returns a `sabr://<id>` uri - is selected in the dispatcher **only when
   `StreamSabrKey` is on**. Otherwise the DIRECT factory is used verbatim. A downloaded file still plays
-  from disk (same as DIRECT/RELAY).
-- On a successful resolve it **persists a `FormatEntity`** (overwriting any stale DIRECT one) with
-  `streamClient = "WEB_REMIX (SABR)"` (etc.) + the format's itag/mime/codecs/bitrate/contentLength, so the
+  from disk (same as DIRECT/RELAY) — the SABR upstream is wrapped in a **`DefaultDataSource.Factory`**
+  (the RELAY pattern) so the resolved `content://`/`file://` uri routes to the platform sources;
+  `SabrDataSource` itself accepts nothing but `sabr://`, so an unwrapped factory made every downloaded
+  track a player error while SABR mode was on.
+- A **live registry stream is reused as-is** (a seek's close→reopen, a repeat-one replay): the resolver
+  callback returns the `sabr://` uri straight away — no second /player + poToken round-trip, no
+  watch-time/telemetry re-seed, no duplicate `FormatEntity` upsert; the reopen just re-reads the
+  accumulating buffer.
+- On a successful (fresh) resolve it **persists a `FormatEntity`** (overwriting any stale DIRECT one) with
+  `streamClient = "WEB_REMIX (SABR)"` (etc.) + the format's itag/mime/codecs/bitrate/contentLength **and
+  the /player response's `loudnessDb`** (DIRECT parity — audio normalization works under SABR, and a SABR
+  play never nulls the loudness a DIRECT play stored), so the
   **song-details sheet** (`ShowMediaInfo`) shows the SABR client + format exactly like a normal play.
   `ShowMediaInfo` strips the ` (SABR)` suffix before the web-client check, so a web SABR client still
   resolves its player hash + cipher date (the cipher n-transform ran); **VISIONOS (SABR)** stays N/A -
@@ -231,18 +254,24 @@ A migrated client's progressive download URL is walled at ~1 MiB exactly like it
 SABR mode is on, **downloads must run over SABR too** - otherwise a device that can only stream via SABR
 could never save a track. `MediaStoreDownloadManager.performDownload` mirrors the RELAY branch:
 
-- **`sabrMode` is derived like `relayMode`**, from the same prefs the player reads
-  (`StreamSabrKey` + the four client toggles). It is **audio-only**: `enabledSabrClients` is forced empty
-  for a relay download or a **video** download (a video-song still downloads its muxed video via the DIRECT
-  path - SABR does not carry video), so `sabrMode` is false there and the DIRECT/video logic is untouched.
-- When `sabrMode`, `playbackData` is **null** (no `/player`-for-download round-trip, same as relay); the
-  temp file is `.webm` and the download runs through **`SabrStreamResolver.download(id, enabled, file)`**,
-  which resolves over the roster, runs a `SabrSession` **to completion synchronously**, and writes the
+- **SABR mode is derived like `relayMode`**, from the same prefs the player reads
+  (`StreamSabrKey` + the four client toggles), split into `sabrAudioMode` (one track) and
+  `sabrVideoMode` (dual-track + on-device remux — sec 9.4).
+- When SABR, `playbackData` is **null** (no `/player`-for-download round-trip, same as relay); the audio
+  download runs through **`SabrStreamResolver.download(id, enabled, file, onProgress)`**,
+  which resolves over the roster (**without registering** — a download of the currently-playing id must
+  never clobber its live playback stream), runs a `SabrSession` to completion, and writes the
   **byte-exact reassembled** audio. It returns null (-> the attempt throws and retries) on an **incomplete**
   drain, so a truncated/capped stream is **never saved as a finished download**.
+- **Cancel + progress are wired like DIRECT**: both SABR drains run under
+  `kotlinx.coroutines.runInterruptible`, so cancelling the download Job **interrupts the in-flight OkHttp
+  call immediately** (the old plain blocking `run()` drained the whole file before the cancellation
+  landed), and the sessions report per-response byte counts through a throttled
+  `updateDownloadState` bridge (`sabrProgressReporter`) so the ring moves instead of freezing.
 - The null-`playbackData` tail is shared with relay verbatim: the real container is **sniffed**
   (`sniffAudioExtension` - WebM/Opus labelled `.opus`, MP4 `.m4a`, both MediaStore-accepted), the
-  **duration** comes from the saved file (`durationSecFromFile`), and `isVideo` is forced **false**.
+  **duration** comes from the saved file (`durationSecFromFile`), and `isVideo` is forced **false** for an
+  audio download (true for a muxed `sabrVideoMode` file).
 - The DIRECT and RELAY download paths are byte-for-byte unchanged; every SABR branch is a strict no-op
   while SABR mode is off.
 
@@ -351,12 +380,21 @@ and adds an isolated dual-track layer in `playback/sabr/`:
   design (cancel + unregister at zero refs) killed the session and wiped the registry entry inside exactly
   that gap, and the reopen failed with "no session". Now the session starts on the first attach and is
   destroyed only by the registry - on `remove` (VideoModeController's `clearState`, the one chokepoint
-  every video-mode exit funnels through) or on `put` replacing it (a new resolve) - so reopens just
-  re-read the accumulating buffers.
+  every video-mode exit funnels through) or on `put` replacing it (a committed new resolve) - so reopens
+  just re-read the accumulating buffers. `destroy()` **marks both buffers errored** so readers parked in
+  `SabrBuffer.read` are always woken (a cancelled session's exits deliberately skip marking) — a destroy
+  with no accompanying media-item change otherwise left ExoPlayer's loading thread waiting forever.
 - **`SabrVideoResolver`** - dual-format resolve over the same client roster, pinning the exact video itag
   for the quality target via field 17 (best audio too), cipher n-transform for web clients. Reuses the
-  DIRECT `VideoQualityLogic.rungs` ladder (minus progressive + undecodable rungs) and returns it + the
-  pinned rung, so the switcher offers the same rungs as the DIRECT path.
+  DIRECT `VideoQualityLogic.rungs` ladder (minus progressive + undecodable rungs + rungs whose
+  contentLength the buffer can't hold) and returns it + the pinned rung, so the switcher offers the same
+  rungs as the DIRECT path. **The resolve returns a READY, unregistered stream**: `VideoModeController`
+  installs it in the registry only at the swap COMMIT on the main thread, after the `stillOurs` guard —
+  registering from the resolve (IO) thread destroyed the CURRENTLY-PLAYING stream before the guard could
+  veto, and an abandoned resolve (queue moved / toggled off mid-resolve) then parked playback on dead
+  buffers; now the abandoned branch destroys only the new stream. The swap also captures
+  `position`/`playWhenReady` **at commit time** (DIRECT's `swapToVideoKey` discipline) — values captured
+  before the seconds-long resolve rewound playback and force-resumed over a user pause.
 
 **Wiring** (all gated behind `StreamSabrKey`, RELAY takes priority, DIRECT byte-for-byte unchanged):
 
@@ -381,10 +419,16 @@ and adds an isolated dual-track layer in `playback/sabr/`:
 **Downloads** are wired too: a SABR video download runs the dual-track session to completion
 (`SabrVideoResolver.download` -> two byte-exact temp files) and remuxes on-device
 (`VideoMuxer.mux`, mp4 for avc1 / webm for vp9), exactly like a DIRECT adaptive video download - the
-saved file plays as an ordinary video. `MediaStoreDownloadManager` splits SABR into `sabrAudioMode`
+saved file plays as an ordinary video. DIRECT's download gates apply (`SabrVideoRungPickTest`): the rung
+pick is restricted to **remux-capable** rungs (`VideoQualityLogic.isDownloadableRung` — no av01, and
+webm/vp9 only on API 29+ where the framework muxer accepts Opus-in-WebM), and the **audio partner is
+container-matched** to the chosen rung (mp4/avc -> AAC, webm/vp9 -> Opus) so the mux inputs always
+agree — an ungated pick drained hundreds of MB into a deterministic INCOMPATIBLE mux.
+`MediaStoreDownloadManager` splits SABR into `sabrAudioMode`
 (one track) and `sabrVideoMode` (dual-track + remux); an incomplete SABR drain throws (retryable), and
 the mux-result handling mirrors the DIRECT adaptive path (INCOMPATIBLE clears the requested quality so a
-retry falls back; TRANSIENT preserves it).
+retry falls back; TRANSIENT preserves it). Cancel + progress ride the sec 7.1 wiring (interruptible
+drain, throttled progress bridge).
 
 **DataSource lifecycle note:** the SABR `DataSource`s (audio + the two video children) fire
 `transferEnded()` only after `transferStarted()` ran - media3's `DefaultBandwidthMeter` NPEs on a null

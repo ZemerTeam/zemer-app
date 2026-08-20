@@ -566,8 +566,10 @@ constructor(
                     sabrVideoWebm = downloadSabrVideoAndMux(song, enabledSabrClients, tempFile, targetLabel)
                 } else if (sabrAudioMode) {
                     // Run the SABR session to reassemble the whole byte-exact audio into the temp file.
-                    SabrStreamResolver.download(song.id, enabledSabrClients, tempFile)
-                        ?: throw Exception("SABR download failed for ${song.id}")
+                    SabrStreamResolver.download(
+                        song.id, enabledSabrClients, tempFile,
+                        onProgress = sabrProgressReporter(song.id),
+                    ) ?: throw Exception("SABR download failed for ${song.id}")
                 } else {
                     downloadFile(downloadUrl, tempFile, song.id)
                 }
@@ -917,6 +919,36 @@ constructor(
      * file. Mirrors [downloadAdaptiveVideoAndMux]'s mux-result handling (INCOMPATIBLE clears the requested
      * quality so a retry falls back; TRANSIENT preserves it). An incomplete SABR drain throws (retryable).
      */
+    /**
+     * A throttled progress bridge for the SABR drains — the [downloadFile] cadence (every 250ms or a
+     * 2%+ move) fed by the sessions' per-response byte counts, so a SABR download renders a moving ring
+     * instead of a frozen, seemingly-stuck download.
+     */
+    private fun sabrProgressReporter(songId: String): (Long, Long) -> Unit {
+        var lastUpdate = 0L
+        var lastProgress = 0f
+        return { downloaded, total ->
+            val progress = if (total > 0) downloaded.toFloat() / total.toFloat() else 0f
+            val now = System.currentTimeMillis()
+            if (now - lastUpdate >= PROGRESS_UPDATE_INTERVAL_MS ||
+                (total > 0 && progress - lastProgress >= PROGRESS_UPDATE_THRESHOLD)
+            ) {
+                lastUpdate = now
+                lastProgress = progress
+                updateDownloadState(
+                    songId,
+                    DownloadState(
+                        songId = songId,
+                        status = DownloadState.Status.DOWNLOADING,
+                        progress = progress,
+                        bytesDownloaded = downloaded,
+                        totalBytes = if (total > 0) total else downloaded,
+                    )
+                )
+            }
+        }
+    }
+
     private suspend fun downloadSabrVideoAndMux(
         song: Song,
         enabled: Set<String>,
@@ -931,6 +963,7 @@ constructor(
                 // DIRECT parity: only the AUTO pick is metered-capped; an explicit label downloads as chosen.
                 maxAutoBitrateKbps = VideoRendition.defaultMaxBitrateKbps(connectivityManager.isActiveNetworkMetered),
                 videoFile = videoPart, audioFile = audioPart,
+                onProgress = sabrProgressReporter(song.id),
             )
                 ?: throw Exception("SABR video download failed/incomplete for ${song.id}")
             when (VideoMuxer.mux(videoPart, audioPart, outputFile, webm = info.webm)) {

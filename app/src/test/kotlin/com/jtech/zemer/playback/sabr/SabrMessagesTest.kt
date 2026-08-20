@@ -127,4 +127,24 @@ class SabrMessagesTest {
         assertEquals(1, id)
         assertEquals(1, prefix)
     }
+
+    @Test
+    fun `mediaHeaderId reads the UMP varint, not the protobuf one, for ids past 127`() {
+        // The MEDIA header-id prefix is a UMP leading-bits varint (harness umpVar), which agrees with
+        // the protobuf LEB128 only below 128. 0x82 0x02 is UMP for 130 ((0x82 & 0x3f) + 0x02*64) but
+        // LEB128 for 258 — the old protobuf parse mis-identified every id past 127 (dropped segments)
+        // and could mis-size the prefix (shifted media write -> container corruption).
+        val (id, prefix) = SabrMessages.mediaHeaderId(bytes(0x82, 0x02, 0xDE, 0xAD))
+        assertEquals(130, id)
+        assertEquals(2, prefix)
+    }
+
+    @Test
+    fun `mediaHeaderId consumes the UMP prefix WIDTH, which LEB128 disagrees on`() {
+        // 0xC0 opens a 3-byte UMP varint ((0xC0 & 0x1f) + 0x01*32 + 0x01*8192 = 8224); LEB128 would stop
+        // after 2 bytes and shift the media payload by one — silent container corruption.
+        val (id, prefix) = SabrMessages.mediaHeaderId(bytes(0xC0, 0x01, 0x01, 0xFF))
+        assertEquals(8224, id)
+        assertEquals(3, prefix)
+    }
 }

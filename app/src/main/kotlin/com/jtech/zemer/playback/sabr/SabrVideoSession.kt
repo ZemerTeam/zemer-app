@@ -44,6 +44,8 @@ internal class SabrVideoSession(
     private val client: OkHttpClient,
     private val videoBuffer: SabrBuffer,
     private val audioBuffer: SabrBuffer,
+    /** Optional per-iteration progress hook (contiguous bytes across BOTH tracks) — the download ring. */
+    private val onProgress: ((Long) -> Unit)? = null,
 ) : Runnable {
 
     @Volatile private var cancelled = false
@@ -168,19 +170,26 @@ internal class SabrVideoSession(
             }
             // Advance to the least-buffered track (a track with nothing yet holds it at 0).
             playerTimeMs = minOf(video.bufEndMs.orZeroIfEmpty(video), audio.bufEndMs.orZeroIfEmpty(audio))
+            onProgress?.invoke(videoBuffer.available() + audioBuffer.available())
 
             if (redirect != null && !newSeg) { url = prepared(redirect); continue }
             dry = if (newSeg || gotContext) 0 else dry + 1
             if (video.whole() && audio.whole()) break
         }
 
-        // Mark both complete: a whole track EOFs cleanly; a short track (a capped client) EOFs where it
-        // stopped (the download path detects the shortfall via available() < contentLength and discards).
         if (!cancelled) {
-            if (!video.whole() || !audio.whole()) {
+            if (video.whole() && audio.whole()) {
+                videoBuffer.markComplete(); audioBuffer.markComplete()
+            } else {
+                // A shortfall on either track marks BOTH errored, never complete: a clean EOF silently
+                // truncated playback mid-item, and one whole track is useless without its sibling. The
+                // buffers still serve their reassembled bytes first (SabrBuffer.read), so playback
+                // reaches the stall point and surfaces a real error; the download path rejects the
+                // shortfall via available() < contentLength before ever reading.
                 Timber.tag(TAG).w("SABR video incomplete: video ${videoBuffer.available()}/${config.videoFormat.contentLength}, audio ${audioBuffer.available()}/${config.audioFormat.contentLength}")
+                val msg = "incomplete drain: video ${videoBuffer.available()}/${config.videoFormat.contentLength}, audio ${audioBuffer.available()}/${config.audioFormat.contentLength}"
+                videoBuffer.markError(msg); audioBuffer.markError(msg)
             }
-            videoBuffer.markComplete(); audioBuffer.markComplete()
         }
     }
 

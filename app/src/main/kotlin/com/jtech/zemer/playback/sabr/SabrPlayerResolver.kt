@@ -58,21 +58,31 @@ object SabrPlayerResolver {
      * itag, the client label for telemetry, and whether the client is web (ran the cipher, so the player
      * hash is attributable). Full DIRECT parity: a SABR listen seeds watch-time and telemetry the same way.
      */
-    class SabrAudioResult(
+    class SabrAudioResult internal constructor(
         val uri: Uri,
         val playbackTracking: com.metrolist.innertube.models.response.PlayerResponse.PlaybackTracking?,
         val itag: Int,
         val streamClient: String,
         val web: Boolean,
+        /** The /player response's audioConfig loudness (DIRECT parity — audio normalization input). */
+        val loudnessDb: Double?,
+        /** The built session config — the download path drives a session from it, no registry. */
+        internal val config: SabrConfig,
     )
 
-    /** Resolve [videoId] over the first [enabled] SABR client that works, or null (caller falls back). */
+    /**
+     * Resolve [videoId] over the first [enabled] SABR client that works, or null (caller falls back).
+     * [register] true (playback) installs the config in [SabrStreamRegistry] so the returned `sabr://`
+     * uri opens; false (downloads) leaves the registry untouched — a download of the currently-playing
+     * id must never clobber its live playback entry.
+     */
     suspend fun resolve(
         videoId: String,
         enabled: Set<String>,
         audioQuality: com.jtech.zemer.constants.AudioQuality = com.jtech.zemer.constants.AudioQuality.AUTO,
         meteredNetwork: Boolean = false,
         cpn: () -> String? = { null },
+        register: Boolean = true,
     ): SabrAudioResult? = withContext(Dispatchers.IO) {
         val visitorData = YouTube.visitorData ?: return@withContext null
         val pot = poTokenGenerator.getWebClientPoToken(videoId, visitorData) ?: return@withContext null
@@ -80,7 +90,10 @@ object SabrPlayerResolver {
         for (spec in ROSTER) {
             if (spec.key !in enabled) continue
             val result = tryClient(spec, videoId, pot, sts, audioQuality, meteredNetwork, cpn)
-            if (result != null) return@withContext result
+            if (result != null) {
+                if (register) SabrStreamRegistry.put(videoId, result.config)
+                return@withContext result
+            }
         }
         null
     }
@@ -132,10 +145,15 @@ object SabrPlayerResolver {
                 meteredNetwork = meteredNetwork,
             ) ?: return null
             val contentLength = fmt.contentLength ?: return null
+            // Refuse a contentLength the reassembly buffer cannot hold (SabrBuffer would otherwise
+            // fail loudly at open) — try the next roster client instead.
+            if (!SabrBuffer.lengthValid(contentLength)) {
+                Timber.tag(TAG).w("SABR ${spec.label} contentLength out of range for $videoId: $contentLength")
+                return null
+            }
 
             Timber.tag(TAG).d("SABR resolved $videoId via ${spec.label}: itag=${fmt.itag} contentLength=$contentLength")
-            val uri = SabrStreamResolver.register(
-                mediaId = videoId,
+            val config = SabrStreamResolver.buildConfig(
                 serverAbrStreamingUrl = sabrUrl,
                 ustreamerConfigBase64 = ustreamer,
                 itag = fmt.itag,
@@ -162,11 +180,13 @@ object SabrPlayerResolver {
                 cpn = cpn,
             )
             SabrAudioResult(
-                uri = uri,
+                uri = SabrStreamRegistry.uri(videoId),
                 playbackTracking = response.playbackTracking,
                 itag = fmt.itag,
                 streamClient = spec.label,
                 web = spec.web,
+                loudnessDb = response.playerConfig?.audioConfig?.loudnessDb,
+                config = config,
             )
         } catch (e: Exception) {
             Timber.tag(TAG).w(e, "SABR resolve via ${spec.label} failed for $videoId: ${e.message}")

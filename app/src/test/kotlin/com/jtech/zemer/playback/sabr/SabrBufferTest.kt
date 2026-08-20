@@ -66,4 +66,59 @@ class SabrBufferTest {
         buf.writeAt(0, bytes(1, 2, 3, 4), 0, 4)
         assertEquals(4L, buf.available()) // under the old cap this was 0 (dropped write)
     }
+
+    @Test
+    fun `an out-of-range content length fails LOUDLY at construction, never a silent zero-buffer`() {
+        // The old degenerate ByteArray(0) made writeAt a silent no-op while the session still drained
+        // the whole stream over the network, then EOF'd at byte 0 with no error.
+        for (len in listOf(0L, -1L, SabrBuffer.MAX_BUFFER_BYTES + 1)) {
+            try {
+                SabrBuffer(expectedLength = len)
+                org.junit.Assert.fail("expected IllegalArgumentException for length $len")
+            } catch (expected: IllegalArgumentException) {
+            }
+        }
+        assertEquals(false, SabrBuffer.lengthValid(0))
+        assertEquals(false, SabrBuffer.lengthValid(SabrBuffer.MAX_BUFFER_BYTES + 1))
+        assertEquals(true, SabrBuffer.lengthValid(1))
+        assertEquals(true, SabrBuffer.lengthValid(SabrBuffer.MAX_BUFFER_BYTES))
+    }
+
+    @Test
+    fun `an errored buffer serves its reassembled bytes first and throws only at the gap`() {
+        // An incomplete drain marks ERROR (never a clean EOF) — but the reader must still get every
+        // byte that arrived, so playback reaches the stall point instead of erroring far behind it.
+        val buf = SabrBuffer(expectedLength = 4)
+        buf.writeAt(0, bytes(1, 2), 0, 2)
+        buf.markError("incomplete drain")
+        assertEquals(true, buf.failed())
+        val out = ByteArray(4)
+        assertEquals(2, buf.read(0, out, 0, 4)) // buffered bytes still served
+        try {
+            buf.read(2, out, 0, 4) // the gap -> the error surfaces
+            org.junit.Assert.fail("expected IOException at the gap")
+        } catch (expected: java.io.IOException) {
+        }
+    }
+
+    @Test
+    fun `markError from another thread wakes a reader parked in read`() {
+        // The destroy() path: a reader blocked waiting for bytes that will never arrive must be woken
+        // with an error, never left parked forever (the infinite-buffering hang).
+        val buf = SabrBuffer(expectedLength = 8)
+        val outcome = java.util.concurrent.CompletableFuture<String>()
+        val reader = Thread {
+            try {
+                buf.read(0, ByteArray(4), 0, 4)
+                outcome.complete("returned")
+            } catch (e: java.io.IOException) {
+                outcome.complete("threw")
+            }
+        }
+        reader.start()
+        Thread.sleep(50) // let the reader park in wait()
+        buf.markError("SABR stream destroyed")
+        assertEquals("threw", outcome.get(5, java.util.concurrent.TimeUnit.SECONDS))
+        reader.join(5000)
+    }
 }

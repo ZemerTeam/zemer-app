@@ -57,8 +57,19 @@ object SabrVideoResolver {
         return Base64.decode(padded, Base64.NO_WRAP)
     }
 
-    /** A resolved SABR video session: the uri to play, the switcher ladder, and the rung actually pinned. */
-    class SabrVideoResult(val uri: Uri, val ladder: List<VideoQualityRung>, val chosen: VideoQualityRung)
+    /**
+     * A resolved SABR video session: the uri to play, the switcher ladder, the rung actually pinned, and
+     * the ready (not yet started) [stream]. The stream is deliberately NOT registered here: the caller
+     * installs it in [SabrVideoRegistry] only when it commits the swap on the main thread — registering
+     * from the resolve (IO) thread destroyed the CURRENTLY-PLAYING stream before the caller's
+     * stillOurs guard could veto, and an abandoned resolve then left playback parked on dead buffers.
+     */
+    class SabrVideoResult internal constructor(
+        val uri: Uri,
+        val ladder: List<VideoQualityRung>,
+        val chosen: VideoQualityRung,
+        internal val stream: SabrVideoStream,
+    )
 
     // ---- resolve cache (the DIRECT perf-contract parity) -------------------------------------------
     // ONE /player resolution serves EVERY rung: the SABR request pins the itag per REQUEST (field 17)
@@ -97,15 +108,24 @@ object SabrVideoResolver {
      * Resolve [videoId] for video playback over the first working [enabled] client at [targetLabel]
      * (a quality label like "720p", or [VideoQualityLogic.AUTO], whose pick honours [maxAutoBitrateKbps]
      * — the same metered-aware cap as DIRECT's automatic pick; an explicit label is never capped).
-     * Registers the shared stream and returns the uri + ladder + chosen rung, or null (caller reverts
-     * to audio). Served from the resolve cache when fresh (an entry after prefetch, a quality switch).
+     * Returns the uri + ladder + chosen rung + the READY stream, or null (caller reverts to audio).
+     * The caller registers [SabrVideoResult.stream] when it commits the swap (see the result doc) —
+     * nothing here touches the registry, so an abandoned resolve never disturbs live playback.
+     * Served from the resolve cache when fresh (an entry after prefetch, a quality switch).
      */
     suspend fun resolve(videoId: String, enabled: Set<String>, targetLabel: String, maxAutoBitrateKbps: Int? = null, cpn: () -> String? = { null }): SabrVideoResult? =
         withContext(Dispatchers.IO) {
             val (built, rung) = builtFor(videoId, enabled, targetLabel, maxAutoBitrateKbps) ?: return@withContext null
             val config = configForRung(built, rung, cpn) ?: return@withContext null
-            SabrVideoRegistry.put(videoId, SabrVideoStream(config, SabrStreamResolver.sharedClient()))
-            SabrVideoResult(SabrVideoRegistry.videoUri(videoId), built.ladder, rung)
+            val stream = try {
+                SabrVideoStream(config, SabrStreamResolver.sharedClient())
+            } catch (e: OutOfMemoryError) {
+                // Two whole-track buffers can be large (a high rung of a long video) — fail the resolve
+                // cleanly (caller reverts to audio) rather than killing the process on the allocation.
+                Timber.tag(TAG).w("SABR video buffer allocation failed for $videoId (${config.videoFormat.contentLength}+${config.audioFormat.contentLength} bytes)")
+                return@withContext null
+            }
+            SabrVideoResult(SabrVideoRegistry.videoUri(videoId), built.ladder, rung, stream)
         }
 
     /** The cached Built + target rung when fresh, else a network build (cached for the next call). */
@@ -123,15 +143,22 @@ object SabrVideoResolver {
     }
 
     /** A [SabrVideoConfig] for [rung], cloned from [built]'s base session inputs (no network). [cpn] is
-     * injected per resolve (never cached) so a cache hit still stamps the CURRENT listen's nonce. */
-    private fun configForRung(built: Built, rung: VideoQualityRung, cpn: () -> String?): SabrVideoConfig? {
+     * injected per resolve (never cached) so a cache hit still stamps the CURRENT listen's nonce.
+     * [audioFormat] overrides the streaming audio pick — the download path passes its container-matched
+     * partner (webm video -> Opus, mp4 video -> AAC) so the on-device mux inputs always agree. */
+    private fun configForRung(
+        built: Built,
+        rung: VideoQualityRung,
+        cpn: () -> String?,
+        audioFormat: SabrMessages.Format = built.config.audioFormat,
+    ): SabrVideoConfig? {
         val fmt = built.videoFormats[rung.itag] ?: return null
         val base = built.config
         return SabrVideoConfig(
             sabrUrl = base.sabrUrl,
             ustreamerConfig = base.ustreamerConfig,
             videoFormat = fmt,
-            audioFormat = base.audioFormat,
+            audioFormat = audioFormat,
             poToken = base.poToken,
             clientInfo = base.clientInfo,
             userAgent = base.userAgent,
@@ -151,16 +178,59 @@ object SabrVideoResolver {
      * Download the WHOLE video + audio for [videoId] (over the first working [enabled] client at
      * [targetLabel]) to [videoFile] and [audioFile], byte-exact. AUTO honours [maxAutoBitrateKbps]
      * (DIRECT parity: only the automatic pick is metered-capped; an explicit label downloads as chosen).
-     * Returns null on an incomplete drain (a capped client) so the caller retries / falls back — a
-     * truncated track is never muxed.
+     * DIRECT's download gates apply (YTPlayerUtils parity): the rung pick is restricted to REMUX-CAPABLE
+     * rungs ([VideoQualityLogic.isDownloadableRung] — no av01, and webm/vp9 only where the framework
+     * muxer accepts Opus-in-WebM, API 29+), and the audio partner is CONTAINER-MATCHED to the chosen
+     * rung (mp4/avc -> AAC, webm/vp9 -> Opus) so the mux inputs always agree — an ungated pick drained
+     * hundreds of MB into a deterministic INCOMPATIBLE mux. Returns null on an incomplete drain (a
+     * capped client) so the caller retries / falls back — a truncated track is never muxed. Runs
+     * [kotlinx.coroutines.runInterruptible] so a cancelled download Job interrupts the blocking drain
+     * immediately, and reports [onProgress] (reassembled bytes across both tracks / total).
      */
-    suspend fun download(videoId: String, enabled: Set<String>, targetLabel: String, maxAutoBitrateKbps: Int?, videoFile: File, audioFile: File): VideoDownloadInfo? =
+    suspend fun download(
+        videoId: String,
+        enabled: Set<String>,
+        targetLabel: String,
+        maxAutoBitrateKbps: Int?,
+        videoFile: File,
+        audioFile: File,
+        opusWebmMuxSupported: Boolean = android.os.Build.VERSION.SDK_INT >= 29,
+        onProgress: ((bytesDownloaded: Long, totalBytes: Long) -> Unit)? = null,
+    ): VideoDownloadInfo? =
         withContext(Dispatchers.IO) {
-            val pair = builtFor(videoId, enabled, targetLabel, maxAutoBitrateKbps) ?: return@withContext null
-            val config = configForRung(pair.first, pair.second, cpn = { null }) ?: return@withContext null
-            val videoBuf = SabrBuffer(config.videoFormat.contentLength)
-            val audioBuf = SabrBuffer(config.audioFormat.contentLength)
-            SabrVideoSession(config, SabrStreamResolver.sharedClient(), videoBuf, audioBuf).run() // blocks until drained
+            val built = builtFor(videoId, enabled, targetLabel, maxAutoBitrateKbps)?.first ?: return@withContext null
+            // Re-pick with the download gates (the builtFor pick is the STREAMING pick, which may land
+            // on a rung no on-device mux can save).
+            val rung = pickRung(
+                built.ladder.filter { built.videoFormats.containsKey(it.itag) },
+                targetLabel, maxAutoBitrateKbps,
+                downloadable = true, opusWebmMuxSupported = opusWebmMuxSupported,
+            ) ?: return@withContext null
+            val webm = rung.mimeType.contains("webm")
+            val audioPick = (if (webm) built.audioWebm else built.audioMp4)
+                ?: run {
+                    // No container-matched audio in the response — fall back to the streaming pick
+                    // (the mux classifies a mismatch as INCOMPATIBLE, same as before this gate).
+                    Timber.tag(TAG).w("SABR video download: no ${if (webm) "webm" else "mp4"} audio for $videoId, falling back to the streaming pick")
+                    AudioPick(built.config.audioFormat, if (webm) "audio/webm" else "audio/mp4")
+                }
+            val config = configForRung(built, rung, cpn = { null }, audioFormat = audioPick.format) ?: return@withContext null
+            val totalBytes = config.videoFormat.contentLength + config.audioFormat.contentLength
+            val videoBuf: SabrBuffer
+            val audioBuf: SabrBuffer
+            try {
+                videoBuf = SabrBuffer(config.videoFormat.contentLength)
+                audioBuf = SabrBuffer(config.audioFormat.contentLength)
+            } catch (e: OutOfMemoryError) {
+                Timber.tag(TAG).w("SABR video download buffer allocation failed for $videoId ($totalBytes bytes)")
+                return@withContext null
+            }
+            val session = SabrVideoSession(
+                config, SabrStreamResolver.sharedClient(), videoBuf, audioBuf,
+                onProgress = { onProgress?.invoke(it, totalBytes) },
+            )
+            // Blocks until drained; a Job cancel interrupts the in-flight OkHttp call.
+            kotlinx.coroutines.runInterruptible { session.run() }
             if (!drainWhole(videoBuf, config.videoFormat.contentLength) || !drainWhole(audioBuf, config.audioFormat.contentLength)) {
                 Timber.tag(TAG).w("SABR video download incomplete for $videoId: video ${videoBuf.available()}/${config.videoFormat.contentLength}, audio ${audioBuf.available()}/${config.audioFormat.contentLength}")
                 return@withContext null
@@ -168,8 +238,7 @@ object SabrVideoResolver {
             writeBuffer(videoBuf, videoFile)
             writeBuffer(audioBuf, audioFile)
             if (videoFile.length() <= 0L || audioFile.length() <= 0L) return@withContext null
-            val webm = config.videoMimeType.contains("webm")
-            VideoDownloadInfo(config.videoMimeType, if (webm) "audio/webm" else "audio/mp4", webm)
+            VideoDownloadInfo(config.videoMimeType, audioPick.mimeType, webm)
         }
 
     private fun drainWhole(buf: SabrBuffer, contentLength: Long): Boolean =
@@ -189,12 +258,19 @@ object SabrVideoResolver {
         }
     }
 
+    /** One audio format candidate + its mime (the wire [SabrMessages.Format] carries no mime). */
+    internal class AudioPick(val format: SabrMessages.Format, val mimeType: String)
+
     private class Built(
         val config: SabrVideoConfig,
         val ladder: List<VideoQualityRung>,
         val chosen: VideoQualityRung,
         /** Every ladder rung's wire format (itag -> lastModified + contentLength) for no-network switches. */
         val videoFormats: Map<Int, SabrMessages.Format>,
+        /** Best AAC (audio/mp4) candidate — the download partner for an mp4/avc rung. */
+        val audioMp4: AudioPick? = null,
+        /** Best Opus (audio/webm) candidate — the download partner for a webm/vp9 rung. */
+        val audioWebm: AudioPick? = null,
     )
 
     /** Resolve the first ENABLED client that exposes SABR video inputs into a ready [Built]. */
@@ -213,14 +289,24 @@ object SabrVideoResolver {
     /**
      * Pick the rung for [targetLabel]. AUTO (selectRung returns null) mirrors DIRECT's automatic pick:
      * capped at [AUTO_HEIGHT] AND at [maxAutoBitrateKbps] (the metered-aware cap) — an explicit label is
-     * never capped (the "explicit quality is honoured on every connection" rule).
+     * never capped (the "explicit quality is honoured on every connection" rule). [downloadable]
+     * restricts the WHOLE pool (explicit target and AUTO fallbacks alike) to remux-capable rungs
+     * (DIRECT's YTPlayerUtils gate) — a download must never pick a rung no on-device mux can save.
      */
-    private fun pickRung(ladder: List<VideoQualityRung>, targetLabel: String, maxAutoBitrateKbps: Int?): VideoQualityRung? =
-        VideoQualityLogic.selectRung(ladder, targetLabel)
-            ?: ladder.filter { it.height <= AUTO_HEIGHT && (maxAutoBitrateKbps == null || it.bitrate <= maxAutoBitrateKbps * 1000) }
+    internal fun pickRung(
+        ladder: List<VideoQualityRung>,
+        targetLabel: String,
+        maxAutoBitrateKbps: Int?,
+        downloadable: Boolean = false,
+        opusWebmMuxSupported: Boolean = true,
+    ): VideoQualityRung? {
+        val pool = if (downloadable) ladder.filter { VideoQualityLogic.isDownloadableRung(it, opusWebmMuxSupported) } else ladder
+        return VideoQualityLogic.selectRung(pool, targetLabel)
+            ?: pool.filter { it.height <= AUTO_HEIGHT && (maxAutoBitrateKbps == null || it.bitrate <= maxAutoBitrateKbps * 1000) }
                 .maxByOrNull { it.height }
-            ?: ladder.filter { it.height <= AUTO_HEIGHT }.maxByOrNull { it.height }
-            ?: ladder.minByOrNull { it.height }
+            ?: pool.filter { it.height <= AUTO_HEIGHT }.maxByOrNull { it.height }
+            ?: pool.minByOrNull { it.height }
+    }
 
     private suspend fun build(spec: Spec, videoId: String, pot: PoTokenResult, sts: Int?, targetLabel: String, maxAutoBitrateKbps: Int?): Built? {
         return try {
@@ -236,17 +322,27 @@ object SabrVideoResolver {
             val ustreamer = response.playerConfig?.mediaCommonConfig?.mediaUstreamerRequestConfig?.videoPlaybackUstreamerConfig
                 ?: return null
 
-            val audio = streaming.adaptiveFormats.filter { it.isAudio && it.isOriginal }.maxByOrNull { it.bitrate } ?: return null
+            val audioCandidates = streaming.adaptiveFormats.filter {
+                it.isAudio && it.isOriginal && it.contentLength?.let(SabrBuffer::lengthValid) == true
+            }
+            val audio = audioCandidates.maxByOrNull { it.bitrate } ?: return null
             val audioLen = audio.contentLength ?: return null
+            // The download partners, per container (mp4/avc -> AAC, webm/vp9 -> Opus) — see download().
+            fun audioPick(container: String): AudioPick? =
+                audioCandidates.filter { it.mimeType.startsWith("audio/$container") }
+                    .maxByOrNull { it.bitrate }
+                    ?.let { AudioPick(SabrMessages.Format(it.itag, it.lastModified ?: 0L, it.contentLength!!), it.mimeType) }
             // The same ladder the DIRECT switcher renders, minus progressive (SABR video is dual-track,
             // video-only + audio) and minus rungs this device can't decode (never pin an undecodable itag).
             val ladder = VideoQualityLogic.rungs(streaming).filter { !it.progressive && VideoDecoderCaps.supports(it) }
             if (ladder.isEmpty()) return null
             // Every rung's wire format, so a later quality switch clones the config with NO network.
+            // Rungs whose contentLength the reassembly buffer cannot hold are excluded here, so neither
+            // playback nor a download can ever pin one.
             val videoFormats = buildMap {
                 for (r in ladder) {
                     val f = streaming.adaptiveFormats.firstOrNull { it.itag == r.itag } ?: continue
-                    val len = f.contentLength ?: continue
+                    val len = f.contentLength?.takeIf(SabrBuffer::lengthValid) ?: continue
                     put(r.itag, SabrMessages.Format(f.itag, f.lastModified ?: 0L, len))
                 }
             }
@@ -279,7 +375,7 @@ object SabrVideoResolver {
                 videoMimeType = videoFmt.mimeType,
                 videoBitrate = videoFmt.bitrate,
             )
-            Built(config, ladder, chosen, videoFormats)
+            Built(config, ladder, chosen, videoFormats, audioMp4 = audioPick("mp4"), audioWebm = audioPick("webm"))
         } catch (e: Exception) {
             Timber.tag(TAG).w(e, "SABR video resolve via ${spec.label} failed for $videoId: ${e.message}")
             null

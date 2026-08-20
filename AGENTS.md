@@ -122,10 +122,18 @@ byte-for-byte unchanged. The engine is a faithful Kotlin port of the proven Node
 (`tests/sabr-stream.mjs`), and the pure protocol core is JVM-tested. Rules that must not regress:
 
 - **The engine is pure + testable, isolated in `playback/sabr/`:** `SabrProto` (protobuf wire codec),
-  `SabrUmp` (UMP frame parser - the custom leading-bits varint, NOT the protobuf one), `SabrMessages`
+  `SabrUmp` (UMP frame parser - the custom leading-bits varint, NOT the protobuf one; the MEDIA part's
+  header-id PREFIX is that UMP varint too - `SabrMessages.mediaHeaderId` must never use the protobuf
+  read, the encodings agree only below 128), `SabrMessages`
   (request builder + response parsers; field numbers pinned to the reference), `SabrSession` (the
-  continuation state machine), `SabrBuffer` (thread-safe reassembly), `SabrDataSource` (the ExoPlayer
-  `DataSource`). Regression tests: `SabrProtoTest` / `SabrUmpTest` / `SabrMessagesTest` / `SabrBufferTest`.
+  continuation state machine), `SabrBuffer` (thread-safe reassembly; REFUSES an out-of-range
+  contentLength at construction - the old zero-length degenerate silently dropped every write),
+  `SabrAudioStream` (registry-owned buffer+session lifetime, see the seam bullet), `SabrDataSource` (the
+  ExoPlayer `DataSource`). Honesty rule: an INCOMPLETE drain marks the buffer ERRORED, never complete -
+  the reader still serves every reassembled byte first, then surfaces a real player error at the gap
+  (markComplete silently truncated the track); and every stream-destroy path MARKS its buffers so a
+  parked reader is always woken (never an infinite buffering hang). Regression tests: `SabrProtoTest` /
+  `SabrUmpTest` / `SabrMessagesTest` / `SabrBufferTest` / `SabrStreamLifecycleTest` / `SabrVideoRungPickTest`.
 - **Reassembly is by ABSOLUTE byte offset, never sequential append** (`SabrSession` writes each segment at
   its `startRange`, `SabrBuffer` tracks a contiguous-from-0 watermark). Sequential append corrupted the
   container, which made the extractor report a garbage duration -> `getBufferedPercentage` overflow ->
@@ -148,15 +156,27 @@ byte-for-byte unchanged. The engine is a faithful Kotlin port of the proven Node
   the pot tolerantly (standard `+/` OR url-safe `-_`) - the app's `PoTokenGenerator` emits standard base64.
 - **The seam is `MusicService`** (RELAY pattern): a per-open `sabrDataSourceFactory` (a `ResolvingDataSource`
   whose callback runBlocks `SabrPlayerResolver.resolve`) is chosen only when `StreamSabrKey` is on; it
-  persists a `FormatEntity` (streamClient = e.g. `WEB_REMIX (SABR)`) so the song-details sheet shows the
-  SABR client + format (`ShowMediaInfo` strips the ` (SABR)` suffix so a web SABR client still resolves its
-  player hash; VISIONOS SABR stays N/A - no cipher). A downloaded file still plays from disk.
+  persists a `FormatEntity` (streamClient = e.g. `WEB_REMIX (SABR)`, and the response's `loudnessDb` -
+  audio normalization works under SABR and a SABR play never nulls what DIRECT stored) so the song-details
+  sheet shows the SABR client + format (`ShowMediaInfo` strips the ` (SABR)` suffix so a web SABR client
+  still resolves its player hash; VISIONOS SABR stays N/A - no cipher). A downloaded file still plays from
+  disk - the SABR upstream is wrapped in `DefaultDataSource.Factory` (RELAY pattern) so the local
+  `content://` uri routes to the platform sources (`SabrDataSource` accepts nothing but `sabr://`).
+  **Audio stream lifetime is registry-owned, NEVER per DataSource open** (the video lesson applied to
+  audio): `SabrStreamRegistry` holds the id's live `SabrAudioStream`; a seek's close→reopen (and a
+  repeat-one replay) reuses it - no second /player + poToken, no re-drain from byte 0, no duplicate
+  FormatEntity/watch-time reseed (the resolver callback returns the `sabr://` uri straight away for a
+  usable live stream). Streams end only on registry replace / evict (small cap: current + gapless-next)
+  / remove / the `MusicService.onDestroy` clear (both registries).
 - **Downloads run over SABR too** (`MediaStoreDownloadManager`, mirroring the RELAY branch): when SABR mode
-  is on, `sabrMode` (audio-only - forced off for a relay or video download) nulls `playbackData` and pulls
+  is on, `sabrAudioMode` nulls `playbackData` and pulls
   the whole file via `SabrStreamResolver.download` (runs a `SabrSession` to completion, writes the byte-exact
   reassembled audio, returns null → the attempt retries on an INCOMPLETE drain so a capped/truncated stream
-  is never saved). The null-playbackData tail is shared with relay: container sniffed, duration from the file,
-  `isVideo` false. DIRECT/video downloads untouched.
+  is never saved; resolves with `register=false` so a download NEVER touches the playback registry). Both
+  SABR drains run under `runInterruptible` (a cancelled download Job interrupts the in-flight OkHttp call
+  immediately) and report progress through the throttled `sabrProgressReporter` bridge - never a frozen,
+  uncancellable ring. The null-playbackData tail is shared with relay: container sniffed, duration from the
+  file, `isVideo` false. DIRECT/relay downloads untouched.
 - **innertube exposes the SABR inputs additively:** `StreamingData.serverAbrStreamingUrl` +
   `PlayerConfig.mediaCommonConfig.mediaUstreamerRequestConfig.videoPlaybackUstreamerConfig` (defaulted null,
   ignored where absent).
@@ -175,12 +195,21 @@ byte-for-byte unchanged. The engine is a faithful Kotlin port of the proven Node
   RELAY priority, DIRECT untouched): a `sabrvideo://` URI in `createMediaSourceFactory` builds the merge
   from the isolated SABR DataSources; `VideoModeController.enterVideoModeSabr` resolves async then swaps to
   an item keyed `video:<id>:q<itag>` (exit/own-swap machinery + distinct-per-rung) with a `sabrvideo://<id>`
-  URI (merge routing). SABR pins an exact itag, so it HAS a live quality switcher (unlike RELAY): the
+  URI (merge routing). **The resolve returns a READY, UNREGISTERED stream; the controller installs it in
+  the registry only at the swap COMMIT on the main thread, after the stillOurs guard** - an IO-thread put
+  destroyed the currently-playing stream before the guard could veto, and the abandoned branch then parked
+  playback on dead buffers (destroy() marking the buffers is the second half of that fix). Position +
+  playWhenReady are captured AT COMMIT, never before the seconds-long resolve (stale values rewound
+  playback and force-resumed over a user pause). SABR pins an exact itag, so it HAS a live quality
+  switcher (unlike RELAY): the
   resolver returns the ladder (minus progressive + undecodable rungs), the controller publishes it, and a
   pick re-resolves the dual-track session at the new target (`setVideoQuality`/`downgradeForStall` share
   `resolveAndSwapSabr`); AUTO caps at 720p. SABR video
   DOWNLOADS are wired too (`MediaStoreDownloadManager` `sabrVideoMode`): the dual-track session drains to
-  two temp files and remuxes on-device (`VideoMuxer`), like a DIRECT adaptive download. The SABR
+  two temp files and remuxes on-device (`VideoMuxer`), like a DIRECT adaptive download - with DIRECT's
+  download gates (`pickRung(downloadable=true)`: remux-capable rungs only - no av01, webm/vp9 only on
+  API 29+ - and a CONTAINER-MATCHED audio partner, mp4/avc→AAC / webm/vp9→Opus), so an explicit
+  high-quality pick can never drain hundreds of MB into a deterministic INCOMPATIBLE mux. The SABR
   DataSources fire `transferEnded()` only after `transferStarted()` (a MergingMediaSource sibling teardown
   mid-open otherwise NPEs media3's bandwidth meter -> "Source error"). Full detail: `docs/sabr/README.md` sec 9.
 - **Full DIRECT parity (not one feature missing).** SABR hits googlevideo like DIRECT, so every DIRECT
@@ -192,7 +221,8 @@ byte-for-byte unchanged. The engine is a faithful Kotlin port of the proven Node
   (AudioQuality weight + opus bonus, metered-aware AUTO), JVM-tested `SabrAudioPickTest`; (3) INSTANT
   SWITCH + PREFETCH - one /player serves every rung via the `SabrVideoResolver` resolve cache, and
   `prefetchVideoRendition` warms it under SABR; (4) METERED AUTO CAP - AUTO video capped at 720p + the
-  metered bitrate, explicit picks never capped; (5) a video error invalidates the SABR cache. Never say
+  metered bitrate, explicit picks never capped; (5) a video error invalidates the SABR cache;
+  (6) LOUDNESS - the resolve carries `loudnessDb` into the FormatEntity (audio normalization). Never say
   SABR is a reduced/fixed mode - it is full parity.
 - **The harness is the proof + validator** (`tests/sabr-stream.mjs` whole-song drain, `tests/sabr-clients.mjs`
   roster; `tests/sabr-video.mjs` + `tests/sabr-video-clients.mjs` for video). SABR is the danger zone:

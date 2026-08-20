@@ -55,6 +55,11 @@ internal class SabrVideoStream(val config: SabrVideoConfig, private val client: 
         session?.cancel()
         session = null
         thread = null
+        // Wake any reader parked in SabrBuffer.read's wait(): a cancelled session deliberately skips
+        // marking (its exit branches bare-return), so without this a DataSource still blocked on a
+        // destroyed stream would wait forever — an infinite buffering spinner with no player error.
+        videoBuffer.markError("SABR stream destroyed")
+        audioBuffer.markError("SABR stream destroyed")
     }
 }
 
@@ -74,6 +79,12 @@ internal object SabrVideoRegistry {
     fun put(mediaId: String, stream: SabrVideoStream) { streams.put(mediaId, stream)?.destroy() }
     fun get(mediaId: String): SabrVideoStream? = streams[mediaId]
     fun remove(mediaId: String) { streams.remove(mediaId)?.destroy() }
+
+    /** Destroy every live stream — MusicService.onDestroy teardown (nothing may outlive the service). */
+    fun clear() {
+        val ids = streams.keys.toList()
+        for (id in ids) streams.remove(id)?.destroy()
+    }
     fun videoUri(mediaId: String): Uri = Uri.parse("$SCHEME_VIDEO://$mediaId")
     fun audioUri(mediaId: String): Uri = Uri.parse("$SCHEME_AUDIO://$mediaId")
     fun mediaId(uri: Uri): String? =

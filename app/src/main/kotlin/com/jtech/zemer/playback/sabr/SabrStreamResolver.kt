@@ -40,36 +40,54 @@ object SabrStreamResolver {
 
     /**
      * Download the WHOLE SABR audio for [videoId] (over the first working [enabled] client) to [file].
-     * Resolves like playback, runs the session to completion, and writes the byte-exact reassembled stream.
-     * Returns the [DownloadInfo] on a COMPLETE download, or null (caller falls back / fails) - a truncated
-     * stream (e.g. a capped client) is never saved. The DIRECT/RELAY download paths are untouched.
+     * Resolves like playback (but NEVER touches the playback [SabrStreamRegistry] — a concurrent
+     * download of the currently-playing id must not clobber or destroy its live stream), runs the
+     * session to completion, and writes the byte-exact reassembled stream. Returns the [DownloadInfo]
+     * on a COMPLETE download, or null (caller falls back / fails) - a truncated stream (e.g. a capped
+     * client) is never saved. Runs [kotlinx.coroutines.runInterruptible] so a cancelled download Job
+     * interrupts the blocking OkHttp drain immediately instead of draining the whole file first, and
+     * reports [onProgress] (reassembled bytes / total) per response so the download ring moves.
+     * The DIRECT/RELAY download paths are untouched.
      */
-    suspend fun download(videoId: String, enabled: Set<String>, file: File): DownloadInfo? =
+    suspend fun download(
+        videoId: String,
+        enabled: Set<String>,
+        file: File,
+        onProgress: ((bytesDownloaded: Long, totalBytes: Long) -> Unit)? = null,
+    ): DownloadInfo? =
         withContext(Dispatchers.IO) {
-            SabrPlayerResolver.resolve(videoId, enabled) ?: return@withContext null
-            val cfg = SabrStreamRegistry.get(videoId) ?: return@withContext null
-            try {
-                val buffer = SabrBuffer(cfg.format.contentLength)
-                SabrSession(cfg, client, buffer).run() // blocks on this thread until the stream is drained
-                val size = buffer.available()
-                if (size <= 0L || (cfg.format.contentLength > 0 && size < cfg.format.contentLength)) {
-                    Timber.tag("SabrDownload").w("SABR download incomplete for $videoId: $size/${cfg.format.contentLength}")
-                    return@withContext null
-                }
-                file.outputStream().use { out ->
-                    val chunk = ByteArray(64 * 1024)
-                    var pos = 0L
-                    while (pos < size) {
-                        val n = buffer.read(pos, chunk, 0, chunk.size)
-                        if (n <= 0) break
-                        out.write(chunk, 0, n)
-                        pos += n
-                    }
-                }
-                if (file.length() <= 0L) null else DownloadInfo(cfg.mimeType, size)
-            } finally {
-                SabrStreamRegistry.remove(videoId)
+            val cfg = SabrPlayerResolver.resolve(videoId, enabled, register = false)?.config
+                ?: return@withContext null
+            if (!SabrBuffer.lengthValid(cfg.format.contentLength)) {
+                Timber.tag("SabrDownload").w("SABR download contentLength out of range for $videoId: ${cfg.format.contentLength}")
+                return@withContext null
             }
+            val buffer = try {
+                SabrBuffer(cfg.format.contentLength)
+            } catch (e: OutOfMemoryError) {
+                Timber.tag("SabrDownload").w("SABR download buffer allocation failed for $videoId (${cfg.format.contentLength} bytes)")
+                return@withContext null
+            }
+            val total = cfg.format.contentLength
+            val session = SabrSession(cfg, client, buffer, onProgress = { onProgress?.invoke(it, total) })
+            // Blocks until the stream is drained; a Job cancel interrupts the in-flight OkHttp call.
+            kotlinx.coroutines.runInterruptible { session.run() }
+            val size = buffer.available()
+            if (size <= 0L || size < cfg.format.contentLength) {
+                Timber.tag("SabrDownload").w("SABR download incomplete for $videoId: $size/${cfg.format.contentLength}")
+                return@withContext null
+            }
+            file.outputStream().use { out ->
+                val chunk = ByteArray(64 * 1024)
+                var pos = 0L
+                while (pos < size) {
+                    val n = buffer.read(pos, chunk, 0, chunk.size)
+                    if (n <= 0) break
+                    out.write(chunk, 0, n)
+                    pos += n
+                }
+            }
+            if (file.length() <= 0L) null else DownloadInfo(cfg.mimeType, size)
         }
 
     /** Decode base64 that may be standard (+/) or url-safe (-_), padded or not - never throws on either. */
@@ -91,15 +109,16 @@ object SabrStreamResolver {
     )
 
     /**
-     * Register a SABR session for [mediaId] and return the `sabr://` uri ExoPlayer should open.
+     * Build the [SabrConfig] one SABR session needs. The caller decides what to do with it:
+     * [SabrPlayerResolver] registers it in [SabrStreamRegistry] for playback (`sabr://` opens read it
+     * there); the download path drives a session from it directly, never touching the registry.
      *
      * @param serverAbrStreamingUrl streamingData.serverAbrStreamingUrl from the /player response
      * @param ustreamerConfigBase64 playerConfig.mediaCommonConfig.mediaUstreamerRequestConfig.videoPlaybackUstreamerConfig
      * @param poTokenBase64Url the app's minted GVS poToken (bgutils, visitorData-bound), base64url
      * @param nTransform cipher n-transform for web clients; identity for direct clients
      */
-    fun register(
-        mediaId: String,
+    internal fun buildConfig(
         serverAbrStreamingUrl: String,
         ustreamerConfigBase64: String,
         itag: Int,
@@ -115,8 +134,8 @@ object SabrStreamResolver {
         bitrate: Int = 0,
         audioSampleRate: Int? = null,
         cpn: () -> String? = { null },
-    ): android.net.Uri {
-        val config = SabrConfig(
+    ): SabrConfig =
+        SabrConfig(
             sabrUrl = serverAbrStreamingUrl,
             ustreamerConfig = decodeBase64(ustreamerConfigBase64),
             format = SabrMessages.Format(itag, lastModified, contentLength),
@@ -142,7 +161,4 @@ object SabrStreamResolver {
             audioSampleRate = audioSampleRate,
             cpn = cpn,
         )
-        SabrStreamRegistry.put(mediaId, config)
-        return SabrStreamRegistry.uri(mediaId)
-    }
 }

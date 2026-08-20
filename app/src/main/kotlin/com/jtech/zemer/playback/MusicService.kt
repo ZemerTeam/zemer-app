@@ -2541,22 +2541,26 @@ class MusicService :
     // tests/sabr-stream.mjs; the on-device gate is the remaining verification before this is user-facing.
     private val sabrDataSourceFactory: DataSource.Factory by lazy {
         ResolvingDataSource.Factory(
-            com.jtech.zemer.playback.sabr.SabrStreamResolver.dataSourceFactory()
+            // RELAY parity: DefaultDataSource routes file/content URIs (a downloaded song's local file)
+            // to the platform sources and hands only unknown schemes (sabr://) to the SABR source —
+            // SabrDataSource itself accepts NOTHING but sabr://, so an unwrapped factory made every
+            // downloaded track a player error while SABR mode was on.
+            DefaultDataSource.Factory(this, com.jtech.zemer.playback.sabr.SabrStreamResolver.dataSourceFactory())
         ) { dataSpec ->
             val mediaId = dataSpec.key ?: dataSpec.uri.toString()
             resolveDownloadedFileUri(mediaId, dataSpec.position)?.let {
                 return@Factory dataSpec.withUri(it.toUri())
             }
-            val enabledSabrClients = buildSet {
-                if (dataStore.get(StreamSabrWebRemixKey, true)) add(com.jtech.zemer.playback.sabr.SabrPlayerResolver.KEY_WEB_REMIX)
-                if (dataStore.get(StreamSabrVisionOSKey, true)) add(com.jtech.zemer.playback.sabr.SabrPlayerResolver.KEY_VISIONOS)
-                if (dataStore.get(StreamSabrTVHTML5Key, true)) add(com.jtech.zemer.playback.sabr.SabrPlayerResolver.KEY_TVHTML5_SIMPLY)
-                if (dataStore.get(StreamSabrMWEBKey, true)) add(com.jtech.zemer.playback.sabr.SabrPlayerResolver.KEY_MWEB)
+            // A LIVE registry stream (a seek's close→reopen, a repeat-one replay) is reused as-is:
+            // no second /player + poToken round-trip, no watch-time/telemetry re-seed, no duplicate
+            // FormatEntity upsert — the reopen just re-reads the accumulating buffer (SabrAudioStream).
+            com.jtech.zemer.playback.sabr.SabrStreamRegistry.stream(mediaId)?.takeIf { it.usable() }?.let {
+                return@Factory dataSpec.withUri(com.jtech.zemer.playback.sabr.SabrStreamRegistry.uri(mediaId))
             }
             val result = kotlinx.coroutines.runBlocking {
                 com.jtech.zemer.playback.sabr.SabrPlayerResolver.resolve(
                     mediaId,
-                    enabledSabrClients,
+                    sabrEnabledClients(),
                     // DIRECT parity: the same AudioQuality preference (AUTO follows the metered state).
                     audioQuality = audioQuality,
                     meteredNetwork = connectivityManager.isActiveNetworkMetered,
@@ -2574,8 +2578,10 @@ class MusicService :
                 playerHash = if (result.web) CipherDeobfuscator.lastUsedPlayerHash else null,
             )
             // Persist a FormatEntity (overwriting any stale DIRECT one) so the song-details sheet shows the
-            // SABR client + format for this play, exactly like the DIRECT resolver above.
-            com.jtech.zemer.playback.sabr.SabrStreamRegistry.get(mediaId)?.let { cfg ->
+            // SABR client + format for this play, exactly like the DIRECT resolver above. loudnessDb rides
+            // the SAME /player response (DIRECT parity) — audio normalization works under SABR, and a SABR
+            // play never clobbers the loudness a DIRECT play stored.
+            result.config.let { cfg ->
                 database.query {
                     upsert(
                         FormatEntity(
@@ -2586,7 +2592,7 @@ class MusicService :
                             bitrate = cfg.bitrate,
                             sampleRate = cfg.audioSampleRate,
                             contentLength = cfg.format.contentLength,
-                            loudnessDb = null,
+                            loudnessDb = result.loudnessDb,
                             playbackUrl = result.playbackTracking?.videostatsPlaybackUrl?.baseUrl,
                             streamClient = cfg.streamClientLabel,
                         )
@@ -2981,6 +2987,11 @@ class MusicService :
         player.removeListener(this)
         player.removeListener(sleepTimer)
         player.release()
+        // After the player is gone: destroy any live SABR streams (kills their drain threads and frees
+        // the whole-track buffers). Without this, a service destroy with a stream still registered left
+        // a daemon thread POSTing to googlevideo with both buffers pinned for the life of the process.
+        com.jtech.zemer.playback.sabr.SabrStreamRegistry.clear()
+        com.jtech.zemer.playback.sabr.SabrVideoRegistry.clear()
         stopForeground(STOP_FOREGROUND_REMOVE)
         isRunning = false
         super.onDestroy()

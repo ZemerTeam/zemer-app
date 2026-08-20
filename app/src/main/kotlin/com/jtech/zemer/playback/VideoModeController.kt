@@ -31,6 +31,7 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import timber.log.Timber
 import org.fcast.sender_sdk.DeviceConnectionState
 
 /**
@@ -724,8 +725,6 @@ class VideoModeController(
      * a failed quality SWITCH keeps the current rung playing.
      */
     private fun resolveAndSwapSabr(renditionId: String, audioItem: MediaItem, index: Int, targetLabel: String, entry: Boolean) {
-        val position = player.currentPosition
-        val playWhenReady = player.playWhenReady
         scope.launch {
             val result = try {
                 com.jtech.zemer.playback.sabr.SabrVideoResolver.resolve(
@@ -740,6 +739,7 @@ class VideoModeController(
                     cpn = { service.sabrCpnFor(renditionId) },
                 )
             } catch (e: Exception) {
+                Timber.tag("VideoModeController").w(e, "SABR video resolve failed for %s", renditionId)
                 null
             }
             withContext(Dispatchers.Main) {
@@ -747,7 +747,10 @@ class VideoModeController(
                 val stillOurs = _isVideoMode.value && videoModeItemId == audioItem.mediaId &&
                     player.currentMediaItemIndex == index && player.currentMediaItem?.mediaId == audioItem.mediaId
                 if (!stillOurs) {
-                    com.jtech.zemer.playback.sabr.SabrVideoRegistry.remove(renditionId)
+                    // The resolve was never registered (SabrVideoResult doc), so ONLY the abandoned new
+                    // stream is torn down — whatever stream is currently registered keeps playing (the
+                    // exit/transition machinery owns its removal via clearState).
+                    result?.stream?.destroy()
                     return@withContext
                 }
                 if (result == null) {
@@ -761,6 +764,14 @@ class VideoModeController(
                 currentRenditionItag = result.chosen.itag
                 val cacheKey = VideoRendition.key(renditionId, result.chosen.itag, progressive = false)
                 videoModeVideoKey = cacheKey
+                // Capture position + playWhenReady NOW, at swap time on the main thread (DIRECT's
+                // swapToVideoKey discipline) — the resolve took seconds, and applying values captured
+                // BEFORE it rewound playback by the resolve duration and force-resumed over a user pause.
+                val position = player.currentPosition
+                val playWhenReady = player.playWhenReady
+                // Commit point: install the new stream (destroying the replaced rung's stream) only
+                // now that the swap is definitely happening.
+                com.jtech.zemer.playback.sabr.SabrVideoRegistry.put(renditionId, result.stream)
                 listenAccumulator.onSwap(audioItem.mediaId)
                 pendingSwap = true
                 player.replaceMediaItem(index, audioItem.buildUpon().setUri(result.uri).setCustomCacheKey(cacheKey).build())
