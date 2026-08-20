@@ -28,6 +28,13 @@ internal class SabrConfig(
     val mimeType: String = "",
     val bitrate: Int = 0,
     val audioSampleRate: Int? = null,
+    /**
+     * The listen's client playback nonce for the watch-time CDN correlation (DIRECT's stampCpn parity):
+     * every SABR media POST carries the SAME cpn the stats-beacon session uses, so the CDN sees a
+     * consistent playback identity. Read PER REQUEST (the reporter mints per listen). Proven CDN-safe by
+     * the harness `CPN=` knob (whole drain with cpn stamped). Null (downloads) stamps nothing.
+     */
+    val cpn: () -> String? = { null },
 )
 
 /**
@@ -49,9 +56,11 @@ internal class SabrSession(
     private val protobuf = "application/x-protobuf".toMediaType()
 
     private fun prepared(rawUrl: String): String {
-        val u = config.nTransform(rawUrl)
-        val pot = config.urlPot ?: return u
-        return u + (if (u.contains("?")) "&" else "?") + "pot=" + java.net.URLEncoder.encode(pot, "UTF-8")
+        var u = config.nTransform(rawUrl)
+        config.urlPot?.let { u += (if (u.contains("?")) "&" else "?") + "pot=" + java.net.URLEncoder.encode(it, "UTF-8") }
+        // Stamp the watch-time cpn on every media POST (DIRECT's stampCpn parity) — CDN-safe (harness).
+        config.cpn()?.let { u += (if (u.contains("?")) "&" else "?") + "cpn=" + it }
+        return u
     }
 
     override fun run() {

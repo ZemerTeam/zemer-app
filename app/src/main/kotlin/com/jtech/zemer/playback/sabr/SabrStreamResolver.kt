@@ -114,6 +114,7 @@ object SabrStreamResolver {
         mimeType: String = "",
         bitrate: Int = 0,
         audioSampleRate: Int? = null,
+        cpn: () -> String? = { null },
     ): android.net.Uri {
         val config = SabrConfig(
             sabrUrl = serverAbrStreamingUrl,
@@ -139,6 +140,7 @@ object SabrStreamResolver {
             mimeType = mimeType,
             bitrate = bitrate,
             audioSampleRate = audioSampleRate,
+            cpn = cpn,
         )
         SabrStreamRegistry.put(mediaId, config)
         return SabrStreamRegistry.uri(mediaId)

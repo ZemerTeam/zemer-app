@@ -611,6 +611,9 @@ class VideoModeController(
             videoRenditionId?.let {
                 service.invalidateStreamCache(VideoRendition.key(it))
                 service.invalidateStreamCache(VideoRendition.mergeAudioKey(it))
+                // SABR parity: drop the SABR resolve cache too, so a re-entry re-resolves fresh instead
+                // of reusing the session inputs that just failed. No-op when the id isn't cached.
+                com.jtech.zemer.playback.sabr.SabrVideoResolver.invalidate(it)
             }
             // Do NOT override the user's quality on error — a video-mode error is almost always a
             // stale/expired signed URL (fixed by the cache invalidation above → a fresh resolution on
@@ -725,7 +728,17 @@ class VideoModeController(
         val playWhenReady = player.playWhenReady
         scope.launch {
             val result = try {
-                com.jtech.zemer.playback.sabr.SabrVideoResolver.resolve(renditionId, service.sabrEnabledClients(), targetLabel)
+                com.jtech.zemer.playback.sabr.SabrVideoResolver.resolve(
+                    renditionId,
+                    service.sabrEnabledClients(),
+                    targetLabel,
+                    // DIRECT parity: only the AUTO pick is metered-capped; an explicit label is honoured
+                    // on every connection.
+                    maxAutoBitrateKbps = VideoRendition.defaultMaxBitrateKbps(service.isMeteredNetwork()),
+                    // DIRECT stampCpn parity: the media POST carries the listen's watch-time cpn (the
+                    // own-swap keeps ONE cpn across audio/video renditions of the same listen).
+                    cpn = { service.sabrCpnFor(renditionId) },
+                )
             } catch (e: Exception) {
                 null
             }

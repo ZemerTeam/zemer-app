@@ -2383,6 +2383,17 @@ class MusicService :
     @Volatile private var sabrModeNow: Boolean = false
     fun isSabrPlaybackMode(): Boolean = sabrModeNow
 
+    /** Metered-network state for the SABR AUTO quality pick (DIRECT's automatic pick uses the same cap). */
+    fun isMeteredNetwork(): Boolean = connectivityManager.isActiveNetworkMetered
+
+    /**
+     * The watch-time cpn for [videoId]'s listen (DIRECT stampCpn parity): the SABR media POST is stamped
+     * with the SAME cpn the stats-beacon session uses, keyed by the base video id so audio/video/merge
+     * renditions of one listen share it. The reporter mints per listen and releases on finish.
+     */
+    fun sabrCpnFor(videoId: String): String =
+        watchTimeReporter.mediaCpnFor(VideoRendition.baseVideoId(videoId))
+
     /** The enabled SABR clients from settings (read off the main thread, e.g. a resolver coroutine). */
     fun sabrEnabledClients(): Set<String> = buildSet {
         if (dataStore.get(StreamSabrWebRemixKey, true)) add(com.jtech.zemer.playback.sabr.SabrPlayerResolver.KEY_WEB_REMIX)
@@ -2453,14 +2464,29 @@ class MusicService :
      * ordinary on-demand resolution path is untouched and runs on the actual tap).
      */
     fun prefetchVideoRendition(videoId: String) {
-        // Never prefetch what won't stream: RELAY (fixed rendition), SABR (its own dual-track resolver
-        // runs on the toggle — the DIRECT /player prefetch would just fail "all stream sources disabled"
-        // when the user has DIRECT clients off), a DOWNLOADED muxed video (LOCAL rendition plays from
-        // disk — a resolution would be pure waste, and offline it just fails), or when offline. Mirrors
-        // requestVideoAvailability's own network guard.
-        if (isRelayPlaybackMode() || isSabrPlaybackMode()) return
+        // Never prefetch what won't stream: RELAY (fixed rendition), a DOWNLOADED muxed video (LOCAL
+        // rendition plays from disk — a resolution would be pure waste, and offline it just fails), or
+        // when offline. Mirrors requestVideoAvailability's own network guard.
+        if (isRelayPlaybackMode()) return
         if (!isNetworkConnected.value) return
         if (playbackSourceIsLocalFile(videoId)) return
+        // SABR prefetch (DIRECT parity): warm the SABR resolve cache (ladder + per-itag formats) while
+        // the pill shows, so the Video tap is served with no network round-trip. Never the DIRECT
+        // /player prefetch (it fails "all stream sources disabled" when the DIRECT clients are off),
+        // and no stream is registered — nothing moves until the tap.
+        if (isSabrPlaybackMode()) {
+            if (!videoPrefetchInFlight.add(videoId)) return
+            scope.launch(Dispatchers.IO) {
+                try {
+                    com.jtech.zemer.playback.sabr.SabrVideoResolver.prefetch(videoId, sabrEnabledClients())
+                } catch (e: Exception) {
+                    Timber.tag(TAG).d(e, "SABR video prefetch failed for $videoId")
+                } finally {
+                    videoPrefetchInFlight.remove(videoId)
+                }
+            }
+            return
+        }
         val plainKey = VideoRendition.key(videoId)
         if (songUrlCache[plainKey]?.let { it.second > System.currentTimeMillis() } == true) return
         if (!videoPrefetchInFlight.add(videoId)) return
@@ -2527,9 +2553,26 @@ class MusicService :
                 if (dataStore.get(StreamSabrTVHTML5Key, true)) add(com.jtech.zemer.playback.sabr.SabrPlayerResolver.KEY_TVHTML5_SIMPLY)
                 if (dataStore.get(StreamSabrMWEBKey, true)) add(com.jtech.zemer.playback.sabr.SabrPlayerResolver.KEY_MWEB)
             }
-            val uri = kotlinx.coroutines.runBlocking {
-                com.jtech.zemer.playback.sabr.SabrPlayerResolver.resolve(mediaId, enabledSabrClients)
+            val result = kotlinx.coroutines.runBlocking {
+                com.jtech.zemer.playback.sabr.SabrPlayerResolver.resolve(
+                    mediaId,
+                    enabledSabrClients,
+                    // DIRECT parity: the same AudioQuality preference (AUTO follows the metered state).
+                    audioQuality = audioQuality,
+                    meteredNetwork = connectivityManager.isActiveNetworkMetered,
+                    // DIRECT stampCpn parity: the media POST carries the listen's watch-time cpn.
+                    cpn = { sabrCpnFor(mediaId) },
+                )
             } ?: throw java.io.IOException("SABR resolve failed for $mediaId")
+            // DIRECT parity: seed the watch-time reporter from THIS /player response (no second
+            // round-trip, truthful fmt) and attribute the stream client (+ player hash for web SABR
+            // clients, whose n-transform ran the cipher) to the listen's telemetry.
+            watchTimeReporter.onTrackingResolved(mediaId, result.playbackTracking, result.itag)
+            Tracker.onStreamResolved(
+                mediaId,
+                result.streamClient,
+                playerHash = if (result.web) CipherDeobfuscator.lastUsedPlayerHash else null,
+            )
             // Persist a FormatEntity (overwriting any stale DIRECT one) so the song-details sheet shows the
             // SABR client + format for this play, exactly like the DIRECT resolver above.
             com.jtech.zemer.playback.sabr.SabrStreamRegistry.get(mediaId)?.let { cfg ->
@@ -2544,13 +2587,13 @@ class MusicService :
                             sampleRate = cfg.audioSampleRate,
                             contentLength = cfg.format.contentLength,
                             loudnessDb = null,
-                            playbackUrl = null,
+                            playbackUrl = result.playbackTracking?.videostatsPlaybackUrl?.baseUrl,
                             streamClient = cfg.streamClientLabel,
                         )
                     )
                 }
             }
-            dataSpec.withUri(uri)
+            dataSpec.withUri(result.uri)
         }
     }
 

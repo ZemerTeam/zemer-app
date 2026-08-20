@@ -39,6 +39,10 @@ import { createMinter } from "./potoken.mjs";
 const VIDEO_ID = process.argv[2] || "JTF9fLJvniI";
 const CLIENT = (process.argv[3] || "VISIONOS").toUpperCase();
 const dec = (s) => { try { return s && /%[0-9A-Fa-f]{2}/.test(s) ? decodeURIComponent(s) : s; } catch { return s; } };
+// CPN: append &cpn=<value> to every SABR POST url — proves the app's watch-time CDN-correlation
+// stamp (MusicService.stampCpn parity) is accepted by the SABR endpoint (whole drain must still pass).
+const CPN = process.env.CPN || null;
+const withCpn = (u) => (CPN ? u + (u.includes("?") ? "&" : "?") + "cpn=" + CPN : u);
 const ORIGIN = "https://music.youtube.com";
 const PLAYER_URL = ORIGIN + "/youtubei/v1/player?prettyPrint=false";
 
@@ -126,7 +130,7 @@ const bestAudio = (j) => (j?.streamingData?.adaptiveFormats || []).filter((f) =>
 
   const segs = new Map();                 // sequenceNumber -> content_length (distinct segments)
   const assembled = Buffer.alloc(clen);   // reassembled media, written at each segment's byte offset
-  let initBytes = 0, covered = 0, url = sd.serverAbrStreamingUrl, playerTimeMs = 0, bufEndMs = 0, lastSeq = 0, endSeg = 0, cookie = null, iter = 0, dry = 0;
+  let initBytes = 0, covered = 0, url = withCpn(sd.serverAbrStreamingUrl), playerTimeMs = 0, bufEndMs = 0, lastSeq = 0, endSeg = 0, cookie = null, iter = 0, dry = 0;
   const t0 = performance.now();
   while (iter < 200 && dry < 5) {
     iter++;
@@ -144,7 +148,7 @@ const bestAudio = (j) => (j?.streamingData?.adaptiveFormats || []).filter((f) =>
     }
     for (const id in hdr) { const h = hdr[id]; if (h.init) { if (initBytes === 0) initBytes = h.clen; continue; } if (!segs.has(h.seq)) segs.set(h.seq, h.clen); if (h.seq > lastSeq) lastSeq = h.seq; const end = h.startMs + h.durMs; if (end > bufEndMs) bufEndMs = end; newSeg = true; }
     playerTimeMs = bufEndMs;
-    if (redirect && !newSeg) { url = redirect; iter--; continue; }
+    if (redirect && !newSeg) { url = withCpn(redirect); iter--; continue; }
     dry = newSeg ? 0 : dry + 1;
     if (endSeg && lastSeq >= endSeg) break;
   }

@@ -183,6 +183,17 @@ byte-for-byte unchanged. The engine is a faithful Kotlin port of the proven Node
   two temp files and remuxes on-device (`VideoMuxer`), like a DIRECT adaptive download. The SABR
   DataSources fire `transferEnded()` only after `transferStarted()` (a MergingMediaSource sibling teardown
   mid-open otherwise NPEs media3's bandwidth meter -> "Source error"). Full detail: `docs/sabr/README.md` sec 9.
+- **Full DIRECT parity (not one feature missing).** SABR hits googlevideo like DIRECT, so every DIRECT
+  feature is wired: (1) STATS/VIEWS/WATCH TIME - the resolve seeds `watchTimeReporter.onTrackingResolved`
+  (no second /player) and every SABR media POST is stamped with the listen's watch-time cpn
+  (`MusicService.sabrCpnFor` -> `SabrConfig.cpn`/`SabrVideoConfig.cpn` in `prepared()`), DIRECT's stampCpn
+  CDN correlation, proven CDN-safe by the harness `CPN=` knob; `Tracker.onStreamResolved` attributes the
+  client + player hash; (2) AUDIO QUALITY - `SabrPlayerResolver.pickAudio` mirrors YTPlayerUtils
+  (AudioQuality weight + opus bonus, metered-aware AUTO), JVM-tested `SabrAudioPickTest`; (3) INSTANT
+  SWITCH + PREFETCH - one /player serves every rung via the `SabrVideoResolver` resolve cache, and
+  `prefetchVideoRendition` warms it under SABR; (4) METERED AUTO CAP - AUTO video capped at 720p + the
+  metered bitrate, explicit picks never capped; (5) a video error invalidates the SABR cache. Never say
+  SABR is a reduced/fixed mode - it is full parity.
 - **The harness is the proof + validator** (`tests/sabr-stream.mjs` whole-song drain, `tests/sabr-clients.mjs`
   roster; `tests/sabr-video.mjs` + `tests/sabr-video-clients.mjs` for video). SABR is the danger zone:
   prove any change against the live CDN there first, then on-device.

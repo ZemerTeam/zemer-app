@@ -926,7 +926,12 @@ constructor(
         val videoPart = File(context.cacheDir, "temp_${song.id}.sabrv.part")
         val audioPart = File(context.cacheDir, "temp_${song.id}.sabra.part")
         try {
-            val info = com.jtech.zemer.playback.sabr.SabrVideoResolver.download(song.id, enabled, targetLabel, videoPart, audioPart)
+            val info = com.jtech.zemer.playback.sabr.SabrVideoResolver.download(
+                song.id, enabled, targetLabel,
+                // DIRECT parity: only the AUTO pick is metered-capped; an explicit label downloads as chosen.
+                maxAutoBitrateKbps = VideoRendition.defaultMaxBitrateKbps(connectivityManager.isActiveNetworkMetered),
+                videoFile = videoPart, audioFile = audioPart,
+            )
                 ?: throw Exception("SABR video download failed/incomplete for ${song.id}")
             when (VideoMuxer.mux(videoPart, audioPart, outputFile, webm = info.webm)) {
                 VideoMuxer.Result.SUCCESS -> {}

@@ -26,6 +26,8 @@ internal class SabrVideoConfig(
     val streamClientLabel: String = "SABR",
     val videoMimeType: String = "",
     val videoBitrate: Int = 0,
+    /** The listen's cpn for watch-time CDN correlation (DIRECT stampCpn parity); null = download (no stamp). */
+    val cpn: () -> String? = { null },
 )
 
 /**
@@ -60,9 +62,10 @@ internal class SabrVideoSession(
     }
 
     private fun prepared(rawUrl: String): String {
-        val u = config.nTransform(rawUrl)
-        val pot = config.urlPot ?: return u
-        return u + (if (u.contains("?")) "&" else "?") + "pot=" + java.net.URLEncoder.encode(pot, "UTF-8")
+        var u = config.nTransform(rawUrl)
+        config.urlPot?.let { u += (if (u.contains("?")) "&" else "?") + "pot=" + java.net.URLEncoder.encode(it, "UTF-8") }
+        config.cpn()?.let { u += (if (u.contains("?")) "&" else "?") + "cpn=" + it }
+        return u
     }
 
     override fun run() {

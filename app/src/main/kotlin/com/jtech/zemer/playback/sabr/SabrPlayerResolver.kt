@@ -52,17 +52,55 @@ object SabrPlayerResolver {
         Spec(KEY_MWEB, YouTubeClient.MWEB, "MWEB (SABR)", web = true),
     )
 
+    /**
+     * A successful SABR audio resolution: the `sabr://` uri plus everything MusicService mirrors from
+     * the DIRECT resolver — the /player response's stats URLs for the watch-time reporter, the resolved
+     * itag, the client label for telemetry, and whether the client is web (ran the cipher, so the player
+     * hash is attributable). Full DIRECT parity: a SABR listen seeds watch-time and telemetry the same way.
+     */
+    class SabrAudioResult(
+        val uri: Uri,
+        val playbackTracking: com.metrolist.innertube.models.response.PlayerResponse.PlaybackTracking?,
+        val itag: Int,
+        val streamClient: String,
+        val web: Boolean,
+    )
+
     /** Resolve [videoId] over the first [enabled] SABR client that works, or null (caller falls back). */
-    suspend fun resolve(videoId: String, enabled: Set<String>): Uri? = withContext(Dispatchers.IO) {
+    suspend fun resolve(
+        videoId: String,
+        enabled: Set<String>,
+        audioQuality: com.jtech.zemer.constants.AudioQuality = com.jtech.zemer.constants.AudioQuality.AUTO,
+        meteredNetwork: Boolean = false,
+        cpn: () -> String? = { null },
+    ): SabrAudioResult? = withContext(Dispatchers.IO) {
         val visitorData = YouTube.visitorData ?: return@withContext null
         val pot = poTokenGenerator.getWebClientPoToken(videoId, visitorData) ?: return@withContext null
         val sts = NewPipeUtils.getSignatureTimestamp(videoId).getOrNull()
         for (spec in ROSTER) {
             if (spec.key !in enabled) continue
-            val uri = tryClient(spec, videoId, pot, sts)
-            if (uri != null) return@withContext uri
+            val result = tryClient(spec, videoId, pot, sts, audioQuality, meteredNetwork, cpn)
+            if (result != null) return@withContext result
         }
         null
+    }
+
+    /**
+     * The DIRECT resolver's audio pick, mirrored exactly (YTPlayerUtils): bitrate weighted by the quality
+     * preference (AUTO follows the metered state), with the same opus/webm streaming bonus.
+     */
+    internal fun <T> pickAudio(
+        formats: List<T>,
+        bitrate: (T) -> Int,
+        mimeType: (T) -> String,
+        audioQuality: com.jtech.zemer.constants.AudioQuality,
+        meteredNetwork: Boolean,
+    ): T? = formats.maxByOrNull {
+        bitrate(it) * when (audioQuality) {
+            com.jtech.zemer.constants.AudioQuality.AUTO -> if (meteredNetwork) -1 else 1
+            com.jtech.zemer.constants.AudioQuality.HIGH -> 1
+            com.jtech.zemer.constants.AudioQuality.LOW -> -1
+        } + (if (mimeType(it).startsWith("audio/webm")) 10240 else 0)
     }
 
     private suspend fun tryClient(
@@ -70,7 +108,10 @@ object SabrPlayerResolver {
         videoId: String,
         pot: com.zemer.cipher.potoken.PoTokenResult,
         sts: Int?,
-    ): Uri? {
+        audioQuality: com.jtech.zemer.constants.AudioQuality,
+        meteredNetwork: Boolean,
+        cpn: () -> String?,
+    ): SabrAudioResult? {
         return try {
             val response = YouTube.player(
                 videoId,
@@ -83,11 +124,17 @@ object SabrPlayerResolver {
             val sabrUrl = streaming.serverAbrStreamingUrl ?: return null
             val ustreamer = response.playerConfig?.mediaCommonConfig?.mediaUstreamerRequestConfig?.videoPlaybackUstreamerConfig
                 ?: return null
-            val fmt = streaming.adaptiveFormats.filter { it.isAudio && it.isOriginal }.maxByOrNull { it.bitrate } ?: return null
+            val fmt = pickAudio(
+                streaming.adaptiveFormats.filter { it.isAudio && it.isOriginal },
+                bitrate = { it.bitrate },
+                mimeType = { it.mimeType },
+                audioQuality = audioQuality,
+                meteredNetwork = meteredNetwork,
+            ) ?: return null
             val contentLength = fmt.contentLength ?: return null
 
             Timber.tag(TAG).d("SABR resolved $videoId via ${spec.label}: itag=${fmt.itag} contentLength=$contentLength")
-            SabrStreamResolver.register(
+            val uri = SabrStreamResolver.register(
                 mediaId = videoId,
                 serverAbrStreamingUrl = sabrUrl,
                 ustreamerConfigBase64 = ustreamer,
@@ -112,6 +159,14 @@ object SabrPlayerResolver {
                 mimeType = fmt.mimeType,
                 bitrate = fmt.bitrate,
                 audioSampleRate = fmt.audioSampleRate,
+                cpn = cpn,
+            )
+            SabrAudioResult(
+                uri = uri,
+                playbackTracking = response.playbackTracking,
+                itag = fmt.itag,
+                streamClient = spec.label,
+                web = spec.web,
             )
         } catch (e: Exception) {
             Timber.tag(TAG).w(e, "SABR resolve via ${spec.label} failed for $videoId: ${e.message}")

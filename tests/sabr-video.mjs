@@ -34,6 +34,10 @@ const MAX_H = Number(process.argv[4] || 720);
 const BITS = process.env.BITS != null ? Number(process.env.BITS) : 0; // 0 = request both tracks
 const VFMT = process.env.VFMT != null ? Number(process.env.VFMT) : 17; // preferred VIDEO formatId field (17 = the working lever; 16 = audio)
 const dec = (s) => { try { return s && /%[0-9A-Fa-f]{2}/.test(s) ? decodeURIComponent(s) : s; } catch { return s; } };
+// CPN: append &cpn=<value> to every SABR POST url — proves the app's watch-time CDN-correlation
+// stamp (MusicService.stampCpn parity) is accepted by the SABR endpoint (whole drain must still pass).
+const CPN = process.env.CPN || null;
+const withCpn = (u) => (CPN ? u + (u.includes("?") ? "&" : "?") + "cpn=" + CPN : u);
 const ORIGIN = "https://music.youtube.com";
 const PLAYER_URL = ORIGIN + "/youtubei/v1/player?prettyPrint=false";
 
@@ -123,7 +127,7 @@ const bestVideo = (j) => (j?.streamingData?.adaptiveFormats || [])
   const ust = Buffer.from(ustB64, "base64");
 
   const vPref = { itag: vfmt.itag, lastModified: vfmt.lastModified }, aPref = { itag: afmt.itag, lastModified: afmt.lastModified };
-  let url = sd.serverAbrStreamingUrl, playerTimeMs = 0, cookie = null, iter = 0, dry = 0;
+  let url = withCpn(sd.serverAbrStreamingUrl), playerTimeMs = 0, cookie = null, iter = 0, dry = 0;
   const t0 = performance.now();
   while (iter < 400 && dry < 6) {
     iter++;
@@ -149,7 +153,7 @@ const bestVideo = (j) => (j?.streamingData?.adaptiveFormats || [])
     if (sabrError) { console.log(`iter ${iter}: SABR_ERROR`); break; }
     for (const id in hdr) { const h = hdr[id]; const t = tracks[h.itag]; if (!t) continue; if (h.init) { if (t.init === 0) t.init = h.clen; continue; } if (!t.segs.has(h.seq)) t.segs.set(h.seq, h.clen); if (h.seq > t.lastSeq) t.lastSeq = h.seq; const end = h.startMs + h.durMs; if (end > t.bufEndMs) t.bufEndMs = end; newSeg = true; }
     playerTimeMs = Math.min(...Object.values(tracks).map((t) => t.bufEndMs || 0));
-    if (redirect && !newSeg) { url = redirect; iter--; continue; }
+    if (redirect && !newSeg) { url = withCpn(redirect); iter--; continue; }
     dry = newSeg ? 0 : dry + 1;
     if (Object.values(tracks).every((t) => t.endSeg > 0 && t.lastSeq >= t.endSeg)) break;
   }
