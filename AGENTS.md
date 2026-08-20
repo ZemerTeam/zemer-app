@@ -156,7 +156,8 @@ byte-for-byte unchanged. The engine is a faithful Kotlin port of the proven Node
   ignored where absent).
 - **The harness is the proof + validator** (`tests/sabr-stream.mjs` whole-song drain, `tests/sabr-clients.mjs`
   roster). SABR is the danger zone: prove any change against the live CDN there first, then on-device.
-  Settings: Stream Sources -> Experimental (SABR toggle) + the "SABR clients" sub-list.
+  Settings: Stream Sources -> Experimental (SABR toggle) + the "SABR clients" sub-list. Full detail (the
+  protocol, the field numbers, the findings, integration, how to test/extend): `docs/sabr/README.md`.
 
 ### Watch-time reporting (the YouTube playback-stats session; DIRECT only)
 
