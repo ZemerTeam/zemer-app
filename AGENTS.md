@@ -167,7 +167,9 @@ byte-for-byte unchanged. The engine is a faithful Kotlin port of the proven Node
   video+audio roster is IDENTICAL to the audio roster (`tests/sabr-video-clients.mjs`). Engine:
   `SabrMessages.abrRequestVideo` (bitfield 0, fields 16+17, per-track ranges; `MediaHeader.itag` routes
   each MEDIA), `SabrVideoSession` (drains video+audio into two `SabrBuffer`s), `SabrVideoStream`/`Registry`/
-  `SabrVideoDataSource` (one shared ref-counted session -> two DataSources for a `MergingMediaSource`),
+  `SabrVideoDataSource` (ONE shared session -> two DataSources for a `MergingMediaSource`; stream lifetime
+  is EXPLICIT - registry remove/replace only, hooked into VideoModeController.clearState - NEVER tied to
+  DataSource open/close, whose seek-triggered close->reopen gap otherwise kills the session mid-play),
   `SabrVideoResolver` (dual-format resolve, field-17 pin, cipher n-transform), `SabrVideoQuality` (pure
   rung pick, avc1-preferred, JVM-tested). Wiring (all `StreamSabrKey`-gated, RELAY priority, DIRECT
   untouched): a `sabrvideo://` URI in `createMediaSourceFactory` builds the merge from the isolated SABR

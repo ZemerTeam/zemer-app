@@ -12,9 +12,18 @@ import java.io.IOException
 /**
  * A single dual-track SABR session shared by the two ExoPlayer [DataSource]s of a `MergingMediaSource`
  * (video-only + audio). One [SabrVideoSession] fills BOTH buffers; the video DataSource reads
- * [videoBuffer], the audio DataSource reads [audioBuffer]. The session starts lazily on the first
- * DataSource open and is cancelled when the last one closes (ref-counted), so the two children never
- * start two sessions and the thread never outlives playback.
+ * [videoBuffer], the audio DataSource reads [audioBuffer].
+ *
+ * LIFECYCLE — explicit, NEVER tied to DataSource open/close cycles. media3's progressive loading opens
+ * and closes the two children UN-paired: entering video mode seeks mid-track, and once the period
+ * prepares, media3 CANCELS the in-flight loads and re-opens both children at the seek offset — so there
+ * is always a close→reopen gap where zero DataSources are open while playback very much continues. A
+ * ref-counted "cancel + unregister at zero" (the first design) killed the session and wiped the registry
+ * entry inside exactly that gap, and the reopen then failed with "no session" (found on-device). Instead:
+ * the ONE session starts on the first [attach] and runs until [destroy] — called only by
+ * [SabrVideoRegistry] when the entry is removed (video mode exits) or replaced (a new resolve). Reopens
+ * just re-read the accumulating buffers (backward seeks free; a forward seek blocks until the drain
+ * reaches it).
  */
 @UnstableApi
 internal class SabrVideoStream(val config: SabrVideoConfig, private val client: OkHttpClient) {
@@ -22,34 +31,39 @@ internal class SabrVideoStream(val config: SabrVideoConfig, private val client: 
     val audioBuffer = SabrBuffer(config.audioFormat.contentLength)
     private var thread: Thread? = null
     private var session: SabrVideoSession? = null
-    private var mediaId: String? = null
+    private var destroyed = false
     private var refs = 0
 
+    /** First attach starts the ONE session; later attaches (seek/merge reopen churn) reuse it. */
     @Synchronized fun attach(mediaId: String) {
-        this.mediaId = mediaId
         refs++
-        if (thread == null) {
+        if (thread == null && !destroyed) {
             val s = SabrVideoSession(config, client, videoBuffer, audioBuffer)
             session = s
             thread = Thread(s, "sabr-video-$mediaId").apply { isDaemon = true; start() }
         }
     }
 
+    /** A DataSource closed. Deliberately does NOT cancel the session or unregister — see class doc. */
     @Synchronized fun release() {
         if (refs > 0) refs--
-        if (refs == 0) {
-            session?.cancel(); session = null; thread = null
-            // Drop the registry entry once both track DataSources have closed, so a config (ustreamer +
-            // poToken bytes) is not retained per unique video for the whole session.
-            mediaId?.let { SabrVideoRegistry.remove(it) }
-        }
+    }
+
+    /** Kill the drain. Called ONLY by the registry on remove/replace — the explicit end of this stream. */
+    @Synchronized fun destroy() {
+        destroyed = true
+        session?.cancel()
+        session = null
+        thread = null
     }
 }
 
 /**
  * Registry mapping a media id to its live [SabrVideoStream]. The two track DataSources
  * (`sabrvideo://<id>` and `sabraudio://<id>`) resolve the SAME stream here. Isolated from the
- * audio-only [SabrStreamRegistry].
+ * audio-only [SabrStreamRegistry]. The registry OWNS stream lifetime: [put] destroys a replaced
+ * stream, [remove] destroys the removed one — VideoModeController removes on every video-mode exit
+ * (its clearState chokepoint), so a stream never outlives the listen it was resolved for.
  */
 @UnstableApi
 internal object SabrVideoRegistry {
@@ -57,9 +71,9 @@ internal object SabrVideoRegistry {
     const val SCHEME_AUDIO = "sabraudio"
     private val streams = java.util.concurrent.ConcurrentHashMap<String, SabrVideoStream>()
 
-    fun put(mediaId: String, stream: SabrVideoStream) { streams[mediaId] = stream }
+    fun put(mediaId: String, stream: SabrVideoStream) { streams.put(mediaId, stream)?.destroy() }
     fun get(mediaId: String): SabrVideoStream? = streams[mediaId]
-    fun remove(mediaId: String) { streams.remove(mediaId) }
+    fun remove(mediaId: String) { streams.remove(mediaId)?.destroy() }
     fun videoUri(mediaId: String): Uri = Uri.parse("$SCHEME_VIDEO://$mediaId")
     fun audioUri(mediaId: String): Uri = Uri.parse("$SCHEME_AUDIO://$mediaId")
     fun mediaId(uri: Uri): String? =

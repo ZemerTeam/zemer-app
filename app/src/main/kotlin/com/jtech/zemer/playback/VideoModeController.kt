@@ -813,6 +813,10 @@ class VideoModeController(
     }
 
     private fun clearState() {
+        // End of this video-mode session: release the SABR dual-track stream (kills its drain thread +
+        // drops the config). Every exit path funnels through clearState, so this is the ONE removal
+        // point; a no-op for DIRECT/RELAY renditions (nothing registered under the id).
+        videoRenditionId?.let { com.jtech.zemer.playback.sabr.SabrVideoRegistry.remove(it) }
         videoModeItemId = null
         videoModeItemIndex = C.INDEX_UNSET
         videoModeAudioItem = null

@@ -315,10 +315,17 @@ and adds an isolated dual-track layer in `playback/sabr/`:
   `preferredVideoFormatId`=17, per-track ranges). `MediaHeader.itag` routes each interleaved MEDIA.
 - **`SabrVideoSession`** — one loop draining video + audio into two `SabrBuffer`s, advancing to the
   least-buffered track (a faithful port of `tests/sabr-video.mjs`).
-- **`SabrVideoStream` / `SabrVideoRegistry` / `SabrVideoDataSource`** — one shared, ref-counted session
-  feeding two ExoPlayer `DataSource`s (`sabrvideo://<id>` + `sabraudio://<id>`), surfaced as a
-  **`MergingMediaSource`** (the same merge shape the DIRECT adaptive rungs use). Self-removes from the
-  registry when both track DataSources close (no config leak).
+- **`SabrVideoStream` / `SabrVideoRegistry` / `SabrVideoDataSource`** — ONE shared session feeding two
+  ExoPlayer `DataSource`s (`sabrvideo://<id>` + `sabraudio://<id>`), surfaced as a **`MergingMediaSource`**
+  (the same merge shape the DIRECT adaptive rungs use). **Stream lifetime is explicit, never tied to
+  DataSource open/close** (hard-won on-device): entering video mode seeks mid-track, and once the period
+  prepares media3 CANCELS the in-flight loads and re-opens both children at the seek offset — so there is
+  always a close→reopen gap with zero DataSources open while playback continues. The first, ref-counted
+  design (cancel + unregister at zero refs) killed the session and wiped the registry entry inside exactly
+  that gap, and the reopen failed with "no session". Now the session starts on the first attach and is
+  destroyed only by the registry — on `remove` (VideoModeController's `clearState`, the one chokepoint
+  every video-mode exit funnels through) or on `put` replacing it (a new resolve) — so reopens just
+  re-read the accumulating buffers.
 - **`SabrVideoResolver`** — dual-format resolve over the same client roster, pinning a video rung at/under
   the quality target via field 17 (best audio too), cipher n-transform for web clients.
 - **`SabrVideoQuality`** — pure rung selection (best at/under the target height, avc1 preferred), JVM-tested.
