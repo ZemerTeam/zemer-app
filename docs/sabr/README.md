@@ -283,10 +283,14 @@ DIRECT feature applies and is wired:
   a skipped track stops the spend, like DIRECT's ranged chunking.
 - **Seeking.** Covered-spool serves (backward free) + seek-restart at the estimated playerTimeMs for
   uncovered targets — no more full-drain waits; a resumed long episode starts near its resume point.
-- **Stats on every path, online AND offline.** A fresh resolve seeds the reporter live (views + watch
-  time, cpn-stamped POSTs); a spool replay rides the reporter's metadata-fetch fallback (DIRECT
-  cached-play behavior); an offline replay is captured by the reporter's offline branch and re-pushed
-  on reconnect by the deferred stats queue. The reporter gates only RELAY and cast — never SABR.
+- **Stats on every path, online AND offline — accepted at the wire, live.** A fresh resolve seeds the
+  reporter live (views + watch time, cpn-stamped POSTs); a spool replay rides the reporter's
+  metadata-fetch fallback (DIRECT cached-play behavior); an offline replay is captured by the
+  reporter's offline branch and re-pushed on reconnect by the deferred stats queue. The reporter
+  gates only RELAY and cast — never SABR. `tests/sabr-watchtime.mjs` proves the full flow end to end
+  against live YouTube: ONE cpn stamped on every media POST of a whole WEB_REMIX SABR drain, then the
+  SAME cpn's playback + scheduled watchtime + final=1 beacons — every ping HTTP 204 (the exact
+  acceptance bar the DIRECT watchtime replica set).
 
 ---
 
@@ -334,6 +338,9 @@ Both live in `tests/` (Node >=20, deps vendored; needs `innertube_cookie.txt` at
   the DEMAND-PACING proof (the session survived three 90s pauses and kept serving). The dual-track
   variant is `START_S=<s> node tests/sabr-video.mjs` (both tracks land at T; NO end_segment_number on
   a seeked session — completion is byte coverage).
+- **`node tests/sabr-watchtime.mjs [videoId]`** - the STATS proof: a whole WEB_REMIX SABR drain with
+  one cpn stamped on every media POST, then the SAME cpn's playback/watchtime/final beacons — every
+  ping must 204 (a SABR-transported listen is accepted by the stats ingestion exactly like DIRECT).
 - **`node tests/sabr-clients.mjs [videoId]`** - runs the whole client roster and reports, per client,
   whether it delivers a whole song over SABR with the app's pot. This produced the sec 2 table and the
   n-transform / context-update discoveries.

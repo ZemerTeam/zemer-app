@@ -247,7 +247,8 @@ byte-for-byte unchanged. The engine is a faithful Kotlin port of the proven Node
 - **The harness is the proof + validator** (`tests/sabr-stream.mjs` whole-song drain, `tests/sabr-clients.mjs`
   roster; `tests/sabr-video.mjs` + `tests/sabr-video-clients.mjs` for video; `tests/sabr-seek.mjs` for
   the cold-start seek + demand-pacing idle gaps, and `START_S=` on sabr-video.mjs for the dual-track
-  seek). SABR is the danger zone:
+  seek; `tests/sabr-watchtime.mjs` for the stats session — a whole cpn-stamped SABR drain + the same
+  cpn's playback/watchtime/final beacons, every ping 204). SABR is the danger zone:
   prove any change against the live CDN there first, then on-device.
   Settings: Stream Sources -> Experimental (SABR toggle) + the "SABR clients" sub-list. Full detail (the
   protocol, the field numbers, the findings, integration, how to test/extend): `docs/sabr/README.md`.
