@@ -102,10 +102,12 @@ internal class SabrVideoSession(
         try {
             loop()
         } catch (e: Exception) {
-            if (!cancelled) {
+            // A thread interrupt IS a cancellation (runInterruptible on a cancelled download Job), not
+            // a stream failure — no error mark, no stall record; the caller discards the buffers.
+            val interrupted = e is java.io.InterruptedIOException || e is InterruptedException || Thread.currentThread().isInterrupted
+            if (!cancelled && !interrupted) {
                 videoBuffer.markError(e.message ?: e.javaClass.simpleName)
                 audioBuffer.markError(e.message ?: e.javaClass.simpleName)
-                onIncomplete?.invoke()
             }
         }
     }
@@ -145,8 +147,10 @@ internal class SabrVideoSession(
                 .header("User-Agent", config.userAgent)
                 .post(body.toRequestBody(protobuf))
                 .build()
+            // An HTTP failure is NOT recorded as a client stall — a 403 is usually an expired URL, not
+            // this client's fault; the error mark surfaces it and the refresh path re-resolves fresh.
             val bytes = client.newCall(req).execute().use { resp ->
-                if (!resp.isSuccessful) { videoBuffer.markError("HTTP ${resp.code}"); audioBuffer.markError("HTTP ${resp.code}"); onIncomplete?.invoke(); return }
+                if (!resp.isSuccessful) { videoBuffer.markError("HTTP ${resp.code}"); audioBuffer.markError("HTTP ${resp.code}"); return }
                 resp.body?.bytes() ?: ByteArray(0)
             }
             if (cancelled) return

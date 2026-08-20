@@ -173,6 +173,25 @@ class SabrStreamLifecycleTest {
     }
 
     @Test
+    fun `two streams for one id get DISTINCT spool files, so a replacement never unlinks the survivor`() {
+        // Same id + itag used to share one part filename: the replaced stream's destroy unlinked the
+        // file under the survivor's handle — playback survived (POSIX) but the survivor's completed
+        // drain could never promote (rename of an unlinked path), silently starving the replay cache.
+        val config = audioConfig(len = 8)
+        val old = SabrAudioStream("vid00000030", config, client)
+        val fresh = SabrAudioStream("vid00000030", config, client)
+        assertTrue(old.buffer.file != fresh.buffer.file)
+        SabrStreamRegistry.put("vid00000030", config)
+        SabrStreamRegistry.installStream("vid00000030", old)
+        SabrStreamRegistry.installStream("vid00000030", fresh) // destroys old, deletes ITS file only
+        assertTrue("the survivor's spool must still exist", fresh.buffer.file.exists())
+        fresh.buffer.writeAt(0, ByteArray(8), 0, 8)
+        fresh.buffer.markComplete()
+        SabrStreamRegistry.remove("vid00000030") // destroy -> promote
+        assertNotNull("the survivor's complete drain must promote", SabrSpool.lookup("vid00000030"))
+    }
+
+    @Test
     fun `spool lookup validates the file length and evict removes the entry`() {
         val config = audioConfig(len = 8)
         val stream = SabrAudioStream("vid00000020", config, client)

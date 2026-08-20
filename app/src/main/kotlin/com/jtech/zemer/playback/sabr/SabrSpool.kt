@@ -34,15 +34,20 @@ internal object SabrSpool {
 
     private fun requireDir(): File = dir ?: throw IllegalStateException("SabrSpool not initialized")
 
-    /**
-     * The in-flight spool file for a PLAYBACK stream ([mediaId] is a videoId — filename-safe).
-     * [suffix] disambiguates a video-mode track from the plain audio stream of the same id+itag
-     * (both can be live at once; two RAFs on one file would corrupt it).
-     */
-    fun partFile(mediaId: String, itag: Int, suffix: String = ""): File = File(requireDir(), "$mediaId.$itag$suffix.part")
+    // Every part file is UNIQUE PER STREAM INSTANCE: two streams for the same id+itag can be alive at
+    // once (a quality switch's audio track while the old rung still plays, an error-refresh recreate,
+    // the abandoned side of a swap race), and a shared name meant one stream's destroy unlinked the
+    // file under the other's handle — playback survived (POSIX), but a completed drain's promotion
+    // silently failed on the unlinked path, so the replay cache never populated after a replacement.
+    private val partSeq = java.util.concurrent.atomic.AtomicLong(0)
+
+    /** A fresh in-flight spool file for a PLAYBACK stream ([mediaId] is a videoId — filename-safe). */
+    fun partFile(mediaId: String, itag: Int, suffix: String = ""): File =
+        File(requireDir(), "$mediaId.$itag$suffix-${partSeq.incrementAndGet()}.part")
 
     /** A throwaway spool for a DOWNLOAD drain ([tag] disambiguates the video/audio tracks). */
-    fun downloadPart(mediaId: String, tag: String): File = File(requireDir(), "$mediaId.$tag.dl.part")
+    fun downloadPart(mediaId: String, tag: String): File =
+        File(requireDir(), "$mediaId.$tag.dl-${partSeq.incrementAndGet()}.part")
 
     class Entry(
         val file: File,

@@ -94,7 +94,10 @@ internal class SabrSession(
         try {
             loop()
         } catch (e: Exception) {
-            if (!cancelled) { buffer.markError(e.message ?: e.javaClass.simpleName); onIncomplete?.invoke() }
+            // A thread interrupt IS a cancellation (runInterruptible on a cancelled download Job), not
+            // a stream failure — no error mark, no stall record; the caller discards the buffer.
+            val interrupted = e is java.io.InterruptedIOException || e is InterruptedException || Thread.currentThread().isInterrupted
+            if (!cancelled && !interrupted) buffer.markError(e.message ?: e.javaClass.simpleName)
         }
     }
 
@@ -139,8 +142,10 @@ internal class SabrSession(
                 .header("User-Agent", config.userAgent)
                 .post(body.toRequestBody(protobuf))
                 .build()
+            // An HTTP failure is NOT recorded as a client stall — a 403 is usually an expired URL, not
+            // this client's fault; the error mark surfaces it and the refresh path re-resolves fresh.
             val bytes = client.newCall(req).execute().use { resp ->
-                if (!resp.isSuccessful) { buffer.markError("HTTP ${resp.code}"); onIncomplete?.invoke(); return }
+                if (!resp.isSuccessful) { buffer.markError("HTTP ${resp.code}"); return }
                 resp.body?.bytes() ?: ByteArray(0)
             }
             if (cancelled) return
