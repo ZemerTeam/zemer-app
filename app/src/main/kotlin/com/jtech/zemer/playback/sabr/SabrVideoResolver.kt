@@ -117,14 +117,7 @@ object SabrVideoResolver {
         withContext(Dispatchers.IO) {
             val (built, rung) = builtFor(videoId, enabled, targetLabel, maxAutoBitrateKbps) ?: return@withContext null
             val config = configForRung(built, rung, cpn) ?: return@withContext null
-            val stream = try {
-                SabrVideoStream(config, SabrStreamResolver.sharedClient())
-            } catch (e: OutOfMemoryError) {
-                // Two whole-track buffers can be large (a high rung of a long video) — fail the resolve
-                // cleanly (caller reverts to audio) rather than killing the process on the allocation.
-                Timber.tag(TAG).w("SABR video buffer allocation failed for $videoId (${config.videoFormat.contentLength}+${config.audioFormat.contentLength} bytes)")
-                return@withContext null
-            }
+            val stream = SabrVideoStream(videoId, config, SabrStreamResolver.sharedClient())
             SabrVideoResult(SabrVideoRegistry.videoUri(videoId), built.ladder, rung, stream)
         }
 
@@ -167,6 +160,8 @@ object SabrVideoResolver {
             streamClientLabel = base.streamClientLabel,
             videoMimeType = rung.mimeType,
             videoBitrate = rung.bitrate,
+            clientKey = base.clientKey,
+            durationMs = base.durationMs,
             cpn = cpn,
         )
     }
@@ -215,30 +210,30 @@ object SabrVideoResolver {
                     AudioPick(built.config.audioFormat, if (webm) "audio/webm" else "audio/mp4")
                 }
             val config = configForRung(built, rung, cpn = { null }, audioFormat = audioPick.format) ?: return@withContext null
+            if (!SabrBuffer.lengthValid(config.videoFormat.contentLength) || !SabrBuffer.lengthValid(config.audioFormat.contentLength)) return@withContext null
             val totalBytes = config.videoFormat.contentLength + config.audioFormat.contentLength
-            val videoBuf: SabrBuffer
-            val audioBuf: SabrBuffer
+            val videoBuf = SabrBuffer(config.videoFormat.contentLength, SabrSpool.downloadPart(videoId, "dv"))
+            val audioBuf = SabrBuffer(config.audioFormat.contentLength, SabrSpool.downloadPart(videoId, "da"))
             try {
-                videoBuf = SabrBuffer(config.videoFormat.contentLength)
-                audioBuf = SabrBuffer(config.audioFormat.contentLength)
-            } catch (e: OutOfMemoryError) {
-                Timber.tag(TAG).w("SABR video download buffer allocation failed for $videoId ($totalBytes bytes)")
-                return@withContext null
+                val session = SabrVideoSession(
+                    config, SabrStreamResolver.sharedClient(), videoBuf, audioBuf,
+                    onProgress = { onProgress?.invoke(it, totalBytes) },
+                    onIncomplete = { config.clientKey?.let { SabrPlayerResolver.recordStall(videoId, it) } },
+                )
+                // Blocks until drained; a Job cancel interrupts the in-flight OkHttp call.
+                kotlinx.coroutines.runInterruptible { session.run() }
+                if (!drainWhole(videoBuf, config.videoFormat.contentLength) || !drainWhole(audioBuf, config.audioFormat.contentLength)) {
+                    Timber.tag(TAG).w("SABR video download incomplete for $videoId: video ${videoBuf.available()}/${config.videoFormat.contentLength}, audio ${audioBuf.available()}/${config.audioFormat.contentLength}")
+                    return@withContext null
+                }
+                writeBuffer(videoBuf, videoFile)
+                writeBuffer(audioBuf, audioFile)
+                if (videoFile.length() <= 0L || audioFile.length() <= 0L) return@withContext null
+                VideoDownloadInfo(config.videoMimeType, audioPick.mimeType, webm)
+            } finally {
+                videoBuf.release(deleteFile = true)
+                audioBuf.release(deleteFile = true)
             }
-            val session = SabrVideoSession(
-                config, SabrStreamResolver.sharedClient(), videoBuf, audioBuf,
-                onProgress = { onProgress?.invoke(it, totalBytes) },
-            )
-            // Blocks until drained; a Job cancel interrupts the in-flight OkHttp call.
-            kotlinx.coroutines.runInterruptible { session.run() }
-            if (!drainWhole(videoBuf, config.videoFormat.contentLength) || !drainWhole(audioBuf, config.audioFormat.contentLength)) {
-                Timber.tag(TAG).w("SABR video download incomplete for $videoId: video ${videoBuf.available()}/${config.videoFormat.contentLength}, audio ${audioBuf.available()}/${config.audioFormat.contentLength}")
-                return@withContext null
-            }
-            writeBuffer(videoBuf, videoFile)
-            writeBuffer(audioBuf, audioFile)
-            if (videoFile.length() <= 0L || audioFile.length() <= 0L) return@withContext null
-            VideoDownloadInfo(config.videoMimeType, audioPick.mimeType, webm)
         }
 
     private fun drainWhole(buf: SabrBuffer, contentLength: Long): Boolean =
@@ -278,8 +273,12 @@ object SabrVideoResolver {
         val visitorData = YouTube.visitorData ?: return null
         val pot = poTokenGenerator.getWebClientPoToken(videoId, visitorData) ?: return null
         val sts = NewPipeUtils.getSignatureTimestamp(videoId).getOrNull()
-        for (spec in ROSTER) {
-            if (spec.key !in enabled) continue
+        // Stall fallback (shared with the audio resolver): a client that drained this id incomplete is
+        // deprioritized, so a replay advances the roster instead of truncating identically forever.
+        val stalled = SabrPlayerResolver.stalledFor(videoId)
+        val order = ROSTER.filter { it.key in enabled && it.key !in stalled } +
+            ROSTER.filter { it.key in enabled && it.key in stalled }
+        for (spec in order) {
             val built = build(spec, videoId, pot, sts, targetLabel, maxAutoBitrateKbps)
             if (built != null) return built
         }
@@ -374,6 +373,9 @@ object SabrVideoResolver {
                 streamClientLabel = spec.label,
                 videoMimeType = videoFmt.mimeType,
                 videoBitrate = videoFmt.bitrate,
+                clientKey = spec.key,
+                // approxDurationMs: the byte<->time estimate the stream's seek-restart needs.
+                durationMs = videoFmt.approxDurationMs?.toLongOrNull() ?: 0L,
             )
             Built(config, ladder, chosen, videoFormats, audioMp4 = audioPick("mp4"), audioWebm = audioPick("webm"))
         } catch (e: Exception) {

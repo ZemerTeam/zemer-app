@@ -70,6 +70,34 @@ object SabrPlayerResolver {
         internal val config: SabrConfig,
     )
 
+    // ---- resolve cache (DIRECT's songUrlCache parity): one /player + poToken serves replays of the
+    // same id within the TTL (well under the ~6h URL expiry). Playback-only — the download path passes
+    // register=false AND must not inherit a playback config (its cpn stamps the listen's nonce).
+    private class Cached(val result: SabrAudioResult, val atMs: Long)
+    private val resolveCache = java.util.concurrent.ConcurrentHashMap<String, Cached>()
+    private const val CACHE_TTL_MS = 45L * 60 * 1000
+    private const val CACHE_MAX = 8
+
+    /** Drop [videoId]'s cached resolution (a playback error invalidates — DIRECT's cache discipline). */
+    fun invalidate(videoId: String) {
+        resolveCache.remove(videoId)
+    }
+
+    // ---- stall fallback: a client whose session drained INCOMPLETE for a video is skipped on the next
+    // resolve of that video, so a replay advances the roster instead of truncating identically forever.
+    // (A /player that succeeds gives the roster loop no failure signal — this is that signal.)
+    private val stalledClients = java.util.concurrent.ConcurrentHashMap<String, MutableSet<String>>()
+
+    /** Record an incomplete drain of [videoId] over [clientKey] (fed by the sessions' onIncomplete). */
+    fun recordStall(videoId: String, clientKey: String) {
+        Timber.tag(TAG).w("SABR client $clientKey stalled on $videoId — deprioritized for this id")
+        stalledClients.getOrPut(videoId) { java.util.Collections.newSetFromMap(java.util.concurrent.ConcurrentHashMap()) }.add(clientKey)
+        invalidate(videoId)
+    }
+
+    /** The clients recorded as stalled for [videoId] (consulted by both resolvers' roster ordering). */
+    fun stalledFor(videoId: String): Set<String> = stalledClients[videoId].orEmpty()
+
     /**
      * Resolve [videoId] over the first [enabled] SABR client that works, or null (caller falls back).
      * [register] true (playback) installs the config in [SabrStreamRegistry] so the returned `sabr://`
@@ -84,14 +112,28 @@ object SabrPlayerResolver {
         cpn: () -> String? = { null },
         register: Boolean = true,
     ): SabrAudioResult? = withContext(Dispatchers.IO) {
+        if (register) {
+            resolveCache[videoId]?.takeIf { android.os.SystemClock.elapsedRealtime() - it.atMs < CACHE_TTL_MS }?.let {
+                SabrStreamRegistry.put(videoId, it.result.config)
+                Timber.tag(TAG).d("SABR resolve cache hit for $videoId")
+                return@withContext it.result
+            }
+        }
         val visitorData = YouTube.visitorData ?: return@withContext null
         val pot = poTokenGenerator.getWebClientPoToken(videoId, visitorData) ?: return@withContext null
         val sts = NewPipeUtils.getSignatureTimestamp(videoId).getOrNull()
-        for (spec in ROSTER) {
-            if (spec.key !in enabled) continue
+        val stalled = stalledClients[videoId].orEmpty()
+        // Two passes: prefer non-stalled clients; a fully-stalled roster still retries them (last hope).
+        val order = ROSTER.filter { it.key in enabled && it.key !in stalled } +
+            ROSTER.filter { it.key in enabled && it.key in stalled }
+        for (spec in order) {
             val result = tryClient(spec, videoId, pot, sts, audioQuality, meteredNetwork, cpn)
             if (result != null) {
-                if (register) SabrStreamRegistry.put(videoId, result.config)
+                if (register) {
+                    SabrStreamRegistry.put(videoId, result.config)
+                    if (resolveCache.size >= CACHE_MAX) resolveCache.entries.minByOrNull { it.value.atMs }?.let { resolveCache.remove(it.key) }
+                    resolveCache[videoId] = Cached(result, android.os.SystemClock.elapsedRealtime())
+                }
                 return@withContext result
             }
         }
@@ -177,6 +219,9 @@ object SabrPlayerResolver {
                 mimeType = fmt.mimeType,
                 bitrate = fmt.bitrate,
                 audioSampleRate = fmt.audioSampleRate,
+                clientKey = spec.key,
+                // approxDurationMs: the byte<->time estimate the stream's seek-restart needs.
+                durationMs = fmt.approxDurationMs?.toLongOrNull() ?: 0L,
                 cpn = cpn,
             )
             SabrAudioResult(

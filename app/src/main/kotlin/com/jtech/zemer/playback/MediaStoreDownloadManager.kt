@@ -89,6 +89,11 @@ constructor(
     private val database: MusicDatabase
         get() = databaseLazy.get()
     private val scope = CoroutineScope(Dispatchers.IO + Job())
+
+    init {
+        // SABR download drains spool to disk (idempotent; MusicService inits the same dir).
+        com.jtech.zemer.playback.sabr.SabrSpool.init(context.cacheDir)
+    }
     private val mediaStoreHelper = MediaStoreHelper(context)
     private val connectivityManager = context.getSystemService<ConnectivityManager>()
         ?: throw IllegalStateException("ConnectivityManager not available on this device")

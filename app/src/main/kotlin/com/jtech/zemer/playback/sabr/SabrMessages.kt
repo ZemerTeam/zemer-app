@@ -53,9 +53,17 @@ internal object SabrMessages {
             concat(contexts.map { bField(5, it) }),
         )
 
-    // BufferedRange { formatId=1, startTimeMs=2, durationMs=3, startSegmentIndex=4, endSegmentIndex=5 }
-    private fun bufferedRange(f: Format, endMs: Long, endSeg: Int): ByteArray =
-        concat(bField(1, formatId(f)), vField(2, 0), vField(3, endMs), vField(4, 1), vField(5, endSeg.toLong()))
+    // BufferedRange { formatId=1, startTimeMs=2, durationMs=3, startSegmentIndex=4, endSegmentIndex=5 }.
+    // A SEEK-RESTARTED session's range starts at OUR first received segment (startTimeMs/startSeg),
+    // never a hardcoded (0, 1) — proven live in tests/sabr-seek.mjs / sabr-video.mjs START_S.
+    private fun bufferedRange(t: TrackState): ByteArray =
+        concat(
+            bField(1, formatId(t.format)),
+            vField(2, t.startTimeMs),
+            vField(3, (t.bufferedEndMs - t.startTimeMs).coerceAtLeast(0)),
+            vField(4, t.startSeg.toLong()),
+            vField(5, t.bufferedEndSeg.toLong()),
+        )
 
     // ClientAbrState { playerTimeMs=28, enabledTrackTypesBitfield=40 }  (40=1 -> audio only)
     private fun clientAbrState(playerTimeMs: Long): ByteArray = concat(vField(28, playerTimeMs), vField(40, 1))
@@ -70,23 +78,28 @@ internal object SabrMessages {
         poToken: ByteArray,
         clientInfo: ClientInfo,
         playerTimeMs: Long,
-        bufferedEndMs: Long,
-        bufferedEndSeg: Int,
+        range: TrackState?,
         cookie: ByteArray?,
         sabrContexts: List<ByteArray>,
         selected: Boolean,
     ): ByteArray = concat(
         bField(1, clientAbrState(playerTimeMs)),
         if (selected) bField(2, formatId(format)) else ByteArray(0),
-        if (bufferedEndSeg > 0) bField(3, bufferedRange(format, bufferedEndMs, bufferedEndSeg)) else ByteArray(0),
+        if (range != null && range.bufferedEndSeg > 0) bField(3, bufferedRange(range)) else ByteArray(0),
         if (playerTimeMs > 0) vField(4, playerTimeMs) else ByteArray(0),
         bField(5, ustreamerConfig),
         bField(16, formatId(format)),
         bField(19, streamerContext(clientInfo, poToken, cookie, sabrContexts)),
     )
 
-    /** One track's buffered progress in a multi-track (video+audio) request. */
-    class TrackState(val format: Format, val bufferedEndMs: Long, val bufferedEndSeg: Int)
+    /** One track's buffered progress ([startTimeMs]/[startSeg] anchor a seek-restarted session's range). */
+    class TrackState(
+        val format: Format,
+        val bufferedEndMs: Long,
+        val bufferedEndSeg: Int,
+        val startTimeMs: Long = 0,
+        val startSeg: Int = 1,
+    )
 
     /**
      * VideoPlaybackAbrRequest for a DUAL-TRACK (video + audio) SABR session. Differs from [abrRequest]:
@@ -112,7 +125,7 @@ internal object SabrMessages {
         return concat(
             bField(1, concat(vField(28, playerTimeMs), vField(40, 0))), // enabledTrackTypesBitfield=0 => video+audio
             if (selected) concat(states.map { bField(2, formatId(it.format)) }) else ByteArray(0),
-            concat(states.filter { it.bufferedEndSeg > 0 }.map { bField(3, bufferedRange(it.format, it.bufferedEndMs, it.bufferedEndSeg)) }),
+            concat(states.filter { it.bufferedEndSeg > 0 }.map { bField(3, bufferedRange(it)) }),
             if (playerTimeMs > 0) vField(4, playerTimeMs) else ByteArray(0),
             bField(5, ustreamerConfig),
             bField(16, formatId(audioFormat)), // preferredAudioFormatId

@@ -33,6 +33,9 @@ const CLIENT = (process.argv[3] || "VISIONOS").toUpperCase();
 const MAX_H = Number(process.argv[4] || 720);
 const BITS = process.env.BITS != null ? Number(process.env.BITS) : 0; // 0 = request both tracks
 const VFMT = process.env.VFMT != null ? Number(process.env.VFMT) : 17; // preferred VIDEO formatId field (17 = the working lever; 16 = audio)
+// START_S: cold-start the session at playerTimeMs = START_S*1000 (the dual-track SEEK proof — the
+// audio sibling is tests/sabr-seek.mjs). 0 (default) = the original whole-stream drain, byte-identical.
+const START_MS = Number(process.env.START_S || 0) * 1000;
 const dec = (s) => { try { return s && /%[0-9A-Fa-f]{2}/.test(s) ? decodeURIComponent(s) : s; } catch { return s; } };
 // CPN: append &cpn=<value> to every SABR POST url — proves the app's watch-time CDN-correlation
 // stamp (MusicService.stampCpn parity) is accepted by the SABR endpoint (whole drain must still pass).
@@ -56,7 +59,8 @@ const fS = (f, s) => fB(f, Buffer.from(s, "utf8"));
 const fmtId = (itag, lm) => Buffer.concat([fV(1, itag), lm ? fV(2, BigInt(lm)) : Buffer.alloc(0)]);
 const clientInfo = (c) => Buffer.concat([fS(12, c.deviceMake), fS(13, c.deviceModel), fV(16, c.clientId), fS(17, c.clientVersion), fS(18, c.osName), fS(19, c.osVersion), c.androidSdkVersion ? fV(64, c.androidSdkVersion) : Buffer.alloc(0)]);
 const streamerCtx = (c, pot, cookie) => Buffer.concat([fB(1, clientInfo(c)), fB(2, pot), cookie ? fB(3, cookie) : Buffer.alloc(0)]);
-const bufRange = (fmt, endMs, endSeg) => Buffer.concat([fB(1, fmtId(fmt.itag, fmt.lastModified)), fV(2, 0), fV(3, Math.round(endMs)), fV(4, 1), fV(5, endSeg)]);
+// A seeked session's range starts at OUR first received segment (startMs/startSeg), not (0, 1).
+const bufRange = (fmt, endMs, endSeg, startMs = 0, startSeg = 1) => Buffer.concat([fB(1, fmtId(fmt.itag, fmt.lastModified)), fV(2, Math.round(startMs)), fV(3, Math.round(Math.max(0, endMs - startMs))), fV(4, startSeg), fV(5, endSeg)]);
 
 // VideoPlaybackAbrRequest { clientAbrState=1, selectedFormatId=2(repeated), bufferedRange=3(repeated),
 //   playerTimeMs=4, videoPlaybackUstreamerConfig=5, preferredAudioFormatId=16, preferredVideoFormatId=VFMT, streamerContext=19 }
@@ -65,7 +69,7 @@ function buildAbrRequest(ust, video, audio, pot, c, playerTimeMs, ranges, cookie
   return Buffer.concat([
     fB(1, Buffer.concat([fV(28, Math.round(playerTimeMs)), fV(40, BITS)])),
     selected ? Buffer.concat([fB(2, fmtId(video.itag, video.lastModified)), fB(2, fmtId(audio.itag, audio.lastModified))]) : Buffer.alloc(0),
-    ...ranges.map((r) => fB(3, bufRange(r.fmt, r.endMs, r.endSeg))),
+    ...ranges.map((r) => fB(3, bufRange(r.fmt, r.endMs, r.endSeg, r.startMs || 0, r.startSeg || 1))),
     playerTimeMs ? fV(4, Math.round(playerTimeMs)) : Buffer.alloc(0),
     fB(5, ust),
     fB(16, fmtId(audio.itag, audio.lastModified)),
@@ -119,7 +123,7 @@ const bestVideo = (j) => (j?.streamingData?.adaptiveFormats || [])
   // Tracks are DISCOVERED from the served MEDIA_HEADER itags (the server picks the video format; we
   // requested video=136 + audio=251 as preferred). Each track reassembles its own byte stream.
   const tracks = {};
-  const track = (itag) => (tracks[itag] ||= { ...(byItag[itag] || { itag, kind: "?", clen: 0, label: "itag " + itag }), segs: new Map(), assembled: Buffer.alloc(byItag[itag]?.clen || 0), init: 0, cursor: {}, lastSeq: 0, bufEndMs: 0, endSeg: 0 });
+  const track = (itag) => (tracks[itag] ||= { ...(byItag[itag] || { itag, kind: "?", clen: 0, label: "itag " + itag }), segs: new Map(), assembled: Buffer.alloc(byItag[itag]?.clen || 0), init: 0, cursor: {}, lastSeq: 0, bufEndMs: 0, endSeg: 0, firstSeq: 0, firstMs: 0, firstOff: -1 });
   console.log(`play=${j.playabilityStatus?.status}  requested video=${vfmt.itag}(${byItag[vfmt.itag]?.label}) audio=${afmt.itag}(${byItag[afmt.itag]?.label})\n`);
 
   const minter = await createMinter(visitorData);
@@ -127,11 +131,11 @@ const bestVideo = (j) => (j?.streamingData?.adaptiveFormats || [])
   const ust = Buffer.from(ustB64, "base64");
 
   const vPref = { itag: vfmt.itag, lastModified: vfmt.lastModified }, aPref = { itag: afmt.itag, lastModified: afmt.lastModified };
-  let url = withCpn(sd.serverAbrStreamingUrl), playerTimeMs = 0, cookie = null, iter = 0, dry = 0;
+  let url = withCpn(sd.serverAbrStreamingUrl), playerTimeMs = START_MS, cookie = null, iter = 0, dry = 0;
   const t0 = performance.now();
   while (iter < 400 && dry < 6) {
     iter++;
-    const ranges = Object.values(tracks).filter((t) => t.lastSeq > 0).map((t) => ({ fmt: { itag: t.itag, lastModified: t.lastModified }, endMs: t.bufEndMs, endSeg: t.lastSeq }));
+    const ranges = Object.values(tracks).filter((t) => t.lastSeq > 0).map((t) => ({ fmt: { itag: t.itag, lastModified: t.lastModified }, endMs: t.bufEndMs, endSeg: t.lastSeq, startMs: t.firstMs, startSeg: t.firstSeq }));
     const anySelected = Object.values(tracks).some((t) => t.lastSeq > 0);
     const res = await fetch(url, { method: "POST", headers: { "User-Agent": CFG.ua, "Content-Type": "application/x-protobuf" }, body: buildAbrRequest(ust, vPref, aPref, pot, CFG, playerTimeMs, ranges, cookie, anySelected) });
     if (res.status >= 400) { console.log(`iter ${iter}: HTTP ${res.status} — stop`); break; }
@@ -151,8 +155,9 @@ const bestVideo = (j) => (j?.streamingData?.adaptiveFormats || [])
       console.log(`  iter ${iter}: parts ${JSON.stringify(counts)} headers[${hitags.join(",")}] pt=${Math.round(playerTimeMs)}`);
     }
     if (sabrError) { console.log(`iter ${iter}: SABR_ERROR`); break; }
-    for (const id in hdr) { const h = hdr[id]; const t = tracks[h.itag]; if (!t) continue; if (h.init) { if (t.init === 0) t.init = h.clen; continue; } if (!t.segs.has(h.seq)) t.segs.set(h.seq, h.clen); if (h.seq > t.lastSeq) t.lastSeq = h.seq; const end = h.startMs + h.durMs; if (end > t.bufEndMs) t.bufEndMs = end; newSeg = true; }
-    playerTimeMs = Math.min(...Object.values(tracks).map((t) => t.bufEndMs || 0));
+    for (const id in hdr) { const h = hdr[id]; const t = tracks[h.itag]; if (!t) continue; if (h.init) { if (t.init === 0) t.init = h.clen; continue; } if (!t.segs.has(h.seq)) t.segs.set(h.seq, h.clen); if (!t.firstSeq || h.seq < t.firstSeq) { t.firstSeq = h.seq; t.firstMs = h.startMs; t.firstOff = h.off; } if (h.seq > t.lastSeq) t.lastSeq = h.seq; const end = h.startMs + h.durMs; if (end > t.bufEndMs) t.bufEndMs = end; newSeg = true; }
+    // Advance to the least-buffered track; a seeked session floors at START_MS until both tracks land.
+    playerTimeMs = Math.max(START_MS, Math.min(...Object.values(tracks).map((t) => t.bufEndMs || START_MS)));
     if (redirect && !newSeg) { url = withCpn(redirect); iter--; continue; }
     dry = newSeg ? 0 : dry + 1;
     if (Object.values(tracks).every((t) => t.endSeg > 0 && t.lastSeq >= t.endSeg)) break;
@@ -173,6 +178,29 @@ const bestVideo = (j) => (j?.streamingData?.adaptiveFormats || [])
     console.log(`${t.kind} itag=${it} (${t.label}): ${t.segs.size} segments, init+Σ=${total} vs contentLength ${t.clen}  ${whole ? "WHOLE ✓" : "PARTIAL (capped)"}`);
   }
   console.log(`${iter} SABR requests, ${((performance.now() - t0) / 1000).toFixed(1)}s`);
+  if (START_MS > 0) {
+    // SEEK proof: BOTH tracks' first segment contains (or nearly abuts) START_MS, and each tail is
+    // whole + byte-contiguous from its first absolute startRange to its contentLength.
+    let seekOk = true;
+    for (const it in tracks) {
+      const t = tracks[it];
+      if (t.clen === 0) continue;
+      const honoured = t.firstSeq > 1 && t.firstMs <= START_MS + 1000 && t.firstMs + 30000 > START_MS;
+      const missing = []; for (let s = t.firstSeq; s <= t.lastSeq; s++) if (!t.segs.has(s)) missing.push(s);
+      const tailBytes = [...t.segs.values()].reduce((a, b) => a + b, 0);
+      // NOTE (proven live): a SEEKED dual-track session gets NO end_segment_number (FMT_INIT omits
+      // field 4) — completion must be judged by BYTE coverage reaching contentLength, which is also
+      // what the app engine uses (contentLength is known up front from /player).
+      const contiguous = missing.length === 0 && t.firstOff >= 0 && t.firstOff + tailBytes === t.clen &&
+        (t.endSeg === 0 || t.lastSeq >= t.endSeg);
+      seekOk = seekOk && honoured && contiguous;
+      console.log(`${t.kind} itag=${it}: first seg=${t.firstSeq}@${Math.round(t.firstMs)}ms (T=${START_MS}) startRange=${t.firstOff}; segs ${t.firstSeq}..${t.lastSeq} endSeg=${t.endSeg} missing=${missing.length}; tail [${t.firstOff}..${t.firstOff + tailBytes}) vs clen ${t.clen} ${honoured && contiguous ? "SEEK ✓" : "SEEK ✗"}`);
+    }
+    console.log(seekOk
+      ? `>>> DUAL-TRACK COLD-START SEEK HONOURED, both tails whole + byte-contiguous ✓ (${CLIENT})`
+      : `>>> dual-track seek NOT proven — do not build video seek-restart on this`);
+    process.exit(seekOk ? 0 : 1);
+  }
   console.log(gotVideo && gotAudio
     ? `>>> WHOLE VIDEO + AUDIO over SABR, byte-exact ✓ (${CLIENT}) — server served video itag ${Object.values(tracks).find((t) => t.kind === "video")?.itag}`
     : `>>> INCOMPLETE — video=${gotVideo ? "ok" : "missing/capped"} audio=${gotAudio ? "ok" : "missing/capped"}`);

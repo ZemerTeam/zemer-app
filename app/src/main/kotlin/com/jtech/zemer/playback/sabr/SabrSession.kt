@@ -28,6 +28,10 @@ internal class SabrConfig(
     val mimeType: String = "",
     val bitrate: Int = 0,
     val audioSampleRate: Int? = null,
+    /** The roster key of the client this config resolved over (the stall-fallback bookkeeping id). */
+    val clientKey: String? = null,
+    /** approxDurationMs from the /player format — the byte<->time estimate a seek-restart needs. */
+    val durationMs: Long = 0,
     /**
      * The listen's client playback nonce for the watch-time CDN correlation (DIRECT's stampCpn parity):
      * every SABR media POST carries the SAME cpn the stats-beacon session uses, so the CDN sees a
@@ -38,22 +42,43 @@ internal class SabrConfig(
 )
 
 /**
- * Drives the SABR continuation loop on a background thread, reassembling the audio stream in order into
- * [buffer]: POST a [SabrMessages.abrRequest] -> parse the UMP response -> append new segments -> re-POST
- * with the advanced playerTimeMs + bufferedRange (echoing playback cookies + SABR context updates) until
- * every segment (init + 1..endSegment) has arrived. A faithful port of the proven `tests/sabr-stream.mjs`
- * drain, whose whole-song delivery is validated against the live CDN. Isolated: touches nothing else.
+ * Drives the SABR continuation loop on a background thread, reassembling the audio stream into
+ * [buffer] at absolute offsets: POST a [SabrMessages.abrRequest] -> parse the UMP response -> write new
+ * segments -> re-POST with the advanced playerTimeMs + bufferedRange (echoing playback cookies + SABR
+ * context updates) until the stream's TAIL (from this session's first byte to contentLength) is covered.
+ * A faithful port of the proven `tests/sabr-stream.mjs` drain. Two proven extensions:
+ *
+ *  - SEEK ([startTimeMs] > 0): the session cold-starts at that playerTimeMs and the server serves the
+ *    segment containing it (absolute startRange — positional reassembly Just Works); the range echo
+ *    anchors at OUR first segment. NOTE: a seeked session may get NO end_segment_number, so completion
+ *    is judged by BYTE coverage reaching contentLength (both proven in tests/sabr-seek.mjs).
+ *  - DEMAND PACING ([paceAheadBytes] > 0): between POSTs the session waits until the reader has consumed
+ *    to within the ahead-window, so playback drains at listening speed (a skip stops the spend); the
+ *    server session survives the idle gaps (proven live with 90s pauses).
  */
 internal class SabrSession(
     private val config: SabrConfig,
     private val client: OkHttpClient,
     private val buffer: SabrBuffer,
+    /** Cold-start playerTimeMs (0 = the plain from-the-top drain). */
+    private val startTimeMs: Long = 0,
     /** Optional per-iteration progress hook (contiguous bytes reassembled) — the download UI ring. */
     private val onProgress: ((Long) -> Unit)? = null,
+    /** Demand-pacing window; 0 = full-speed drain (downloads). */
+    private val paceAheadBytes: Long = 0,
+    /** Fired on an incomplete drain (the stall-fallback bookkeeping — see SabrPlayerResolver.recordStall). */
+    private val onIncomplete: (() -> Unit)? = null,
 ) : Runnable {
 
     @Volatile private var cancelled = false
     fun cancel() { cancelled = true }
+
+    /** Absolute byte offset of this session's FIRST media segment (-1 until known) — the seek anchor. */
+    @Volatile var firstWrittenOffset: Long = -1L
+        private set
+
+    /** Start time this session was asked to serve from (for the stream's restart decisions). */
+    val requestedStartMs: Long get() = startTimeMs
 
     private val protobuf = "application/x-protobuf".toMediaType()
 
@@ -69,14 +94,22 @@ internal class SabrSession(
         try {
             loop()
         } catch (e: Exception) {
-            if (!cancelled) buffer.markError(e.message ?: e.javaClass.simpleName)
+            if (!cancelled) { buffer.markError(e.message ?: e.javaClass.simpleName); onIncomplete?.invoke() }
         }
+    }
+
+    /** Whether this session's tail — first written byte to contentLength — is fully covered. */
+    private fun tailDone(): Boolean {
+        val first = firstWrittenOffset
+        return first >= 0 && buffer.coverageEndFrom(first) >= config.format.contentLength
     }
 
     private fun loop() {
         var url = prepared(config.sabrUrl)
-        var playerTimeMs = 0L
-        var bufEndMs = 0L
+        var playerTimeMs = startTimeMs
+        var bufEndMs = startTimeMs
+        var firstSeq = 0
+        var firstMs = 0L
         var lastSeq = 0
         var endSeg = 0
         var cookie: ByteArray? = null
@@ -88,14 +121,15 @@ internal class SabrSession(
 
         while (!cancelled && iter < 500 && dry < 6) {
             iter++
+            if (paceAheadBytes > 0) buffer.awaitDemand(paceAheadBytes) { cancelled }
+            if (cancelled) return
             val body = SabrMessages.abrRequest(
                 ustreamerConfig = config.ustreamerConfig,
                 format = config.format,
                 poToken = config.poToken,
                 clientInfo = config.clientInfo,
                 playerTimeMs = playerTimeMs,
-                bufferedEndMs = bufEndMs,
-                bufferedEndSeg = lastSeq,
+                range = if (lastSeq > 0) SabrMessages.TrackState(config.format, bufEndMs, lastSeq, firstMs, firstSeq) else null,
                 cookie = cookie,
                 sabrContexts = ctxByType.values.toList(),
                 selected = lastSeq > 0,
@@ -106,7 +140,7 @@ internal class SabrSession(
                 .post(body.toRequestBody(protobuf))
                 .build()
             val bytes = client.newCall(req).execute().use { resp ->
-                if (!resp.isSuccessful) { buffer.markError("HTTP ${resp.code}"); return }
+                if (!resp.isSuccessful) { buffer.markError("HTTP ${resp.code}"); onIncomplete?.invoke(); return }
                 resp.body?.bytes() ?: ByteArray(0)
             }
             if (cancelled) return
@@ -130,9 +164,9 @@ internal class SabrSession(
             }
             if (sabrError) {
                 Timber.tag(TAG).w("SABR_ERROR at iter=$iter (segs so far: $lastSeq/$endSeg) — server rejected the request")
-                buffer.markError("SABR_ERROR"); return
+                buffer.markError("SABR_ERROR"); onIncomplete?.invoke(); return
             }
-            if (iter == 1) Timber.tag(TAG).d("SABR first response: parts=${parts.size}, mediaHeaders=${headers.size}, endSeg=$endSeg")
+            if (iter == 1) Timber.tag(TAG).d("SABR first response: parts=${parts.size}, mediaHeaders=${headers.size}, endSeg=$endSeg, startTimeMs=$startTimeMs")
 
             // Which headers are NEW (not yet written): the init segment once, each sequence number once.
             // Resends of an already-written segment are skipped so a byte is never written twice.
@@ -155,31 +189,40 @@ internal class SabrSession(
                 if (h.headerId !in newIds) continue
                 if (h.isInit) { initWritten = true } else {
                     seen.add(h.seq)
+                    if (firstSeq == 0 || h.seq < firstSeq) { firstSeq = h.seq; firstMs = h.startMs }
+                    if (firstWrittenOffset < 0 || h.startRange < firstWrittenOffset) firstWrittenOffset = h.startRange
                     if (h.seq > lastSeq) lastSeq = h.seq
                     val end = h.startMs + h.durMs
                     if (end > bufEndMs) bufEndMs = end
                     newSeg = true
                 }
             }
-            playerTimeMs = bufEndMs
+            playerTimeMs = maxOf(startTimeMs, bufEndMs)
             onProgress?.invoke(buffer.available())
 
             if (redirect != null && !newSeg) { url = prepared(redirect); continue }
             dry = if (newSeg || gotContext) 0 else dry + 1
+            // Completion: end_segment_number when the server sent one, else BYTE coverage reaching
+            // contentLength (a seeked session gets no endSeg — proven live).
             if (endSeg > 0 && lastSeq >= endSeg) break
+            if (tailDone()) break
         }
 
-        if (buffer.available() >= config.format.contentLength && config.format.contentLength > 0) {
-            buffer.markComplete()
-        } else if (!cancelled) {
-            // Delivered less than the whole format (dry-counter expiry / the iteration cap — e.g. an
-            // identity-capped client, or a mid-stream context-challenge stall). Mark ERROR, never
-            // complete: markComplete converted the shortfall into a clean EOF, silently truncating the
-            // track (fragment-aligned) or surfacing an opaque extractor EOF (mid-atom). The reader still
-            // serves every reassembled byte first (SabrBuffer.read), so playback reaches the stall point
-            // and then surfaces a real player error — the same shortfall the download path rejects.
-            Timber.tag(TAG).w("SABR incomplete: ${buffer.available()}/${config.format.contentLength} (seq $lastSeq/$endSeg)")
-            buffer.markError("incomplete drain: ${buffer.available()}/${config.format.contentLength}")
+        when {
+            cancelled -> return
+            buffer.completeFromZero() -> buffer.markComplete()
+            tailDone() -> buffer.notifyWaiters() // the session's region is whole; the head gap (a seek) is another session's job
+            else -> {
+                // Delivered less than its tail (dry-counter expiry / the iteration cap — e.g. an
+                // identity-capped client, or a mid-stream context-challenge stall). Mark ERROR, never
+                // complete: markComplete converted the shortfall into a clean EOF, silently truncating
+                // the track. The reader still serves every reassembled byte first (SabrBuffer), so
+                // playback reaches the stall point and then surfaces a real player error — the same
+                // shortfall the download path rejects.
+                Timber.tag(TAG).w("SABR incomplete: ${buffer.available()}/${config.format.contentLength} (seq $lastSeq/$endSeg, start=$startTimeMs)")
+                buffer.markError("incomplete drain: ${buffer.available()}/${config.format.contentLength}")
+                onIncomplete?.invoke()
+            }
         }
     }
 

@@ -26,6 +26,10 @@ internal class SabrVideoConfig(
     val streamClientLabel: String = "SABR",
     val videoMimeType: String = "",
     val videoBitrate: Int = 0,
+    /** The roster key of the client this config resolved over (the stall-fallback bookkeeping id). */
+    val clientKey: String? = null,
+    /** approxDurationMs from the /player video format — the byte<->time estimate a seek-restart needs. */
+    val durationMs: Long = 0,
     /** The listen's cpn for watch-time CDN correlation (DIRECT stampCpn parity); null = download (no stamp). */
     val cpn: () -> String? = { null },
 )
@@ -36,31 +40,55 @@ internal class SabrVideoConfig(
  * `tests/sabr-video.mjs` drain: each UMP response interleaves both tracks' segments, routed to a track
  * by its MEDIA_HEADER itag; each track reassembles positionally (byte-exact regardless of order); the
  * request advances playerTimeMs to the MINIMUM buffered end across the two tracks (you can't play past
- * the least-buffered track) and echoes playback cookies + SABR context updates until BOTH tracks are
- * whole. Isolated: touches nothing else.
+ * the least-buffered track) and echoes playback cookies + SABR context updates until BOTH tracks'
+ * TAILS are covered. Seek ([startTimeMs] > 0) and demand pacing follow [SabrSession]'s proven contract
+ * (`tests/sabr-video.mjs START_S`: the dual-track cold seek is honoured on both tracks, and a seeked
+ * session gets NO end_segment_number — completion is judged by byte coverage).
  */
 internal class SabrVideoSession(
     private val config: SabrVideoConfig,
     private val client: OkHttpClient,
     private val videoBuffer: SabrBuffer,
     private val audioBuffer: SabrBuffer,
+    /** Cold-start playerTimeMs (0 = the plain from-the-top drain). */
+    private val startTimeMs: Long = 0,
     /** Optional per-iteration progress hook (contiguous bytes across BOTH tracks) — the download ring. */
     private val onProgress: ((Long) -> Unit)? = null,
+    /** Per-track demand-pacing windows; 0 = full-speed drain (downloads). */
+    private val paceAheadVideoBytes: Long = 0,
+    private val paceAheadAudioBytes: Long = 0,
+    /** Fired on an incomplete drain (the stall-fallback bookkeeping). */
+    private val onIncomplete: (() -> Unit)? = null,
 ) : Runnable {
 
     @Volatile private var cancelled = false
     fun cancel() { cancelled = true }
 
+    /** Absolute first-byte offsets of this session's tracks (-1 until known) — the seek anchors. */
+    @Volatile var firstVideoOffset: Long = -1L
+        private set
+    @Volatile var firstAudioOffset: Long = -1L
+        private set
+
+    /** Start time this session was asked to serve from (for the stream's restart decisions). */
+    val requestedStartMs: Long get() = startTimeMs
+
     private val protobuf = "application/x-protobuf".toMediaType()
 
     /** Per-track drain state (segment bookkeeping the SabrBuffer doesn't hold). */
-    private class Track(val itag: Int, val format: SabrMessages.Format, val buffer: SabrBuffer) {
+    private inner class Track(val itag: Int, val format: SabrMessages.Format, val buffer: SabrBuffer) {
         val seen = HashSet<Int>()
         var initWritten = false
+        var firstSeq = 0
+        var firstMs = 0L
+        var firstOff = -1L
         var lastSeq = 0
-        var bufEndMs = 0L
-        fun state(): SabrMessages.TrackState? = if (lastSeq > 0) SabrMessages.TrackState(format, bufEndMs, lastSeq) else null
-        fun whole(): Boolean = buffer.available() >= format.contentLength && format.contentLength > 0
+        var bufEndMs = startTimeMs
+        var endSeg = 0
+        fun state(): SabrMessages.TrackState? =
+            if (lastSeq > 0) SabrMessages.TrackState(format, bufEndMs, lastSeq, firstMs, firstSeq) else null
+        /** This session's tail — its first written byte to contentLength — fully covered? */
+        fun tailDone(): Boolean = firstOff >= 0 && buffer.coverageEndFrom(firstOff) >= format.contentLength
     }
 
     private fun prepared(rawUrl: String): String {
@@ -74,7 +102,11 @@ internal class SabrVideoSession(
         try {
             loop()
         } catch (e: Exception) {
-            if (!cancelled) { videoBuffer.markError(e.message ?: e.javaClass.simpleName); audioBuffer.markError(e.message ?: e.javaClass.simpleName) }
+            if (!cancelled) {
+                videoBuffer.markError(e.message ?: e.javaClass.simpleName)
+                audioBuffer.markError(e.message ?: e.javaClass.simpleName)
+                onIncomplete?.invoke()
+            }
         }
     }
 
@@ -83,7 +115,7 @@ internal class SabrVideoSession(
         val audio = Track(config.audioFormat.itag, config.audioFormat, audioBuffer)
         val tracks = mapOf(video.itag to video, audio.itag to audio)
         var url = prepared(config.sabrUrl)
-        var playerTimeMs = 0L
+        var playerTimeMs = startTimeMs
         var cookie: ByteArray? = null
         val ctxByType = LinkedHashMap<Long, ByteArray>()
         var iter = 0
@@ -91,6 +123,9 @@ internal class SabrVideoSession(
 
         while (!cancelled && iter < 800 && dry < 6) {
             iter++
+            // Demand pacing: pause only while BOTH tracks are comfortably ahead of their readers.
+            if (paceAheadVideoBytes > 0 || paceAheadAudioBytes > 0) awaitDualDemand()
+            if (cancelled) return
             val anySelected = video.lastSeq > 0 || audio.lastSeq > 0
             val body = SabrMessages.abrRequestVideo(
                 ustreamerConfig = config.ustreamerConfig,
@@ -111,7 +146,7 @@ internal class SabrVideoSession(
                 .post(body.toRequestBody(protobuf))
                 .build()
             val bytes = client.newCall(req).execute().use { resp ->
-                if (!resp.isSuccessful) { videoBuffer.markError("HTTP ${resp.code}"); audioBuffer.markError("HTTP ${resp.code}"); return }
+                if (!resp.isSuccessful) { videoBuffer.markError("HTTP ${resp.code}"); audioBuffer.markError("HTTP ${resp.code}"); onIncomplete?.invoke(); return }
                 resp.body?.bytes() ?: ByteArray(0)
             }
             if (cancelled) return
@@ -134,7 +169,7 @@ internal class SabrVideoSession(
             }
             if (sabrError) {
                 Timber.tag(TAG).w("SABR_ERROR at iter=$iter (video ${video.lastSeq}, audio ${audio.lastSeq}) — server rejected the request")
-                videoBuffer.markError("SABR_ERROR"); audioBuffer.markError("SABR_ERROR"); return
+                videoBuffer.markError("SABR_ERROR"); audioBuffer.markError("SABR_ERROR"); onIncomplete?.invoke(); return
             }
 
             // Which headers are NEW per track (init once, each sequence once). Resends are skipped.
@@ -162,38 +197,63 @@ internal class SabrVideoSession(
                 val t = tracks[h.itag] ?: continue
                 if (h.isInit) { t.initWritten = true } else {
                     t.seen.add(h.seq)
+                    if (t.firstSeq == 0 || h.seq < t.firstSeq) { t.firstSeq = h.seq; t.firstMs = h.startMs }
+                    if (t.firstOff < 0 || h.startRange < t.firstOff) {
+                        t.firstOff = h.startRange
+                        if (t === video) firstVideoOffset = t.firstOff else firstAudioOffset = t.firstOff
+                    }
                     if (h.seq > t.lastSeq) t.lastSeq = h.seq
                     val end = h.startMs + h.durMs
                     if (end > t.bufEndMs) t.bufEndMs = end
                     newSeg = true
                 }
             }
-            // Advance to the least-buffered track (a track with nothing yet holds it at 0).
-            playerTimeMs = minOf(video.bufEndMs.orZeroIfEmpty(video), audio.bufEndMs.orZeroIfEmpty(audio))
+            // Advance to the least-buffered track, floored at the requested start until both land.
+            playerTimeMs = maxOf(startTimeMs, minOf(video.bufEndMs.orStartIfEmpty(video), audio.bufEndMs.orStartIfEmpty(audio)))
             onProgress?.invoke(videoBuffer.available() + audioBuffer.available())
 
             if (redirect != null && !newSeg) { url = prepared(redirect); continue }
             dry = if (newSeg || gotContext) 0 else dry + 1
-            if (video.whole() && audio.whole()) break
+            if (video.tailDone() && audio.tailDone()) break
         }
 
-        if (!cancelled) {
-            if (video.whole() && audio.whole()) {
-                videoBuffer.markComplete(); audioBuffer.markComplete()
-            } else {
+        when {
+            cancelled -> return
+            video.tailDone() && audio.tailDone() -> {
+                if (videoBuffer.completeFromZero()) videoBuffer.markComplete() else videoBuffer.notifyWaiters()
+                if (audioBuffer.completeFromZero()) audioBuffer.markComplete() else audioBuffer.notifyWaiters()
+            }
+            else -> {
                 // A shortfall on either track marks BOTH errored, never complete: a clean EOF silently
                 // truncated playback mid-item, and one whole track is useless without its sibling. The
-                // buffers still serve their reassembled bytes first (SabrBuffer.read), so playback
-                // reaches the stall point and surfaces a real error; the download path rejects the
-                // shortfall via available() < contentLength before ever reading.
-                Timber.tag(TAG).w("SABR video incomplete: video ${videoBuffer.available()}/${config.videoFormat.contentLength}, audio ${audioBuffer.available()}/${config.audioFormat.contentLength}")
+                // buffers still serve their reassembled bytes first (SabrBuffer), so playback reaches
+                // the stall point and surfaces a real error; the download path rejects the shortfall
+                // before ever reading.
+                Timber.tag(TAG).w("SABR video incomplete: video ${videoBuffer.available()}/${config.videoFormat.contentLength}, audio ${audioBuffer.available()}/${config.audioFormat.contentLength} (start=$startTimeMs)")
                 val msg = "incomplete drain: video ${videoBuffer.available()}/${config.videoFormat.contentLength}, audio ${audioBuffer.available()}/${config.audioFormat.contentLength}"
                 videoBuffer.markError(msg); audioBuffer.markError(msg)
+                onIncomplete?.invoke()
             }
         }
     }
 
-    private fun Long.orZeroIfEmpty(t: Track): Long = if (t.lastSeq > 0) this else 0L
+    /**
+     * Pause while BOTH tracks are ahead of their readers by more than their windows — the drain keeps
+     * feeding whichever track playback is closer to exhausting, and a fully-idle player (pause, or the
+     * user left) stops the spend. A short poll (not a cross-buffer wait) keeps this simple; the server
+     * session survives the idle gaps (proven live with 90s pauses).
+     */
+    private fun awaitDualDemand() {
+        while (!cancelled) {
+            if (videoBuffer.failed() || audioBuffer.failed()) return
+            val vGap = videoBuffer.demandGap()
+            val aGap = audioBuffer.demandGap()
+            if (vGap <= paceAheadVideoBytes || aGap <= paceAheadAudioBytes) return
+            Thread.sleep(150)
+        }
+    }
+
+    private fun Long.orStartIfEmpty(t: Track): Long = if (t.lastSeq > 0) this else startTimeMs
 
     companion object { private const val TAG = "SabrVideoSession" }
 }

@@ -125,15 +125,21 @@ byte-for-byte unchanged. The engine is a faithful Kotlin port of the proven Node
   `SabrUmp` (UMP frame parser - the custom leading-bits varint, NOT the protobuf one; the MEDIA part's
   header-id PREFIX is that UMP varint too - `SabrMessages.mediaHeaderId` must never use the protobuf
   read, the encodings agree only below 128), `SabrMessages`
-  (request builder + response parsers; field numbers pinned to the reference), `SabrSession` (the
-  continuation state machine), `SabrBuffer` (thread-safe reassembly; REFUSES an out-of-range
-  contentLength at construction - the old zero-length degenerate silently dropped every write),
-  `SabrAudioStream` (registry-owned buffer+session lifetime, see the seam bullet), `SabrDataSource` (the
-  ExoPlayer `DataSource`). Honesty rule: an INCOMPLETE drain marks the buffer ERRORED, never complete -
-  the reader still serves every reassembled byte first, then surfaces a real player error at the gap
-  (markComplete silently truncated the track); and every stream-destroy path MARKS its buffers so a
-  parked reader is always woken (never an infinite buffering hang). Regression tests: `SabrProtoTest` /
-  `SabrUmpTest` / `SabrMessagesTest` / `SabrBufferTest` / `SabrStreamLifecycleTest` / `SabrVideoRungPickTest`.
+  (request builder + response parsers; field numbers pinned to the reference; a SEEKED session's range
+  echo anchors at its own first segment, never (0,1)), `SabrSession` (the continuation state machine -
+  seek start + demand pacing), `SabrBuffer` (DISK-backed positional reassembly - spool file, never a
+  heap array, so a multi-hour episode or a 2160p track can't OOM; serves any COVERED region, not just
+  a prefix; REFUSES an out-of-range contentLength at construction), `SabrSpool` (the spool dir + the
+  persistent replay cache), `SabrAudioStream` (registry-owned lifetime + the session ORCHESTRATION:
+  covered reads serve from the spool, near-frontier reads catch up, far/backward reads SEEK-RESTART
+  the session at the estimated playerTimeMs - all proven live in tests/sabr-seek.mjs; playback drains
+  are DEMAND-PACED so a skip stops the spend, and the server session survives the idle gaps),
+  `SabrDataSource` (the ExoPlayer `DataSource`). Honesty rule: an INCOMPLETE drain marks the buffer
+  ERRORED, never complete - the reader still serves every reassembled byte first, then surfaces a real
+  player error at the gap (markComplete silently truncated the track); and every stream-destroy path
+  MARKS its buffers so a parked reader is always woken (never an infinite buffering hang). Regression
+  tests: `SabrProtoTest` / `SabrUmpTest` / `SabrMessagesTest` / `SabrBufferTest` /
+  `SabrStreamLifecycleTest` / `SabrVideoRungPickTest`.
 - **Reassembly is by ABSOLUTE byte offset, never sequential append** (`SabrSession` writes each segment at
   its `startRange`, `SabrBuffer` tracks a contiguous-from-0 watermark). Sequential append corrupted the
   container, which made the extractor report a garbage duration -> `getBufferedPercentage` overflow ->
@@ -167,7 +173,16 @@ byte-for-byte unchanged. The engine is a faithful Kotlin port of the proven Node
   repeat-one replay) reuses it - no second /player + poToken, no re-drain from byte 0, no duplicate
   FormatEntity/watch-time reseed (the resolver callback returns the `sabr://` uri straight away for a
   usable live stream). Streams end only on registry replace / evict (small cap: current + gapless-next)
-  / remove / the `MusicService.onDestroy` clear (both registries).
+  / remove / the `MusicService.onDestroy` clear (both registries). Replays ride TWO caches (DIRECT
+  parity): the persistent `SabrSpool` REPLAY cache (a complete drain is promoted on destroy; a later
+  play - hours/sessions later - serves entirely from disk, zero network; a failed spool replay evicts
+  its entry) and the `SabrPlayerResolver` 45 min resolve cache (songUrlCache parity, playback-only; a
+  failed stream invalidates). Stats hold on EVERY path: a fresh resolve seeds the reporter live, a
+  spool replay rides the reporter's metadata-fetch fallback (DIRECT cached-play behavior), an OFFLINE
+  replay is captured by the reporter's offline branch -> the deferred stats queue (the reporter gates
+  only RELAY/cast, never SABR). A stalling client is recorded per-id (`recordStall`, fed by the
+  sessions' onIncomplete) and deprioritized on the next resolve - the roster fallback a successful
+  /player otherwise never gives.
 - **Downloads run over SABR too** (`MediaStoreDownloadManager`, mirroring the RELAY branch): when SABR mode
   is on, `sabrAudioMode` nulls `playbackData` and pulls
   the whole file via `SabrStreamResolver.download` (runs a `SabrSession` to completion, writes the byte-exact
@@ -222,10 +237,17 @@ byte-for-byte unchanged. The engine is a faithful Kotlin port of the proven Node
   SWITCH + PREFETCH - one /player serves every rung via the `SabrVideoResolver` resolve cache, and
   `prefetchVideoRendition` warms it under SABR; (4) METERED AUTO CAP - AUTO video capped at 720p + the
   metered bitrate, explicit picks never capped; (5) a video error invalidates the SABR cache;
-  (6) LOUDNESS - the resolve carries `loudnessDb` into the FormatEntity (audio normalization). Never say
-  SABR is a reduced/fixed mode - it is full parity.
+  (6) LOUDNESS - the resolve carries `loudnessDb` into the FormatEntity (audio normalization);
+  (7) REPLAYS - the spool replay cache + the resolve cache (playerCache/songUrlCache parity);
+  (8) DATA USAGE - demand pacing follows consumption (a skip stops the spend, like ranged chunking);
+  (9) SEEKING - covered-spool serves + seek-restart at the estimated playerTimeMs (a resumed long
+  episode never drains its whole head first); (10) STATS ONLINE AND OFFLINE - live seeding, the
+  metadata-fetch fallback for replays, and the deferred offline queue all apply to SABR listens.
+  Never say SABR is a reduced/fixed mode - it is full parity.
 - **The harness is the proof + validator** (`tests/sabr-stream.mjs` whole-song drain, `tests/sabr-clients.mjs`
-  roster; `tests/sabr-video.mjs` + `tests/sabr-video-clients.mjs` for video). SABR is the danger zone:
+  roster; `tests/sabr-video.mjs` + `tests/sabr-video-clients.mjs` for video; `tests/sabr-seek.mjs` for
+  the cold-start seek + demand-pacing idle gaps, and `START_S=` on sabr-video.mjs for the dual-track
+  seek). SABR is the danger zone:
   prove any change against the live CDN there first, then on-device.
   Settings: Stream Sources -> Experimental (SABR toggle) + the "SABR clients" sub-list. Full detail (the
   protocol, the field numbers, the findings, integration, how to test/extend): `docs/sabr/README.md`.

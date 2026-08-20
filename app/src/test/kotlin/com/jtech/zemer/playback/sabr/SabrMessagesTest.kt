@@ -16,7 +16,7 @@ class SabrMessagesTest {
     fun `cold-start request has clientAbrState, ustreamer, preferredAudioFormat, streamerContext, no bufferedRange`() {
         val req = SabrMessages.abrRequest(
             ustreamerConfig = bytes(0xAB, 0xCD), format = fmt, poToken = bytes(1, 2, 3), clientInfo = client,
-            playerTimeMs = 0, bufferedEndMs = 0, bufferedEndSeg = 0, cookie = null, sabrContexts = emptyList(), selected = false,
+            playerTimeMs = 0, range = null, cookie = null, sabrContexts = emptyList(), selected = false,
         )
         val m = SabrProto.read(req)
         assertTrue("clientAbrState (1)", m.containsKey(1))
@@ -36,7 +36,7 @@ class SabrMessagesTest {
         val ctx = SabrMessages.sabrContext(2, bytes(7))
         val req = SabrMessages.abrRequest(
             ustreamerConfig = bytes(0), format = fmt, poToken = bytes(9), clientInfo = client,
-            playerTimeMs = 60000, bufferedEndMs = 60000, bufferedEndSeg = 6, cookie = bytes(0xC0), sabrContexts = listOf(ctx), selected = true,
+            playerTimeMs = 60000, range = SabrMessages.TrackState(fmt, 60000, 6), cookie = bytes(0xC0), sabrContexts = listOf(ctx), selected = true,
         )
         val m = SabrProto.read(req)
         assertTrue("selectedFormatId (2)", m.containsKey(2))
@@ -52,6 +52,22 @@ class SabrMessagesTest {
         assertEquals(60000L, br.longAt(3))
         assertEquals(1L, br.longAt(4))
         assertEquals(6L, br.longAt(5))
+    }
+
+    @Test
+    fun `a SEEKED session's bufferedRange anchors at its own first segment, never (0, 1)`() {
+        // Proven live (tests/sabr-seek.mjs): a seek-restarted session echoes ranges starting at its
+        // FIRST received segment; a hardcoded (0, 1) would claim bytes it never got.
+        val req = SabrMessages.abrRequest(
+            ustreamerConfig = bytes(0), format = fmt, poToken = bytes(9), clientInfo = client,
+            playerTimeMs = 200000, range = SabrMessages.TrackState(fmt, 210000, 21, startTimeMs = 190001, startSeg = 20),
+            cookie = null, sabrContexts = emptyList(), selected = true,
+        )
+        val br = SabrProto.read(SabrProto.read(req).bytesAt(3)!!)
+        assertEquals(190001L, br.longAt(2))          // startTimeMs = first segment's start
+        assertEquals(210000L - 190001L, br.longAt(3)) // durationMs = buffered end - start
+        assertEquals(20L, br.longAt(4))              // startSegmentIndex = first segment
+        assertEquals(21L, br.longAt(5))
     }
 
     @Test

@@ -62,32 +62,36 @@ object SabrStreamResolver {
                 Timber.tag("SabrDownload").w("SABR download contentLength out of range for $videoId: ${cfg.format.contentLength}")
                 return@withContext null
             }
-            val buffer = try {
-                SabrBuffer(cfg.format.contentLength)
-            } catch (e: OutOfMemoryError) {
-                Timber.tag("SabrDownload").w("SABR download buffer allocation failed for $videoId (${cfg.format.contentLength} bytes)")
-                return@withContext null
-            }
-            val total = cfg.format.contentLength
-            val session = SabrSession(cfg, client, buffer, onProgress = { onProgress?.invoke(it, total) })
-            // Blocks until the stream is drained; a Job cancel interrupts the in-flight OkHttp call.
-            kotlinx.coroutines.runInterruptible { session.run() }
-            val size = buffer.available()
-            if (size <= 0L || size < cfg.format.contentLength) {
-                Timber.tag("SabrDownload").w("SABR download incomplete for $videoId: $size/${cfg.format.contentLength}")
-                return@withContext null
-            }
-            file.outputStream().use { out ->
-                val chunk = ByteArray(64 * 1024)
-                var pos = 0L
-                while (pos < size) {
-                    val n = buffer.read(pos, chunk, 0, chunk.size)
-                    if (n <= 0) break
-                    out.write(chunk, 0, n)
-                    pos += n
+            val spool = SabrSpool.downloadPart(videoId, "a")
+            val buffer = SabrBuffer(cfg.format.contentLength, spool)
+            try {
+                val total = cfg.format.contentLength
+                val session = SabrSession(
+                    cfg, client, buffer,
+                    onProgress = { onProgress?.invoke(it, total) },
+                    onIncomplete = { cfg.clientKey?.let { SabrPlayerResolver.recordStall(videoId, it) } },
+                )
+                // Blocks until the stream is drained; a Job cancel interrupts the in-flight OkHttp call.
+                kotlinx.coroutines.runInterruptible { session.run() }
+                val size = buffer.available()
+                if (size <= 0L || size < cfg.format.contentLength) {
+                    Timber.tag("SabrDownload").w("SABR download incomplete for $videoId: $size/${cfg.format.contentLength}")
+                    return@withContext null
                 }
+                file.outputStream().use { out ->
+                    val chunk = ByteArray(64 * 1024)
+                    var pos = 0L
+                    while (pos < size) {
+                        val n = buffer.read(pos, chunk, 0, chunk.size)
+                        if (n <= 0) break
+                        out.write(chunk, 0, n)
+                        pos += n
+                    }
+                }
+                if (file.length() <= 0L) null else DownloadInfo(cfg.mimeType, size)
+            } finally {
+                buffer.release(deleteFile = true)
             }
-            if (file.length() <= 0L) null else DownloadInfo(cfg.mimeType, size)
         }
 
     /** Decode base64 that may be standard (+/) or url-safe (-_), padded or not - never throws on either. */
@@ -133,6 +137,8 @@ object SabrStreamResolver {
         mimeType: String = "",
         bitrate: Int = 0,
         audioSampleRate: Int? = null,
+        clientKey: String? = null,
+        durationMs: Long = 0,
         cpn: () -> String? = { null },
     ): SabrConfig =
         SabrConfig(
@@ -159,6 +165,8 @@ object SabrStreamResolver {
             mimeType = mimeType,
             bitrate = bitrate,
             audioSampleRate = audioSampleRate,
+            clientKey = clientKey,
+            durationMs = durationMs,
             cpn = cpn,
         )
 }

@@ -518,6 +518,8 @@ class MusicService :
 
     override fun onCreate() {
         super.onCreate()
+        // The SABR spool dir (disk-backed reassembly buffers + the persistent replay cache) — idempotent.
+        com.jtech.zemer.playback.sabr.SabrSpool.init(cacheDir)
         // Cast discovery is started lazily by startDiscovery() the first time the user opens the cast
         // picker — not here — so we don't run NSD discovery on every launch.
         // Media3's MediaLibraryService handles foreground notification automatically
@@ -2554,7 +2556,26 @@ class MusicService :
             // A LIVE registry stream (a seek's close→reopen, a repeat-one replay) is reused as-is:
             // no second /player + poToken round-trip, no watch-time/telemetry re-seed, no duplicate
             // FormatEntity upsert — the reopen just re-reads the accumulating buffer (SabrAudioStream).
-            com.jtech.zemer.playback.sabr.SabrStreamRegistry.stream(mediaId)?.takeIf { it.usable() }?.let {
+            // A FAILED stream is torn down here (plus the resolve cache) so the fresh resolve below
+            // never replays the dead config — DIRECT's error-refresh discipline.
+            com.jtech.zemer.playback.sabr.SabrStreamRegistry.stream(mediaId)?.let { live ->
+                if (live.usable()) {
+                    return@Factory dataSpec.withUri(com.jtech.zemer.playback.sabr.SabrStreamRegistry.uri(mediaId))
+                }
+                // A failed SPOOL-backed replay means the cached file itself is bad — evict it so the
+                // lookup below can't hand back the same corrupt entry in a loop.
+                if (live.fromSpool) com.jtech.zemer.playback.sabr.SabrSpool.evict(mediaId)
+                com.jtech.zemer.playback.sabr.SabrStreamRegistry.remove(mediaId)
+                com.jtech.zemer.playback.sabr.SabrPlayerResolver.invalidate(mediaId)
+            }
+            // The persistent spool replay cache (DIRECT's playerCache parity): a COMPLETE previous drain
+            // of this id serves the whole play from disk — zero network. The watch-time reporter falls
+            // back to its one metadata fetch exactly like a DIRECT cached play (and its offline branch
+            // captures a no-network replay for the deferred stats queue).
+            com.jtech.zemer.playback.sabr.SabrSpool.lookup(mediaId)?.let { entry ->
+                val stream = com.jtech.zemer.playback.sabr.SabrAudioStream.fromSpool(mediaId, entry)
+                com.jtech.zemer.playback.sabr.SabrStreamRegistry.installStream(mediaId, stream)
+                Timber.tag(TAG).d("SABR spool replay for %s (itag=%d)", mediaId, entry.itag)
                 return@Factory dataSpec.withUri(com.jtech.zemer.playback.sabr.SabrStreamRegistry.uri(mediaId))
             }
             val result = kotlinx.coroutines.runBlocking {

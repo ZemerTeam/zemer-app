@@ -7,12 +7,13 @@ import androidx.media3.datasource.BaseDataSource
 import androidx.media3.datasource.DataSource
 import androidx.media3.datasource.DataSpec
 import okhttp3.OkHttpClient
+import timber.log.Timber
 import java.io.IOException
 
 /**
  * A single dual-track SABR session shared by the two ExoPlayer [DataSource]s of a `MergingMediaSource`
- * (video-only + audio). One [SabrVideoSession] fills BOTH buffers; the video DataSource reads
- * [videoBuffer], the audio DataSource reads [audioBuffer].
+ * (video-only + audio). One [SabrVideoSession] fills BOTH disk-backed buffers; the video DataSource
+ * reads [videoBuffer], the audio DataSource reads [audioBuffer].
  *
  * LIFECYCLE — explicit, NEVER tied to DataSource open/close cycles. media3's progressive loading opens
  * and closes the two children UN-paired: entering video mode seeks mid-track, and once the period
@@ -20,46 +21,134 @@ import java.io.IOException
  * is always a close→reopen gap where zero DataSources are open while playback very much continues. A
  * ref-counted "cancel + unregister at zero" (the first design) killed the session and wiped the registry
  * entry inside exactly that gap, and the reopen then failed with "no session" (found on-device). Instead:
- * the ONE session starts on the first [attach] and runs until [destroy] — called only by
- * [SabrVideoRegistry] when the entry is removed (video mode exits) or replaced (a new resolve). Reopens
- * just re-read the accumulating buffers (backward seeks free; a forward seek blocks until the drain
- * reaches it).
+ * sessions run until [destroy] — called only by [SabrVideoRegistry] when the entry is removed (video
+ * mode exits) or replaced (a committed new resolve).
+ *
+ * The stream ORCHESTRATES its dual-track session around reader demand like [SabrAudioStream]: covered
+ * reads serve from the spool; near-frontier reads wait for the catch-up; a far/backward read RESTARTS
+ * the session at the estimated `playerTimeMs` (the dual-track cold seek is proven live —
+ * tests/sabr-video.mjs START_S — with both tracks landing at T and NO end_segment_number, so completion
+ * is judged by byte coverage). Both track readers share ONE session; a fresh restart gets a landing
+ * grace so the sibling reader doesn't immediately re-aim it. Playback sessions are demand-paced.
  */
 @UnstableApi
-internal class SabrVideoStream(val config: SabrVideoConfig, private val client: OkHttpClient) {
-    val videoBuffer = SabrBuffer(config.videoFormat.contentLength)
-    val audioBuffer = SabrBuffer(config.audioFormat.contentLength)
+internal class SabrVideoStream(
+    private val mediaId: String,
+    val config: SabrVideoConfig,
+    private val client: OkHttpClient,
+) {
+    val videoBuffer = SabrBuffer(config.videoFormat.contentLength, SabrSpool.partFile(mediaId, config.videoFormat.itag, suffix = "v"))
+    val audioBuffer = SabrBuffer(config.audioFormat.contentLength, SabrSpool.partFile(mediaId, config.audioFormat.itag, suffix = "va"))
     private var thread: Thread? = null
     private var session: SabrVideoSession? = null
     private var destroyed = false
-    private var refs = 0
+    private var sessionStartedAtMs = 0L
+    private var restartAttempts = 0
+    private var seekMarginMs = SEEK_MARGIN_MS
 
-    /** First attach starts the ONE session; later attaches (seek/merge reopen churn) reuse it. */
-    @Synchronized fun attach(mediaId: String) {
-        refs++
-        if (thread == null && !destroyed) {
-            val s = SabrVideoSession(config, client, videoBuffer, audioBuffer)
-            session = s
-            thread = Thread(s, "sabr-video-$mediaId").apply { isDaemon = true; start() }
+    @Synchronized fun usable(): Boolean = !destroyed && !videoBuffer.failed() && !audioBuffer.failed()
+
+    /** Non-blocking open-time hint: make sure a session is (or soon will be) covering the position. */
+    @Synchronized fun prepare(video: Boolean, position: Long) {
+        ensureSessionCovering(video, position)
+    }
+
+    /** Blocking read on one track — covered serves, catch-ups and seek-restarts (see class doc). */
+    fun read(video: Boolean, position: Long, into: ByteArray, offset: Int, length: Int): Int {
+        val buffer = if (video) videoBuffer else audioBuffer
+        while (true) {
+            val n = buffer.readCovered(position, into, offset, length)
+            if (n > 0) {
+                if (restartAttempts != 0) synchronized(this) { restartAttempts = 0; seekMarginMs = SEEK_MARGIN_MS }
+                return n
+            }
+            if (position >= buffer.expectedLength) return -1
+            synchronized(this) {
+                if (destroyed) throw IOException("SABR video stream destroyed")
+                ensureSessionCovering(video, position)
+            }
+            buffer.awaitChange(250)
         }
     }
 
-    /** A DataSource closed. Deliberately does NOT cancel the session or unregister — see class doc. */
-    @Synchronized fun release() {
-        if (refs > 0) refs--
+    private fun ensureSessionCovering(video: Boolean, position: Long) {
+        val buffer = if (video) videoBuffer else audioBuffer
+        val format = if (video) config.videoFormat else config.audioFormat
+        if (destroyed || buffer.failed() || buffer.coveredAt(position)) return
+        val s = session
+        if (s != null && thread?.isAlive == true) {
+            val anchor = if (video) s.firstVideoOffset else s.firstAudioOffset
+            when {
+                anchor < 0 -> if (System.currentTimeMillis() - sessionStartedAtMs < LAND_GRACE_MS) return
+                anchor <= position -> {
+                    val frontier = buffer.coverageEndFrom(anchor)
+                    if (position - frontier <= if (video) CATCHUP_VIDEO_BYTES else CATCHUP_AUDIO_BYTES) return
+                }
+                else -> seekMarginMs = (seekMarginMs * 2).coerceAtMost(60_000L)
+            }
+        }
+        if (restartAttempts >= MAX_SEEK_RESTARTS) {
+            val msg = "SABR video seek could not be served at $position after $restartAttempts attempts"
+            videoBuffer.markError(msg); audioBuffer.markError(msg)
+            return
+        }
+        restartAttempts++
+        val startMs = estimateTimeMs(format, position)
+        Timber.tag(TAG).d("SABR video seek-restart %s (%s) pos=%d -> t=%dms (attempt %d)", mediaId, if (video) "v" else "a", position, startMs, restartAttempts)
+        startSessionAt(startMs)
     }
+
+    private fun estimateTimeMs(format: SabrMessages.Format, position: Long): Long {
+        if (config.durationMs <= 0 || format.contentLength <= 0 || position <= 0) return 0
+        return (position * config.durationMs / format.contentLength - seekMarginMs).coerceAtLeast(0)
+    }
+
+    private fun startSessionAt(startMs: Long) {
+        session?.cancel()
+        val s = SabrVideoSession(
+            config, client, videoBuffer, audioBuffer,
+            startTimeMs = startMs,
+            paceAheadVideoBytes = AHEAD_VIDEO_BYTES,
+            paceAheadAudioBytes = AHEAD_AUDIO_BYTES,
+            onIncomplete = { config.clientKey?.let { SabrPlayerResolver.recordStall(mediaId, it) } },
+        )
+        session = s
+        sessionStartedAtMs = System.currentTimeMillis()
+        thread = Thread(s, "sabr-video-$mediaId").apply { isDaemon = true; start() }
+    }
+
+    /** Kept for the DataSource open/close pairing (lifecycle is registry-owned — see class doc). */
+    @Synchronized fun release() {}
 
     /** Kill the drain. Called ONLY by the registry on remove/replace — the explicit end of this stream. */
     @Synchronized fun destroy() {
+        if (destroyed) return
         destroyed = true
         session?.cancel()
         session = null
         thread = null
-        // Wake any reader parked in SabrBuffer.read's wait(): a cancelled session deliberately skips
+        // Wake any reader parked in SabrBuffer.read's wait: a cancelled session deliberately skips
         // marking (its exit branches bare-return), so without this a DataSource still blocked on a
         // destroyed stream would wait forever — an infinite buffering spinner with no player error.
         videoBuffer.markError("SABR stream destroyed")
         audioBuffer.markError("SABR stream destroyed")
+        // Video tracks are never retained (no video replay cache — the resolve cache already skips
+        // the /player round-trip); drop both spool files.
+        videoBuffer.release(deleteFile = true)
+        audioBuffer.release(deleteFile = true)
+    }
+
+    private companion object {
+        const val TAG = "SabrVideoStream"
+        // Pacing windows: the drain stays this far ahead of each reader, no further.
+        const val AHEAD_VIDEO_BYTES = 32L * 1024 * 1024
+        const val AHEAD_AUDIO_BYTES = 8L * 1024 * 1024
+        // Forward gaps the sequential drain is allowed to close instead of a seek-restart.
+        const val CATCHUP_VIDEO_BYTES = 8L * 1024 * 1024
+        const val CATCHUP_AUDIO_BYTES = 3L * 1024 * 1024
+        const val LAND_GRACE_MS = 4_000L
+        const val SEEK_MARGIN_MS = 5_000L
+        const val MAX_SEEK_RESTARTS = 6
     }
 }
 
@@ -85,6 +174,7 @@ internal object SabrVideoRegistry {
         val ids = streams.keys.toList()
         for (id in ids) streams.remove(id)?.destroy()
     }
+
     fun videoUri(mediaId: String): Uri = Uri.parse("$SCHEME_VIDEO://$mediaId")
     fun audioUri(mediaId: String): Uri = Uri.parse("$SCHEME_AUDIO://$mediaId")
     fun mediaId(uri: Uri): String? =
@@ -93,16 +183,14 @@ internal object SabrVideoRegistry {
 
 /**
  * ExoPlayer [DataSource] for one track ([video]=true reads the video buffer, else the audio buffer) of a
- * shared [SabrVideoStream]. Length is the track format's contentLength; reads block on the reassembled
- * bytes exactly like [SabrDataSource]. Backward seeks are free (whole track buffered in memory).
+ * shared [SabrVideoStream]. Length is the track format's contentLength; reads go through the stream's
+ * orchestration (covered serves / catch-ups / seek-restarts) exactly like [SabrDataSource].
  */
 @UnstableApi
 internal class SabrVideoDataSource(private val client: OkHttpClient, private val video: Boolean) : BaseDataSource(true) {
 
     private var uri: Uri? = null
-    private var mediaId: String? = null
     private var stream: SabrVideoStream? = null
-    private var buffer: SabrBuffer? = null
     private var position: Long = 0
     private var bytesRemaining: Long = 0
     // True once transferStarted() ran. media3's DefaultBandwidthMeter NPEs if transferEnded() fires
@@ -115,12 +203,9 @@ internal class SabrVideoDataSource(private val client: OkHttpClient, private val
         transferInitializing(dataSpec)
         uri = dataSpec.uri
         val id = SabrVideoRegistry.mediaId(dataSpec.uri) ?: throw IOException("SABR video: no media id in ${dataSpec.uri}")
-        mediaId = id
         val s = SabrVideoRegistry.get(id) ?: throw IOException("SABR video: no session for $id")
         stream = s
-        s.attach(id)
-        val buf = if (video) s.videoBuffer else s.audioBuffer
-        buffer = buf
+        s.prepare(video, dataSpec.position)
         val length = (if (video) s.config.videoFormat else s.config.audioFormat).contentLength
         position = dataSpec.position
         bytesRemaining = if (length > 0) length - dataSpec.position else C.LENGTH_UNSET.toLong()
@@ -133,7 +218,7 @@ internal class SabrVideoDataSource(private val client: OkHttpClient, private val
         if (readLength == 0) return 0
         if (bytesRemaining == 0L) return C.RESULT_END_OF_INPUT
         val toRead = if (bytesRemaining == C.LENGTH_UNSET.toLong()) readLength else minOf(readLength.toLong(), bytesRemaining).toInt()
-        val n = buffer?.read(position, target, offset, toRead) ?: return C.RESULT_END_OF_INPUT
+        val n = stream?.read(video, position, target, offset, toRead) ?: return C.RESULT_END_OF_INPUT
         if (n == -1) return C.RESULT_END_OF_INPUT
         position += n
         if (bytesRemaining != C.LENGTH_UNSET.toLong()) bytesRemaining -= n
@@ -146,8 +231,6 @@ internal class SabrVideoDataSource(private val client: OkHttpClient, private val
     override fun close() {
         stream?.release()
         stream = null
-        buffer = null
-        mediaId = null
         if (started) { transferEnded(); started = false }
         uri = null
     }
