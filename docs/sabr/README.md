@@ -110,9 +110,10 @@ varint is NOT the protobuf varint** - the leading byte's high bits encode the to
 ## 4. Reassembly correctness (the crash that was)
 
 **Segments are written at their absolute byte offset, never sequentially appended.** `SabrSession` tracks a
-per-`header_id` write cursor starting at `start_range`; `SabrBuffer.writeAt(offset, ...)` copies into a
-fixed-size buffer and maintains a **contiguous-from-0 watermark** that `read()` blocks on. `available()` is
-that watermark; `SabrDataSource.read()` serves bytes below it.
+per-`header_id` write cursor starting at `start_range`; `SabrBuffer.writeAt(offset, ...)` writes into the
+preallocated spool file at that offset and tracks the filled intervals, exposing both a **contiguous-from-0
+watermark** and per-region coverage. A sequential reader consumes below the watermark; a seek-restarted
+session (sec 5) fills a mid-stream region that `readCovered()` serves while the head stays a gap.
 
 Why it matters: the first implementation appended segment bytes in arrival order, assuming perfect
 ordering. That corrupted the webm/opus container, so ExoPlayer's extractor reported a **garbage
@@ -120,7 +121,8 @@ duration/position**, which overflowed media3's `Util.percentInt` inside `getBuff
 **crashed the app on every launch** (the media session polls it on restore - a poisoned persisted track
 crash-looped with no recovery short of clearing data). The positional write makes reassembly **byte-exact
 regardless of arrival order** - `SabrBufferTest` pins out-of-order writes (segment 3 before 2 before init)
-reassembling to the exact bytes, gaps holding the watermark back, and over-length writes ignored.
+reassembling to the exact bytes, gaps holding the watermark back, mid-stream regions covered and readable,
+and over-length writes ignored.
 
 ### 4.1 The companion hardening - `CastAwarePlayer.getBufferedPercentage`
 
