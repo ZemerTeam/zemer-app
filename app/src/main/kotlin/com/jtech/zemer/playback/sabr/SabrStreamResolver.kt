@@ -2,7 +2,11 @@ package com.jtech.zemer.playback.sabr
 
 import android.util.Base64
 import com.metrolist.innertube.utils.ResilientDns
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
+import timber.log.Timber
+import java.io.File
 import java.util.concurrent.TimeUnit
 
 /**
@@ -27,6 +31,43 @@ object SabrStreamResolver {
     }
 
     internal fun dataSourceFactory(): SabrDataSourceFactory = SabrDataSourceFactory(client)
+
+    /** The mime type of the audio SABR downloaded, for the caller to pick a file extension. */
+    class DownloadInfo(val mimeType: String, val contentLength: Long)
+
+    /**
+     * Download the WHOLE SABR audio for [videoId] (over the first working [enabled] client) to [file].
+     * Resolves like playback, runs the session to completion, and writes the byte-exact reassembled stream.
+     * Returns the [DownloadInfo] on a COMPLETE download, or null (caller falls back / fails) - a truncated
+     * stream (e.g. a capped client) is never saved. The DIRECT/RELAY download paths are untouched.
+     */
+    suspend fun download(videoId: String, enabled: Set<String>, file: File): DownloadInfo? =
+        withContext(Dispatchers.IO) {
+            SabrPlayerResolver.resolve(videoId, enabled) ?: return@withContext null
+            val cfg = SabrStreamRegistry.get(videoId) ?: return@withContext null
+            try {
+                val buffer = SabrBuffer(cfg.format.contentLength)
+                SabrSession(cfg, client, buffer).run() // blocks on this thread until the stream is drained
+                val size = buffer.available()
+                if (size <= 0L || (cfg.format.contentLength > 0 && size < cfg.format.contentLength)) {
+                    Timber.tag("SabrDownload").w("SABR download incomplete for $videoId: $size/${cfg.format.contentLength}")
+                    return@withContext null
+                }
+                file.outputStream().use { out ->
+                    val chunk = ByteArray(64 * 1024)
+                    var pos = 0L
+                    while (pos < size) {
+                        val n = buffer.read(pos, chunk, 0, chunk.size)
+                        if (n <= 0) break
+                        out.write(chunk, 0, n)
+                        pos += n
+                    }
+                }
+                if (file.length() <= 0L) null else DownloadInfo(cfg.mimeType, size)
+            } finally {
+                SabrStreamRegistry.remove(videoId)
+            }
+        }
 
     /** Decode base64 that may be standard (+/) or url-safe (-_), padded or not - never throws on either. */
     private fun decodeBase64(s: String): ByteArray {

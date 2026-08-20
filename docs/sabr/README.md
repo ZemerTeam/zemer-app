@@ -198,6 +198,29 @@ song are in the roster — the ~60s-capped ones are deliberately absent.
 
 ---
 
+## 7.1 Downloads (the SABR download path)
+
+A migrated client's progressive download URL is walled at ~1 MiB exactly like its stream URL, so when
+SABR mode is on, **downloads must run over SABR too** — otherwise a device that can only stream via SABR
+could never save a track. `MediaStoreDownloadManager.performDownload` mirrors the RELAY branch:
+
+- **`sabrMode` is derived like `relayMode`**, from the same prefs the player reads
+  (`StreamSabrKey` + the four client toggles). It is **audio-only**: `enabledSabrClients` is forced empty
+  for a relay download or a **video** download (a video-song still downloads its muxed video via the DIRECT
+  path — SABR does not carry video), so `sabrMode` is false there and the DIRECT/video logic is untouched.
+- When `sabrMode`, `playbackData` is **null** (no `/player`-for-download round-trip, same as relay); the
+  temp file is `.webm` and the download runs through **`SabrStreamResolver.download(id, enabled, file)`**,
+  which resolves over the roster, runs a `SabrSession` **to completion synchronously**, and writes the
+  **byte-exact reassembled** audio. It returns null (→ the attempt throws and retries) on an **incomplete**
+  drain, so a truncated/capped stream is **never saved as a finished download**.
+- The null-`playbackData` tail is shared with relay verbatim: the real container is **sniffed**
+  (`sniffAudioExtension` — WebM/Opus labelled `.opus`, MP4 `.m4a`, both MediaStore-accepted), the
+  **duration** comes from the saved file (`durationSecFromFile`), and `isVideo` is forced **false**.
+- The DIRECT and RELAY download paths are byte-for-byte unchanged; every SABR branch is a strict no-op
+  while SABR mode is off.
+
+---
+
 ## 8. The harness — the proof + validator
 
 Both live in `tests/` (Node ≥20, deps vendored; needs `innertube_cookie.txt` at the repo root):
@@ -220,7 +243,8 @@ mirrors (`tests/clients.mjs`, etc.) in step, exactly as for the DIRECT harness.
 
 - **Seeking** is served from the in-memory buffer (backward seeks are free; a forward seek blocks until the
   sequential drain reaches that offset). A true SABR seek (jump `playerTimeMs`) is not implemented.
-- **Audio only.** The roster + request select the best audio format; video-over-SABR is out of scope.
+- **Audio only.** The roster + request select the best audio format; video-over-SABR is out of scope —
+  both for playback and for downloads (a video download stays on the DIRECT muxed-video path).
 - **MWEB** is inconsistent (context-challenge stall on some content) — it sits last so it's only reached
   when the reliable clients are disabled.
 - **On-device soak** (more clients/content, long tracks, network transitions) is the remaining gate before

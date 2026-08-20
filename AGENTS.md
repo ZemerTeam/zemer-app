@@ -151,6 +151,12 @@ byte-for-byte unchanged. The engine is a faithful Kotlin port of the proven Node
   persists a `FormatEntity` (streamClient = e.g. `WEB_REMIX (SABR)`) so the song-details sheet shows the
   SABR client + format (`ShowMediaInfo` strips the ` (SABR)` suffix so a web SABR client still resolves its
   player hash; VISIONOS SABR stays N/A - no cipher). A downloaded file still plays from disk.
+- **Downloads run over SABR too** (`MediaStoreDownloadManager`, mirroring the RELAY branch): when SABR mode
+  is on, `sabrMode` (audio-only - forced off for a relay or video download) nulls `playbackData` and pulls
+  the whole file via `SabrStreamResolver.download` (runs a `SabrSession` to completion, writes the byte-exact
+  reassembled audio, returns null → the attempt retries on an INCOMPLETE drain so a capped/truncated stream
+  is never saved). The null-playbackData tail is shared with relay: container sniffed, duration from the file,
+  `isVideo` false. DIRECT/video downloads untouched.
 - **innertube exposes the SABR inputs additively:** `StreamingData.serverAbrStreamingUrl` +
   `PlayerConfig.mediaCommonConfig.mediaUstreamerRequestConfig.videoPlaybackUstreamerConfig` (defaulted null,
   ignored where absent).
