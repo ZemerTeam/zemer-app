@@ -65,6 +65,7 @@ class SabrMessagesTest {
         )
         val h = SabrMessages.parseMediaHeader(payload)
         assertEquals(1, h.seq)
+        assertEquals(251, h.itag) // routes a MEDIA to its track (video vs audio) in a dual-track session
         assertTrue(!h.isInit)
         assertEquals(834L, h.startRange)
         assertEquals(213198L, h.contentLength)
@@ -82,6 +83,41 @@ class SabrMessagesTest {
         val m = SabrProto.read(ctx)
         assertEquals(2L, m.longAt(1))
         assertArrayEquals(bytes(0xAB), m.bytesAt(2))
+    }
+
+    @Test
+    fun `dual-track video request pins both formats, bitfield 0, per-track ranges`() {
+        val video = SabrMessages.Format(itag = 136, lastModified = 111L, contentLength = 26455880L)
+        val audio = SabrMessages.Format(itag = 251, lastModified = 222L, contentLength = 3433755L)
+        val req = SabrMessages.abrRequestVideo(
+            ustreamerConfig = bytes(0xAB), videoFormat = video, audioFormat = audio,
+            video = SabrMessages.TrackState(video, bufferedEndMs = 30000, bufferedEndSeg = 10),
+            audio = SabrMessages.TrackState(audio, bufferedEndMs = 28000, bufferedEndSeg = 9),
+            poToken = bytes(1), clientInfo = client, playerTimeMs = 28000, cookie = null, sabrContexts = emptyList(), selected = true,
+        )
+        val m = SabrProto.read(req)
+        // enabledTrackTypesBitfield = 0 (video + audio), not 1 (audio only)
+        assertEquals(0L, SabrProto.read(m.bytesAt(1)!!).longAt(40))
+        // preferredAudioFormatId (16) = audio itag; preferredVideoFormatId (17) = video itag
+        assertEquals(251L, SabrProto.read(m.bytesAt(16)!!).longAt(1))
+        assertEquals(136L, SabrProto.read(m.bytesAt(17)!!).longAt(1))
+        // both tracks locked (field 2 repeated) and both buffered ranges present (field 3 repeated)
+        assertEquals(2, m[2]?.size)
+        assertEquals(2, m[3]?.size)
+    }
+
+    @Test
+    fun `dual-track cold start sends no ranges and no locked formats`() {
+        val video = SabrMessages.Format(itag = 136, lastModified = 111L, contentLength = 1L)
+        val audio = SabrMessages.Format(itag = 251, lastModified = 222L, contentLength = 1L)
+        val req = SabrMessages.abrRequestVideo(
+            ustreamerConfig = bytes(0), videoFormat = video, audioFormat = audio, video = null, audio = null,
+            poToken = bytes(1), clientInfo = client, playerTimeMs = 0, cookie = null, sabrContexts = emptyList(), selected = false,
+        )
+        val m = SabrProto.read(req)
+        assertTrue("no selected formats cold", !m.containsKey(2))
+        assertTrue("no buffered ranges cold", !m.containsKey(3))
+        assertTrue("still pins preferred video (17)", m.containsKey(17))
     }
 
     @Test

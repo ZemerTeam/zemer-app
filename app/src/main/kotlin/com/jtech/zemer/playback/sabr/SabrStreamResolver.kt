@@ -32,6 +32,9 @@ object SabrStreamResolver {
 
     internal fun dataSourceFactory(): SabrDataSourceFactory = SabrDataSourceFactory(client)
 
+    /** The shared SABR OkHttp client, reused by the dual-track video path ([SabrVideoResolver]). */
+    internal fun sharedClient(): OkHttpClient = client
+
     /** The mime type of the audio SABR downloaded, for the caller to pick a file extension. */
     class DownloadInfo(val mimeType: String, val contentLength: Long)
 

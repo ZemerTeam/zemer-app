@@ -85,16 +85,53 @@ internal object SabrMessages {
         bField(19, streamerContext(clientInfo, poToken, cookie, sabrContexts)),
     )
 
+    /** One track's buffered progress in a multi-track (video+audio) request. */
+    class TrackState(val format: Format, val bufferedEndMs: Long, val bufferedEndSeg: Int)
+
+    /**
+     * VideoPlaybackAbrRequest for a DUAL-TRACK (video + audio) SABR session. Differs from [abrRequest]:
+     * enabledTrackTypesBitfield = 0 (video+audio, not 1=audio-only); both preferred formats are pinned —
+     * `preferredAudioFormatId=16` AND `preferredVideoFormatId=17` (field 17 is the lever that makes the
+     * server serve the EXACT requested video itag, proven in `tests/sabr-video.mjs`); and the selected
+     * ids + buffered ranges are sent PER track. Field numbers pinned to `tests/sabr-video-clients.mjs`.
+     */
+    fun abrRequestVideo(
+        ustreamerConfig: ByteArray,
+        videoFormat: Format,
+        audioFormat: Format,
+        video: TrackState?,
+        audio: TrackState?,
+        poToken: ByteArray,
+        clientInfo: ClientInfo,
+        playerTimeMs: Long,
+        cookie: ByteArray?,
+        sabrContexts: List<ByteArray>,
+        selected: Boolean,
+    ): ByteArray {
+        val states = listOfNotNull(video, audio)
+        return concat(
+            bField(1, concat(vField(28, playerTimeMs), vField(40, 0))), // enabledTrackTypesBitfield=0 => video+audio
+            if (selected) concat(states.map { bField(2, formatId(it.format)) }) else ByteArray(0),
+            concat(states.filter { it.bufferedEndSeg > 0 }.map { bField(3, bufferedRange(it.format, it.bufferedEndMs, it.bufferedEndSeg)) }),
+            if (playerTimeMs > 0) vField(4, playerTimeMs) else ByteArray(0),
+            bField(5, ustreamerConfig),
+            bField(16, formatId(audioFormat)), // preferredAudioFormatId
+            bField(17, formatId(videoFormat)), // preferredVideoFormatId (pins the exact video itag)
+            bField(19, streamerContext(clientInfo, poToken, cookie, sabrContexts)),
+        )
+    }
+
     // ---- response part parsers ----
 
     /** MediaHeader { header_id=1, itag=3, start_range=6, is_init_seg=8, sequence_number=9, content_length=14, time_range=15 } */
-    class MediaHeader(val headerId: Int, val seq: Int, val isInit: Boolean, val startRange: Long, val contentLength: Long, val startMs: Long, val durMs: Long)
+    class MediaHeader(val headerId: Int, val itag: Int, val seq: Int, val isInit: Boolean, val startRange: Long, val contentLength: Long, val startMs: Long, val durMs: Long)
 
     fun parseMediaHeader(payload: ByteArray): MediaHeader {
         val m = SabrProto.read(payload)
         val tr = m.bytesAt(15)?.let { parseTimeRangeMs(it) } ?: (0L to 0L)
         return MediaHeader(
             headerId = m.longAt(1).toInt(),
+            itag = m.longAt(3).toInt(),
             seq = m.longAt(9).toInt(),
             isInit = m.longAt(8) != 0L,
             startRange = m.longAt(6),
