@@ -2,6 +2,9 @@ package com.jtech.zemer.playback.sabr
 
 import android.net.Uri
 import android.util.Base64
+import com.jtech.zemer.playback.VideoDecoderCaps
+import com.jtech.zemer.playback.VideoQualityLogic
+import com.jtech.zemer.playback.VideoQualityRung
 import com.metrolist.innertube.NewPipeUtils
 import com.metrolist.innertube.YouTube
 import com.metrolist.innertube.models.YouTubeClient
@@ -16,13 +19,15 @@ import java.io.File
 
 /**
  * Dual-track (video + audio) SABR resolution — the video counterpart of [SabrPlayerResolver]. Fetches the
- * `/player` for the first ENABLED SABR-usable client that exposes SABR inputs, pins a video-only rung at
- * or below the requested quality (via `preferredVideoFormatId`, proven in `tests/sabr-video.mjs`) plus the
- * best audio, registers a shared [SabrVideoStream], and returns the `sabrvideo://<id>` uri. Playback wraps
- * that (video) with the paired `sabraudio://<id>` in a `MergingMediaSource`. Isolated from DIRECT/RELAY.
+ * `/player` for the first ENABLED SABR-usable client that exposes SABR inputs, PINS the exact video itag
+ * for the requested quality via `preferredVideoFormatId` (field 17, proven in `tests/sabr-video.mjs`) plus
+ * the best audio, registers a shared [SabrVideoStream], and returns the `sabrvideo://<id>` uri + the full
+ * quality ladder (so the in-player switcher offers the SAME rungs the DIRECT path does). Playback wraps
+ * the video with the paired `sabraudio://<id>` in a `MergingMediaSource`. Isolated from DIRECT/RELAY.
  */
 object SabrVideoResolver {
     private const val TAG = "SabrVideoResolver"
+    private const val AUTO_HEIGHT = 720 // SABR must pin an itag even for AUTO — cap the automatic pick here
     private val poTokenGenerator = PoTokenGenerator()
 
     private class Spec(
@@ -52,28 +57,32 @@ object SabrVideoResolver {
         return Base64.decode(padded, Base64.NO_WRAP)
     }
 
+    /** A resolved SABR video session: the uri to play, the switcher ladder, and the rung actually pinned. */
+    class SabrVideoResult(val uri: Uri, val ladder: List<VideoQualityRung>, val chosen: VideoQualityRung)
+
     /**
-     * Resolve [videoId] for video playback over the first working [enabled] client at or below
-     * [maxHeightPx]. Registers the shared stream and returns the `sabrvideo://` uri, or null (caller
-     * reverts to audio). The paired audio uri is [SabrVideoRegistry.audioUri] of the same id.
+     * Resolve [videoId] for video playback over the first working [enabled] client at [targetLabel]
+     * (a quality label like "720p", or [VideoQualityLogic.AUTO]). Registers the shared stream and returns
+     * the uri + ladder + chosen rung, or null (caller reverts to audio).
      */
-    suspend fun resolve(videoId: String, enabled: Set<String>, maxHeightPx: Int): Uri? = withContext(Dispatchers.IO) {
-        val config = firstWorkingConfig(videoId, enabled, maxHeightPx) ?: return@withContext null
-        SabrVideoRegistry.put(videoId, SabrVideoStream(config, SabrStreamResolver.sharedClient()))
-        SabrVideoRegistry.videoUri(videoId)
-    }
+    suspend fun resolve(videoId: String, enabled: Set<String>, targetLabel: String): SabrVideoResult? =
+        withContext(Dispatchers.IO) {
+            val built = firstWorkingBuilt(videoId, enabled, targetLabel) ?: return@withContext null
+            SabrVideoRegistry.put(videoId, SabrVideoStream(built.config, SabrStreamResolver.sharedClient()))
+            SabrVideoResult(SabrVideoRegistry.videoUri(videoId), built.ladder, built.chosen)
+        }
 
     /** The mime of the video track SABR downloaded, so the caller picks the muxer container (mp4/webm). */
     class VideoDownloadInfo(val videoMimeType: String, val audioMimeType: String, val webm: Boolean)
 
     /**
-     * Download the WHOLE video + audio for [videoId] (over the first working [enabled] client, pinned at
-     * or under [maxHeightPx]) to [videoFile] and [audioFile], byte-exact. Returns null on an incomplete
-     * drain (a capped client) so the caller retries / falls back — a truncated track is never muxed.
+     * Download the WHOLE video + audio for [videoId] (over the first working [enabled] client at
+     * [targetLabel]) to [videoFile] and [audioFile], byte-exact. Returns null on an incomplete drain
+     * (a capped client) so the caller retries / falls back — a truncated track is never muxed.
      */
-    suspend fun download(videoId: String, enabled: Set<String>, maxHeightPx: Int, videoFile: File, audioFile: File): VideoDownloadInfo? =
+    suspend fun download(videoId: String, enabled: Set<String>, targetLabel: String, videoFile: File, audioFile: File): VideoDownloadInfo? =
         withContext(Dispatchers.IO) {
-            val config = firstWorkingConfig(videoId, enabled, maxHeightPx) ?: return@withContext null
+            val config = firstWorkingBuilt(videoId, enabled, targetLabel)?.config ?: return@withContext null
             val videoBuf = SabrBuffer(config.videoFormat.contentLength)
             val audioBuf = SabrBuffer(config.audioFormat.contentLength)
             SabrVideoSession(config, SabrStreamResolver.sharedClient(), videoBuf, audioBuf).run() // blocks until drained
@@ -105,20 +114,28 @@ object SabrVideoResolver {
         }
     }
 
-    /** Resolve the first ENABLED client that exposes SABR video inputs into a ready [SabrVideoConfig]. */
-    private suspend fun firstWorkingConfig(videoId: String, enabled: Set<String>, maxHeightPx: Int): SabrVideoConfig? {
+    private class Built(val config: SabrVideoConfig, val ladder: List<VideoQualityRung>, val chosen: VideoQualityRung)
+
+    /** Resolve the first ENABLED client that exposes SABR video inputs into a ready [Built]. */
+    private suspend fun firstWorkingBuilt(videoId: String, enabled: Set<String>, targetLabel: String): Built? {
         val visitorData = YouTube.visitorData ?: return null
         val pot = poTokenGenerator.getWebClientPoToken(videoId, visitorData) ?: return null
         val sts = NewPipeUtils.getSignatureTimestamp(videoId).getOrNull()
         for (spec in ROSTER) {
             if (spec.key !in enabled) continue
-            val config = buildConfig(spec, videoId, pot, sts, maxHeightPx)
-            if (config != null) return config
+            val built = build(spec, videoId, pot, sts, targetLabel)
+            if (built != null) return built
         }
         return null
     }
 
-    private suspend fun buildConfig(spec: Spec, videoId: String, pot: PoTokenResult, sts: Int?, maxHeightPx: Int): SabrVideoConfig? {
+    /** Pick the rung for [targetLabel]; AUTO (selectRung returns null) caps at [AUTO_HEIGHT]. */
+    private fun pickRung(ladder: List<VideoQualityRung>, targetLabel: String): VideoQualityRung? =
+        VideoQualityLogic.selectRung(ladder, targetLabel)
+            ?: ladder.filter { it.height <= AUTO_HEIGHT }.maxByOrNull { it.height }
+            ?: ladder.minByOrNull { it.height }
+
+    private suspend fun build(spec: Spec, videoId: String, pot: PoTokenResult, sts: Int?, targetLabel: String): Built? {
         return try {
             val response = YouTube.player(
                 videoId,
@@ -133,20 +150,22 @@ object SabrVideoResolver {
                 ?: return null
 
             val audio = streaming.adaptiveFormats.filter { it.isAudio && it.isOriginal }.maxByOrNull { it.bitrate } ?: return null
-            val videoRungs = streaming.adaptiveFormats
-                .filter { !it.isAudio && it.width != null && it.contentLength != null && it.mimeType.startsWith("video/") }
-                .map { SabrVideoQuality.Rung(it.itag, it.height ?: 0, it.mimeType, it.bitrate, it.contentLength!!) }
-            val rung = SabrVideoQuality.select(videoRungs, maxHeightPx) ?: return null
-            val videoFmt = streaming.adaptiveFormats.first { it.itag == rung.itag }
             val audioLen = audio.contentLength ?: return null
+            // The same ladder the DIRECT switcher renders, minus progressive (SABR video is dual-track,
+            // video-only + audio) and minus rungs this device can't decode (never pin an undecodable itag).
+            val ladder = VideoQualityLogic.rungs(streaming).filter { !it.progressive && VideoDecoderCaps.supports(it) }
+            if (ladder.isEmpty()) return null
+            val chosen = pickRung(ladder, targetLabel) ?: return null
+            val videoFmt = streaming.adaptiveFormats.firstOrNull { it.itag == chosen.itag } ?: return null
+            val videoLen = videoFmt.contentLength ?: return null
 
-            Timber.tag(TAG).d("SABR video resolved $videoId via ${spec.label}: video itag=${rung.itag} ${rung.height}p, audio itag=${audio.itag}")
+            Timber.tag(TAG).d("SABR video resolved $videoId via ${spec.label}: video itag=${chosen.itag} ${chosen.label}, audio itag=${audio.itag}")
             val nTransform: (String) -> String =
                 if (spec.web) { url -> runBlocking { CipherDeobfuscator.transformNParamInUrl(url) } } else { url -> url }
             val config = SabrVideoConfig(
                 sabrUrl = sabrUrl,
                 ustreamerConfig = decodeBase64(ustreamer),
-                videoFormat = SabrMessages.Format(videoFmt.itag, videoFmt.lastModified ?: 0L, rung.contentLength),
+                videoFormat = SabrMessages.Format(videoFmt.itag, videoFmt.lastModified ?: 0L, videoLen),
                 audioFormat = SabrMessages.Format(audio.itag, audio.lastModified ?: 0L, audioLen),
                 poToken = decodeBase64(pot.playerRequestPoToken),
                 clientInfo = SabrMessages.ClientInfo(
@@ -165,7 +184,7 @@ object SabrVideoResolver {
                 videoMimeType = videoFmt.mimeType,
                 videoBitrate = videoFmt.bitrate,
             )
-            config
+            Built(config, ladder, chosen)
         } catch (e: Exception) {
             Timber.tag(TAG).w(e, "SABR video resolve via ${spec.label} failed for $videoId: ${e.message}")
             null

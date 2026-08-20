@@ -170,12 +170,15 @@ byte-for-byte unchanged. The engine is a faithful Kotlin port of the proven Node
   `SabrVideoDataSource` (ONE shared session -> two DataSources for a `MergingMediaSource`; stream lifetime
   is EXPLICIT - registry remove/replace only, hooked into VideoModeController.clearState - NEVER tied to
   DataSource open/close, whose seek-triggered close->reopen gap otherwise kills the session mid-play),
-  `SabrVideoResolver` (dual-format resolve, field-17 pin, cipher n-transform), `SabrVideoQuality` (pure
-  rung pick, avc1-preferred, JVM-tested). Wiring (all `StreamSabrKey`-gated, RELAY priority, DIRECT
-  untouched): a `sabrvideo://` URI in `createMediaSourceFactory` builds the merge from the isolated SABR
-  DataSources; `VideoModeController.enterVideoModeSabr` resolves async then swaps to an item keyed
-  `video:<id>` (exit/own-swap machinery) with a `sabrvideo://<id>` URI (merge routing); fixed rendition
-  like RELAY (no live switcher, target = the Settings quality mapped to a max height). SABR video
+  `SabrVideoResolver` (dual-format resolve, field-17 pin, cipher n-transform; reuses the DIRECT
+  `VideoQualityLogic.rungs` ladder and returns it + the pinned rung). Wiring (all `StreamSabrKey`-gated,
+  RELAY priority, DIRECT untouched): a `sabrvideo://` URI in `createMediaSourceFactory` builds the merge
+  from the isolated SABR DataSources; `VideoModeController.enterVideoModeSabr` resolves async then swaps to
+  an item keyed `video:<id>:q<itag>` (exit/own-swap machinery + distinct-per-rung) with a `sabrvideo://<id>`
+  URI (merge routing). SABR pins an exact itag, so it HAS a live quality switcher (unlike RELAY): the
+  resolver returns the ladder (minus progressive + undecodable rungs), the controller publishes it, and a
+  pick re-resolves the dual-track session at the new target (`setVideoQuality`/`downgradeForStall` share
+  `resolveAndSwapSabr`); AUTO caps at 720p. SABR video
   DOWNLOADS are wired too (`MediaStoreDownloadManager` `sabrVideoMode`): the dual-track session drains to
   two temp files and remuxes on-device (`VideoMuxer`), like a DIRECT adaptive download. The SABR
   DataSources fire `transferEnded()` only after `transferStarted()` (a MergingMediaSource sibling teardown

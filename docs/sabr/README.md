@@ -326,9 +326,10 @@ and adds an isolated dual-track layer in `playback/sabr/`:
   destroyed only by the registry — on `remove` (VideoModeController's `clearState`, the one chokepoint
   every video-mode exit funnels through) or on `put` replacing it (a new resolve) — so reopens just
   re-read the accumulating buffers.
-- **`SabrVideoResolver`** — dual-format resolve over the same client roster, pinning a video rung at/under
-  the quality target via field 17 (best audio too), cipher n-transform for web clients.
-- **`SabrVideoQuality`** — pure rung selection (best at/under the target height, avc1 preferred), JVM-tested.
+- **`SabrVideoResolver`** — dual-format resolve over the same client roster, pinning the exact video itag
+  for the quality target via field 17 (best audio too), cipher n-transform for web clients. Reuses the
+  DIRECT `VideoQualityLogic.rungs` ladder (minus progressive + undecodable rungs) and returns it + the
+  pinned rung, so the switcher offers the same rungs as the DIRECT path.
 
 **Wiring** (all gated behind `StreamSabrKey`, RELAY takes priority, DIRECT byte-for-byte unchanged):
 
@@ -336,10 +337,17 @@ and adds an isolated dual-track layer in `playback/sabr/`:
   `MergingMediaSource` from two isolated `SabrVideoDataSourceFactory` children (never the DIRECT/relay
   factory). Detected by URI scheme, which nothing but `SabrVideoResolver` produces.
 - `VideoModeController.enterVideoModeSabr` resolves the dual-track session **asynchronously** (network),
-  then swaps to an item whose **CACHE KEY stays `video:<id>`** (so the existing exit / own-swap / listen
-  classification machinery recognises it) but whose **URI is `sabrvideo://<id>`** (which routes it to the
-  merge). Fixed rendition like RELAY — no in-player quality switcher; the target is the effective quality
-  setting mapped to a max height (AUTO → 720p), so quality is still controlled via Settings.
+  then swaps to an item whose **CACHE KEY is `video:<id>:q<itag>`** (so the existing exit / own-swap /
+  listen classification machinery recognises it AND each rung is a distinct item that forces a re-prepare)
+  but whose **URI is `sabrvideo://<id>`** (which routes it to the merge).
+- **Live quality switcher** — SABR pins an exact itag (field 17), so unlike RELAY's fixed rendition the
+  in-player picker IS offered. `SabrVideoResolver.resolve` returns the **same ladder the DIRECT switcher
+  renders** (`VideoQualityLogic.rungs`, minus progressive since SABR video is dual-track, minus rungs the
+  device can't decode) plus the pinned rung; the controller publishes it to `_videoQualities`. A pick
+  (`setVideoQuality`) **re-resolves** the dual-track session at the new target and swaps under a fresh
+  `:q<itag>` cache key — there is no DIRECT-style cache re-key because each SABR rung is a different
+  server-pinned stream. AUTO caps at 720p. The rebuffer guard (`downgradeForStall`) likewise re-resolves
+  one rung down on repeated stalls. Downloads take the same quality target label.
 - `MusicService.isSabrPlaybackMode()` mirrors `StreamSabrKey` synchronously (a `@Volatile`, collector-fed),
   so the user's video toggle reads it on the main thread without a blocking DataStore read.
 

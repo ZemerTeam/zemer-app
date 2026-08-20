@@ -305,6 +305,17 @@ class VideoModeController(
         qualityOverrides[itemId] = label
         userQualityPicks[itemId] = label
         val renditionId = videoRenditionId ?: return
+        // SABR pins an exact itag, so a quality pick RE-RESOLVES the dual-track session at the new target
+        // and swaps (there is no DIRECT :q cache key to re-key). Tapping the rung already playing no-ops.
+        if (service.isSabrPlaybackMode()) {
+            if (label != VideoQualityLogic.AUTO) {
+                val target = qualityLadders[renditionId]?.let { VideoQualityLogic.selectRung(it, label) }
+                if (target != null && target.itag == currentRenditionItag) { _currentVideoQuality.value = target.label; return }
+            }
+            val audioItem = videoModeAudioItem ?: return
+            resolveAndSwapSabr(renditionId, audioItem, player.currentMediaItemIndex, label, entry = false)
+            return
+        }
         if (label == VideoQualityLogic.AUTO) {
             // Back to the plain automatic key — itag is unknown until the resolver reports it.
             currentRenditionItag = null
@@ -378,10 +389,6 @@ class VideoModeController(
 
     private companion object {
         const val SEEK_GRACE_MS = 6_000L
-
-        // SABR video target when the effective quality setting is AUTO (no explicit height). 720p is the
-        // metered-friendly default matching the DIRECT automatic pick.
-        const val DEFAULT_SABR_HEIGHT = 720
     }
 
     private fun downgradeForStall() {
@@ -399,6 +406,12 @@ class VideoModeController(
         val below = VideoQualityLogic.rungBelow(rungs, current) ?: return
         // Pin the item to the lower rung so onVideoQualitiesResolved can't bounce back up.
         videoModeItemId?.let { qualityOverrides[it] = below.label }
+        // SABR re-resolves the dual-track session at the lower rung (no DIRECT :q key to re-swap).
+        if (service.isSabrPlaybackMode()) {
+            val audioItem = videoModeAudioItem ?: return
+            resolveAndSwapSabr(renditionId, audioItem, player.currentMediaItemIndex, below.label, entry = false)
+            return
+        }
         swapToRung(below)
     }
 
@@ -642,13 +655,13 @@ class VideoModeController(
         val renditionId = rendition.renditionVideoId ?: run { clearState(); return }
 
         // SABR video mode: resolve the dual-track (video + audio) session asynchronously, then swap. The
-        // swapped item keeps a `video:<id>` CACHE KEY (so the exit/own-swap machinery recognises it) but a
-        // `sabrvideo://<id>` URI, which routes it to the isolated SABR MergingMediaSource in
-        // createMediaSourceFactory (never the DIRECT/relay resolver). Fixed rendition like RELAY — no live
-        // switcher; the target is the effective quality setting mapped to a max height. Gated on SABR mode,
-        // so DIRECT/RELAY video is byte-for-byte unchanged.
-        // RELAY takes priority over SABR (mirrors the playback data-source dispatcher: relay -> sabr ->
-        // direct), so relay video keeps its own &kind=video path.
+        // swapped item keeps a `video:<id>:q<itag>` CACHE KEY (so the exit/own-swap machinery recognises
+        // it AND each rung is a distinct item) but a `sabrvideo://<id>` URI, which routes it to the
+        // isolated SABR MergingMediaSource in createMediaSourceFactory (never the DIRECT/relay resolver).
+        // SABR pins an exact itag, so the in-player quality switcher IS offered (unlike RELAY's fixed
+        // rendition); a pick re-resolves. Gated on SABR mode, so DIRECT/RELAY video is byte-for-byte
+        // unchanged. RELAY takes priority over SABR (mirrors the playback data-source dispatcher:
+        // relay -> sabr -> direct), so relay video keeps its own &kind=video path.
         if (service.isSabrPlaybackMode() && !service.isRelayPlaybackMode()) {
             enterVideoModeSabr(audioItem, index, renditionId)
             return
@@ -687,24 +700,32 @@ class VideoModeController(
     }
 
     /**
-     * SABR video entry: resolve the dual-track session off the main thread, then swap on the main thread.
-     * Optimistically flips [_isVideoMode] on (audio keeps playing until the swap lands); on a resolve
-     * failure or a changed item, reverts. Mirrors [enterVideoMode]'s pendingSwap/onSwap discipline so the
-     * swap is never mis-classified as a real transition.
+     * SABR video entry: optimistically flip [_isVideoMode] on (audio keeps playing until the swap lands),
+     * then resolve + swap at the effective quality target. Unlike RELAY, SABR pins an exact itag, so the
+     * in-player switcher IS offered — the ladder is published on resolve and a pick re-resolves ([setVideoQuality]).
      */
     private fun enterVideoModeSabr(audioItem: MediaItem, index: Int, renditionId: String) {
-        val cacheKey = VideoRendition.key(renditionId)
-        val heightPx = VideoQualityLogic.heightOfLabel(effectiveQualityTarget(audioItem.mediaId)) ?: DEFAULT_SABR_HEIGHT
-        _videoQualities.value = emptyList()          // fixed rendition — no in-player switcher (like RELAY)
+        _videoQualities.value = emptyList()
         _currentVideoQuality.value = VideoQualityLogic.AUTO
         currentRenditionItag = null
-        videoModeVideoKey = cacheKey
         _isVideoMode.value = true
+        resolveAndSwapSabr(renditionId, audioItem, index, effectiveQualityTarget(audioItem.mediaId), entry = true)
+    }
+
+    /**
+     * Resolve a SABR dual-track session at [targetLabel] off the main thread, then swap on the main thread
+     * — shared by the initial entry and every quality switch. Each rung gets its OWN `video:<id>:q<itag>`
+     * cache key (so media3 re-prepares) over the same `sabrvideo://<id>` URI (merge routing); the ladder +
+     * chosen rung are published for the switcher. Mirrors [enterVideoMode]'s pendingSwap/onSwap discipline
+     * so the swap is never mis-classified as a real transition. [entry] true reverts to audio on failure;
+     * a failed quality SWITCH keeps the current rung playing.
+     */
+    private fun resolveAndSwapSabr(renditionId: String, audioItem: MediaItem, index: Int, targetLabel: String, entry: Boolean) {
         val position = player.currentPosition
         val playWhenReady = player.playWhenReady
         scope.launch {
-            val uri = try {
-                com.jtech.zemer.playback.sabr.SabrVideoResolver.resolve(renditionId, service.sabrEnabledClients(), heightPx)
+            val result = try {
+                com.jtech.zemer.playback.sabr.SabrVideoResolver.resolve(renditionId, service.sabrEnabledClients(), targetLabel)
             } catch (e: Exception) {
                 null
             }
@@ -716,14 +737,20 @@ class VideoModeController(
                     com.jtech.zemer.playback.sabr.SabrVideoRegistry.remove(renditionId)
                     return@withContext
                 }
-                if (uri == null) {
-                    exitVideoModeSameItem()
-                    _videoErrorEvents.emit(Unit)
+                if (result == null) {
+                    if (entry) { exitVideoModeSameItem(); _videoErrorEvents.emit(Unit) }
+                    // A failed switch leaves the current rung playing (its stream is still registered).
                     return@withContext
                 }
+                qualityLadders[renditionId] = result.ladder
+                _videoQualities.value = result.ladder
+                _currentVideoQuality.value = result.chosen.label
+                currentRenditionItag = result.chosen.itag
+                val cacheKey = VideoRendition.key(renditionId, result.chosen.itag, progressive = false)
+                videoModeVideoKey = cacheKey
                 listenAccumulator.onSwap(audioItem.mediaId)
                 pendingSwap = true
-                player.replaceMediaItem(index, audioItem.buildUpon().setUri(uri).setCustomCacheKey(cacheKey).build())
+                player.replaceMediaItem(index, audioItem.buildUpon().setUri(result.uri).setCustomCacheKey(cacheKey).build())
                 player.seekTo(index, position)
                 player.prepare()
                 player.playWhenReady = playWhenReady

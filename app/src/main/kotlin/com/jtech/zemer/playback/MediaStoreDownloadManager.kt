@@ -562,8 +562,8 @@ constructor(
                 } else if (sabrVideoMode) {
                     // Dual-track SABR: drain video+audio to completion and remux on-device (like DIRECT
                     // adaptive). Target = the requested quality mapped to a max height, else 720p.
-                    val maxH = requestedVideoQuality[song.id]?.let { com.jtech.zemer.playback.VideoQualityLogic.heightOfLabel(it) } ?: 720
-                    sabrVideoWebm = downloadSabrVideoAndMux(song, enabledSabrClients, tempFile, maxH)
+                    val targetLabel = requestedVideoQuality[song.id] ?: com.jtech.zemer.playback.VideoQualityLogic.AUTO
+                    sabrVideoWebm = downloadSabrVideoAndMux(song, enabledSabrClients, tempFile, targetLabel)
                 } else if (sabrAudioMode) {
                     // Run the SABR session to reassemble the whole byte-exact audio into the temp file.
                     SabrStreamResolver.download(song.id, enabledSabrClients, tempFile)
@@ -921,12 +921,12 @@ constructor(
         song: Song,
         enabled: Set<String>,
         outputFile: File,
-        maxHeightPx: Int,
+        targetLabel: String,
     ): Boolean = withContext(Dispatchers.IO) {
         val videoPart = File(context.cacheDir, "temp_${song.id}.sabrv.part")
         val audioPart = File(context.cacheDir, "temp_${song.id}.sabra.part")
         try {
-            val info = com.jtech.zemer.playback.sabr.SabrVideoResolver.download(song.id, enabled, maxHeightPx, videoPart, audioPart)
+            val info = com.jtech.zemer.playback.sabr.SabrVideoResolver.download(song.id, enabled, targetLabel, videoPart, audioPart)
                 ?: throw Exception("SABR video download failed/incomplete for ${song.id}")
             when (VideoMuxer.mux(videoPart, audioPart, outputFile, webm = info.webm)) {
                 VideoMuxer.Result.SUCCESS -> {}
