@@ -22,9 +22,11 @@ internal class SabrVideoStream(val config: SabrVideoConfig, private val client: 
     val audioBuffer = SabrBuffer(config.audioFormat.contentLength)
     private var thread: Thread? = null
     private var session: SabrVideoSession? = null
+    private var mediaId: String? = null
     private var refs = 0
 
     @Synchronized fun attach(mediaId: String) {
+        this.mediaId = mediaId
         refs++
         if (thread == null) {
             val s = SabrVideoSession(config, client, videoBuffer, audioBuffer)
@@ -35,7 +37,12 @@ internal class SabrVideoStream(val config: SabrVideoConfig, private val client: 
 
     @Synchronized fun release() {
         if (refs > 0) refs--
-        if (refs == 0) { session?.cancel(); session = null; thread = null }
+        if (refs == 0) {
+            session?.cancel(); session = null; thread = null
+            // Drop the registry entry once both track DataSources have closed, so a config (ustreamer +
+            // poToken bytes) is not retained per unique video for the whole session.
+            mediaId?.let { SabrVideoRegistry.remove(it) }
+        }
     }
 }
 

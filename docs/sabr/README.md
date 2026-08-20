@@ -306,20 +306,41 @@ This is the **same reliable set as SABR audio** (§2) — video adds no new usab
 app's existing SABR roster (WEB_REMIX → VISIONOS → TVHTML5_SIMPLY → MWEB) covers video unchanged. The cap
 on the sensitive clients is the same server-side identity throttle as audio, content-dependent.
 
-### 9.4 Planned app integration (RELAY/SABR isolation pattern)
+### 9.4 App integration (RELAY/SABR isolation pattern)
 
-Video-over-SABR reuses the audio engine (`SabrSession`/`SabrBuffer`/`SabrProto`/`SabrUmp`) and adds:
+Video-over-SABR reuses the audio engine primitives (`SabrBuffer`/`SabrProto`/`SabrUmp`/`SabrMessages`)
+and adds an isolated dual-track layer in `playback/sabr/`:
 
-- a **dual-format resolve** (best video-only rung at/under the quality target + best audio) with the
-  `preferredVideoFormatId`=17 pin, and
-- two `SabrBuffer`s fed by one session, surfaced as a **`MergingMediaSource`** (a video-only SABR
-  `DataSource` + an audio-only SABR `DataSource`) — the same merge shape the DIRECT adaptive quality rungs
-  already use (`videoaudio:<id>`), so the media-source factory and the quality ladder need no new concept.
-- The quality target maps to a SABR video itag exactly like the DIRECT ladder; **downloads** run the same
-  dual-track session to completion and remux video+audio on-device (`VideoMuxer`, as DIRECT adaptive
-  downloads already do).
+- **`SabrMessages.abrRequestVideo`** — the dual-track request (bitfield 0, `preferredAudioFormatId`=16 +
+  `preferredVideoFormatId`=17, per-track ranges). `MediaHeader.itag` routes each interleaved MEDIA.
+- **`SabrVideoSession`** — one loop draining video + audio into two `SabrBuffer`s, advancing to the
+  least-buffered track (a faithful port of `tests/sabr-video.mjs`).
+- **`SabrVideoStream` / `SabrVideoRegistry` / `SabrVideoDataSource`** — one shared, ref-counted session
+  feeding two ExoPlayer `DataSource`s (`sabrvideo://<id>` + `sabraudio://<id>`), surfaced as a
+  **`MergingMediaSource`** (the same merge shape the DIRECT adaptive rungs use). Self-removes from the
+  registry when both track DataSources close (no config leak).
+- **`SabrVideoResolver`** — dual-format resolve over the same client roster, pinning a video rung at/under
+  the quality target via field 17 (best audio too), cipher n-transform for web clients.
+- **`SabrVideoQuality`** — pure rung selection (best at/under the target height, avc1 preferred), JVM-tested.
 
-Every branch stays gated behind `StreamSabrKey` and isolated in `playback/sabr/`; DIRECT is untouched.
+**Wiring** (all gated behind `StreamSabrKey`, RELAY takes priority, DIRECT byte-for-byte unchanged):
+
+- `MusicService.createMediaSourceFactory` gains a branch: a `sabrvideo://` URI builds the
+  `MergingMediaSource` from two isolated `SabrVideoDataSourceFactory` children (never the DIRECT/relay
+  factory). Detected by URI scheme, which nothing but `SabrVideoResolver` produces.
+- `VideoModeController.enterVideoModeSabr` resolves the dual-track session **asynchronously** (network),
+  then swaps to an item whose **CACHE KEY stays `video:<id>`** (so the existing exit / own-swap / listen
+  classification machinery recognises it) but whose **URI is `sabrvideo://<id>`** (which routes it to the
+  merge). Fixed rendition like RELAY — no in-player quality switcher; the target is the effective quality
+  setting mapped to a max height (AUTO → 720p), so quality is still controlled via Settings.
+- `MusicService.isSabrPlaybackMode()` mirrors `StreamSabrKey` synchronously (a `@Volatile`, collector-fed),
+  so the user's video toggle reads it on the main thread without a blocking DataStore read.
+
+**Scope note:** SABR video **playback** is wired; SABR video **downloads** are not yet — a video download
+still uses the DIRECT muxed-video path (`sabrMode` is forced off for a video download). The dual-track
+SABR download + on-device remux (`VideoMuxer`, as DIRECT adaptive downloads already do) is the remaining
+follow-up. Audio downloads over SABR already work (§7.1). On-device soak of SABR video playback is the
+next validation gate before it is promoted from experimental.
 
 ---
 

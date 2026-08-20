@@ -625,6 +625,13 @@ class MusicService :
                 if (relayModeNow == true) persistRelaySongIfNeeded(currentMediaMetadata.value)
             }
         }
+        // Mirror StreamSabrKey the same way, so VideoModeController can read "SABR mode?" synchronously
+        // on the main thread (a user's video toggle) without a blocking DataStore read. Default off.
+        scope.launch {
+            dataStore.data.map { it[StreamSabrKey] ?: false }.distinctUntilChanged().collect {
+                sabrModeNow = it
+            }
+        }
         scope.launch {
             dataStore.data.map { it[AutoSkipNextOnErrorKey] ?: false }.distinctUntilChanged().collect {
                 autoSkipOnErrorNow = it
@@ -2372,6 +2379,18 @@ class MusicService :
     /** Whether playback is currently routed through the RELAY source (fixed server-side rendition). */
     fun isRelayPlaybackMode(): Boolean = relayModeNow == true
 
+    /** SABR playback mode (opt-in, off by default), mirrored synchronously for VideoModeController. */
+    @Volatile private var sabrModeNow: Boolean = false
+    fun isSabrPlaybackMode(): Boolean = sabrModeNow
+
+    /** The enabled SABR clients from settings (read off the main thread, e.g. a resolver coroutine). */
+    fun sabrEnabledClients(): Set<String> = buildSet {
+        if (dataStore.get(StreamSabrWebRemixKey, true)) add(com.jtech.zemer.playback.sabr.SabrPlayerResolver.KEY_WEB_REMIX)
+        if (dataStore.get(StreamSabrVisionOSKey, true)) add(com.jtech.zemer.playback.sabr.SabrPlayerResolver.KEY_VISIONOS)
+        if (dataStore.get(StreamSabrTVHTML5Key, true)) add(com.jtech.zemer.playback.sabr.SabrPlayerResolver.KEY_TVHTML5_SIMPLY)
+        if (dataStore.get(StreamSabrMWEBKey, true)) add(com.jtech.zemer.playback.sabr.SabrPlayerResolver.KEY_MWEB)
+    }
+
     // The last-resolved audio itag per `videoaudio:<id>` merge key, and the last-resolved video itag
     // per PLAIN `video:<id>` key — both drive the container-drift purge in their resolver branches
     // (the itag-suffixed rung keys can't drift; these two keys can, so they are guarded).
@@ -2563,6 +2582,20 @@ class MusicService :
                 arrayOf(MatroskaExtractor(), FragmentedMp4Extractor(), Mp4Extractor(), OggExtractor())
             },
         )
+        // SABR video mode: a `sabrvideo://<id>` item is a dual-track SABR session (video-only + audio,
+        // both cache-free, resolved by SabrVideoResolver). Its two children read the isolated SABR-video
+        // DataSources (never the DIRECT/relay factory), merged like an adaptive rung. Same extractors
+        // (mp4/webm). Gated by the URI scheme, which nothing but SabrVideoResolver produces, so DIRECT is
+        // untouched.
+        val sabrExtractors = ExtractorsFactory { arrayOf(MatroskaExtractor(), FragmentedMp4Extractor(), Mp4Extractor()) }
+        val sabrVideoChild = DefaultMediaSourceFactory(
+            com.jtech.zemer.playback.sabr.SabrVideoDataSourceFactory(com.jtech.zemer.playback.sabr.SabrStreamResolver.sharedClient(), video = true),
+            sabrExtractors,
+        )
+        val sabrAudioChild = DefaultMediaSourceFactory(
+            com.jtech.zemer.playback.sabr.SabrVideoDataSourceFactory(com.jtech.zemer.playback.sabr.SabrStreamResolver.sharedClient(), video = false),
+            sabrExtractors,
+        )
         // An adaptive (video-only) quality rung has no audio of its own: its MediaSource MERGES the
         // video rendition with the item's audio stream (`videoaudio:<id>` — resolved by the same
         // ResolvingDataSource, cached under its own namespace). Everything else — plain audio,
@@ -2589,6 +2622,20 @@ class MusicService :
             }
 
             override fun createMediaSource(mediaItem: MediaItem): MediaSource {
+                val uri = mediaItem.localConfiguration?.uri
+                if (uri != null && uri.scheme == com.jtech.zemer.playback.sabr.SabrVideoRegistry.SCHEME_VIDEO) {
+                    val id = com.jtech.zemer.playback.sabr.SabrVideoRegistry.mediaId(uri)!!
+                    val audioItem = mediaItem.buildUpon()
+                        .setUri(com.jtech.zemer.playback.sabr.SabrVideoRegistry.audioUri(id))
+                        .setCustomCacheKey(null)
+                        .build()
+                    return MergingMediaSource(
+                        /* adjustPeriodTimeOffsets = */ true,
+                        /* clipDurations = */ true,
+                        sabrVideoChild.createMediaSource(mediaItem),
+                        sabrAudioChild.createMediaSource(audioItem),
+                    )
+                }
                 val key = mediaItem.localConfiguration?.customCacheKey
                 if (key != null && VideoRendition.isAdaptiveVideoKey(key)) {
                     val audioKey = VideoRendition.mergeAudioKey(VideoRendition.renditionId(key))

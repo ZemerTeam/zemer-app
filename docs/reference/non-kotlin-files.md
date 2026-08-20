@@ -1,6 +1,6 @@
 # Non-Kotlin file reference
 
-Every tracked non-Kotlin path outside `docs/` is listed. Text files report line counts; binary files report byte counts; gitlinks are recorded as non-file tracked paths. Total paths: `383`.
+Every tracked non-Kotlin path outside `docs/` is listed. Text files report line counts; binary files report byte counts; gitlinks are recorded as non-file tracked paths. Total paths: `385`.
 
 | Path | Size/status | Type metadata |
 | --- | ---: | --- |
@@ -11,7 +11,7 @@ Every tracked non-Kotlin path outside `docs/` is listed. Text files report line 
 | `.github/workflows/ui-audit.yml` | 50 lines | text `.yml` |
 | `.gitignore` | 117 lines | text `[none]` |
 | `.gitmodules` | 6 lines | text `[none]` |
-| `AGENTS.md` | 1579 lines | text `.md` |
+| `AGENTS.md` | 1596 lines | text `.md` |
 | `LICENSE` | 674 lines | text `[none]` |
 | `README.md` | 19 lines | text `.md` |
 | `app/.gitignore` | 1 lines | text `[none]` |
@@ -364,6 +364,8 @@ Every tracked non-Kotlin path outside `docs/` is listed. Text files report line 
 | `tests/run.mjs` | 181 lines | text `.mjs` |
 | `tests/sabr-clients.mjs` | 153 lines | text `.mjs` |
 | `tests/sabr-stream.mjs` | 163 lines | text `.mjs` |
+| `tests/sabr-video-clients.mjs` | 166 lines | text `.mjs` |
+| `tests/sabr-video.mjs` | 175 lines | text `.mjs` |
 | `tests/scan-live-players.mjs` | 124 lines | text `.mjs` |
 | `tests/scan-live-players.test.mjs` | 44 lines | text `.mjs` |
 | `tests/search/README.md` | 113 lines | text `.md` |

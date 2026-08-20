@@ -378,6 +378,10 @@ class VideoModeController(
 
     private companion object {
         const val SEEK_GRACE_MS = 6_000L
+
+        // SABR video target when the effective quality setting is AUTO (no explicit height). 720p is the
+        // metered-friendly default matching the DIRECT automatic pick.
+        const val DEFAULT_SABR_HEIGHT = 720
     }
 
     private fun downgradeForStall() {
@@ -636,6 +640,19 @@ class VideoModeController(
         }
 
         val renditionId = rendition.renditionVideoId ?: run { clearState(); return }
+
+        // SABR video mode: resolve the dual-track (video + audio) session asynchronously, then swap. The
+        // swapped item keeps a `video:<id>` CACHE KEY (so the exit/own-swap machinery recognises it) but a
+        // `sabrvideo://<id>` URI, which routes it to the isolated SABR MergingMediaSource in
+        // createMediaSourceFactory (never the DIRECT/relay resolver). Fixed rendition like RELAY — no live
+        // switcher; the target is the effective quality setting mapped to a max height. Gated on SABR mode,
+        // so DIRECT/RELAY video is byte-for-byte unchanged.
+        // RELAY takes priority over SABR (mirrors the playback data-source dispatcher: relay -> sabr ->
+        // direct), so relay video keeps its own &kind=video path.
+        if (service.isSabrPlaybackMode() && !service.isRelayPlaybackMode()) {
+            enterVideoModeSabr(audioItem, index, renditionId)
+            return
+        }
         // Quality: when this id's ladder is already known (a re-entry this session), enter DIRECTLY
         // at the effective target's rung; otherwise start on the automatic pick — the ladder arrives
         // with the resolution (onVideoQualitiesResolved) and upgrades position-continuously. RELAY
@@ -667,6 +684,54 @@ class VideoModeController(
         videoStallTimes.clear()
         videoReachedReady = false
         _isVideoMode.value = true
+    }
+
+    /**
+     * SABR video entry: resolve the dual-track session off the main thread, then swap on the main thread.
+     * Optimistically flips [_isVideoMode] on (audio keeps playing until the swap lands); on a resolve
+     * failure or a changed item, reverts. Mirrors [enterVideoMode]'s pendingSwap/onSwap discipline so the
+     * swap is never mis-classified as a real transition.
+     */
+    private fun enterVideoModeSabr(audioItem: MediaItem, index: Int, renditionId: String) {
+        val cacheKey = VideoRendition.key(renditionId)
+        val heightPx = VideoQualityLogic.heightOfLabel(effectiveQualityTarget(audioItem.mediaId)) ?: DEFAULT_SABR_HEIGHT
+        _videoQualities.value = emptyList()          // fixed rendition — no in-player switcher (like RELAY)
+        _currentVideoQuality.value = VideoQualityLogic.AUTO
+        currentRenditionItag = null
+        videoModeVideoKey = cacheKey
+        _isVideoMode.value = true
+        val position = player.currentPosition
+        val playWhenReady = player.playWhenReady
+        scope.launch {
+            val uri = try {
+                com.jtech.zemer.playback.sabr.SabrVideoResolver.resolve(renditionId, service.sabrEnabledClients(), heightPx)
+            } catch (e: Exception) {
+                null
+            }
+            withContext(Dispatchers.Main) {
+                // The user may have toggled off / skipped / the queue moved while resolving.
+                val stillOurs = _isVideoMode.value && videoModeItemId == audioItem.mediaId &&
+                    player.currentMediaItemIndex == index && player.currentMediaItem?.mediaId == audioItem.mediaId
+                if (!stillOurs) {
+                    com.jtech.zemer.playback.sabr.SabrVideoRegistry.remove(renditionId)
+                    return@withContext
+                }
+                if (uri == null) {
+                    exitVideoModeSameItem()
+                    _videoErrorEvents.emit(Unit)
+                    return@withContext
+                }
+                listenAccumulator.onSwap(audioItem.mediaId)
+                pendingSwap = true
+                player.replaceMediaItem(index, audioItem.buildUpon().setUri(uri).setCustomCacheKey(cacheKey).build())
+                player.seekTo(index, position)
+                player.prepare()
+                player.playWhenReady = playWhenReady
+                mainHandler.post { pendingSwap = false }
+                videoStallTimes.clear()
+                videoReachedReady = false
+            }
+        }
     }
 
     /** Exit video mode on the CURRENT item, position-continuous (user toggle-off / cast / block / error). */

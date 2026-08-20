@@ -160,8 +160,25 @@ byte-for-byte unchanged. The engine is a faithful Kotlin port of the proven Node
 - **innertube exposes the SABR inputs additively:** `StreamingData.serverAbrStreamingUrl` +
   `PlayerConfig.mediaCommonConfig.mediaUstreamerRequestConfig.videoPlaybackUstreamerConfig` (defaulted null,
   ignored where absent).
+- **Video over SABR (dual-track, quality-pinnable)** - one SABR stream carries video + audio interleaved,
+  and the exact video itag is PINNABLE via `preferredVideoFormatId` = field 17 (proven in
+  `tests/sabr-video.mjs`: request itag 133/134/135/136/137 -> server serves exactly that; the progressive
+  quality ladder maps onto SABR, so we pin avc1 720p over the server's av01 default). The reliable
+  video+audio roster is IDENTICAL to the audio roster (`tests/sabr-video-clients.mjs`). Engine:
+  `SabrMessages.abrRequestVideo` (bitfield 0, fields 16+17, per-track ranges; `MediaHeader.itag` routes
+  each MEDIA), `SabrVideoSession` (drains video+audio into two `SabrBuffer`s), `SabrVideoStream`/`Registry`/
+  `SabrVideoDataSource` (one shared ref-counted session -> two DataSources for a `MergingMediaSource`),
+  `SabrVideoResolver` (dual-format resolve, field-17 pin, cipher n-transform), `SabrVideoQuality` (pure
+  rung pick, avc1-preferred, JVM-tested). Wiring (all `StreamSabrKey`-gated, RELAY priority, DIRECT
+  untouched): a `sabrvideo://` URI in `createMediaSourceFactory` builds the merge from the isolated SABR
+  DataSources; `VideoModeController.enterVideoModeSabr` resolves async then swaps to an item keyed
+  `video:<id>` (exit/own-swap machinery) with a `sabrvideo://<id>` URI (merge routing); fixed rendition
+  like RELAY (no live switcher, target = the Settings quality mapped to a max height). SABR video
+  DOWNLOADS are not yet wired (video downloads stay on the DIRECT muxed path); dual-track SABR download +
+  remux is the follow-up. Full detail: `docs/sabr/README.md` sec 9.
 - **The harness is the proof + validator** (`tests/sabr-stream.mjs` whole-song drain, `tests/sabr-clients.mjs`
-  roster). SABR is the danger zone: prove any change against the live CDN there first, then on-device.
+  roster; `tests/sabr-video.mjs` + `tests/sabr-video-clients.mjs` for video). SABR is the danger zone:
+  prove any change against the live CDN there first, then on-device.
   Settings: Stream Sources -> Experimental (SABR toggle) + the "SABR clients" sub-list. Full detail (the
   protocol, the field numbers, the findings, integration, how to test/extend): `docs/sabr/README.md`.
 

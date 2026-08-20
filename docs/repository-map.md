@@ -77,11 +77,11 @@ The following inventory is generated from repository files outside `.git`, `.gra
 
 ### Counts
 
-- Files counted: `1232`
+- Files counted: `1239`
 - By extension:
-  - `.kt`: `785`
+  - `.kt`: `790`
   - `.xml`: `196`
-  - `.mjs`: `79`
+  - `.mjs`: `81`
   - `.md`: `72`
   - `.json`: `37`
   - `.webp`: `15`
@@ -115,7 +115,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `.github/workflows/ui-audit.yml` | 50 lines | `.yml` |
 | `.gitignore` | 117 lines | `[none]` |
 | `.gitmodules` | 6 lines | `[none]` |
-| `AGENTS.md` | 1579 lines | `.md` |
+| `AGENTS.md` | 1596 lines | `.md` |
 | `LICENSE` | 674 lines | `[none]` |
 | `README.md` | 19 lines | `.md` |
 | `app/.gitignore` | 1 lines | `[none]` |
@@ -301,7 +301,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/main/kotlin/com/jtech/zemer/playback/MediaLibrarySessionCallback.kt` | 816 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/playback/MediaStoreDownloadManager.kt` | 1114 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/playback/MediaStoreDownloadService.kt` | 302 lines | `.kt` |
-| `app/src/main/kotlin/com/jtech/zemer/playback/MusicService.kt` | 2972 lines | `.kt` |
+| `app/src/main/kotlin/com/jtech/zemer/playback/MusicService.kt` | 3019 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/playback/PlaybackNonceRegistry.kt` | 76 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/playback/PlaybackProbe.kt` | 31 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/playback/PlayerConnection.kt` | 413 lines | `.kt` |
@@ -311,7 +311,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/main/kotlin/com/jtech/zemer/playback/SleepTimer.kt` | 81 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/playback/VideoAvailabilityCache.kt` | 69 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/playback/VideoDecoderCaps.kt` | 35 lines | `.kt` |
-| `app/src/main/kotlin/com/jtech/zemer/playback/VideoModeController.kt` | 771 lines | `.kt` |
+| `app/src/main/kotlin/com/jtech/zemer/playback/VideoModeController.kt` | 836 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/playback/VideoModeLogic.kt` | 190 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/playback/VideoQualityLogic.kt` | 204 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/playback/VideoRendition.kt` | 95 lines | `.kt` |
@@ -330,14 +330,18 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/main/kotlin/com/jtech/zemer/playback/relay/RelayDeviceId.kt` | 72 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/playback/relay/RelayDownload.kt` | 46 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/playback/relay/RelayStream.kt` | 30 lines | `.kt` |
-| `app/src/main/kotlin/com/jtech/zemer/playback/sabr/SabrBuffer.kt` | 73 lines | `.kt` |
-| `app/src/main/kotlin/com/jtech/zemer/playback/sabr/SabrDataSource.kt` | 92 lines | `.kt` |
-| `app/src/main/kotlin/com/jtech/zemer/playback/sabr/SabrMessages.kt` | 137 lines | `.kt` |
+| `app/src/main/kotlin/com/jtech/zemer/playback/sabr/SabrBuffer.kt` | 83 lines | `.kt` |
+| `app/src/main/kotlin/com/jtech/zemer/playback/sabr/SabrDataSource.kt` | 99 lines | `.kt` |
+| `app/src/main/kotlin/com/jtech/zemer/playback/sabr/SabrMessages.kt` | 174 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/playback/sabr/SabrPlayerResolver.kt` | 121 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/playback/sabr/SabrProto.kt` | 101 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/playback/sabr/SabrSession.kt` | 170 lines | `.kt` |
-| `app/src/main/kotlin/com/jtech/zemer/playback/sabr/SabrStreamResolver.kt` | 143 lines | `.kt` |
-| `app/src/main/kotlin/com/jtech/zemer/playback/sabr/SabrUmp.kt` | 59 lines | `.kt` |
+| `app/src/main/kotlin/com/jtech/zemer/playback/sabr/SabrStreamResolver.kt` | 146 lines | `.kt` |
+| `app/src/main/kotlin/com/jtech/zemer/playback/sabr/SabrUmp.kt` | 71 lines | `.kt` |
+| `app/src/main/kotlin/com/jtech/zemer/playback/sabr/SabrVideoQuality.kt` | 30 lines | `.kt` |
+| `app/src/main/kotlin/com/jtech/zemer/playback/sabr/SabrVideoResolver.kt` | 125 lines | `.kt` |
+| `app/src/main/kotlin/com/jtech/zemer/playback/sabr/SabrVideoSession.kt` | 187 lines | `.kt` |
+| `app/src/main/kotlin/com/jtech/zemer/playback/sabr/SabrVideoStream.kt` | 129 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/recognition/AudioResampler.kt` | 118 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/recognition/RecognitionAudioCapture.kt` | 147 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/recognition/RecognitionHistoryFilter.kt` | 25 lines | `.kt` |
@@ -991,10 +995,11 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/test/kotlin/com/jtech/zemer/playback/relay/RelayDeviceIdTest.kt` | 82 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/playback/relay/RelayDownloadTest.kt` | 67 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/playback/relay/RelayStreamTest.kt` | 55 lines | `.kt` |
-| `app/src/test/kotlin/com/jtech/zemer/playback/sabr/SabrBufferTest.kt` | 58 lines | `.kt` |
-| `app/src/test/kotlin/com/jtech/zemer/playback/sabr/SabrMessagesTest.kt` | 94 lines | `.kt` |
+| `app/src/test/kotlin/com/jtech/zemer/playback/sabr/SabrBufferTest.kt` | 69 lines | `.kt` |
+| `app/src/test/kotlin/com/jtech/zemer/playback/sabr/SabrMessagesTest.kt` | 130 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/playback/sabr/SabrProtoTest.kt` | 55 lines | `.kt` |
-| `app/src/test/kotlin/com/jtech/zemer/playback/sabr/SabrUmpTest.kt` | 54 lines | `.kt` |
+| `app/src/test/kotlin/com/jtech/zemer/playback/sabr/SabrUmpTest.kt` | 70 lines | `.kt` |
+| `app/src/test/kotlin/com/jtech/zemer/playback/sabr/SabrVideoQualityTest.kt` | 49 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/recognition/AudioResamplerTest.kt` | 59 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/recognition/RecognitionHistoryFilterTest.kt` | 47 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/recognition/RecognitionHistoryPlaybackTest.kt` | 64 lines | `.kt` |
@@ -1117,8 +1122,8 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `docs/recognize_music/05-widget.md` | 72 lines | `.md` |
 | `docs/recognize_music/06-testing-and-maintenance.md` | 54 lines | `.md` |
 | `docs/recognize_music/README.md` | 71 lines | `.md` |
-| `docs/reference/kotlin-files.md` | 808 lines | `.md` |
-| `docs/reference/non-kotlin-files.md` | 389 lines | `.md` |
+| `docs/reference/kotlin-files.md` | 813 lines | `.md` |
+| `docs/reference/non-kotlin-files.md` | 391 lines | `.md` |
 | `docs/reference/resource-index.md` | 255 lines | `.md` |
 | `docs/remote_cipher_config/01-why-it-exists.md` | 88 lines | `.md` |
 | `docs/remote_cipher_config/02-file-format.md` | 116 lines | `.md` |
@@ -1128,8 +1133,8 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `docs/remote_cipher_config/06-harness-and-monitor.md` | 101 lines | `.md` |
 | `docs/remote_cipher_config/07-runbook.md` | 101 lines | `.md` |
 | `docs/remote_cipher_config/README.md` | 112 lines | `.md` |
-| `docs/repository-map.md` | 1342 lines | `.md` |
-| `docs/sabr/README.md` | 251 lines | `.md` |
+| `docs/repository-map.md` | 1349 lines | `.md` |
+| `docs/sabr/README.md` | 354 lines | `.md` |
 | `docs/stations/README.md` | 69 lines | `.md` |
 | `docs/status/README.md` | 122 lines | `.md` |
 | `docs/status/jewishstatus-api.md` | 162 lines | `.md` |
@@ -1317,6 +1322,8 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `tests/run.mjs` | 181 lines | `.mjs` |
 | `tests/sabr-clients.mjs` | 153 lines | `.mjs` |
 | `tests/sabr-stream.mjs` | 163 lines | `.mjs` |
+| `tests/sabr-video-clients.mjs` | 166 lines | `.mjs` |
+| `tests/sabr-video.mjs` | 175 lines | `.mjs` |
 | `tests/scan-live-players.mjs` | 124 lines | `.mjs` |
 | `tests/scan-live-players.test.mjs` | 44 lines | `.mjs` |
 | `tests/search/README.md` | 113 lines | `.md` |
