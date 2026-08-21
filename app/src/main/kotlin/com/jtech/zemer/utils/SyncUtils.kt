@@ -900,6 +900,17 @@ class SyncUtils @Inject constructor(
                     total = whitelistEntries.size
                 )
 
+                // Never apply an empty allow-set over a good local table: a successfully-parsed
+                // empty response (mirror bug, empty snapshot) would otherwise diff EVERY artist as
+                // removed and deleteRemovedArtists their songs/albums/history. Keep the last-good
+                // table instead (same fail-safe as syncPodcastWhitelist).
+                if (whitelistEntries.isEmpty()) {
+                    runCatching { WhitelistCache.updateAll(database.getWhitelistEntriesSync()) }
+                    refreshBlockedIds()
+                    _whitelistSyncProgress.value = WhitelistSyncProgress(isComplete = true)
+                    return@withContext
+                }
+
                 val currentWhitelistIds = database.getAllWhitelistedArtistIdsSync()
                 val newWhitelistIds = whitelistEntries.map { it.artistId }.toSet()
                 val removedArtistIds = currentWhitelistIds.filterNot { it in newWhitelistIds }
