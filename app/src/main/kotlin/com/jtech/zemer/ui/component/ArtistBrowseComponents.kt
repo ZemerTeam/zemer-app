@@ -19,7 +19,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextFieldDefaults
-import androidx.compose.material3.ToggleButtonDefaults
 import androidx.compose.material3.TonalToggleButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
@@ -225,15 +224,16 @@ private fun ViewTypeToggle(
         // A tap on the already-active view is a no-op (never an un-check): onSelect only fires
         // the toggle when it switches views.
         onCheckedChange = { onSelect() },
-        // Icon-only: without this the button keeps its default text min-width and renders as a
-        // wide pill; a 48dp square is the icon-button footprint (and the touch-target minimum).
+        // Icon-only and COMPACT: zero content padding kills the default text min-width, and the
+        // 36dp footprint (the back-to-top button scale) keeps the tonal fill from dominating the
+        // header row the way a full 48dp square did.
         contentPadding = PaddingValues(0.dp),
-        modifier = modifier.size(48.dp),
+        modifier = modifier.size(ViewToggleSize),
     ) {
         Icon(
             painter = painterResource(iconRes),
             contentDescription = null,
-            modifier = Modifier.size(ToggleButtonDefaults.IconSize),
+            modifier = Modifier.size(ViewToggleIconSize),
         )
     }
 }
@@ -242,6 +242,10 @@ private fun ViewTypeToggle(
 // (often rendered in the same list) can never drift apart.
 private val SearchPillShape = RoundedCornerShape(percent = 50)
 private val SearchPillHeight = 48.dp
+
+// The compact LIST|GRID toggle geometry (see [ViewTypeToggle]).
+private val ViewToggleSize = 36.dp
+private val ViewToggleIconSize = 18.dp
 
 /**
  * A tappable pill in the [ArtistSearchField] family (same shape, fill, height) that HANDS OFF to
