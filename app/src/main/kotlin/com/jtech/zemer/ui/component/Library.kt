@@ -104,6 +104,7 @@ fun WhitelistedArtistListItem(
     @SuppressLint("ModifierParameter") modifier: Modifier = Modifier
 ) = ListItem(
     title = artist.artist.name,
+    titleMarquee = true,
     titleHighlight = highlightQuery,
     subtitle = "", // No song count for whitelisted artists
     badges = {}, // No badges for whitelisted artists
@@ -186,6 +187,7 @@ fun WhitelistedArtistGridItem(
     @SuppressLint("ModifierParameter") modifier: Modifier = Modifier
 ) = GridItem(
     title = artist.artist.name,
+    titleMarquee = true,
     titleHighlight = highlightQuery,
     centerContent = true,
     subtitle = "", // No song count for whitelisted artists

@@ -225,7 +225,10 @@ private fun ViewTypeToggle(
         // A tap on the already-active view is a no-op (never an un-check): onSelect only fires
         // the toggle when it switches views.
         onCheckedChange = { onSelect() },
-        modifier = modifier,
+        // Icon-only: without this the button keeps its default text min-width and renders as a
+        // wide pill; a 48dp square is the icon-button footprint (and the touch-target minimum).
+        contentPadding = PaddingValues(0.dp),
+        modifier = modifier.size(48.dp),
     ) {
         Icon(
             painter = painterResource(iconRes),

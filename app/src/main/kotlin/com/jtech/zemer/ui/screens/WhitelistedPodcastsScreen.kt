@@ -92,7 +92,6 @@ fun WhitelistedPodcastsScreen(
         titleRes = R.string.podcasts,
         emptyIconRes = R.drawable.podcast,
         emptyTextRes = R.string.library_podcast_empty,
-        syncProgress = viewModel.syncProgress,
         isSyncing = viewModel.isSyncing,
         countPluralRes = R.plurals.n_channel,
         searchPlaceholderRes = R.string.search_podcasts,

@@ -54,7 +54,6 @@ fun WhitelistedArtistsScreen(
         titleRes = R.string.artists,
         emptyIconRes = R.drawable.artist,
         emptyTextRes = R.string.library_artist_empty,
-        syncProgress = viewModel.syncProgress,
         isSyncing = viewModel.isSyncing,
         listItemContent = { _, artist, modifier ->
             WhitelistedArtistListItem(

@@ -53,7 +53,6 @@ fun KidZoneScreen(
         titleRes = R.string.kid_zone,
         emptyIconRes = R.drawable.kid_zone,
         emptyTextRes = R.string.kid_zone_empty,
-        syncProgress = viewModel.syncProgress,
         isSyncing = viewModel.isSyncing,
         listItemContent = { _, artist, modifier ->
             WhitelistedArtistListItem(

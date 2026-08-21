@@ -66,8 +66,6 @@ import com.jtech.zemer.constants.LibraryViewType
 import com.jtech.zemer.ui.component.shimmer.GridItemPlaceHolder
 import com.jtech.zemer.ui.component.shimmer.LoadingListPlaceholder
 import com.jtech.zemer.ui.component.shimmer.ShimmerHost
-import com.jtech.zemer.ui.screens.LoadingScreen
-import com.jtech.zemer.utils.WhitelistSyncProgress
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 
@@ -146,8 +144,9 @@ private val FastScrollBottomGap = 16.dp
  * receive the modifier carrying the first-item focus anchor and item animation and must apply it.
  * [headerSections] (when non-null) renders between the search pill and the count header;
  * [trailingItem] (when non-null) renders after the item run (the Podcasts search hand-off pill).
- * [isLoading] (first open before the backing flow emits) renders the shimmer skeleton, shaped by
- * [shimmerThumbnailShape] to match the real tiles, instead of the empty placeholder.
+ * [isLoading] (first open before the backing flow emits) — and a sync filling a still-empty table —
+ * renders the shimmer skeleton, shaped by [shimmerThumbnailShape] to match the real tiles, instead
+ * of the empty placeholder; a running sync itself shows as the pull-to-refresh spinner.
  */
 @OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
 @Composable
@@ -165,7 +164,6 @@ fun <T : Any> BrowseScreenScaffold(
     titleRes: Int,
     emptyIconRes: Int,
     emptyTextRes: Int,
-    syncProgress: StateFlow<WhitelistSyncProgress>,
     isSyncing: StateFlow<Boolean>,
     listItemContent: @Composable (index: Int, item: T, modifier: Modifier) -> Unit,
     gridItemContent: @Composable (index: Int, item: T, modifier: Modifier) -> Unit,
@@ -181,13 +179,11 @@ fun <T : Any> BrowseScreenScaffold(
     val firstItemFocus = remember { FocusRequester() }
     val coroutineScope = rememberCoroutineScope()
 
-    val syncProgressValue by syncProgress.collectAsState()
     val isSyncingValue by isSyncing.collectAsState()
-    // Overlay while a sync is running or a started progress hasn't completed; LoadingScreen's
-    // onFinished only hides its own composition, so the show state derives live from the flows.
-    val showSyncOverlay =
-        (isSyncingValue || (syncProgressValue.total > 0 && !syncProgressValue.isComplete)) &&
-            !syncProgressValue.isComplete
+    // A running sync surfaces as the expressive pull-to-refresh spinner (isRefreshing shows it for
+    // toolbar/startup syncs too) — never the old full-screen "Setting up your library" overlay.
+    // While the sync is filling an EMPTY table (first install), the shimmer stands in for content.
+    val showShimmer = isLoading || (items.isEmpty() && isSyncingValue && searchQuery.isEmpty())
 
     val lazyListState = rememberLazyListState()
     val lazyGridState = rememberLazyGridState()
@@ -356,7 +352,7 @@ fun <T : Any> BrowseScreenScaffold(
                                 headerContent()
                             }
 
-                            if (isLoading) {
+                            if (showShimmer) {
                                 item(key = "loading") {
                                     LoadingListPlaceholder(count = 8)
                                 }
@@ -428,7 +424,7 @@ fun <T : Any> BrowseScreenScaffold(
                                 headerContent()
                             }
 
-                            if (isLoading) {
+                            if (showShimmer) {
                                 item(key = "loading", span = { GridItemSpan(maxLineSpan) }) {
                                     BrowseGridShimmer(shimmerThumbnailShape)
                                 }
@@ -512,7 +508,9 @@ fun <T : Any> BrowseScreenScaffold(
             }
         }
 
-        // The expressive pull-to-refresh indicator (the Home look), over the pinned pill.
+        // The expressive pull-to-refresh indicator (the Home look), over the pinned pill. It is
+        // ALSO the sync-in-progress signal for toolbar/startup syncs (isRefreshing shows it without
+        // a pull) — the one loading treatment for this screen.
         LoadingIndicator(
             isRefreshing = isSyncingValue,
             state = pullRefreshState,
@@ -522,14 +520,6 @@ fun <T : Any> BrowseScreenScaffold(
                     LocalPlayerAwareWindowInsets.current.only(WindowInsetsSides.Top)
                 ),
         )
-
-        if (showSyncOverlay) {
-            LoadingScreen(
-                onFinished = {},
-                shouldStartSync = false,
-                progressFlow = syncProgress,
-            )
-        }
     }
 }
 
