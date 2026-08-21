@@ -2000,15 +2000,21 @@ class MainActivity : ComponentActivity() {
                                             else
                                                 slideOutHorizontally { it / 4 } + fadeOut(tween(100))
                                         },
-                                        modifier = Modifier.nestedScroll(
-                                            if (navigationItems.fastAny { it.route == navBackStackEntry?.destination?.route } ||
-                                                inSearchScreen
-                                            ) {
-                                                searchBarScrollBehavior.nestedScrollConnection
-                                            } else {
-                                                topAppBarScrollBehavior.nestedScrollConnection
-                                            }
-                                        )
+                                        // The browse screens (Artists/Podcasts/KidZone) pin the
+                                        // top bar: no collapsing connection there.
+                                        modifier = if (navBackStackEntry?.destination?.route in Screens.PinnedTopBarRoutes) {
+                                            Modifier
+                                        } else {
+                                            Modifier.nestedScroll(
+                                                if (navigationItems.fastAny { it.route == navBackStackEntry?.destination?.route } ||
+                                                    inSearchScreen
+                                                ) {
+                                                    searchBarScrollBehavior.nestedScrollConnection
+                                                } else {
+                                                    topAppBarScrollBehavior.nestedScrollConnection
+                                                }
+                                            )
+                                        }
                                     ) {
                                         navigationBuilder(
                                             navController,

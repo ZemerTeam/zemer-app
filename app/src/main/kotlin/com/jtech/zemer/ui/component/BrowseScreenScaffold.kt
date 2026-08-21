@@ -1,10 +1,8 @@
 package com.jtech.zemer.ui.component
 
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
@@ -42,11 +40,8 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
-import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
@@ -69,12 +64,11 @@ import com.jtech.zemer.ui.component.shimmer.ShimmerHost
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 
-// The always-present lazy item (the count header) that precedes the content in BOTH the list and
+// The always-present lazy items ("search", "header") that precede the content in BOTH the list and
 // the grid — the fast scroller scrolls to itemIndex + this, so a header item added to one container
-// must be added to the other and counted here. (The search pill is PINNED above the containers, not
-// a lazy item.) [browseHeaderItemCount] adds the optional header-sections item (the Podcasts
-// browse's Subscribed Channels / New Episodes block).
-internal const val BROWSE_BASE_HEADER_ITEM_COUNT = 1
+// must be added to the other and counted here. [browseHeaderItemCount] adds the optional
+// header-sections item (the Podcasts browse's Subscribed Channels / New Episodes block).
+internal const val BROWSE_BASE_HEADER_ITEM_COUNT = 2
 
 internal fun browseHeaderItemCount(hasHeaderSections: Boolean): Int =
     BROWSE_BASE_HEADER_ITEM_COUNT + if (hasHeaderSections) 1 else 0
@@ -133,9 +127,9 @@ private val FastScrollBottomGap = 16.dp
 
 /**
  * The ONE whitelist-browse scaffold, shared by the Artists / Kid Zone / Podcasts browse screens:
- * pinned scroll-aware search pill + count header (+ optional header-sections slot) + the LIST/GRID
- * item run, sticky letter section headers (LIST), loading shimmer, empty placeholder, expressive
- * pull-to-refresh, back-to-top button, letter fast scroller (auto-hidden under
+ * search pill + count header (+ optional header-sections slot) + the LIST/GRID item run, sticky
+ * letter section headers (LIST), loading shimmer, empty placeholder, expressive pull-to-refresh,
+ * back-to-top button, letter fast scroller (auto-hidden under
  * [MIN_ITEMS_FOR_FAST_SCROLL]), the scroll-to-top nav signal, D-pad focus wiring, and the
  * whitelist-sync overlay — one implementation so the three screens (and the LIST vs GRID branches
  * inside each) cannot drift apart.
@@ -240,34 +234,6 @@ fun <T : Any> BrowseScreenScaffold(
         }
     }
 
-    // The pinned search pill hides on scroll DOWN and returns on scroll UP or at the top — the
-    // browse content gets the full height back mid-list without losing one-swipe access to search.
-    // Off-composition snapshotFlow (the genre-prefetch pattern), re-keyed per view type.
-    var searchPillVisible by remember { mutableStateOf(true) }
-    LaunchedEffect(viewType) {
-        var prevIndex = -1
-        var prevOffset = 0
-        snapshotFlow {
-            when (viewType) {
-                LibraryViewType.LIST ->
-                    lazyListState.firstVisibleItemIndex to lazyListState.firstVisibleItemScrollOffset
-                LibraryViewType.GRID ->
-                    lazyGridState.firstVisibleItemIndex to lazyGridState.firstVisibleItemScrollOffset
-            }
-        }.collect { (index, offset) ->
-            val sameItem = index == prevIndex
-            searchPillVisible = when {
-                index == 0 -> true
-                prevIndex < 0 -> searchPillVisible
-                index < prevIndex || (sameItem && offset < prevOffset) -> true
-                index > prevIndex || (sameItem && offset > prevOffset) -> false
-                else -> searchPillVisible
-            }
-            prevIndex = index
-            prevOffset = offset
-        }
-    }
-
     RequestInitialDpadFocus(firstFocus)
 
     LaunchedEffect(scrollToTop?.value) {
@@ -275,6 +241,16 @@ fun <T : Any> BrowseScreenScaffold(
             scrollActiveListTo(0, true)
             backStackEntry?.savedStateHandle?.set("scrollToTop", false)
         }
+    }
+
+    val searchContent = @Composable {
+        ArtistSearchField(
+            query = searchQuery,
+            onQueryChange = onSearchQueryChange,
+            searchFocus = searchFocus,
+            downTarget = if (items.isNotEmpty()) firstItemFocus else firstFocus,
+            placeholderRes = searchPlaceholderRes,
+        )
     }
 
     val headerContent = @Composable {
@@ -285,9 +261,7 @@ fun <T : Any> BrowseScreenScaffold(
             viewType = viewType,
             onToggleViewType = onToggleViewType,
             firstFocus = firstFocus,
-            // Never point D-pad "up" at the search pill while it is hidden (an unattached
-            // FocusRequester must not be requested).
-            searchFocus = if (searchPillVisible) searchFocus else FocusRequester.Default,
+            searchFocus = searchFocus,
             downTarget = if (items.isNotEmpty()) firstItemFocus else FocusRequester.Default,
         )
     }
@@ -310,31 +284,8 @@ fun <T : Any> BrowseScreenScaffold(
                 onRefresh = onRefresh,
             ),
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .windowInsetsPadding(
-                    LocalPlayerAwareWindowInsets.current.only(WindowInsetsSides.Top)
-                ),
-        ) {
-            AnimatedVisibility(
-                visible = searchPillVisible,
-                enter = expandVertically() + fadeIn(),
-                exit = shrinkVertically() + fadeOut(),
-            ) {
-                ArtistSearchField(
-                    query = searchQuery,
-                    onQueryChange = onSearchQueryChange,
-                    searchFocus = searchFocus,
-                    downTarget = if (items.isNotEmpty()) firstItemFocus else firstFocus,
-                    placeholderRes = searchPlaceholderRes,
-                )
-            }
-
-            Box(Modifier.weight(1f)) {
-                val contentPadding = LocalPlayerAwareWindowInsets.current
-                    .only(WindowInsetsSides.Bottom + WindowInsetsSides.Horizontal)
-                    .asPaddingValues()
+        Box(Modifier.fillMaxSize()) {
+                val contentPadding = LocalPlayerAwareWindowInsets.current.asPaddingValues()
 
                 when (viewType) {
                     LibraryViewType.LIST ->
@@ -342,6 +293,10 @@ fun <T : Any> BrowseScreenScaffold(
                             state = lazyListState,
                             contentPadding = contentPadding,
                         ) {
+                            item(key = "search", contentType = CONTENT_TYPE_HEADER) {
+                                searchContent()
+                            }
+
                             if (headerSections != null) {
                                 item(key = "header_sections", contentType = CONTENT_TYPE_HEADER) {
                                     headerSections()
@@ -414,6 +369,10 @@ fun <T : Any> BrowseScreenScaffold(
                             columns = GridCells.Fixed(3),
                             contentPadding = contentPadding,
                         ) {
+                            item(key = "search", span = { GridItemSpan(maxLineSpan) }, contentType = CONTENT_TYPE_HEADER) {
+                                searchContent()
+                            }
+
                             if (headerSections != null) {
                                 item(key = "header_sections", span = { GridItemSpan(maxLineSpan) }, contentType = CONTENT_TYPE_HEADER) {
                                     headerSections()
@@ -477,7 +436,7 @@ fun <T : Any> BrowseScreenScaffold(
                         modifier = Modifier
                             .align(Alignment.CenterEnd)
                             .windowInsetsPadding(
-                                LocalPlayerAwareWindowInsets.current.only(WindowInsetsSides.Bottom)
+                                LocalPlayerAwareWindowInsets.current.only(WindowInsetsSides.Vertical)
                             )
                             // Stay clear of the bottom-end button stack (back-to-top button + gap).
                             .padding(
@@ -505,7 +464,6 @@ fun <T : Any> BrowseScreenScaffold(
                         )
                         .padding(end = 16.dp, top = 16.dp, bottom = BackToTopBottomPadding),
                 )
-            }
         }
 
         // The expressive pull-to-refresh indicator (the Home look), over the pinned pill. It is
@@ -516,9 +474,7 @@ fun <T : Any> BrowseScreenScaffold(
             state = pullRefreshState,
             modifier = Modifier
                 .align(Alignment.TopCenter)
-                .windowInsetsPadding(
-                    LocalPlayerAwareWindowInsets.current.only(WindowInsetsSides.Top)
-                ),
+                .padding(LocalPlayerAwareWindowInsets.current.asPaddingValues()),
         )
     }
 }

@@ -378,9 +378,8 @@ position-shaped per-row cards via the unit-tested `settingsCardCorners`, one geo
 `Material3SettingsGroup`; screens whose column already pads pass `horizontalPadding = 0.dp`),
 `ArtistBrowseComponents` (KidZone/whitelist browse header; also `ArtistSearchField` + `SearchHandoffPill` - the browse search pill and its tappable hand-off sibling, one shared geometry so the pair can't drift),
 `BrowseScreenScaffold` (the ONE whitelist-browse scaffold - the Artists / Kid Zone / Podcasts browse
-screens are each just a VM + item composables handed to it; it owns the pinned scroll-aware search
-pill (hides on scroll down, returns on scroll up), count header with the expressive LIST|GRID
-`TonalToggleButton` pair, optional header-sections slot, sticky letter section headers (LIST), the
+screens are each just a VM + item composables handed to it; it owns the search pill, count header
+with the expressive compact LIST|GRID `TonalToggleButton` pair, optional header-sections slot, sticky letter section headers (LIST), the
 loading shimmer vs empty-state split (a null browse flow = "not yet emitted" -> shimmer), expressive
 pull-to-refresh (the Home indicator; the toolbar sync icon's discoverable twin), back-to-top button,
 letter fast scroller and sync overlay, with the scroll/bucket math pure + JVM-tested in

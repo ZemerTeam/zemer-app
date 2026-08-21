@@ -20,13 +20,13 @@ class BrowseScreenScaffoldTest {
     // --- browseHeaderItemCount ---
 
     @Test
-    fun `header count is the count header alone without sections`() {
-        assertEquals(1, browseHeaderItemCount(hasHeaderSections = false))
+    fun `header count is the two base items without sections`() {
+        assertEquals(2, browseHeaderItemCount(hasHeaderSections = false))
     }
 
     @Test
     fun `header count adds the sections item`() {
-        assertEquals(2, browseHeaderItemCount(hasHeaderSections = true))
+        assertEquals(3, browseHeaderItemCount(hasHeaderSections = true))
     }
 
     // --- browseFastScrollProgress ---
