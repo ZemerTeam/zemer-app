@@ -377,6 +377,11 @@ ArtistScreen's over-header transparent state; the in-player fullscreen video ove
 position-shaped per-row cards via the unit-tested `settingsCardCorners`, one geometry shared with
 `Material3SettingsGroup`; screens whose column already pads pass `horizontalPadding = 0.dp`),
 `ArtistBrowseComponents` (KidZone/whitelist browse header; also `ArtistSearchField` + `SearchHandoffPill` - the browse search pill and its tappable hand-off sibling, one shared geometry so the pair can't drift),
+`BrowseScreenScaffold` (the ONE whitelist-browse scaffold - the Artists / Kid Zone / Podcasts browse
+screens are each just a VM + item composables handed to it; it owns the search pill + count header +
+optional header-sections slot, the LIST/GRID switch, empty state, back-to-top button, letter fast
+scroller and sync overlay, with the scroll math pure + JVM-tested in `BrowseScreenScaffoldTest` - a
+browse-screen change lands there once, never per screen),
 `IconCategoryCard` (the square category
 tile - centered gold icon + bold title + count subtitle on one neutral `surfaceContainerHigh` box, with
 the D-pad focus treatment; the Downloaded library's Music/Videos/Status tiles all render through it),

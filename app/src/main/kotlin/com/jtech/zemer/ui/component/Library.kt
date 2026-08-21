@@ -178,6 +178,7 @@ fun WhitelistedArtistGridItem(
     @SuppressLint("ModifierParameter") modifier: Modifier = Modifier
 ) = GridItem(
     title = artist.artist.name,
+    centerContent = true,
     subtitle = "", // No song count for whitelisted artists
     badges = {}, // No badges for whitelisted artists
     thumbnailContent = {
@@ -471,6 +472,7 @@ fun WhitelistedPodcastGridItem(
 ) = GridItem(
     title = podcast.name,
     titleMarquee = true,
+    centerContent = true,
     subtitle = "",
     badges = {},
     thumbnailContent = {

@@ -216,6 +216,9 @@ fun GridItem(
     // card applies gentleMarquee AROUND the opaque title slot, so the slot content itself must not
     // carry its own marquee when this is set.
     titleMarquee: Boolean = false,
+    // Center the text block under the artwork (the whitelist browse tiles). Column alignment, not
+    // just textAlign, so the marquee-wrapped title Box and the badge/subtitle row center too.
+    centerContent: Boolean = false,
 ) {
     var isFocused by remember { mutableStateOf(false) }
     val backgroundColor by animateColorAsState(
@@ -238,6 +241,7 @@ fun GridItem(
         .border(width = 1.5.dp, color = borderColor, shape = RoundedCornerShape(12.dp))
 
     Column(
+        horizontalAlignment = if (centerContent) Alignment.CenterHorizontally else Alignment.Start,
         modifier = if (fillMaxWidth) {
             baseModifier.fillMaxWidth()
         } else {
@@ -287,9 +291,12 @@ fun GridItem(
     // Gently scroll a title too long for one narrow card instead of ellipsizing it (podcast browse
     // cards) - the same one-glide feel as the podcast list rows. Off by default.
     titleMarquee: Boolean = false,
+    // Center the title/subtitle under the artwork (the whitelist browse tiles).
+    centerContent: Boolean = false,
 ) = GridItem(
     modifier = modifier,
     titleMarquee = titleMarquee,
+    centerContent = centerContent,
     title = {
         Text(
             text = title,
@@ -297,7 +304,7 @@ fun GridItem(
             fontWeight = FontWeight.Bold,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
-            textAlign = TextAlign.Start,
+            textAlign = if (centerContent) TextAlign.Center else TextAlign.Start,
             // The marquee (when titleMarquee) is applied by GridItem around the title slot; under it
             // this fillMaxWidth is inert (a marquee measures its child unbounded), and without it
             // fillMaxWidth is what lets the text fill the card.
