@@ -651,7 +651,6 @@
 
     <!-- Podcasts -->
         <string name="podcasts">Podcasts</string>
-        <string name="refresh_podcasts">Refresh podcasts</string>
         <string name="search_podcasts">Search podcasts…</string>
         <string name="search_episodes">Search episodes…</string>
         <string name="search_episodes_for">Search episodes for “%1$s”</string>

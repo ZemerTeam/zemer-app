@@ -285,9 +285,6 @@ import com.jtech.zemer.utils.reportException
 import com.jtech.zemer.utils.setAppLocale
 import com.jtech.zemer.utils.tryStartForegroundService
 import com.jtech.zemer.viewmodels.HomeViewModel
-import com.jtech.zemer.viewmodels.KidZoneViewModel
-import com.jtech.zemer.viewmodels.WhitelistedArtistsViewModel
-import com.jtech.zemer.viewmodels.WhitelistedPodcastsViewModel
 import com.metrolist.innertube.YouTube
 import com.metrolist.innertube.models.SongItem
 import com.metrolist.innertube.models.WatchEndpoint
@@ -1663,36 +1660,9 @@ class MainActivity : ComponentActivity() {
                                                     )
                                                 }
 
-                                                if (currentRoute == Screens.Artists.route && navBackStackEntry != null) {
-                                                    val whitelistedArtistsViewModel: WhitelistedArtistsViewModel =
-                                                        hiltViewModel(navBackStackEntry!!)
-                                                    TopAppBarActionButton(
-                                                        icon = R.drawable.sync,
-                                                        contentDescription = stringResource(R.string.refresh_artists),
-                                                        onClick = { whitelistedArtistsViewModel.sync() },
-                                                    )
-                                                }
-
-                                                if (currentRoute == Screens.Podcasts.route && navBackStackEntry != null) {
-                                                    val whitelistedPodcastsViewModel: WhitelistedPodcastsViewModel =
-                                                        hiltViewModel(navBackStackEntry!!)
-                                                    TopAppBarActionButton(
-                                                        icon = R.drawable.sync,
-                                                        contentDescription = stringResource(R.string.refresh_podcasts),
-                                                        onClick = { whitelistedPodcastsViewModel.sync() },
-                                                    )
-                                                }
-
-                                                if (currentRoute == Screens.KidZone.route && navBackStackEntry != null) {
-                                                    val kidZoneViewModel: KidZoneViewModel =
-                                                        hiltViewModel(navBackStackEntry!!)
-                                                    TopAppBarActionButton(
-                                                        icon = R.drawable.sync,
-                                                        contentDescription = stringResource(R.string.refresh_artists),
-                                                        onClick = { kidZoneViewModel.sync() },
-                                                    )
-                                                }
-
+                                                // The browse screens' whitelist refresh rides their
+                                                // pull-to-refresh (BrowseScreenScaffold) - no
+                                                // per-route toolbar sync button anymore.
                                                 TopAppBarActionButton(
                                                     icon = R.drawable.play,
                                                     contentDescription = stringResource(R.string.now_playing),
