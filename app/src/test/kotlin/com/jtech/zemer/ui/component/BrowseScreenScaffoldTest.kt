@@ -29,36 +29,60 @@ class BrowseScreenScaffoldTest {
         assertEquals(3, browseHeaderItemCount(hasHeaderSections = true))
     }
 
-    // --- browseFastScrollProgress ---
+    // --- browseFastScrollProgress (takes a CONTENT index, see browseContentIndexOf) ---
 
     @Test
-    fun `progress is zero at the top even inside the header items`() {
-        assertEquals(0f, browseFastScrollProgress(0, 8, 1, 100), 0f)
-        assertEquals(0f, browseFastScrollProgress(1, 8, 1, 100), 0f)
+    fun `progress is zero at the top`() {
+        assertEquals(0f, browseFastScrollProgress(0, 8, 2, 100), 0f)
     }
 
     @Test
     fun `progress reaches one at the bottom`() {
-        // 100 items, 8 visible (1 of them the header only at the top) -> maxFirst = 100 - 7 = 93.
-        assertEquals(1f, browseFastScrollProgress(94, 8, 1, 100), 0f)
+        // 100 items, 8 visible (2 of them headers only at the top) -> maxFirst = 100 - 6 = 94.
+        assertEquals(1f, browseFastScrollProgress(94, 8, 2, 100), 0f)
     }
 
     @Test
     fun `progress scales linearly with the first visible content item`() {
-        // contentFirst = 50, maxFirst = 93.
-        assertEquals(50f / 93f, browseFastScrollProgress(51, 8, 1, 100), 1e-6f)
+        assertEquals(47f / 94f, browseFastScrollProgress(47, 8, 2, 100), 1e-6f)
     }
 
     @Test
     fun `progress is clamped when the list over-reports`() {
-        assertEquals(1f, browseFastScrollProgress(500, 8, 1, 100), 0f)
+        assertEquals(1f, browseFastScrollProgress(500, 8, 2, 100), 0f)
     }
 
     @Test
     fun `short list never divides by zero`() {
         // Everything visible: maxFirst would be <= 0 and is floored to 1.
-        assertEquals(0f, browseFastScrollProgress(0, 6, 1, 5), 0f)
-        assertEquals(1f, browseFastScrollProgress(2, 6, 1, 5), 0f)
+        assertEquals(0f, browseFastScrollProgress(0, 7, 2, 5), 0f)
+        assertEquals(1f, browseFastScrollProgress(3, 7, 2, 5), 0f)
+    }
+
+    // --- browseContentIndexOf ---
+
+    @Test
+    fun `content index inverts the lazy index mapping`() {
+        val starts = listOf(0, 2, 3)
+        for (item in 0..5) {
+            assertEquals(item, browseContentIndexOf(browseLazyItemIndex(item, starts, 2), starts, 2))
+        }
+    }
+
+    @Test
+    fun `content index without buckets strips only the fixed headers`() {
+        assertEquals(7, browseContentIndexOf(9, emptyList(), 2))
+        assertEquals(0, browseContentIndexOf(0, emptyList(), 2))
+        assertEquals(0, browseContentIndexOf(2, emptyList(), 2))
+    }
+
+    @Test
+    fun `a mid-list lazy index stays proportional despite many headers`() {
+        // 26 single-item buckets: content i sits at lazy 2 + 2i (+1 header each). Without the
+        // header-aware mapping, lazy index 42 would read as content 40 of 26 and clamp the thumb
+        // to the bottom half-way down - the reported bug.
+        val starts = (0 until 26).toList()
+        assertEquals(20, browseContentIndexOf(browseLazyItemIndex(20, starts, 2), starts, 2))
     }
 
     // --- browseLetterBuckets ---

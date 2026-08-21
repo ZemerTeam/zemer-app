@@ -32,8 +32,6 @@ constructor(
 ) : ViewModel() {
     val searchQuery = MutableStateFlow("")
 
-    // Expose sync progress from SyncUtils
-    val syncProgress = syncUtils.podcastWhitelistSyncProgress
     val isSyncing = syncUtils.isPodcastWhitelistSyncing
 
     // Subscribed podcasts (whitelist-filtered) - shared source so the filter can't drift between VMs.

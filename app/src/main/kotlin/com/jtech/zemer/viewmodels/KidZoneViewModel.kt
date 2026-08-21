@@ -26,8 +26,6 @@ constructor(
 ) : ViewModel() {
     val searchQuery = MutableStateFlow("")
 
-    // Expose sync progress from SyncUtils
-    val syncProgress = syncUtils.whitelistSyncProgress
     val isSyncing = syncUtils.isWhitelistSyncing
 
     fun sync() {

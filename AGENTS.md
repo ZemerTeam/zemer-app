@@ -381,8 +381,10 @@ position-shaped per-row cards via the unit-tested `settingsCardCorners`, one geo
 screens are each just a VM + item composables handed to it; it owns the search pill, count header
 with the expressive compact LIST|GRID `TonalToggleButton` pair, optional header-sections slot, sticky letter section headers (LIST), the
 loading shimmer vs empty-state split (a null browse flow = "not yet emitted" -> shimmer), expressive
-pull-to-refresh (the Home indicator; the toolbar sync icon's discoverable twin), back-to-top button,
-letter fast scroller and sync overlay, with the scroll/bucket math pure + JVM-tested in
+pull-to-refresh via the shared `PullRefreshLoadingIndicator` (one implementation with Home, living in
+the R26-exempt `MediaLoadingSpinner.kt`; a running whitelist sync shows as this spinner - there is NO
+full-screen sync overlay), back-to-top button,
+letter fast scroller, with the scroll/bucket math pure + JVM-tested in
 `BrowseScreenScaffoldTest` - a browse-screen change lands there once, never per screen; the browse
 rows/tiles paint search matches via the shared `rememberHighlightedText`/`highlightMatchRanges`
 (`TextHighlight.kt`, JVM-tested) through `ListItem`/`GridItem`'s `titleHighlight`),

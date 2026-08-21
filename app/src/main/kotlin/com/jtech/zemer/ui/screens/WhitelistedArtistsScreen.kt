@@ -13,25 +13,56 @@ import androidx.navigation.NavController
 import com.jtech.zemer.R
 import com.jtech.zemer.constants.ArtistViewTypeKey
 import com.jtech.zemer.constants.LibraryViewType
+import com.jtech.zemer.db.entities.Artist
 import com.jtech.zemer.ui.component.BrowseScreenScaffold
 import com.jtech.zemer.ui.component.LocalMenuState
 import com.jtech.zemer.ui.component.WhitelistedArtistGridItem
 import com.jtech.zemer.ui.component.WhitelistedArtistListItem
 import com.jtech.zemer.utils.rememberEnumPreference
 import com.jtech.zemer.viewmodels.WhitelistedArtistsViewModel
+import kotlinx.coroutines.flow.StateFlow
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun WhitelistedArtistsScreen(
     navController: NavController,
     scrollBehavior: TopAppBarScrollBehavior,
     viewModel: WhitelistedArtistsViewModel = hiltViewModel(),
+) = ArtistBrowseScreenContent(
+    navController = navController,
+    scrollBehavior = scrollBehavior,
+    artists = viewModel.allArtists.collectAsState().value,
+    searchQuery = viewModel.searchQuery.collectAsState().value,
+    onSearchQueryChange = { viewModel.searchQuery.value = it },
+    onRefresh = { viewModel.sync() },
+    isSyncing = viewModel.isSyncing,
+    titleRes = R.string.artists,
+    emptyIconRes = R.drawable.artist,
+    emptyTextRes = R.string.library_artist_empty,
+    onRequestThumb = { viewModel.requestThumb(it) },
+)
+
+/**
+ * The ONE artist-browse body shared by the Artists tab and Kid Zone — the two screens differ only in
+ * their ViewModel (which whitelist slice backs them) and three resource ids, so everything else
+ * (dedup, view-type preference, item wiring) lives here once and cannot drift between them.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+internal fun ArtistBrowseScreenContent(
+    navController: NavController,
+    scrollBehavior: TopAppBarScrollBehavior,
+    artists: List<Artist>?,
+    searchQuery: String,
+    onSearchQueryChange: (String) -> Unit,
+    onRefresh: () -> Unit,
+    isSyncing: StateFlow<Boolean>,
+    titleRes: Int,
+    emptyIconRes: Int,
+    emptyTextRes: Int,
+    onRequestThumb: (String) -> Unit,
 ) {
     val menuState = LocalMenuState.current
     var viewType by rememberEnumPreference(ArtistViewTypeKey, LibraryViewType.GRID)
-
-    val artists by viewModel.allArtists.collectAsState()
-    val searchQuery by viewModel.searchQuery.collectAsState()
     val coroutineScope = rememberCoroutineScope()
 
     // Single source for what the scaffold renders: both view types and the fast scroller must
@@ -49,12 +80,12 @@ fun WhitelistedArtistsScreen(
         viewType = viewType,
         onToggleViewType = { viewType = viewType.toggle() },
         searchQuery = searchQuery,
-        onSearchQueryChange = { viewModel.searchQuery.value = it },
-        onRefresh = { viewModel.sync() },
-        titleRes = R.string.artists,
-        emptyIconRes = R.drawable.artist,
-        emptyTextRes = R.string.library_artist_empty,
-        isSyncing = viewModel.isSyncing,
+        onSearchQueryChange = onSearchQueryChange,
+        onRefresh = onRefresh,
+        titleRes = titleRes,
+        emptyIconRes = emptyIconRes,
+        emptyTextRes = emptyTextRes,
+        isSyncing = isSyncing,
         listItemContent = { _, artist, modifier ->
             WhitelistedArtistListItem(
                 navController = navController,
@@ -62,7 +93,7 @@ fun WhitelistedArtistsScreen(
                 coroutineScope = coroutineScope,
                 modifier = modifier,
                 artist = artist,
-                onRequestThumb = { viewModel.requestThumb(artist.id) },
+                onRequestThumb = { onRequestThumb(artist.id) },
                 highlightQuery = searchQuery,
             )
         },
@@ -73,7 +104,7 @@ fun WhitelistedArtistsScreen(
                 coroutineScope = coroutineScope,
                 modifier = modifier,
                 artist = artist,
-                onRequestThumb = { viewModel.requestThumb(artist.id) },
+                onRequestThumb = { onRequestThumb(artist.id) },
                 highlightQuery = searchQuery,
             )
         },

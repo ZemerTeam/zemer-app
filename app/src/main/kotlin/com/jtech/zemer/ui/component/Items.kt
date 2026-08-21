@@ -306,6 +306,7 @@ fun GridItem(
     modifier = modifier,
     titleMarquee = titleMarquee,
     centerContent = centerContent,
+    badges = badges,
     title = {
         Text(
             text = rememberHighlightedText(title, titleHighlight),

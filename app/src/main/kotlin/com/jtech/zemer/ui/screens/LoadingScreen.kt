@@ -42,12 +42,9 @@ import com.jtech.zemer.R
 fun LoadingScreen(
     onFinished: () -> Unit,
     shouldStartSync: Boolean = true,
-    // Override the progress source (defaults to the artist whitelist); the podcast browse passes its
-    // own podcast-whitelist progress so the same overlay serves both.
-    progressFlow: kotlinx.coroutines.flow.StateFlow<com.jtech.zemer.utils.WhitelistSyncProgress>? = null,
 ) {
     val syncUtils = com.jtech.zemer.LocalSyncUtils.current
-    val progress by (progressFlow ?: syncUtils.whitelistSyncProgress).collectAsState()
+    val progress by syncUtils.whitelistSyncProgress.collectAsState()
     val composition by rememberLottieComposition(LottieCompositionSpec.RawRes(R.raw.loading_dots_blue))
     val lottieColors = rememberLottieDynamicProperties(
         rememberLottieDynamicProperty(

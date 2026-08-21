@@ -32,7 +32,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SmallFloatingActionButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarScrollBehavior
-import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults.LoadingIndicator
 import androidx.compose.material3.pulltorefresh.pullToRefresh
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.Composable
@@ -75,18 +74,32 @@ internal fun browseHeaderItemCount(hasHeaderSections: Boolean): Int =
 
 /**
  * Approximate scroll position of the active container as a 0..1 fraction, driving the fast
- * scroller's thumb. Item-index based, which is exact enough for a uniform browse list/grid.
- * Pure so the clamping rules (header offset, short lists, over-scroll) are JVM-tested.
+ * scroller's thumb. Content-index based ([browseContentIndexOf] maps the raw lazy index first),
+ * which is exact enough for a uniform browse list/grid. Pure so the clamping rules (header offset,
+ * short lists, over-scroll) are JVM-tested.
  */
 internal fun browseFastScrollProgress(
-    firstVisibleIndex: Int,
+    contentFirstIndex: Int,
     visibleItemCount: Int,
     headerItemCount: Int,
     itemCount: Int,
 ): Float {
-    val contentFirst = (firstVisibleIndex - headerItemCount).coerceAtLeast(0)
     val maxFirst = (itemCount - (visibleItemCount - headerItemCount)).coerceAtLeast(1)
-    return (contentFirst.toFloat() / maxFirst).coerceIn(0f, 1f)
+    return (contentFirstIndex.toFloat() / maxFirst).coerceIn(0f, 1f)
+}
+
+/**
+ * Map a raw lazy-list index back to a CONTENT item index: strip the fixed header items and every
+ * sticky letter header at or before it — the inverse of [browseLazyItemIndex], so the thumb's
+ * resting position and the drag mapping share one coordinate system (with ~25 letter headers the
+ * raw index otherwise over-counts and the thumb hits 1.0 screenfuls early).
+ */
+internal fun browseContentIndexOf(lazyIndex: Int, bucketStarts: List<Int>, headerItemCount: Int): Int {
+    var headers = 0
+    bucketStarts.forEachIndexed { bucket, start ->
+        if (headerItemCount + start + bucket <= lazyIndex) headers++
+    }
+    return (lazyIndex - headerItemCount - headers).coerceAtLeast(0)
 }
 
 /** When the back-to-top button shows: past the first few items (more in the 3-column grid). */
@@ -130,9 +143,10 @@ private val FastScrollBottomGap = 16.dp
  * search pill + count header (+ optional header-sections slot) + the LIST/GRID item run, sticky
  * letter section headers (LIST), loading shimmer, empty placeholder, expressive pull-to-refresh,
  * back-to-top button, letter fast scroller (auto-hidden under
- * [MIN_ITEMS_FOR_FAST_SCROLL]), the scroll-to-top nav signal, D-pad focus wiring, and the
- * whitelist-sync overlay — one implementation so the three screens (and the LIST vs GRID branches
- * inside each) cannot drift apart.
+ * [MIN_ITEMS_FOR_FAST_SCROLL]), the scroll-to-top nav signal, and D-pad focus wiring — one
+ * implementation so the three screens (and the LIST vs GRID branches inside each) cannot drift
+ * apart. A running whitelist sync surfaces as the pull-to-refresh spinner (never a full-screen
+ * overlay).
  *
  * The caller supplies only its data + the row/tile composables; [listItemContent]/[gridItemContent]
  * receive the modifier carrying the first-item focus anchor and item animation and must apply it.
@@ -195,7 +209,7 @@ fun <T : Any> BrowseScreenScaffold(
     }
     val bucketStarts = remember(letterBuckets) { letterBuckets.map { it.second } }
 
-    val fastScrollProgress by remember(viewType, items.size, headerItemCount) {
+    val fastScrollProgress by remember(viewType, items.size, headerItemCount, bucketStarts) {
         derivedStateOf {
             val (firstIndex, visibleCount) = when (viewType) {
                 LibraryViewType.LIST ->
@@ -203,7 +217,12 @@ fun <T : Any> BrowseScreenScaffold(
                 LibraryViewType.GRID ->
                     lazyGridState.firstVisibleItemIndex to lazyGridState.layoutInfo.visibleItemsInfo.size
             }
-            browseFastScrollProgress(firstIndex, visibleCount, headerItemCount, items.size)
+            browseFastScrollProgress(
+                browseContentIndexOf(firstIndex, bucketStarts, headerItemCount),
+                visibleCount,
+                headerItemCount,
+                items.size,
+            )
         }
     }
 
@@ -284,8 +303,18 @@ fun <T : Any> BrowseScreenScaffold(
                 onRefresh = onRefresh,
             ),
     ) {
-        Box(Modifier.fillMaxSize()) {
-                val contentPadding = LocalPlayerAwareWindowInsets.current.asPaddingValues()
+        // The top inset lives on the CONTAINER, not the lazy contentPadding: stickyHeader pins at
+        // the viewport's absolute top edge, so with the inset inside the list the stuck letter
+        // would sit behind the (pinned) top bar. Safe precisely because these routes pin the bar —
+        // the inset never animates.
+        Box(
+            Modifier
+                .fillMaxSize()
+                .windowInsetsPadding(LocalPlayerAwareWindowInsets.current.only(WindowInsetsSides.Top))
+        ) {
+                val contentPadding = LocalPlayerAwareWindowInsets.current
+                    .only(WindowInsetsSides.Bottom + WindowInsetsSides.Horizontal)
+                    .asPaddingValues()
 
                 when (viewType) {
                     LibraryViewType.LIST ->
@@ -436,7 +465,7 @@ fun <T : Any> BrowseScreenScaffold(
                         modifier = Modifier
                             .align(Alignment.CenterEnd)
                             .windowInsetsPadding(
-                                LocalPlayerAwareWindowInsets.current.only(WindowInsetsSides.Vertical)
+                                LocalPlayerAwareWindowInsets.current.only(WindowInsetsSides.Bottom)
                             )
                             // Stay clear of the bottom-end button stack (back-to-top button + gap).
                             .padding(
@@ -466,15 +495,12 @@ fun <T : Any> BrowseScreenScaffold(
                 )
         }
 
-        // The expressive pull-to-refresh indicator (the Home look), over the pinned pill. It is
-        // ALSO the sync-in-progress signal for toolbar/startup syncs (isRefreshing shows it without
-        // a pull) — the one loading treatment for this screen.
-        LoadingIndicator(
+        // The shared expressive pull-to-refresh indicator (one implementation with Home). It is
+        // ALSO the sync-in-progress signal for startup syncs (isRefreshing shows it without a
+        // pull) — the one loading treatment for this screen.
+        PullRefreshLoadingIndicator(
             isRefreshing = isSyncingValue,
             state = pullRefreshState,
-            modifier = Modifier
-                .align(Alignment.TopCenter)
-                .padding(LocalPlayerAwareWindowInsets.current.asPaddingValues()),
         )
     }
 }

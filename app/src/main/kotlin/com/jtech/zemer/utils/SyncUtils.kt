@@ -1038,6 +1038,11 @@ class SyncUtils @Inject constructor(
     private suspend fun refreshBlockedIds() {
         runCatching {
             WhitelistFetcher.fetchBlockedIds().onSuccess { overrides ->
+                // Keep-last-good on an EMPTY parse, like the whitelist syncs: a mirror bug serving
+                // an empty body must not unhide every conditionally-blocked id (fail-open). An
+                // intentional full clear of the collection should ride a versioned signal, not an
+                // empty response.
+                if (overrides.isEmpty()) return@onSuccess
                 BlockedIdsCache.updateAll(overrides)
                 context.dataStore.edit { it[BlockedContentIdsKey] = BlockedIdsCache.serialize(overrides) }
             }

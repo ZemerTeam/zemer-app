@@ -28,8 +28,6 @@ constructor(
 ) : ViewModel() {
     val searchQuery = MutableStateFlow("")
 
-    // Expose sync progress from SyncUtils
-    val syncProgress = syncUtils.whitelistSyncProgress
     val isSyncing = syncUtils.isWhitelistSyncing
 
     // Null until the first DB emission so the screen can shimmer instead of flashing "empty".

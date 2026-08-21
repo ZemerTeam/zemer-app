@@ -4,10 +4,16 @@ package com.jtech.zemer.ui.component
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.LoadingIndicator
+import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults
+import androidx.compose.material3.pulltorefresh.PullToRefreshState
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -15,6 +21,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import com.jtech.zemer.LocalPlayerAwareWindowInsets
 
 /**
  * The ONE small loading spinner used OVER a card cover - the tap-to-play overlay while a tapped song /
@@ -63,4 +70,25 @@ fun PreparingOverlay(
     ) {
         MediaLoadingSpinner(color = color)
     }
+}
+
+/**
+ * The ONE expressive pull-to-refresh indicator (player-aware top-center placement), shared by the
+ * Home screen and the whitelist browse scaffold so the look can't drift and the bare-LoadingIndicator
+ * opt-in stays in this file (the R26 audit exemption). Place it as a direct child of the screen's
+ * root [Box], AFTER the content so it draws on top.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun BoxScope.PullRefreshLoadingIndicator(
+    isRefreshing: Boolean,
+    state: PullToRefreshState,
+) {
+    PullToRefreshDefaults.LoadingIndicator(
+        isRefreshing = isRefreshing,
+        state = state,
+        modifier = Modifier
+            .align(Alignment.TopCenter)
+            .padding(LocalPlayerAwareWindowInsets.current.asPaddingValues()),
+    )
 }
