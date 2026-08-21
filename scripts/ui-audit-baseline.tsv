@@ -1,3 +1,4 @@
+app/src/main/kotlin/com/jtech/zemer/ui/component/BrowseScreenScaffold.kt	R26-loader-bare	1
 app/src/main/kotlin/com/jtech/zemer/ui/component/LyricsImageCard.kt	R8-fontsize	3
 app/src/main/kotlin/com/jtech/zemer/ui/component/LyricsImageCard.kt	R8-hex	1
 app/src/main/kotlin/com/jtech/zemer/ui/component/Lyrics.kt	R8-hex	4

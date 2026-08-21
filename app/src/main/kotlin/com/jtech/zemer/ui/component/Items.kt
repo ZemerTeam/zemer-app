@@ -131,7 +131,10 @@ inline fun ListItem(
     isActive: Boolean = false,
     // Gently scroll a title too long for one line instead of ellipsizing it (podcast rows: long
     // show/episode titles). Off by default so music rows are unchanged.
-    titleMarquee: Boolean = false
+    titleMarquee: Boolean = false,
+    // Paint occurrences of this query in the title in the accent color (the browse screens'
+    // instant local filter). Null/blank renders the plain title.
+    titleHighlight: String? = null
 ) {
     var isFocused by remember { mutableStateOf(false) }
     val backgroundColor by animateColorAsState(
@@ -167,7 +170,8 @@ inline fun ListItem(
         Box(Modifier.padding(ListThumbnailPadding), contentAlignment = Alignment.Center) { thumbnailContent() }
         Column(Modifier.weight(1f).padding(horizontal = 6.dp)) {
             Text(
-                text = title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold,
+                text = rememberHighlightedText(title, titleHighlight),
+                style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold,
                 maxLines = 1, overflow = TextOverflow.Ellipsis,
                 // The row's own focus re-arms the one-shot glide for D-pad/TV users.
                 modifier = if (titleMarquee) Modifier.gentleMarquee(focused = isFocused) else Modifier
@@ -187,12 +191,14 @@ fun ListItem(
     thumbnailContent: @Composable () -> Unit,
     trailingContent: @Composable RowScope.() -> Unit = {},
     isActive: Boolean = false,
-    titleMarquee: Boolean = false
+    titleMarquee: Boolean = false,
+    titleHighlight: String? = null
 ) = ListItem(
     title = title,
     modifier = modifier,
     isActive = isActive,
     titleMarquee = titleMarquee,
+    titleHighlight = titleHighlight,
     subtitle = {
         badges()
         if (!subtitle.isNullOrEmpty()) {
@@ -293,13 +299,16 @@ fun GridItem(
     titleMarquee: Boolean = false,
     // Center the title/subtitle under the artwork (the whitelist browse tiles).
     centerContent: Boolean = false,
+    // Paint occurrences of this query in the title in the accent color (the browse screens'
+    // instant local filter). Null/blank renders the plain title.
+    titleHighlight: String? = null,
 ) = GridItem(
     modifier = modifier,
     titleMarquee = titleMarquee,
     centerContent = centerContent,
     title = {
         Text(
-            text = title,
+            text = rememberHighlightedText(title, titleHighlight),
             style = MaterialTheme.typography.bodyMedium,  // Made smaller (was bodyLarge)
             fontWeight = FontWeight.Bold,
             maxLines = 1,

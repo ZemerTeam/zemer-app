@@ -6,8 +6,11 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
@@ -16,6 +19,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
@@ -95,9 +100,11 @@ fun WhitelistedArtistListItem(
     coroutineScope: CoroutineScope,
     artist: Artist,
     onRequestThumb: () -> Unit = {},
+    highlightQuery: String? = null,
     @SuppressLint("ModifierParameter") modifier: Modifier = Modifier
 ) = ListItem(
     title = artist.artist.name,
+    titleHighlight = highlightQuery,
     subtitle = "", // No song count for whitelisted artists
     badges = {}, // No badges for whitelisted artists
     thumbnailContent = {
@@ -175,9 +182,11 @@ fun WhitelistedArtistGridItem(
     coroutineScope: CoroutineScope,
     artist: Artist,
     onRequestThumb: () -> Unit = {},
+    highlightQuery: String? = null,
     @SuppressLint("ModifierParameter") modifier: Modifier = Modifier
 ) = GridItem(
     title = artist.artist.name,
+    titleHighlight = highlightQuery,
     centerContent = true,
     subtitle = "", // No song count for whitelisted artists
     badges = {}, // No badges for whitelisted artists
@@ -410,12 +419,14 @@ fun WhitelistedPodcastListItem(
     menuState: MenuState,
     podcast: PodcastWhitelistEntity,
     onRequestThumb: () -> Unit = {},
+    highlightQuery: String? = null,
     @SuppressLint("ModifierParameter") modifier: Modifier = Modifier
 ) = ListItem(
     title = podcast.name,
     titleMarquee = true,
-    subtitle = "",
-    badges = {},
+    titleHighlight = highlightQuery,
+    subtitle = podcastShowCountSubtitle(podcast),
+    badges = { PodcastVerifiedBadge(podcast) },
     thumbnailContent = {
         if (podcast.thumbnailUrl.isNullOrBlank()) {
             LaunchedEffect(podcast.channelId) { onRequestThumb() }
@@ -467,14 +478,16 @@ fun WhitelistedPodcastGridItem(
     menuState: MenuState,
     podcast: PodcastWhitelistEntity,
     onRequestThumb: () -> Unit = {},
+    highlightQuery: String? = null,
     fillMaxWidth: Boolean = true,
     @SuppressLint("ModifierParameter") modifier: Modifier = Modifier
 ) = GridItem(
     title = podcast.name,
     titleMarquee = true,
+    titleHighlight = highlightQuery,
     centerContent = true,
-    subtitle = "",
-    badges = {},
+    subtitle = podcastShowCountSubtitle(podcast),
+    badges = { PodcastVerifiedBadge(podcast) },
     thumbnailContent = {
         if (podcast.thumbnailUrl.isNullOrBlank()) {
             LaunchedEffect(podcast.channelId) { onRequestThumb() }
@@ -523,4 +536,31 @@ fun WhitelistedPodcastGridItem(
  */
 private fun NavController.openWhitelistedPodcast(podcast: PodcastWhitelistEntity) {
     whitelistedPodcastRoute(null, podcast.channelId)?.let(::navigate)
+}
+
+/**
+ * The browse tile subtitle for a whitelisted podcast channel: its mirror-synced show count
+ * ("3 shows"), hidden when the mirror hasn't counted any. Shared by the list + grid rows.
+ */
+@Composable
+private fun podcastShowCountSubtitle(podcast: PodcastWhitelistEntity): String =
+    if (podcast.showCount > 0) {
+        pluralStringResource(R.plurals.n_show, podcast.showCount, podcast.showCount)
+    } else {
+        ""
+    }
+
+/** The accent check badge for a mirror-verified podcast channel. Shared by the list + grid rows. */
+@Composable
+private fun PodcastVerifiedBadge(podcast: PodcastWhitelistEntity) {
+    if (podcast.isVerified) {
+        Icon(
+            painter = painterResource(R.drawable.check),
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.primary,
+            modifier = Modifier
+                .size(16.dp)
+                .padding(end = 2.dp),
+        )
+    }
 }

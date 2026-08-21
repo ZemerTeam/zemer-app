@@ -36,7 +36,8 @@ constructor(
         }
     }
 
-    val allArtists =
+    // Null until the first DB emission so the screen can shimmer instead of flashing "empty".
+    val allArtists: kotlinx.coroutines.flow.StateFlow<List<Artist>?> =
         combine(
             database.allKidsArtistsByName(),
             searchQuery
@@ -48,7 +49,7 @@ constructor(
 
             Timber.d("KidZoneVM: Filtered result: ${filteredByQuery.size} artists")
             filteredByQuery
-        }.stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
+        }.stateIn(viewModelScope, SharingStarted.Lazily, null)
 
     // Fallback for a missing/rotted synced thumbnail — the shared app-wide resolver (bounded,
     // cooldown-retried, column-targeted write). See ArtistThumbResolver.

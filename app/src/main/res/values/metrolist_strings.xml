@@ -698,4 +698,8 @@
         <item quantity="one">%d channel</item>
         <item quantity="other">%d channels</item>
     </plurals>
+    <plurals name="n_show">
+        <item quantity="one">%d show</item>
+        <item quantity="other">%d shows</item>
+    </plurals>
 </resources>

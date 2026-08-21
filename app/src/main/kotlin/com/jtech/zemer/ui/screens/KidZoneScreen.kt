@@ -34,19 +34,22 @@ fun KidZoneScreen(
     val searchQuery by viewModel.searchQuery.collectAsState()
     val coroutineScope = rememberCoroutineScope()
 
-    // Single source for what the scaffold renders (see WhitelistedArtistsScreen).
-    val displayedArtists = remember(artists) { artists.distinctBy { it.artist.name } }
+    // Single source for what the scaffold renders (see WhitelistedArtistsScreen). Null = the DB
+    // flow hasn't emitted yet (the scaffold shimmers instead of flashing the empty state).
+    val displayedArtists = remember(artists) { artists?.distinctBy { it.artist.name } }
 
     BrowseScreenScaffold(
         navController = navController,
         scrollBehavior = scrollBehavior,
-        items = displayedArtists,
+        items = displayedArtists.orEmpty(),
+        isLoading = displayedArtists == null,
         itemKey = { it.id },
         itemName = { it.artist.name },
         viewType = viewType,
         onToggleViewType = { viewType = viewType.toggle() },
         searchQuery = searchQuery,
         onSearchQueryChange = { viewModel.searchQuery.value = it },
+        onRefresh = { viewModel.sync() },
         titleRes = R.string.kid_zone,
         emptyIconRes = R.drawable.kid_zone,
         emptyTextRes = R.string.kid_zone_empty,
@@ -60,6 +63,7 @@ fun KidZoneScreen(
                 modifier = modifier,
                 artist = artist,
                 onRequestThumb = { viewModel.requestThumb(artist.id) },
+                highlightQuery = searchQuery,
             )
         },
         gridItemContent = { _, artist, modifier ->
@@ -70,6 +74,7 @@ fun KidZoneScreen(
                 modifier = modifier,
                 artist = artist,
                 onRequestThumb = { viewModel.requestThumb(artist.id) },
+                highlightQuery = searchQuery,
             )
         },
     )

@@ -45,7 +45,8 @@ constructor(
     val newEpisodes = newEpisodesFeed.episodes
     val isLoadingNewEpisodes = newEpisodesFeed.isLoading
 
-    val allPodcasts =
+    // Null until the first DB emission so the screen can shimmer instead of flashing "empty".
+    val allPodcasts: kotlinx.coroutines.flow.StateFlow<List<PodcastWhitelistEntity>?> =
         combine(
             database.allWhitelistedPodcastsByName(),
             searchQuery,
@@ -58,7 +59,7 @@ constructor(
                 // discovery surface with no server filter in front of it — the gate must run here.
                 .filter { !it.isFemale || filters.allowsFemale() }
                 .filter { query.isBlank() || it.name.contains(query, ignoreCase = true) }
-        }.stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
+        }.stateIn(viewModelScope, SharingStarted.Lazily, null)
 
     init {
         // Fetch new episodes when screen is opened

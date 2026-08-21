@@ -2,20 +2,25 @@ package com.jtech.zemer.ui.component
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextFieldDefaults
+import androidx.compose.material3.ToggleButtonDefaults
+import androidx.compose.material3.TonalToggleButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -176,27 +181,57 @@ fun ArtistCountHeader(
             color = MaterialTheme.colorScheme.secondary,
         )
 
-        IconButton(
-            onClick = onToggleViewType,
-            modifier = Modifier
-                .padding(start = 6.dp)
-                .focusRequester(firstFocus)
-                .focusProperties {
+        // Material 3 Expressive: a LIST|GRID TonalToggleButton pair (the ChipsRow family), each
+        // morphing shape when it becomes the active view — instead of the old single icon button.
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+            modifier = Modifier.padding(start = 6.dp),
+        ) {
+            ViewTypeToggle(
+                checked = viewType == LibraryViewType.LIST,
+                onSelect = { if (viewType != LibraryViewType.LIST) onToggleViewType() },
+                iconRes = R.drawable.list,
+                modifier = Modifier
+                    .focusRequester(firstFocus)
+                    .focusProperties {
+                        up = searchFocus
+                        down = downTarget
+                    },
+            )
+            ViewTypeToggle(
+                checked = viewType == LibraryViewType.GRID,
+                onSelect = { if (viewType != LibraryViewType.GRID) onToggleViewType() },
+                iconRes = R.drawable.grid_view,
+                modifier = Modifier.focusProperties {
                     up = searchFocus
                     down = downTarget
                 },
-        ) {
-            Icon(
-                painter =
-                painterResource(
-                    when (viewType) {
-                        LibraryViewType.LIST -> R.drawable.list
-                        LibraryViewType.GRID -> R.drawable.grid_view
-                    },
-                ),
-                contentDescription = null,
             )
         }
+    }
+}
+
+/** One half of the LIST|GRID view toggle: a shape-morphing tonal toggle with a single icon. */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+private fun ViewTypeToggle(
+    checked: Boolean,
+    onSelect: () -> Unit,
+    iconRes: Int,
+    modifier: Modifier = Modifier,
+) {
+    TonalToggleButton(
+        checked = checked,
+        // A tap on the already-active view is a no-op (never an un-check): onSelect only fires
+        // the toggle when it switches views.
+        onCheckedChange = { onSelect() },
+        modifier = modifier,
+    ) {
+        Icon(
+            painter = painterResource(iconRes),
+            contentDescription = null,
+            modifier = Modifier.size(ToggleButtonDefaults.IconSize),
+        )
     }
 }
 

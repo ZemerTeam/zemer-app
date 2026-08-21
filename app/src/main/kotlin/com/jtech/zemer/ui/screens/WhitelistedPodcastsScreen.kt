@@ -40,6 +40,7 @@ import com.jtech.zemer.LocalPlayerConnection
 import com.jtech.zemer.R
 import com.jtech.zemer.constants.LibraryViewType
 import com.jtech.zemer.constants.PodcastViewTypeKey
+import com.jtech.zemer.constants.ThumbnailCornerRadius
 import com.jtech.zemer.db.entities.PodcastEntity
 import com.jtech.zemer.extensions.toMediaItem
 import com.jtech.zemer.playback.queues.ListQueue
@@ -78,13 +79,16 @@ fun WhitelistedPodcastsScreen(
     BrowseScreenScaffold(
         navController = navController,
         scrollBehavior = scrollBehavior,
-        items = podcasts,
+        items = podcasts.orEmpty(),
+        isLoading = podcasts == null,
+        shimmerThumbnailShape = RoundedCornerShape(ThumbnailCornerRadius),
         itemKey = { it.channelId },
         itemName = { it.name },
         viewType = viewType,
         onToggleViewType = { viewType = viewType.toggle() },
         searchQuery = searchQuery,
         onSearchQueryChange = { viewModel.searchQuery.value = it },
+        onRefresh = { viewModel.sync() },
         titleRes = R.string.podcasts,
         emptyIconRes = R.drawable.podcast,
         emptyTextRes = R.string.library_podcast_empty,
@@ -136,6 +140,7 @@ fun WhitelistedPodcastsScreen(
                 menuState = menuState,
                 modifier = modifier,
                 podcast = podcast,
+                highlightQuery = searchQuery,
             )
         },
         gridItemContent = { _, podcast, modifier ->
@@ -144,6 +149,7 @@ fun WhitelistedPodcastsScreen(
                 menuState = menuState,
                 modifier = modifier,
                 podcast = podcast,
+                highlightQuery = searchQuery,
             )
         },
     )

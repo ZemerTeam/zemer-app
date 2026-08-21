@@ -32,7 +32,8 @@ constructor(
     val syncProgress = syncUtils.whitelistSyncProgress
     val isSyncing = syncUtils.isWhitelistSyncing
 
-    val allArtists =
+    // Null until the first DB emission so the screen can shimmer instead of flashing "empty".
+    val allArtists: kotlinx.coroutines.flow.StateFlow<List<com.jtech.zemer.db.entities.Artist>?> =
         combine(
             database.allWhitelistedArtistsByName(),
             ContentFilterState.state,
@@ -49,7 +50,7 @@ constructor(
 
             Timber.d("WhitelistedArtistsVM: Filtered result: ${filteredByQuery.size} artists")
             filteredByQuery
-        }.stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
+        }.stateIn(viewModelScope, SharingStarted.Lazily, null)
 
     fun sync() {
         viewModelScope.launch(Dispatchers.IO) {

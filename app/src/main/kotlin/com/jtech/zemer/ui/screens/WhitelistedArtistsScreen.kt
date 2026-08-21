@@ -35,19 +35,22 @@ fun WhitelistedArtistsScreen(
     val coroutineScope = rememberCoroutineScope()
 
     // Single source for what the scaffold renders: both view types and the fast scroller must
-    // agree on items and positions, so the de-duplication happens once, here.
-    val displayedArtists = remember(artists) { artists.distinctBy { it.artist.name } }
+    // agree on items and positions, so the de-duplication happens once, here. Null = the DB flow
+    // hasn't emitted yet (the scaffold shimmers instead of flashing the empty state).
+    val displayedArtists = remember(artists) { artists?.distinctBy { it.artist.name } }
 
     BrowseScreenScaffold(
         navController = navController,
         scrollBehavior = scrollBehavior,
-        items = displayedArtists,
+        items = displayedArtists.orEmpty(),
+        isLoading = displayedArtists == null,
         itemKey = { it.id },
         itemName = { it.artist.name },
         viewType = viewType,
         onToggleViewType = { viewType = viewType.toggle() },
         searchQuery = searchQuery,
         onSearchQueryChange = { viewModel.searchQuery.value = it },
+        onRefresh = { viewModel.sync() },
         titleRes = R.string.artists,
         emptyIconRes = R.drawable.artist,
         emptyTextRes = R.string.library_artist_empty,
@@ -61,6 +64,7 @@ fun WhitelistedArtistsScreen(
                 modifier = modifier,
                 artist = artist,
                 onRequestThumb = { viewModel.requestThumb(artist.id) },
+                highlightQuery = searchQuery,
             )
         },
         gridItemContent = { _, artist, modifier ->
@@ -71,6 +75,7 @@ fun WhitelistedArtistsScreen(
                 modifier = modifier,
                 artist = artist,
                 onRequestThumb = { viewModel.requestThumb(artist.id) },
+                highlightQuery = searchQuery,
             )
         },
     )
