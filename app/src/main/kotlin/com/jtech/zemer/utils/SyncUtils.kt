@@ -924,7 +924,7 @@ class SyncUtils @Inject constructor(
                     val existingArtistIds = getAllArtistIdsSync().toSet()
                     val missingArtists = whitelistEntries
                         .filter { it.artistId !in existingArtistIds }
-                        .map { ArtistEntity(id = it.artistId, name = it.artistName, thumbnailUrl = it.thumbnailUrl) }
+                        .map { ArtistEntity(id = it.artistId, name = it.displayName ?: it.artistName, thumbnailUrl = it.thumbnailUrl) }
                     if (missingArtists.isNotEmpty()) {
                         insertArtists(missingArtists)
                     }
@@ -934,6 +934,12 @@ class SyncUtils @Inject constructor(
                     // never wipes an existing one, and a device-resolved image is never overwritten.
                     artistThumbnailUpdates(whitelistEntries, existingArtistIds).forEach { (artistId, thumb) ->
                         updateArtistThumbnailUrl(artistId, thumb)
+                    }
+                    // Repair pre-split seeds: an existing artist row still carrying the legacy whitelist
+                    // name (the dual dash form) is renamed to the clean displayName. Guarded in the DAO
+                    // query (name must still equal the legacy value), so a YTM-resolved name never changes.
+                    artistDisplayNameUpdates(whitelistEntries, existingArtistIds).forEach { (artistId, legacyName, displayName) ->
+                        renameArtistFromWhitelist(artistId, legacyName, displayName)
                     }
                 }
                 WhitelistCache.updateAll(whitelistEntries)
@@ -1123,4 +1129,20 @@ internal fun artistThumbnailUpdates(
     entries.mapNotNull { entry ->
         val thumb = entry.thumbnailUrl?.takeIf { it.isNotBlank() } ?: return@mapNotNull null
         if (entry.artistId in existingArtistIds) entry.artistId to thumb else null
+    }
+
+/**
+ * Which (artistId, legacyName, displayName) renames the whitelist sync applies to EXISTING artist rows —
+ * pure so the rules are regression-tested: only entries with a clean [displayName] that differs from the
+ * legacy [artistName] qualify (new rows get the displayName via their insert), and only rows already in
+ * the artist table are targeted. The never-clobber guard (the row's name must still equal the legacy
+ * value, i.e. it was seeded from the whitelist and not since resolved from YTM) lives in the DAO query.
+ */
+internal fun artistDisplayNameUpdates(
+    entries: List<com.jtech.zemer.db.entities.ArtistWhitelistEntity>,
+    existingArtistIds: Set<String>,
+): List<Triple<String, String, String>> =
+    entries.mapNotNull { entry ->
+        val display = entry.displayName?.takeIf { it.isNotBlank() && it != entry.artistName } ?: return@mapNotNull null
+        if (entry.artistId in existingArtistIds) Triple(entry.artistId, entry.artistName, display) else null
     }

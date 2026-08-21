@@ -59,4 +59,32 @@ class ArtistThumbResolverTest {
         )
         assertEquals(listOf("existing" to "https://yt3/x"), updates)
     }
+
+    // --- artistDisplayNameUpdates (display-name split rename rules) ---
+
+    private fun named(id: String, legacy: String, display: String?) =
+        ArtistWhitelistEntity(artistId = id, artistName = legacy, displayName = display)
+
+    @Test
+    fun `only entries with a clean displayName differing from the legacy name qualify`() {
+        val updates = artistDisplayNameUpdates(
+            listOf(
+                named("a", "Aaron Razel - אהרן רזאל", "Aaron Razel"), // real split -> renamed
+                named("b", "Plain Name", null),                        // pre-split doc -> untouched
+                named("c", "Same Name", "Same Name"),                  // no-op rename -> skipped
+                named("d", "Legacy", "   "),                           // blank -> skipped
+            ),
+            existingArtistIds = setOf("a", "b", "c", "d"),
+        )
+        assertEquals(listOf(Triple("a", "Aaron Razel - אהרן רזאל", "Aaron Razel")), updates)
+    }
+
+    @Test
+    fun `rename targets only rows already in the artist table (new rows insert the displayName directly)`() {
+        val updates = artistDisplayNameUpdates(
+            listOf(named("existing", "E - ע", "E"), named("new", "N - נ", "N")),
+            existingArtistIds = setOf("existing"),
+        )
+        assertEquals(listOf(Triple("existing", "E - ע", "E")), updates)
+    }
 }

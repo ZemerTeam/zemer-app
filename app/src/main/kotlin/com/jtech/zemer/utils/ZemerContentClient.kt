@@ -203,6 +203,11 @@ data class ContentWhitelistDoc(
     @SerialName("artistId") val artistId: String? = null,
     val name: String? = null,
     @SerialName("artistName") val artistName: String? = null,
+    // Additive display-name split (2026-08-21): `name` keeps the legacy value (for ~49 artists a dual
+    // "English - עברית" dash form) so old installs are untouched; `displayName` is the clean
+    // single-script name to render, `altName` the same name in the other script (Library search).
+    val displayName: String? = null,
+    val altName: String? = null,
     val isFemale: Boolean? = null,
     val isChasid: Boolean? = null,
     val isGenZ: Boolean? = null,

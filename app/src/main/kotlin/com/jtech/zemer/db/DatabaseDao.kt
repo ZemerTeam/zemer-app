@@ -1113,7 +1113,7 @@ interface DatabaseDao {
     @Transaction
     @SuppressWarnings(RoomWarnings.QUERY_MISMATCH)
     @Query(
-        "SELECT artist.*, (SELECT COUNT(1) FROM song_artist_map JOIN song ON song_artist_map.songId = song.id WHERE song_artist_map.artistId = artist.id AND song.inLibrary IS NOT NULL AND song.isEpisode = 0) AS songCount FROM artist INNER JOIN artist_whitelist ON artist.id = artist_whitelist.artistId WHERE artist.name LIKE '%' || :query || '%' AND songCount > 0 LIMIT :previewSize",
+        "SELECT artist.*, (SELECT COUNT(1) FROM song_artist_map JOIN song ON song_artist_map.songId = song.id WHERE song_artist_map.artistId = artist.id AND song.inLibrary IS NOT NULL AND song.isEpisode = 0) AS songCount FROM artist INNER JOIN artist_whitelist ON artist.id = artist_whitelist.artistId WHERE (artist.name LIKE '%' || :query || '%' OR artist_whitelist.altName LIKE '%' || :query || '%') AND songCount > 0 LIMIT :previewSize",
     )
     fun searchArtists(
         query: String,
@@ -1467,6 +1467,14 @@ interface DatabaseDao {
      */
     @Query("UPDATE artist SET thumbnailUrl = :thumbnailUrl WHERE id = :artistId AND (thumbnailUrl IS NULL OR thumbnailUrl = '')")
     fun updateArtistThumbnailUrl(artistId: String, thumbnailUrl: String)
+
+    /**
+     * Renames a whitelist-seeded artist row to the clean [displayName] — guarded on the row still
+     * holding the legacy whitelist [legacyName] (the dual dash form), so a name since resolved from
+     * YTM (or edited any other way) is never overwritten.
+     */
+    @Query("UPDATE artist SET name = :displayName WHERE id = :artistId AND name = :legacyName")
+    fun renameArtistFromWhitelist(artistId: String, legacyName: String, displayName: String)
 
     /** Overwrite the artist image unconditionally — for the fallback resolver replacing a dead URL. */
     @Query("UPDATE artist SET thumbnailUrl = :thumbnailUrl WHERE id = :artistId")
