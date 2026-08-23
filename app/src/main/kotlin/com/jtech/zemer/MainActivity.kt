@@ -285,6 +285,9 @@ import com.jtech.zemer.utils.reportException
 import com.jtech.zemer.utils.setAppLocale
 import com.jtech.zemer.utils.tryStartForegroundService
 import com.jtech.zemer.viewmodels.HomeViewModel
+import com.jtech.zemer.viewmodels.KidZoneViewModel
+import com.jtech.zemer.viewmodels.WhitelistedArtistsViewModel
+import com.jtech.zemer.viewmodels.WhitelistedPodcastsViewModel
 import com.metrolist.innertube.YouTube
 import com.metrolist.innertube.models.SongItem
 import com.metrolist.innertube.models.WatchEndpoint
@@ -1117,7 +1120,15 @@ class MainActivity : ComponentActivity() {
                     val searchBarScrollBehavior =
                         appBarScrollBehavior(
                             canScroll = {
+                                // The browse screens pin the top bar. This behavior's connection is
+                                // ALSO attached one level up (the Scaffold wrapping the NavHost), so
+                                // even with the per-route pinned-routes guard on the inner NavHost
+                                // connection, a browse-list scroll would still reach it here and
+                                // collapse the (single-row) bar's height via heightOffset - while the
+                                // browse content sits on a fixed AppBarHeight inset, opening a gap.
+                                // Refuse to scroll on the pinned routes so heightOffset stays 0.
                                 !inSearchScreen &&
+                                        navBackStackEntry?.destination?.route !in Screens.PinnedTopBarRoutes &&
                                         (playerBottomSheetState.isCollapsed || playerBottomSheetState.isDismissed)
                             },
                         )
@@ -1660,9 +1671,40 @@ class MainActivity : ComponentActivity() {
                                                     )
                                                 }
 
-                                                // The browse screens' whitelist refresh rides their
-                                                // pull-to-refresh (BrowseScreenScaffold) - no
-                                                // per-route toolbar sync button anymore.
+                                                // The browse screens pin the top bar and refresh via
+                                                // pull-to-refresh, but that gesture is unreachable by
+                                                // D-pad/TV, so keep a focusable top-bar sync button
+                                                // here as the keyboard/remote path to a manual sync.
+                                                if (currentRoute == Screens.Artists.route && navBackStackEntry != null) {
+                                                    val whitelistedArtistsViewModel: WhitelistedArtistsViewModel =
+                                                        hiltViewModel(navBackStackEntry!!)
+                                                    TopAppBarActionButton(
+                                                        icon = R.drawable.sync,
+                                                        contentDescription = stringResource(R.string.refresh_artists),
+                                                        onClick = { whitelistedArtistsViewModel.sync() },
+                                                    )
+                                                }
+
+                                                if (currentRoute == Screens.Podcasts.route && navBackStackEntry != null) {
+                                                    val whitelistedPodcastsViewModel: WhitelistedPodcastsViewModel =
+                                                        hiltViewModel(navBackStackEntry!!)
+                                                    TopAppBarActionButton(
+                                                        icon = R.drawable.sync,
+                                                        contentDescription = stringResource(R.string.refresh_podcasts),
+                                                        onClick = { whitelistedPodcastsViewModel.sync() },
+                                                    )
+                                                }
+
+                                                if (currentRoute == Screens.KidZone.route && navBackStackEntry != null) {
+                                                    val kidZoneViewModel: KidZoneViewModel =
+                                                        hiltViewModel(navBackStackEntry!!)
+                                                    TopAppBarActionButton(
+                                                        icon = R.drawable.sync,
+                                                        contentDescription = stringResource(R.string.refresh_artists),
+                                                        onClick = { kidZoneViewModel.sync() },
+                                                    )
+                                                }
+
                                                 TopAppBarActionButton(
                                                     icon = R.drawable.play,
                                                     contentDescription = stringResource(R.string.now_playing),
