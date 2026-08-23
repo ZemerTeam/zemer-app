@@ -651,7 +651,6 @@
 
     <!-- Podcasts -->
         <string name="podcasts">Podcasts</string>
-        <string name="refresh_podcasts">Refresh podcasts</string>
         <string name="search_podcasts">Search podcasts…</string>
         <string name="search_episodes">Search episodes…</string>
         <string name="search_episodes_for">Search episodes for “%1$s”</string>
@@ -697,5 +696,9 @@
     <plurals name="n_channel">
         <item quantity="one">%d channel</item>
         <item quantity="other">%d channels</item>
+    </plurals>
+    <plurals name="n_show">
+        <item quantity="one">%d show</item>
+        <item quantity="other">%d shows</item>
     </plurals>
 </resources>

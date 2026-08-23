@@ -268,7 +268,9 @@ Use these; do not hand-roll equivalents.
   video buffering, section loads; ratcheted **R25**), `MediaLoadingSpinner` (the BARE over-media / card
   tap-to-play spinner; ratcheted **R26**), `CarouselHeroFrame` + `HeroTitleOverlay` (full-bleed carousel
   heroes), the filter-chip `TonalToggleButton`, `MaterialShapes`, and the `rememberPopScale` /
-  `rememberActivationPopScale` / `pressBounce` motion helpers. Stays standard on purpose: tiny in-button
+  `rememberActivationPopScale` motion helpers (a per-tap press-bounce on the shared `GridItem` /
+  `ListItem` was tried and removed — it fired on scroll-start too; do not reintroduce it). Stays
+  standard on purpose: tiny in-button
   and determinate spinners (`CircularProgressIndicator`), and springiness added per-interaction rather
   than by a theme.
 

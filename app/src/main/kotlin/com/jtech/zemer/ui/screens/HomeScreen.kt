@@ -38,7 +38,6 @@ import androidx.compose.material3.carousel.CarouselDefaults
 import androidx.compose.material3.carousel.HorizontalMultiBrowseCarousel
 import androidx.compose.material3.carousel.rememberCarouselState
 import androidx.compose.animation.core.tween
-import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults.LoadingIndicator
 import androidx.compose.material3.pulltorefresh.pullToRefresh
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.Composable
@@ -109,6 +108,7 @@ import com.jtech.zemer.ui.component.SongGridItem
 import com.jtech.zemer.ui.component.SongListItem
 import com.jtech.zemer.ui.component.YouTubeGridItem
 import com.jtech.zemer.ui.component.shimmer.GridItemPlaceHolder
+import com.jtech.zemer.ui.component.PullRefreshLoadingIndicator
 import com.jtech.zemer.ui.component.shimmer.ShimmerHost
 import com.jtech.zemer.ui.component.shimmer.TextPlaceholder
 import com.jtech.zemer.ui.menu.AlbumMenu
@@ -1366,12 +1366,9 @@ fun HomeScreen(
             }
         }
 
-        LoadingIndicator(
+        PullRefreshLoadingIndicator(
             isRefreshing = isRefreshing,
             state = pullRefreshState,
-            modifier = Modifier
-                .align(Alignment.TopCenter)
-                .padding(LocalPlayerAwareWindowInsets.current.asPaddingValues()),
         )
     }
 }

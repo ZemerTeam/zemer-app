@@ -110,7 +110,7 @@ fun NavGraphBuilder.navigationBuilder(
         }
     }
     composable(Screens.KidZone.route) {
-        KidZoneScreen(navController)
+        KidZoneScreen(navController, searchBarScrollBehavior)
     }
     composable(
         Screens.Library.route,

@@ -377,6 +377,15 @@ ArtistScreen's over-header transparent state; the in-player fullscreen video ove
 position-shaped per-row cards via the unit-tested `settingsCardCorners`, one geometry shared with
 `Material3SettingsGroup`; screens whose column already pads pass `horizontalPadding = 0.dp`),
 `ArtistBrowseComponents` (KidZone/whitelist browse header; also `ArtistSearchField` + `SearchHandoffPill` - the browse search pill and its tappable hand-off sibling, one shared geometry so the pair can't drift),
+`BrowseScreenScaffold` (the ONE whitelist-browse scaffold - the Artists / Kid Zone / Podcasts browse
+screens are each just a VM + item composables handed to it; it owns the search pill, count header
+with the expressive compact LIST|GRID `TonalToggleButton` pair, optional header-sections slot, sticky letter section headers (LIST), the
+loading shimmer vs empty-state split (a null browse flow = "not yet emitted" -> shimmer), expressive
+pull-to-refresh via the shared `PullRefreshLoadingIndicator` (one implementation with Home, living in
+the R26-exempt `MediaLoadingSpinner.kt`; a running whitelist sync shows as this spinner - there is NO
+full-screen sync overlay), back-to-top button,
+letter fast scroller, with the scroll/bucket math pure + JVM-tested in
+`BrowseScreenScaffoldTest` - a browse-screen change lands there once, never per screen),
 `IconCategoryCard` (the square category
 tile - centered gold icon + bold title + count subtitle on one neutral `surfaceContainerHigh` box, with
 the D-pad focus treatment; the Downloaded library's Music/Videos/Status tiles all render through it),
@@ -418,7 +427,10 @@ JVM-tested `gentleMarqueeParams`, whose focus-LOSS state must stay `iterations =
 restarts on any param change, so falling back to the resting params would replay the glide behind the
 D-pad cursor on every row the user leaves). `ListItem`/`GridItem` expose it as `titleMarquee` -
 GridItem applies it AROUND the opaque title slot, so slot content must not add its own marquee.
-New screens use these; a hand-rolled duplicate is a review miss.
+`GridItem` also takes an opt-in `centerContent` (column-centered, centered title covering both the
+plain and marquee paths) used by the whitelist-browse tiles so the name sits under the artwork; every
+other grid keeps its default left alignment. New screens use these; a hand-rolled duplicate is a
+review miss.
 
 **Componentize on every touch (non-negotiable).** Whenever you touch anything in the app, first check
 whether a shared component already covers it - if one exists, use it. If you find yourself writing (or
@@ -1076,7 +1088,7 @@ surface (the two drifting out of sync is exactly what bit a past change):
 which a Material 3 Expressive equivalent fits? Reach for it - behind the per-site
 `@OptIn(ExperimentalMaterial3ExpressiveApi::class)` and through a SHARED wrapper (`ZemerLoadingIndicator`,
 `MediaLoadingSpinner`, `CarouselHeroFrame`, the filter-chip `TonalToggleButton`, `MaterialShapes`, the
-pop/press-bounce helpers), never a global theme swap, and honoring the exclusions below (tiny in-button +
+pop helpers), never a global theme swap, and honoring the exclusions below (tiny in-button +
 determinate spinners stay standard `CircularProgressIndicator`; springiness is added per-interaction).
 `scripts/ui-audit.sh` ratchets the two loaders into their wrappers - **R25** (contained ->
 `ZemerLoadingIndicator`) and **R26** (bare -> `MediaLoadingSpinner`).
@@ -1102,10 +1114,11 @@ circles), a bouncy **pop** on the player shuffle / repeat toggles AND the like h
 (`ui/component/rememberPopScale`) - the like pop is driven by the USER'S TAP (a per-control counter), NOT
 the liked flag, which also flips on every track transition and bounced the heart on plain skips - plus the
 rising-edge `rememberActivationPopScale` for a card that pops ONCE as it BECOMES the playing item (never
-again when it is left; the currently-playing thumbnail + carousel hero use it), and an app-wide **press
-bounce** on every card and row (`ui/component/pressBounce`, a NON-consuming press
-observer wired once into the base `GridItem` / `ListItem`, so a tap springs the item without touching the
-caller's click - never per-call-site). Tiny in-button spinners and determinate download rings stay standard
+again when it is left; the currently-playing thumbnail + carousel hero use it). (A per-tap **press
+bounce** on every card and row was tried and REMOVED: it hooked `awaitFirstDown`, which also fires when a
+touch STARTS a scroll, so every row you pressed to fling the list visibly scaled-and-sprang - owner
+rejected the effect. Do not reintroduce a press-scale on the shared `GridItem` / `ListItem`.) Tiny
+in-button spinners and determinate download rings stay standard
 `CircularProgressIndicator` on purpose - the ONE exception is the **play-preparing spinner** (owner-requested
 to match pull-to-refresh): a tapped song / video / episode whose audio has not started yet shows the
 expressive `LoadingIndicator` over its cover instead of a hanging play button, from tap until the player

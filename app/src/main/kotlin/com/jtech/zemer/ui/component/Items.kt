@@ -131,7 +131,7 @@ inline fun ListItem(
     isActive: Boolean = false,
     // Gently scroll a title too long for one line instead of ellipsizing it (podcast rows: long
     // show/episode titles). Off by default so music rows are unchanged.
-    titleMarquee: Boolean = false
+    titleMarquee: Boolean = false,
 ) {
     var isFocused by remember { mutableStateOf(false) }
     val backgroundColor by animateColorAsState(
@@ -153,7 +153,6 @@ inline fun ListItem(
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = modifier
-            .pressBounce()
             // onFocusChanged only observes focus targets AFTER it in the chain, so it must precede
             // focusable() (the FocusBorder.kt order) - reversed, the row's own focus is never seen.
             .onFocusChanged { isFocused = it.isFocused }
@@ -167,7 +166,8 @@ inline fun ListItem(
         Box(Modifier.padding(ListThumbnailPadding), contentAlignment = Alignment.Center) { thumbnailContent() }
         Column(Modifier.weight(1f).padding(horizontal = 6.dp)) {
             Text(
-                text = title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold,
+                text = title,
+                style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold,
                 maxLines = 1, overflow = TextOverflow.Ellipsis,
                 // The row's own focus re-arms the one-shot glide for D-pad/TV users.
                 modifier = if (titleMarquee) Modifier.gentleMarquee(focused = isFocused) else Modifier
@@ -187,7 +187,7 @@ fun ListItem(
     thumbnailContent: @Composable () -> Unit,
     trailingContent: @Composable RowScope.() -> Unit = {},
     isActive: Boolean = false,
-    titleMarquee: Boolean = false
+    titleMarquee: Boolean = false,
 ) = ListItem(
     title = title,
     modifier = modifier,
@@ -216,6 +216,9 @@ fun GridItem(
     // card applies gentleMarquee AROUND the opaque title slot, so the slot content itself must not
     // carry its own marquee when this is set.
     titleMarquee: Boolean = false,
+    // Center the text block under the artwork (the whitelist browse tiles). Column alignment, not
+    // just textAlign, so the marquee-wrapped title Box and the badge/subtitle row center too.
+    centerContent: Boolean = false,
 ) {
     var isFocused by remember { mutableStateOf(false) }
     val backgroundColor by animateColorAsState(
@@ -227,7 +230,6 @@ fun GridItem(
         label = "grid_item_focus_border"
     )
     val baseModifier = modifier
-        .pressBounce()
         .padding(12.dp)
         // onFocusChanged only observes focus targets AFTER it in the chain, so it must precede
         // focusable() (the FocusBorder.kt order) - reversed, the card's own focus is never seen.
@@ -238,6 +240,7 @@ fun GridItem(
         .border(width = 1.5.dp, color = borderColor, shape = RoundedCornerShape(12.dp))
 
     Column(
+        horizontalAlignment = if (centerContent) Alignment.CenterHorizontally else Alignment.Start,
         modifier = if (fillMaxWidth) {
             baseModifier.fillMaxWidth()
         } else {
@@ -287,9 +290,13 @@ fun GridItem(
     // Gently scroll a title too long for one narrow card instead of ellipsizing it (podcast browse
     // cards) - the same one-glide feel as the podcast list rows. Off by default.
     titleMarquee: Boolean = false,
+    // Center the title/subtitle under the artwork (the whitelist browse tiles).
+    centerContent: Boolean = false,
 ) = GridItem(
     modifier = modifier,
     titleMarquee = titleMarquee,
+    centerContent = centerContent,
+    badges = badges,
     title = {
         Text(
             text = title,
@@ -297,7 +304,7 @@ fun GridItem(
             fontWeight = FontWeight.Bold,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
-            textAlign = TextAlign.Start,
+            textAlign = if (centerContent) TextAlign.Center else TextAlign.Start,
             // The marquee (when titleMarquee) is applied by GridItem around the title slot; under it
             // this fillMaxWidth is inert (a marquee measures its child unbounded), and without it
             // fillMaxWidth is what lets the text fill the card.
@@ -503,11 +510,10 @@ fun ArtistListItem(
 fun ArtistGridItem(
     artist: Artist,
     modifier: Modifier = Modifier,
-    badges: @Composable RowScope.() -> Unit = {
-        if (artist.artist.bookmarkedAt != null) {
-            Icon.Favorite()
-        }
-    },
+    // No badge by default: the String GridItem overload used to drop badges, so the artist grid tile
+    // never actually rendered one. Keeping it empty preserves that shipped look now that the overload
+    // forwards badges (a heart-on-bookmarked badge can be re-added as a reviewed visual change).
+    badges: @Composable RowScope.() -> Unit = {},
     fillMaxWidth: Boolean = false,
 ) = GridItem(
     title = artist.artist.name,

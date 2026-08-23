@@ -169,8 +169,8 @@ violations() {
   # R26: a raw Material 3 Expressive `LoadingIndicator(` (the BARE, un-contained morphing spinner) outside
   # the shared component/MediaLoadingSpinner.kt -> route over-media / card tap-to-play spinners through
   # MediaLoadingSpinner so the experimental Expressive opt-in lives in ONE place (the complement to R25's
-  # contained variant). The Home pull-to-refresh (PullToRefreshDefaults.LoadingIndicator, called bare via
-  # a member import) is the one baselined legit site. The [^.A-Za-z] guard skips ContainedLoadingIndicator
+  # contained variant). Pull-to-refresh indicators route through the shared PullRefreshLoadingIndicator
+  # (also in MediaLoadingSpinner.kt) - never a bare per-screen copy. The [^.A-Za-z] guard skips ContainedLoadingIndicator
   # and ZemerLoadingIndicator (they end in ...LoadingIndicator but are preceded by a letter).
   grep -rnE "(^|[^.A-Za-z])LoadingIndicator\(" "$UI" --include=*.kt 2>/dev/null \
     | grep -v "/theme/" | grep -v "component/MediaLoadingSpinner.kt" | sed -E 's/:.*//' | sed 's/$/\tR26-loader-bare/'

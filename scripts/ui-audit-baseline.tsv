@@ -11,7 +11,6 @@ app/src/main/kotlin/com/jtech/zemer/ui/player/Player.kt	R12-blur	1
 app/src/main/kotlin/com/jtech/zemer/ui/player/Queue.kt	R15-morevert	1
 app/src/main/kotlin/com/jtech/zemer/ui/screens/AlbumScreen.kt	R14-backbtn	1
 app/src/main/kotlin/com/jtech/zemer/ui/screens/HistoryScreen.kt	R14-backbtn	1
-app/src/main/kotlin/com/jtech/zemer/ui/screens/HomeScreen.kt	R26-loader-bare	1
 app/src/main/kotlin/com/jtech/zemer/ui/screens/playlist/AutoPlaylistScreen.kt	R14-backbtn	1
 app/src/main/kotlin/com/jtech/zemer/ui/screens/playlist/CachePlaylistScreen.kt	R14-backbtn	1
 app/src/main/kotlin/com/jtech/zemer/ui/screens/playlist/DownloadedVideosScreen.kt	R14-backbtn	1
