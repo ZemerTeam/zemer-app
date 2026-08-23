@@ -265,7 +265,7 @@ Every tracked non-Kotlin path outside `docs/` is listed. Text files report line 
 | `app/src/main/res/values/colors.xml` | 9 lines | text `.xml`; XML root `resources` |
 | `app/src/main/res/values/ic_launcher_background.xml` | 6 lines | text `.xml`; XML root `resources` |
 | `app/src/main/res/values/metrolist_strings.xml` | 704 lines | text `.xml`; XML root `resources` |
-| `app/src/main/res/values/strings.xml` | 438 lines | text `.xml`; XML root `resources` |
+| `app/src/main/res/values/strings.xml` | 437 lines | text `.xml`; XML root `resources` |
 | `app/src/main/res/values/styles.xml` | 26 lines | text `.xml`; XML root `resources` |
 | `app/src/main/res/values/values.xml` | 8 lines | text `.xml`; XML root `resources` |
 | `app/src/main/res/xml-v25/shortcuts.xml` | 23 lines | text `.xml`; XML root `shortcuts` |
