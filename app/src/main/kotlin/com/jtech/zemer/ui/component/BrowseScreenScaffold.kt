@@ -219,16 +219,18 @@ fun <T : Any> BrowseScreenScaffold(
 
     val fastScrollProgress by remember(viewType, items.size, headerItemCount, bucketStarts) {
         derivedStateOf {
-            // The denominator needs the non-content rows ACTUALLY on screen (fixed headers scroll
-            // off, sticky letter headers scroll in), so count them from layoutInfo rather than the
-            // fixed headerItemCount.
+            // The denominator needs the non-content rows ACTUALLY on screen, which changes with
+            // scroll (fixed headers scroll off, sticky letter headers scroll in) and includes the
+            // trailing hand-off pill / loading / empty rows. Derive it as "everything on screen that
+            // is NOT a content item" (content is the only CONTENT_TYPE_ARTIST run) rather than
+            // counting header types, so no non-content row is ever missed.
             val (firstIndex, visibleCount, visibleNonContent) = when (viewType) {
                 LibraryViewType.LIST -> {
                     val visible = lazyListState.layoutInfo.visibleItemsInfo
                     Triple(
                         lazyListState.firstVisibleItemIndex,
                         visible.size,
-                        visible.count { it.contentType == CONTENT_TYPE_HEADER },
+                        visible.size - visible.count { it.contentType == CONTENT_TYPE_ARTIST },
                     )
                 }
                 LibraryViewType.GRID -> {
@@ -236,7 +238,7 @@ fun <T : Any> BrowseScreenScaffold(
                     Triple(
                         lazyGridState.firstVisibleItemIndex,
                         visible.size,
-                        visible.count { it.contentType == CONTENT_TYPE_HEADER },
+                        visible.size - visible.count { it.contentType == CONTENT_TYPE_ARTIST },
                     )
                 }
             }

@@ -510,11 +510,10 @@ fun ArtistListItem(
 fun ArtistGridItem(
     artist: Artist,
     modifier: Modifier = Modifier,
-    badges: @Composable RowScope.() -> Unit = {
-        if (artist.artist.bookmarkedAt != null) {
-            Icon.Favorite()
-        }
-    },
+    // No badge by default: the String GridItem overload used to drop badges, so the artist grid tile
+    // never actually rendered one. Keeping it empty preserves that shipped look now that the overload
+    // forwards badges (a heart-on-bookmarked badge can be re-added as a reviewed visual change).
+    badges: @Composable RowScope.() -> Unit = {},
     fillMaxWidth: Boolean = false,
 ) = GridItem(
     title = artist.artist.name,

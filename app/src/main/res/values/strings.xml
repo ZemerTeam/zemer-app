@@ -395,6 +395,7 @@
     <string name="custom_density_title">Custom Density</string>
     <string name="custom_density_hint">Enter a value between 50 and 120</string>
     <string name="ok">OK</string>
+    <string name="refresh_artists">Refresh artists</string>
     <string name="version_short">v%1$s</string>
     <string name="splash_syncing_progress">Syncing %1$d/%2$d artists</string>
     <string name="splash_preparing_app">Warming up your experience…</string>
