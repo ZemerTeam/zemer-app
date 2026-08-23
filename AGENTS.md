@@ -429,7 +429,10 @@ JVM-tested `gentleMarqueeParams`, whose focus-LOSS state must stay `iterations =
 restarts on any param change, so falling back to the resting params would replay the glide behind the
 D-pad cursor on every row the user leaves). `ListItem`/`GridItem` expose it as `titleMarquee` -
 GridItem applies it AROUND the opaque title slot, so slot content must not add its own marquee.
-New screens use these; a hand-rolled duplicate is a review miss.
+`GridItem` also takes an opt-in `centerContent` (column-centered, centered title covering both the
+plain and marquee paths) used by the whitelist-browse tiles so the name sits under the artwork; every
+other grid keeps its default left alignment. New screens use these; a hand-rolled duplicate is a
+review miss.
 
 **Componentize on every touch (non-negotiable).** Whenever you touch anything in the app, first check
 whether a shared component already covers it - if one exists, use it. If you find yourself writing (or
