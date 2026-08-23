@@ -171,7 +171,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/main/kotlin/com/dpi/DensityConfiguration.kt` | 87 lines | `.kt` |
 | `app/src/main/kotlin/com/dpi/DensityScaler.kt` | 46 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/App.kt` | 540 lines | `.kt` |
-| `app/src/main/kotlin/com/jtech/zemer/MainActivity.kt` | 2443 lines | `.kt` |
+| `app/src/main/kotlin/com/jtech/zemer/MainActivity.kt` | 2465 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/accessibility/ButtonMapperAccessibilityService.kt` | 45 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/auth/AuthState.kt` | 45 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/auth/UserAuthManager.kt` | 120 lines | `.kt` |
@@ -923,11 +923,11 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/main/res/values/app_name.xml` | 4 lines | `.xml` |
 | `app/src/main/res/values/colors.xml` | 9 lines | `.xml` |
 | `app/src/main/res/values/ic_launcher_background.xml` | 6 lines | `.xml` |
-| `app/src/main/res/values/metrolist_strings.xml` | 706 lines | `.xml` |
+| `app/src/main/res/values/metrolist_strings.xml` | 708 lines | `.xml` |
 | `app/src/main/res/values/strings.xml` | 437 lines | `.xml` |
 | `app/src/main/res/values/styles.xml` | 26 lines | `.xml` |
 | `app/src/main/res/values/values.xml` | 8 lines | `.xml` |
-| `app/src/main/res/xml-v25/shortcuts.xml` | 23 lines | `.xml` |
+| `app/src/main/res/xml-v25/shortcuts.xml` | 33 lines | `.xml` |
 | `app/src/main/res/xml/accessibility_service_config.xml` | 9 lines | `.xml` |
 | `app/src/main/res/xml/automotive_app_desc.xml` | 4 lines | `.xml` |
 | `app/src/main/res/xml/backup_rules.xml` | 12 lines | `.xml` |
