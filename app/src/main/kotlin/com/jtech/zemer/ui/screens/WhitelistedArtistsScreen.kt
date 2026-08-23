@@ -94,7 +94,6 @@ internal fun ArtistBrowseScreenContent(
                 modifier = modifier,
                 artist = artist,
                 onRequestThumb = { onRequestThumb(artist.id) },
-                highlightQuery = searchQuery,
             )
         },
         gridItemContent = { _, artist, modifier ->
@@ -105,7 +104,6 @@ internal fun ArtistBrowseScreenContent(
                 modifier = modifier,
                 artist = artist,
                 onRequestThumb = { onRequestThumb(artist.id) },
-                highlightQuery = searchQuery,
             )
         },
     )

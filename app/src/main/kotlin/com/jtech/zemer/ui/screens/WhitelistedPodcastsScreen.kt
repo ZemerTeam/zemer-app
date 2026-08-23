@@ -139,7 +139,6 @@ fun WhitelistedPodcastsScreen(
                 menuState = menuState,
                 modifier = modifier,
                 podcast = podcast,
-                highlightQuery = searchQuery,
             )
         },
         gridItemContent = { _, podcast, modifier ->
@@ -148,7 +147,6 @@ fun WhitelistedPodcastsScreen(
                 menuState = menuState,
                 modifier = modifier,
                 podcast = podcast,
-                highlightQuery = searchQuery,
             )
         },
     )

@@ -385,9 +385,7 @@ pull-to-refresh via the shared `PullRefreshLoadingIndicator` (one implementation
 the R26-exempt `MediaLoadingSpinner.kt`; a running whitelist sync shows as this spinner - there is NO
 full-screen sync overlay), back-to-top button,
 letter fast scroller, with the scroll/bucket math pure + JVM-tested in
-`BrowseScreenScaffoldTest` - a browse-screen change lands there once, never per screen; the browse
-rows/tiles paint search matches via the shared `rememberHighlightedText`/`highlightMatchRanges`
-(`TextHighlight.kt`, JVM-tested) through `ListItem`/`GridItem`'s `titleHighlight`),
+`BrowseScreenScaffoldTest` - a browse-screen change lands there once, never per screen),
 `IconCategoryCard` (the square category
 tile - centered gold icon + bold title + count subtitle on one neutral `surfaceContainerHigh` box, with
 the D-pad focus treatment; the Downloaded library's Music/Videos/Status tiles all render through it),

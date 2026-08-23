@@ -100,12 +100,10 @@ fun WhitelistedArtistListItem(
     coroutineScope: CoroutineScope,
     artist: Artist,
     onRequestThumb: () -> Unit = {},
-    highlightQuery: String? = null,
     @SuppressLint("ModifierParameter") modifier: Modifier = Modifier
 ) = ListItem(
     title = artist.artist.name,
     titleMarquee = true,
-    titleHighlight = highlightQuery,
     subtitle = "", // No song count for whitelisted artists
     badges = {}, // No badges for whitelisted artists
     thumbnailContent = {
@@ -183,12 +181,10 @@ fun WhitelistedArtistGridItem(
     coroutineScope: CoroutineScope,
     artist: Artist,
     onRequestThumb: () -> Unit = {},
-    highlightQuery: String? = null,
     @SuppressLint("ModifierParameter") modifier: Modifier = Modifier
 ) = GridItem(
     title = artist.artist.name,
     titleMarquee = true,
-    titleHighlight = highlightQuery,
     centerContent = true,
     subtitle = "", // No song count for whitelisted artists
     badges = {}, // No badges for whitelisted artists
@@ -421,12 +417,10 @@ fun WhitelistedPodcastListItem(
     menuState: MenuState,
     podcast: PodcastWhitelistEntity,
     onRequestThumb: () -> Unit = {},
-    highlightQuery: String? = null,
     @SuppressLint("ModifierParameter") modifier: Modifier = Modifier
 ) = ListItem(
     title = podcast.name,
     titleMarquee = true,
-    titleHighlight = highlightQuery,
     subtitle = podcastShowCountSubtitle(podcast),
     badges = { PodcastVerifiedBadge(podcast) },
     thumbnailContent = {
@@ -480,13 +474,11 @@ fun WhitelistedPodcastGridItem(
     menuState: MenuState,
     podcast: PodcastWhitelistEntity,
     onRequestThumb: () -> Unit = {},
-    highlightQuery: String? = null,
     fillMaxWidth: Boolean = true,
     @SuppressLint("ModifierParameter") modifier: Modifier = Modifier
 ) = GridItem(
     title = podcast.name,
     titleMarquee = true,
-    titleHighlight = highlightQuery,
     centerContent = true,
     subtitle = podcastShowCountSubtitle(podcast),
     badges = { PodcastVerifiedBadge(podcast) },
