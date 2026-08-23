@@ -157,8 +157,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/schemas/com.jtech.zemer.db.InternalDatabase/8.json` | 766 lines | `.json` |
 | `app/schemas/com.jtech.zemer.db.InternalDatabase/9.json` | 840 lines | `.json` |
 | `app/src/debug/res/values/app_name.xml` | 4 lines | `.xml` |
-| `app/src/debug/res/xml-v25/shortcuts.xml` | 23 lines | `.xml` |
-| `app/src/main/AndroidManifest.xml` | 300 lines | `.xml` |
+| `app/src/main/AndroidManifest.xml` | 310 lines | `.xml` |
 | `app/src/main/assets/solver/astring.js` | 3 lines | `.js` |
 | `app/src/main/assets/solver/meriyah.js` | 9210 lines | `.js` |
 | `app/src/main/assets/solver/yt.solver.core.js` | 603 lines | `.js` |
@@ -301,7 +300,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/main/kotlin/com/jtech/zemer/playback/MediaLibrarySessionCallback.kt` | 816 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/playback/MediaStoreDownloadManager.kt` | 1085 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/playback/MediaStoreDownloadService.kt` | 302 lines | `.kt` |
-| `app/src/main/kotlin/com/jtech/zemer/playback/MusicService.kt` | 2917 lines | `.kt` |
+| `app/src/main/kotlin/com/jtech/zemer/playback/MusicService.kt` | 2942 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/playback/PlaybackNonceRegistry.kt` | 76 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/playback/PlaybackProbe.kt` | 31 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/playback/PlayerConnection.kt` | 413 lines | `.kt` |
@@ -869,6 +868,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/main/res/drawable/settings.xml` | 9 lines | `.xml` |
 | `app/src/main/res/drawable/share.xml` | 15 lines | `.xml` |
 | `app/src/main/res/drawable/shortcut_library.xml` | 15 lines | `.xml` |
+| `app/src/main/res/drawable/shortcut_resume.xml` | 9 lines | `.xml` |
 | `app/src/main/res/drawable/shortcut_search.xml` | 14 lines | `.xml` |
 | `app/src/main/res/drawable/shuffle.xml` | 9 lines | `.xml` |
 | `app/src/main/res/drawable/shuffle_on.xml` | 9 lines | `.xml` |
@@ -923,11 +923,11 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/main/res/values/app_name.xml` | 4 lines | `.xml` |
 | `app/src/main/res/values/colors.xml` | 9 lines | `.xml` |
 | `app/src/main/res/values/ic_launcher_background.xml` | 6 lines | `.xml` |
-| `app/src/main/res/values/metrolist_strings.xml` | 706 lines | `.xml` |
+| `app/src/main/res/values/metrolist_strings.xml` | 708 lines | `.xml` |
 | `app/src/main/res/values/strings.xml` | 437 lines | `.xml` |
 | `app/src/main/res/values/styles.xml` | 26 lines | `.xml` |
 | `app/src/main/res/values/values.xml` | 8 lines | `.xml` |
-| `app/src/main/res/xml-v25/shortcuts.xml` | 23 lines | `.xml` |
+| `app/src/main/res/xml-v25/shortcuts.xml` | 33 lines | `.xml` |
 | `app/src/main/res/xml/accessibility_service_config.xml` | 9 lines | `.xml` |
 | `app/src/main/res/xml/automotive_app_desc.xml` | 4 lines | `.xml` |
 | `app/src/main/res/xml/backup_rules.xml` | 12 lines | `.xml` |

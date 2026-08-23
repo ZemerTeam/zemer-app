@@ -75,6 +75,7 @@ import com.metrolist.innertube.models.SongItem
 import com.metrolist.innertube.models.WatchEndpoint
 import com.jtech.zemer.MainActivity
 import com.jtech.zemer.R
+import com.jtech.zemer.extensions.toast
 import com.jtech.zemer.constants.AndroidAutoTargetPlaylistKey
 import com.jtech.zemer.constants.AudioNormalizationKey
 import com.jtech.zemer.constants.PlaybackMode
@@ -163,6 +164,7 @@ import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.combine
@@ -2823,6 +2825,23 @@ class MusicService :
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {
+            ACTION_RESUME_PLAYBACK -> {
+                // Resume in the background from the launcher shortcut (#508) without opening the UI.
+                // On a cold start the persistent queue restores ASYNCHRONOUSLY (playQueue loads its
+                // items off the main thread and then pins playWhenReady=false), so wait for the queue
+                // to land AND leave STATE_IDLE - which means playQueue has finished its setup and can
+                // no longer re-pause us - before playing, instead of reading a still-empty player and
+                // firing a false "nothing to resume". Genuinely nothing to restore (Persistent Queue
+                // off / never played) times out into a brief toast. Media3 promotes the service to the
+                // foreground once playback starts. scope is Main, so player access here is safe.
+                scope.launch {
+                    val ready = withTimeoutOrNull(RESUME_RESTORE_TIMEOUT_MS) {
+                        while (player.mediaItemCount == 0 || player.playbackState == STATE_IDLE) delay(50)
+                        true
+                    } ?: false
+                    if (ready) player.play() else toast(R.string.nothing_to_resume)
+                }
+            }
             MusicWidget.ACTION_PLAY_PAUSE -> {
                 if (discoveryHandler.isConnected) {
                     // isRemotePlaying falls back to the play intent before the receiver's first state
@@ -2883,6 +2902,12 @@ class MusicService :
     }
 
     companion object {
+        // Background resume from the launcher shortcut (#508): ResumePlaybackActivity starts the
+        // service with this action and finishes, so playback resumes without opening the app UI.
+        const val ACTION_RESUME_PLAYBACK = "com.jtech.zemer.action.RESUME_PLAYBACK"
+        // How long the resume shortcut waits for the async persistent-queue restore before giving up
+        // and toasting "nothing to resume".
+        private const val RESUME_RESTORE_TIMEOUT_MS = 5_000L
         const val ROOT = "root"
         const val SONG = "song"
         const val ARTIST = "artist"
