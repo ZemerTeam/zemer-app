@@ -471,7 +471,10 @@ rule covers repeated *logic*. The current shared helpers - reach for these befor
   `RequestInitialDpadFocus(requester, enabled, keys)` (both `ui/component/FocusBorder.kt`) - touch
   sessions see no rings and skip the grabs; the grab re-arms when the input mode flips to keys.
   Ratcheted by `R23-focusgate` and `R24-initialfocus` (baseline 0); functional focus (text fields,
-  key-event moves, the cast volume-key seed) is never gated. Full rules: `docs/ui/standards.md` §11.
+  key-event moves, the cast volume-key seed) is never gated. A focusable row inside a scrollable
+  container scrolls itself on-screen via `Modifier.bringIntoViewOnFocus()` (same file - one
+  remembered requester per site; extracted from the nav drawer's four hand-rolled copies), never a
+  hand-rolled `bringIntoViewRequester` + `onFocusEvent` chain. Full rules: `docs/ui/standards.md` §11.
 - **The "See all" gate:** `seeAllOnClick(count, action)` / `SEE_ALL_MIN_ITEMS` (`ui/utils/SeeAll.kt`,
   unit-tested `SeeAllTest`) hides a section header's see-all arrow below the shared min-items threshold.
   Gate on the **total the arrow opens, not a truncated preview count**: a full-list row passes its real

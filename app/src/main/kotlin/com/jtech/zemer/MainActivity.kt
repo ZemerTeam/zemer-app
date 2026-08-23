@@ -52,8 +52,6 @@ import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.relocation.BringIntoViewRequester
-import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -217,6 +215,7 @@ import com.jtech.zemer.playback.MusicService
 import com.jtech.zemer.playback.MusicService.MusicBinder
 import com.jtech.zemer.playback.PlayerConnection
 import com.jtech.zemer.playback.queues.YouTubeQueue
+import com.jtech.zemer.ui.component.bringIntoViewOnFocus
 import com.jtech.zemer.ui.component.AccountSettingsDialog
 import com.jtech.zemer.ui.component.BottomSheetMenu
 import com.jtech.zemer.ui.component.BottomSheetPage
@@ -1263,6 +1262,13 @@ class MainActivity : ComponentActivity() {
                     val burgerFocusRequester = remember { FocusRequester() }
                     val contentFocusRequester = remember { FocusRequester() }
                     val drawerScrollState = rememberScrollState()
+                    // The scroll state is hoisted to Activity scope, so it would otherwise persist
+                    // across close/reopen and a reopened drawer would start scrolled to wherever the
+                    // last session left it (header off-screen). Reset once the close settles
+                    // (isOpen flips after the animation), so the jump-to-top is never visible.
+                    LaunchedEffect(drawerState.isOpen) {
+                        if (!drawerState.isOpen) drawerScrollState.scrollTo(0)
+                    }
 
                     // Observe playback errors and show snackbar
                     LaunchedEffect(playerConnection) {
@@ -1307,10 +1313,19 @@ class MainActivity : ComponentActivity() {
                                             canFocus = drawerState.isOpen
                                         }
                                 ) {
+                                    // Scroll the WHOLE drawer (header + every item), not just the
+                                    // header block: on a short screen the item list overflows the
+                                    // sheet and the bottom entries (Settings) were clipped off with
+                                    // no way to reach them (#493). One scroll container also lets the
+                                    // per-item bringIntoView calls below scroll to the focused item.
                                     Column(
                                         modifier = Modifier
                                             .fillMaxWidth()
                                             .verticalScroll(drawerScrollState)
+                                    ) {
+                                    Column(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
                                             .padding(horizontal = 16.dp, vertical = 12.dp),
                                         horizontalAlignment = Alignment.Start
                                     ) {
@@ -1339,7 +1354,6 @@ class MainActivity : ComponentActivity() {
                                         hasVisitorToken -> MaterialTheme.colorScheme.tertiary
                                         else -> MaterialTheme.colorScheme.outline
                                     }
-                                    val accountItemBringIntoViewRequester = remember { BringIntoViewRequester() }
                                     NavigationDrawerItem(
                                         label = {
                                             Column(verticalArrangement = Arrangement.Center) {
@@ -1392,20 +1406,12 @@ class MainActivity : ComponentActivity() {
                                         modifier = Modifier
                                             .padding(NavigationDrawerItemDefaults.ItemPadding)
                                             .focusProperties { canFocus = drawerState.isOpen }
-                                            .bringIntoViewRequester(accountItemBringIntoViewRequester)
-                                            .onFocusEvent { event ->
-                                                if (event.isFocused) {
-                                                    coroutineScope.launch {
-                                                        accountItemBringIntoViewRequester.bringIntoView()
-                                                    }
-                                                }
-                                            }
+                                            .bringIntoViewOnFocus()
                                     )
                                     } // end if (not RELAY): Account entry hidden in login-less relay mode
                                     navigationItems.fastForEachIndexed { index, screen ->
                                         val isSelected =
                                             navBackStackEntry?.destination?.hierarchy?.any { it.route == screen.route } == true
-                                        val itemBringIntoViewRequester = remember { BringIntoViewRequester() }
                                         NavigationDrawerItem(
                                             label = {
                                                 Text(
@@ -1446,20 +1452,12 @@ class MainActivity : ComponentActivity() {
                                             modifier = Modifier
                                                 .padding(NavigationDrawerItemDefaults.ItemPadding)
                                                 .focusProperties { canFocus = drawerState.isOpen }
-                                                .bringIntoViewRequester(itemBringIntoViewRequester)
-                                                .onFocusEvent { event ->
-                                                    if (event.isFocused) {
-                                                        coroutineScope.launch {
-                                                            itemBringIntoViewRequester.bringIntoView()
-                                                        }
-                                                    }
-                                                }
+                                                .bringIntoViewOnFocus()
                                                 .then(
                                                     if (index == 0) Modifier.focusRequester(drawerFocusRequester) else Modifier
                                                 )
                                     )
                                 }
-                                val radioBringIntoViewRequester = remember { BringIntoViewRequester() }
                                 NavigationDrawerItem(
                                     label = { Text(stringResource(R.string.radio_mode)) },
                                     icon = {
@@ -1482,16 +1480,8 @@ class MainActivity : ComponentActivity() {
                                     modifier = Modifier
                                         .padding(NavigationDrawerItemDefaults.ItemPadding)
                                         .focusProperties { canFocus = drawerState.isOpen }
-                                        .bringIntoViewRequester(radioBringIntoViewRequester)
-                                        .onFocusEvent { event ->
-                                            if (event.isFocused) {
-                                                coroutineScope.launch {
-                                                    radioBringIntoViewRequester.bringIntoView()
-                                                }
-                                            }
-                                        }
+                                        .bringIntoViewOnFocus()
                                 )
-                                                                val settingsBringIntoViewRequester = remember { BringIntoViewRequester() }
                                 NavigationDrawerItem(
                                     label = { Text(stringResource(R.string.settings)) },
                                     icon = {
@@ -1512,15 +1502,9 @@ class MainActivity : ComponentActivity() {
                                         modifier = Modifier
                                             .padding(NavigationDrawerItemDefaults.ItemPadding)
                                             .focusProperties { canFocus = drawerState.isOpen }
-                                            .bringIntoViewRequester(settingsBringIntoViewRequester)
-                                            .onFocusEvent { event ->
-                                                if (event.isFocused) {
-                                                    coroutineScope.launch {
-                                                        settingsBringIntoViewRequester.bringIntoView()
-                                                    }
-                                                }
-                                            }
+                                            .bringIntoViewOnFocus()
                                     )
+                                    } // end drawer scroll column
                                 }
                             }
                         ) {
