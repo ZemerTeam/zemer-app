@@ -59,6 +59,16 @@ class BrowseScreenScaffoldTest {
         assertEquals(1f, browseFastScrollProgress(3, 7, 2, 5), 0f)
     }
 
+    @Test
+    fun `offset is the visible non-content count, not the fixed header count`() {
+        // Scrolled to the bottom of a letter-bucketed list: the two fixed headers have scrolled off
+        // and only ONE stuck letter header is on screen, so visibleNonContent = 1 (not the fixed 2).
+        // maxFirst = 100 - (8 - 1) = 93, and the last reachable content first-index (100 - 7) is 93,
+        // so the thumb reaches exactly 1.0 at the true bottom instead of a screenful early.
+        assertEquals(1f, browseFastScrollProgress(93, 8, 1, 100), 0f)
+        assertEquals(46f / 93f, browseFastScrollProgress(46, 8, 1, 100), 1e-6f)
+    }
+
     // --- browseContentIndexOf ---
 
     @Test
@@ -74,6 +84,18 @@ class BrowseScreenScaffoldTest {
         assertEquals(7, browseContentIndexOf(9, emptyList(), 2))
         assertEquals(0, browseContentIndexOf(0, emptyList(), 2))
         assertEquals(0, browseContentIndexOf(2, emptyList(), 2))
+    }
+
+    @Test
+    fun `a sticky header at the top is the current position, not a preceding one`() {
+        // starts = [0, 2, 3], 2 fixed headers. The letter header for bucket 1 sits at lazy index
+        // 2 + 2 + 1 = 5; its content run begins at item 2. When that header is the first visible
+        // item the resting content index is 2, not 1 - counting the header-at-lazyIndex as preceding
+        // (the <= bug) under-reported it by one at every section boundary.
+        val starts = listOf(0, 2, 3)
+        assertEquals(2, browseContentIndexOf(5, starts, 2))
+        // The bucket-0 header immediately after the fixed headers rests at content 0, not -1.
+        assertEquals(0, browseContentIndexOf(2, starts, 2))
     }
 
     @Test

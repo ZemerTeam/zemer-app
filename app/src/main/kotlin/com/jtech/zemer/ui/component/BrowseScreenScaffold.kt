@@ -77,27 +77,35 @@ internal fun browseHeaderItemCount(hasHeaderSections: Boolean): Int =
  * scroller's thumb. Content-index based ([browseContentIndexOf] maps the raw lazy index first),
  * which is exact enough for a uniform browse list/grid. Pure so the clamping rules (header offset,
  * short lists, over-scroll) are JVM-tested.
+ *
+ * [visibleNonContentCount] is the number of currently-VISIBLE non-content rows (fixed header items
+ * plus any stuck letter headers), NOT the fixed [browseHeaderItemCount]: the fixed headers scroll
+ * off while sticky letter headers scroll in, so which non-content rows are on screen changes with
+ * position. Subtracting the fixed count over-estimated the visible content rows on a long
+ * alphabetized list and pinned the thumb to the bottom a screenful early.
  */
 internal fun browseFastScrollProgress(
     contentFirstIndex: Int,
     visibleItemCount: Int,
-    headerItemCount: Int,
+    visibleNonContentCount: Int,
     itemCount: Int,
 ): Float {
-    val maxFirst = (itemCount - (visibleItemCount - headerItemCount)).coerceAtLeast(1)
+    val maxFirst = (itemCount - (visibleItemCount - visibleNonContentCount)).coerceAtLeast(1)
     return (contentFirstIndex.toFloat() / maxFirst).coerceIn(0f, 1f)
 }
 
 /**
  * Map a raw lazy-list index back to a CONTENT item index: strip the fixed header items and every
- * sticky letter header at or before it — the inverse of [browseLazyItemIndex], so the thumb's
+ * sticky letter header STRICTLY before it — the inverse of [browseLazyItemIndex], so the thumb's
  * resting position and the drag mapping share one coordinate system (with ~25 letter headers the
- * raw index otherwise over-counts and the thumb hits 1.0 screenfuls early).
+ * raw index otherwise over-counts and the thumb hits 1.0 screenfuls early). A header sitting exactly
+ * at [lazyIndex] is the current position (its content begins on the next row), not a preceding one,
+ * so it must not be stripped — counting it would under-report the index by one at every section top.
  */
 internal fun browseContentIndexOf(lazyIndex: Int, bucketStarts: List<Int>, headerItemCount: Int): Int {
     var headers = 0
     bucketStarts.forEachIndexed { bucket, start ->
-        if (headerItemCount + start + bucket <= lazyIndex) headers++
+        if (headerItemCount + start + bucket < lazyIndex) headers++
     }
     return (lazyIndex - headerItemCount - headers).coerceAtLeast(0)
 }
@@ -211,16 +219,31 @@ fun <T : Any> BrowseScreenScaffold(
 
     val fastScrollProgress by remember(viewType, items.size, headerItemCount, bucketStarts) {
         derivedStateOf {
-            val (firstIndex, visibleCount) = when (viewType) {
-                LibraryViewType.LIST ->
-                    lazyListState.firstVisibleItemIndex to lazyListState.layoutInfo.visibleItemsInfo.size
-                LibraryViewType.GRID ->
-                    lazyGridState.firstVisibleItemIndex to lazyGridState.layoutInfo.visibleItemsInfo.size
+            // The denominator needs the non-content rows ACTUALLY on screen (fixed headers scroll
+            // off, sticky letter headers scroll in), so count them from layoutInfo rather than the
+            // fixed headerItemCount.
+            val (firstIndex, visibleCount, visibleNonContent) = when (viewType) {
+                LibraryViewType.LIST -> {
+                    val visible = lazyListState.layoutInfo.visibleItemsInfo
+                    Triple(
+                        lazyListState.firstVisibleItemIndex,
+                        visible.size,
+                        visible.count { it.contentType == CONTENT_TYPE_HEADER },
+                    )
+                }
+                LibraryViewType.GRID -> {
+                    val visible = lazyGridState.layoutInfo.visibleItemsInfo
+                    Triple(
+                        lazyGridState.firstVisibleItemIndex,
+                        visible.size,
+                        visible.count { it.contentType == CONTENT_TYPE_HEADER },
+                    )
+                }
             }
             browseFastScrollProgress(
                 browseContentIndexOf(firstIndex, bucketStarts, headerItemCount),
                 visibleCount,
-                headerItemCount,
+                visibleNonContent,
                 items.size,
             )
         }
@@ -338,7 +361,7 @@ fun <T : Any> BrowseScreenScaffold(
 
                             if (showShimmer) {
                                 item(key = "loading") {
-                                    LoadingListPlaceholder(count = 8)
+                                    LoadingListPlaceholder(count = 8, thumbnailShape = shimmerThumbnailShape)
                                 }
                             } else if (items.isEmpty()) {
                                 item(key = "empty_placeholder") {
