@@ -1253,34 +1253,13 @@ class MainActivity : ComponentActivity() {
                         }
                     }
 
-                    // Resume-playback launcher shortcut (#508). The persistent queue restores paused,
-                    // so a resume request is seeded from the launch intent (cold start) and re-armed by
-                    // a new intent when the app is already running.
-                    var resumeRequested by remember { mutableStateOf(intent?.action == ACTION_RESUME) }
-
                     DisposableEffect(Unit) {
                         val listener = Consumer<Intent> { intent ->
-                            if (intent.action == ACTION_RESUME) resumeRequested = true
                             handleDeepLinkIntent(intent, navController)
                         }
 
                         addOnNewIntentListener(listener)
                         onDispose { removeOnNewIntentListener(listener) }
-                    }
-
-                    // Wait for the restored queue's current item to land (cold start restores async),
-                    // then play. If nothing was saved (Persistent Queue off / never played) show a brief
-                    // toast rather than silently doing nothing. Re-runs when the service binds.
-                    LaunchedEffect(resumeRequested, playerConnection) {
-                        if (!resumeRequested) return@LaunchedEffect
-                        val connection = playerConnection ?: return@LaunchedEffect
-                        val restored = withTimeoutOrNull(5_000) {
-                            connection.mediaMetadata.first { it != null }
-                            true
-                        } ?: false
-                        if (restored) connection.player.play()
-                        else this@MainActivity.toast(R.string.nothing_to_resume)
-                        resumeRequested = false
                     }
 
                     val currentTitleRes = remember(navBackStackEntry) {
@@ -2407,7 +2386,6 @@ class MainActivity : ComponentActivity() {
     companion object {
         const val ACTION_SEARCH = "com.jtech.zemer.action.SEARCH"
         const val ACTION_LIBRARY = "com.jtech.zemer.action.LIBRARY"
-        const val ACTION_RESUME = "com.jtech.zemer.action.RESUME"
     }
 }
 

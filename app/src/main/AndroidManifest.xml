@@ -224,6 +224,16 @@
             android:exported="false"
             android:theme="@style/Theme.AppCompat.Light.NoActionBar" />
 
+        <!-- Invisible trampoline for the "Resume playback" launcher shortcut (#508): forwards a
+             resume command to MusicService and finishes, so playback resumes without opening the UI. -->
+        <activity
+            android:name=".ResumePlaybackActivity"
+            android:exported="true"
+            android:excludeFromRecents="true"
+            android:noHistory="true"
+            android:taskAffinity=""
+            android:theme="@android:style/Theme.NoDisplay" />
+
         <service
             android:name=".playback.MusicService"
             android:exported="true"

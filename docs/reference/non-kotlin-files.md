@@ -53,7 +53,7 @@ Every tracked non-Kotlin path outside `docs/` is listed. Text files report line 
 | `app/schemas/com.jtech.zemer.db.InternalDatabase/8.json` | 766 lines | text `.json`; JSON keys `formatVersion, database` |
 | `app/schemas/com.jtech.zemer.db.InternalDatabase/9.json` | 840 lines | text `.json`; JSON keys `formatVersion, database` |
 | `app/src/debug/res/values/app_name.xml` | 4 lines | text `.xml`; XML root `resources` |
-| `app/src/main/AndroidManifest.xml` | 300 lines | text `.xml`; XML root `manifest` |
+| `app/src/main/AndroidManifest.xml` | 310 lines | text `.xml`; XML root `manifest` |
 | `app/src/main/assets/solver/astring.js` | 3 lines | text `.js` |
 | `app/src/main/assets/solver/meriyah.js` | 9210 lines | text `.js` |
 | `app/src/main/assets/solver/yt.solver.core.js` | 603 lines | text `.js` |

@@ -7,7 +7,7 @@
         android:shortcutShortLabel="@string/resume_playback">
         <intent
             android:action="com.jtech.zemer.action.RESUME"
-            android:targetClass="com.jtech.zemer.MainActivity"
+            android:targetClass="com.jtech.zemer.ResumePlaybackActivity"
             android:targetPackage="com.jtech.zemer" />
     </shortcut>
     <shortcut
