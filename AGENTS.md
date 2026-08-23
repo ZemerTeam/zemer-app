@@ -1087,7 +1087,7 @@ surface (the two drifting out of sync is exactly what bit a past change):
 which a Material 3 Expressive equivalent fits? Reach for it - behind the per-site
 `@OptIn(ExperimentalMaterial3ExpressiveApi::class)` and through a SHARED wrapper (`ZemerLoadingIndicator`,
 `MediaLoadingSpinner`, `CarouselHeroFrame`, the filter-chip `TonalToggleButton`, `MaterialShapes`, the
-pop/press-bounce helpers), never a global theme swap, and honoring the exclusions below (tiny in-button +
+pop helpers), never a global theme swap, and honoring the exclusions below (tiny in-button +
 determinate spinners stay standard `CircularProgressIndicator`; springiness is added per-interaction).
 `scripts/ui-audit.sh` ratchets the two loaders into their wrappers - **R25** (contained ->
 `ZemerLoadingIndicator`) and **R26** (bare -> `MediaLoadingSpinner`).
@@ -1113,10 +1113,11 @@ circles), a bouncy **pop** on the player shuffle / repeat toggles AND the like h
 (`ui/component/rememberPopScale`) - the like pop is driven by the USER'S TAP (a per-control counter), NOT
 the liked flag, which also flips on every track transition and bounced the heart on plain skips - plus the
 rising-edge `rememberActivationPopScale` for a card that pops ONCE as it BECOMES the playing item (never
-again when it is left; the currently-playing thumbnail + carousel hero use it), and an app-wide **press
-bounce** on every card and row (`ui/component/pressBounce`, a NON-consuming press
-observer wired once into the base `GridItem` / `ListItem`, so a tap springs the item without touching the
-caller's click - never per-call-site). Tiny in-button spinners and determinate download rings stay standard
+again when it is left; the currently-playing thumbnail + carousel hero use it). (A per-tap **press
+bounce** on every card and row was tried and REMOVED: it hooked `awaitFirstDown`, which also fires when a
+touch STARTS a scroll, so every row you pressed to fling the list visibly scaled-and-sprang - owner
+rejected the effect. Do not reintroduce a press-scale on the shared `GridItem` / `ListItem`.) Tiny
+in-button spinners and determinate download rings stay standard
 `CircularProgressIndicator` on purpose - the ONE exception is the **play-preparing spinner** (owner-requested
 to match pull-to-refresh): a tapped song / video / episode whose audio has not started yet shows the
 expressive `LoadingIndicator` over its cover instead of a hanging play button, from tap until the player

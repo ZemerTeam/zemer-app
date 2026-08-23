@@ -156,7 +156,6 @@ inline fun ListItem(
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = modifier
-            .pressBounce()
             // onFocusChanged only observes focus targets AFTER it in the chain, so it must precede
             // focusable() (the FocusBorder.kt order) - reversed, the row's own focus is never seen.
             .onFocusChanged { isFocused = it.isFocused }
@@ -236,7 +235,6 @@ fun GridItem(
         label = "grid_item_focus_border"
     )
     val baseModifier = modifier
-        .pressBounce()
         .padding(12.dp)
         // onFocusChanged only observes focus targets AFTER it in the chain, so it must precede
         // focusable() (the FocusBorder.kt order) - reversed, the card's own focus is never seen.
