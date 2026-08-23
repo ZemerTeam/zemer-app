@@ -157,7 +157,6 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/schemas/com.jtech.zemer.db.InternalDatabase/8.json` | 766 lines | `.json` |
 | `app/schemas/com.jtech.zemer.db.InternalDatabase/9.json` | 840 lines | `.json` |
 | `app/src/debug/res/values/app_name.xml` | 4 lines | `.xml` |
-| `app/src/debug/res/xml-v25/shortcuts.xml` | 23 lines | `.xml` |
 | `app/src/main/AndroidManifest.xml` | 300 lines | `.xml` |
 | `app/src/main/assets/solver/astring.js` | 3 lines | `.js` |
 | `app/src/main/assets/solver/meriyah.js` | 9210 lines | `.js` |
@@ -869,6 +868,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/main/res/drawable/settings.xml` | 9 lines | `.xml` |
 | `app/src/main/res/drawable/share.xml` | 15 lines | `.xml` |
 | `app/src/main/res/drawable/shortcut_library.xml` | 15 lines | `.xml` |
+| `app/src/main/res/drawable/shortcut_resume.xml` | 9 lines | `.xml` |
 | `app/src/main/res/drawable/shortcut_search.xml` | 14 lines | `.xml` |
 | `app/src/main/res/drawable/shuffle.xml` | 9 lines | `.xml` |
 | `app/src/main/res/drawable/shuffle_on.xml` | 9 lines | `.xml` |

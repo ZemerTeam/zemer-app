@@ -53,7 +53,6 @@ Every tracked non-Kotlin path outside `docs/` is listed. Text files report line 
 | `app/schemas/com.jtech.zemer.db.InternalDatabase/8.json` | 766 lines | text `.json`; JSON keys `formatVersion, database` |
 | `app/schemas/com.jtech.zemer.db.InternalDatabase/9.json` | 840 lines | text `.json`; JSON keys `formatVersion, database` |
 | `app/src/debug/res/values/app_name.xml` | 4 lines | text `.xml`; XML root `resources` |
-| `app/src/debug/res/xml-v25/shortcuts.xml` | 23 lines | text `.xml`; XML root `shortcuts` |
 | `app/src/main/AndroidManifest.xml` | 300 lines | text `.xml`; XML root `manifest` |
 | `app/src/main/assets/solver/astring.js` | 3 lines | text `.js` |
 | `app/src/main/assets/solver/meriyah.js` | 9210 lines | text `.js` |
@@ -210,6 +209,7 @@ Every tracked non-Kotlin path outside `docs/` is listed. Text files report line 
 | `app/src/main/res/drawable/settings.xml` | 9 lines | text `.xml`; XML root `vector` |
 | `app/src/main/res/drawable/share.xml` | 15 lines | text `.xml`; XML root `vector` |
 | `app/src/main/res/drawable/shortcut_library.xml` | 15 lines | text `.xml`; XML root `vector` |
+| `app/src/main/res/drawable/shortcut_resume.xml` | 9 lines | text `.xml`; XML root `vector` |
 | `app/src/main/res/drawable/shortcut_search.xml` | 14 lines | text `.xml`; XML root `vector` |
 | `app/src/main/res/drawable/shuffle.xml` | 9 lines | text `.xml`; XML root `vector` |
 | `app/src/main/res/drawable/shuffle_on.xml` | 9 lines | text `.xml`; XML root `vector` |
