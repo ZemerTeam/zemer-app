@@ -773,7 +773,10 @@ fun ArtistScreen(
                                             item = item,
                                             isActive = when (item) {
                                                 is com.metrolist.innertube.models.PodcastItem -> false
-                                                is com.metrolist.innertube.models.EpisodeItem -> false
+                                                // An episode plays by its videoId (== the played
+                                                // mediaId), so mark the on-air episode active for the
+                                                // now-playing animation + cookie thumbnail, like songs.
+                                                is com.metrolist.innertube.models.EpisodeItem -> mediaMetadata?.id == item.id
                                                 is SongItem -> mediaMetadata?.id == item.id
                                                 is AlbumItem -> mediaMetadata?.album?.id == item.id
                                                 is ArtistItem -> false
