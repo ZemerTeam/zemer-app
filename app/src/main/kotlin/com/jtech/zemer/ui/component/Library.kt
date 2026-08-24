@@ -6,11 +6,8 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
@@ -422,7 +419,6 @@ fun WhitelistedPodcastListItem(
     title = podcast.name,
     titleMarquee = true,
     subtitle = podcastShowCountSubtitle(podcast),
-    badges = { PodcastVerifiedBadge(podcast) },
     thumbnailContent = {
         if (podcast.thumbnailUrl.isNullOrBlank()) {
             LaunchedEffect(podcast.channelId) { onRequestThumb() }
@@ -481,7 +477,6 @@ fun WhitelistedPodcastGridItem(
     titleMarquee = true,
     centerContent = true,
     subtitle = podcastShowCountSubtitle(podcast),
-    badges = { PodcastVerifiedBadge(podcast) },
     thumbnailContent = {
         if (podcast.thumbnailUrl.isNullOrBlank()) {
             LaunchedEffect(podcast.channelId) { onRequestThumb() }
@@ -544,17 +539,3 @@ private fun podcastShowCountSubtitle(podcast: PodcastWhitelistEntity): String =
         ""
     }
 
-/** The accent check badge for a mirror-verified podcast channel. Shared by the list + grid rows. */
-@Composable
-private fun PodcastVerifiedBadge(podcast: PodcastWhitelistEntity) {
-    if (podcast.isVerified) {
-        Icon(
-            painter = painterResource(R.drawable.check),
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.primary,
-            modifier = Modifier
-                .size(16.dp)
-                .padding(end = 2.dp),
-        )
-    }
-}
