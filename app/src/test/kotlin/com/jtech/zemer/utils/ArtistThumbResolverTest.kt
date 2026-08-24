@@ -87,4 +87,57 @@ class ArtistThumbResolverTest {
         )
         assertEquals(listOf(Triple("existing", "E - ע", "E")), updates)
     }
+
+    // --- whitelistFastPathEligible (version-gate + one-time display-name backfill) ---
+
+    // Baseline args describe an already-synced, backfilled install on the current version — the one
+    // state where the fast path is eligible; each test flips a single input.
+    private fun fastPath(
+        forceSync: Boolean = false,
+        remoteVersion: Long? = 5L,
+        localVersion: Long = 5L,
+        localEmpty: Boolean = false,
+        manyThumbsMissing: Boolean = false,
+        displayNamesBackfilled: Boolean = true,
+    ) = whitelistFastPathEligible(
+        forceSync, remoteVersion, localVersion, localEmpty, manyThumbsMissing, displayNamesBackfilled,
+    )
+
+    @Test
+    fun `fast path is eligible when synced, backfilled, and the version is not newer`() {
+        assertTrue(fastPath())
+        assertTrue(fastPath(remoteVersion = 4L)) // older remote (never downgrade-fetch)
+    }
+
+    @Test
+    fun `forceSync always does a full fetch`() {
+        assertFalse(fastPath(forceSync = true))
+    }
+
+    @Test
+    fun `a newer server version does a full fetch`() {
+        assertFalse(fastPath(remoteVersion = 6L))
+    }
+
+    @Test
+    fun `a failed version probe does a full fetch`() {
+        assertFalse(fastPath(remoteVersion = null))
+    }
+
+    @Test
+    fun `an empty local table does a full fetch`() {
+        assertFalse(fastPath(localEmpty = true))
+    }
+
+    @Test
+    fun `missing thumbnails force a bootstrap fetch`() {
+        assertFalse(fastPath(manyThumbsMissing = true))
+    }
+
+    @Test
+    fun `an un-backfilled display-name column forces the one-time fetch`() {
+        // The v35 migration case: columns added NULL, flag still false -> full fetch even though the
+        // version is unchanged, so already-synced installs pick up the split names.
+        assertFalse(fastPath(displayNamesBackfilled = false))
+    }
 }

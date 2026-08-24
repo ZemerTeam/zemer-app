@@ -92,6 +92,11 @@ val LastNightlyAnnouncedKey = stringPreferencesKey("lastNightlyAnnounced")
 val UpdateNotificationsEnabledKey = booleanPreferencesKey("updateNotifications")
 val InstallerTypeKey = intPreferencesKey("installerType") // InstallerType ordinal
 val LastWhitelistVersionKey = longPreferencesKey("lastWhitelistVersion")
+// One-time gate: false until a full whitelist fetch has populated the v35 displayName/altName columns
+// (MIGRATION_34_35 adds them NULL). While false, the sync bypasses the version-gated fast path so an
+// already-synced install backfills the split names on its first sync after updating, without waiting
+// for a server whitelist-version bump.
+val DisplayNamesBackfilledKey = booleanPreferencesKey("displayNamesBackfilled")
 val LastPodcastWhitelistSyncTimeKey = longPreferencesKey("lastPodcastWhitelistSyncTime")
 val LastPodcastWhitelistVersionKey = longPreferencesKey("lastPodcastWhitelistVersion")
 
