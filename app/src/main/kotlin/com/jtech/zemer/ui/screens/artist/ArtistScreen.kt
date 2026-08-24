@@ -805,10 +805,7 @@ fun ArtistScreen(
                                                                 navController.navigateToPodcast(item.id)
                                                             is com.metrolist.innertube.models.EpisodeItem ->
                                                                 playerConnection.playQueue(
-                                                                    ListQueue(
-                                                                        title = item.title,
-                                                                        items = listOf(item.toMediaItem()),
-                                                                    ),
+                                                                    ListQueue.episode(item, PlaySource.podcast(item.podcast?.id)),
                                                                 )
                                                             is SongItem -> {
                                                                 playerConnection.playQueue(
