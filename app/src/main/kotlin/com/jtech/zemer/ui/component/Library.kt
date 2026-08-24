@@ -422,7 +422,6 @@ fun WhitelistedPodcastListItem(
     title = podcast.name,
     titleMarquee = true,
     subtitle = podcastShowCountSubtitle(podcast),
-    badges = { PodcastVerifiedBadge(podcast) },
     thumbnailContent = {
         if (podcast.thumbnailUrl.isNullOrBlank()) {
             LaunchedEffect(podcast.channelId) { onRequestThumb() }
@@ -481,7 +480,6 @@ fun WhitelistedPodcastGridItem(
     titleMarquee = true,
     centerContent = true,
     subtitle = podcastShowCountSubtitle(podcast),
-    badges = { PodcastVerifiedBadge(podcast) },
     thumbnailContent = {
         if (podcast.thumbnailUrl.isNullOrBlank()) {
             LaunchedEffect(podcast.channelId) { onRequestThumb() }
@@ -544,17 +542,3 @@ private fun podcastShowCountSubtitle(podcast: PodcastWhitelistEntity): String =
         ""
     }
 
-/** The accent check badge for a mirror-verified podcast channel. Shared by the list + grid rows. */
-@Composable
-private fun PodcastVerifiedBadge(podcast: PodcastWhitelistEntity) {
-    if (podcast.isVerified) {
-        Icon(
-            painter = painterResource(R.drawable.check),
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.primary,
-            modifier = Modifier
-                .size(16.dp)
-                .padding(end = 2.dp),
-        )
-    }
-}
