@@ -274,8 +274,6 @@
     <string name="stream_source_tvhtml5_desc">YouTube TV client: anonymous fallback, no sign-in needed</string>
     <string name="stream_source_mweb">MWEB</string>
     <string name="stream_source_mweb_desc">YouTube mobile web client: signed-in fallback</string>
-    <string name="stream_source_android_vr">Android VR</string>
-    <string name="stream_source_android_vr_desc">Direct URL client: reliable fallback, no cipher needed</string>
     <string name="stream_source_visionos">visionOS</string>
     <string name="stream_source_visionos_desc">Apple direct-URL client: most reliable fallback, no cipher or sign-in</string>
     <string name="stream_source_web_creator">WEB_CREATOR</string>

@@ -107,7 +107,6 @@ val VideoQualityKey = stringPreferencesKey("videoQuality")
 // Stream source toggles — each key maps to whether that client is enabled
 val StreamSourceWebRemixKey   = booleanPreferencesKey("streamSourceWebRemix")
 val StreamSourceTVHTML5Key    = booleanPreferencesKey("streamSourceTVHTML5")
-val StreamSourceAndroidVRKey  = booleanPreferencesKey("streamSourceAndroidVR")
 val StreamSourceWebCreatorKey = booleanPreferencesKey("streamSourceWebCreator")
 val StreamSourceVisionOSKey   = booleanPreferencesKey("streamSourceVisionOS")
 val StreamSourceMWEBKey       = booleanPreferencesKey("streamSourceMWEB")

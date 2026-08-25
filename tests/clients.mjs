@@ -30,10 +30,6 @@ export const CLIENTS = [
 
 
 
-  { key: "ANDROID_VR_1_65_10", clientName: "ANDROID_VR", clientVersion: "1.65.10", clientId: "28",
-    userAgent: "com.google.android.apps.youtube.vr.oculus/1.65.10 (Linux; U; Android 12L; eureka-user Build/SQ3A.220605.009.A1) gzip",
-    osName: "Android", osVersion: "12L", deviceMake: "Oculus", deviceModel: "Quest 3", androidSdkVersion: "32",
-    loginSupported: false, useSignatureTimestamp: false },
 
 
 

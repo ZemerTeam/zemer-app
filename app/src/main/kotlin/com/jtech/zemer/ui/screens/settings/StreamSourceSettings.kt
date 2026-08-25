@@ -38,7 +38,6 @@ import com.jtech.zemer.R
 import com.jtech.zemer.constants.InnerTubeCookieKey
 import com.jtech.zemer.constants.PlaybackMode
 import com.jtech.zemer.constants.PlaybackModeKey
-import com.jtech.zemer.constants.StreamSourceAndroidVRKey
 import com.jtech.zemer.constants.StreamSourceVisionOSKey
 import com.jtech.zemer.constants.StreamSourceMWEBKey
 import com.jtech.zemer.constants.StreamSourceTVHTML5Key
@@ -64,7 +63,6 @@ fun StreamSourceSettings(
 ) {
     val (webRemixEnabled, onWebRemixChange)     = rememberPreference(StreamSourceWebRemixKey,   defaultValue = true)
     val (tvhtml5Enabled, onTVHTML5Change)       = rememberPreference(StreamSourceTVHTML5Key,    defaultValue = true)
-    val (androidVREnabled, onAndroidVRChange)   = rememberPreference(StreamSourceAndroidVRKey,  defaultValue = true)
     val (visionosEnabled, onVisionOSChange)     = rememberPreference(StreamSourceVisionOSKey,   defaultValue = true)
     val (webCreatorEnabled, onWebCreatorChange) = rememberPreference(StreamSourceWebCreatorKey, defaultValue = true)
     val (mwebEnabled, onMWEBChange)             = rememberPreference(StreamSourceMWEBKey,       defaultValue = true)
@@ -89,7 +87,6 @@ fun StreamSourceSettings(
         "WEB_REMIX" to webRemixEnabled,
         "visionOS" to visionosEnabled,
         "WEB_CREATOR" to webCreatorEnabled,
-        "Android VR" to androidVREnabled,
         "TVHTML5" to tvhtml5Enabled,
         "MWEB" to mwebEnabled,
     ).filter { it.second }.map { it.first }
@@ -212,15 +209,6 @@ fun StreamSourceSettings(
                         icon = { Icon(painterResource(R.drawable.play), null) },
                         checked = visionosEnabled,
                         onCheckedChange = onVisionOSChange,
-                    )
-                },
-                {
-                    SwitchPreference(
-                        title = { Text(stringResource(R.string.stream_source_android_vr)) },
-                        description = stringResource(R.string.stream_source_android_vr_desc),
-                        icon = { Icon(painterResource(R.drawable.play), null) },
-                        checked = androidVREnabled,
-                        onCheckedChange = onAndroidVRChange,
                     )
                 },
             ),

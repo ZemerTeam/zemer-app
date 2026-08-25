@@ -611,9 +611,6 @@ class MusicService :
                 val disabled = mutableSetOf<String>()
                 if (prefs[com.jtech.zemer.constants.StreamSourceWebRemixKey] == false) disabled += "WEB_REMIX"
                 if (prefs[com.jtech.zemer.constants.StreamSourceTVHTML5Key]   == false) disabled += setOf("TVHTML5", "TVHTML5_SIMPLY")
-                if (prefs[com.jtech.zemer.constants.StreamSourceAndroidVRKey] == false) {
-                    disabled += "ANDROID_VR"
-                }
                 if (prefs[com.jtech.zemer.constants.StreamSourceVisionOSKey]  == false) disabled += "VISIONOS"
                 if (prefs[com.jtech.zemer.constants.StreamSourceWebCreatorKey] == false) disabled += "WEB_CREATOR"
                 if (prefs[com.jtech.zemer.constants.StreamSourceMWEBKey]      == false) disabled += "MWEB"
