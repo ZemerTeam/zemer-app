@@ -616,8 +616,6 @@
     <!-- Theme & Colors screen -->
     <string name="theme_colors">Theme &amp; Colors</string>
     <string name="theme_desc">Customize your app theme</string>
-    <string name="enable_high_refresh_rate">Enable high refresh rate</string>
-    <string name="enable_high_refresh_rate_desc">Forces the display to run at its highest supported refresh rate (e.g. 120Hz)</string>
     <string name="refresh_rate">Refresh rate</string>
     <string name="refresh_rate_system">System default</string>
     <string name="refresh_rate_standard">Standard (60 Hz)</string>
