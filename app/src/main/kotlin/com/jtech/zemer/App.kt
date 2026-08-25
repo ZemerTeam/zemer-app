@@ -28,8 +28,6 @@ import com.metrolist.innertube.models.YouTubeLocale
 import com.jtech.zemer.constants.*
 import com.jtech.zemer.di.ApplicationScope
 import com.jtech.zemer.extensions.isValidVisitorData
-import com.jtech.zemer.extensions.toEnum
-import com.jtech.zemer.extensions.toInetSocketAddress
 import com.jtech.zemer.extensions.toast
 import com.google.firebase.crashlytics.FirebaseCrashlytics
 import com.jtech.zemer.utils.ContentFilterConfig
@@ -60,20 +58,15 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
-import okhttp3.Credentials
 import okhttp3.Dispatcher
 import okhttp3.OkHttpClient
 import io.ktor.client.*
 import io.ktor.client.call.*
 import io.ktor.client.request.*
 import io.ktor.client.statement.bodyAsText
-import java.net.Authenticator
-import java.net.PasswordAuthentication
-import java.net.Proxy
 import java.util.Locale
 import javax.inject.Inject
 
@@ -137,7 +130,6 @@ class App : Application(), SingletonImageLoader.Factory {
         // Initialize cipher library for WEB_REMIX streaming
         ZemerCipher.initialize(
             context = this,
-            proxy = YouTube.proxy,
             debugLogging = BuildConfig.DEBUG
         )
 
@@ -356,33 +348,6 @@ class App : Application(), SingletonImageLoader.Factory {
                 ?: "en"
         )
 
-        if (settings[ProxyEnabledKey] == true) {
-            val username = settings[ProxyUsernameKey].orEmpty()
-            val password = settings[ProxyPasswordKey].orEmpty()
-            val type = settings[ProxyTypeKey].toEnum(defaultValue = Proxy.Type.HTTP)
-
-            if (username.isNotEmpty() || password.isNotEmpty()) {
-                if (type == Proxy.Type.HTTP) {
-                    YouTube.proxyAuth = Credentials.basic(username, password)
-                } else {
-                    Authenticator.setDefault(object : Authenticator() {
-                        override fun getPasswordAuthentication(): PasswordAuthentication =
-                            PasswordAuthentication(username, password.toCharArray())
-                    })
-                }
-            }
-            try {
-                settings[ProxyUrlKey]?.let {
-                    YouTube.proxy = Proxy(type, it.toInetSocketAddress())
-                }
-            } catch (e: Exception) {
-                withContext(Dispatchers.Main) {
-                    this@App.toast(getString(R.string.proxy_url_parse_failed))
-                }
-                reportException(e)
-            }
-        }
-
         YouTube.useLoginForBrowse = settings[UseLoginForBrowse] ?: true
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -468,14 +433,6 @@ class App : Application(), SingletonImageLoader.Factory {
             // Raise it so a full grid of avatars fetches in one wave.
             .dispatcher(Dispatcher().apply { maxRequestsPerHost = 12 })
             .dns(ResilientDns())
-            .proxy(YouTube.proxy)
-            .proxyAuthenticator { _, response ->
-                YouTube.proxyAuth?.let { auth ->
-                    response.request.newBuilder()
-                        .header("Proxy-Authorization", auth)
-                        .build()
-                } ?: response.request
-            }
             .build()
 
         return ImageLoader.Builder(this).apply {

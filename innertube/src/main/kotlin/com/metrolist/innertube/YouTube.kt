@@ -55,7 +55,6 @@ import io.ktor.client.call.body
 import io.ktor.client.statement.bodyAsText
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.Json
-import java.net.Proxy
 import kotlin.random.Random
 
 /**
@@ -84,17 +83,6 @@ object YouTube {
         get() = innerTube.cookie
         set(value) {
             innerTube.cookie = value
-        }
-    var proxy: Proxy?
-        get() = innerTube.proxy
-        set(value) {
-            innerTube.proxy = value
-        }
-
-    var proxyAuth: String?
-        get() = innerTube.proxyAuth
-        set(value) {
-            innerTube.proxyAuth = value
         }
     var useLoginForBrowse: Boolean
         get() = innerTube.useLoginForBrowse

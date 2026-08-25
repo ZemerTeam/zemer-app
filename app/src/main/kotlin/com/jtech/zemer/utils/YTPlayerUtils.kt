@@ -44,7 +44,6 @@ object YTPlayerUtils {
 
     private val httpClient = OkHttpClient.Builder()
         .dns(ResilientDns())
-        .proxy(YouTube.proxy)
         .build()
 
     private val poTokenGenerator = PoTokenGenerator()
