@@ -32,7 +32,6 @@ import com.jtech.zemer.ui.component.RequestInitialDpadFocus
 import com.jtech.zemer.LocalDatabase
 import com.jtech.zemer.LocalPlayerAwareWindowInsets
 import com.jtech.zemer.R
-import com.jtech.zemer.constants.DisableScreenshotKey
 import com.jtech.zemer.constants.PauseListenHistoryKey
 import com.jtech.zemer.constants.PauseSearchHistoryKey
 import com.jtech.zemer.ui.component.AppBarTitle
@@ -61,11 +60,6 @@ fun PrivacySettings(
         key = PauseSearchHistoryKey,
         defaultValue = false
     )
-    val (disableScreenshot, onDisableScreenshotChange) = rememberPreference(
-        key = DisableScreenshotKey,
-        defaultValue = false
-    )
-
     var showClearListenHistoryDialog by remember {
         mutableStateOf(false)
     }
@@ -185,21 +179,6 @@ fun PrivacySettings(
                         title = { Text(stringResource(R.string.clear_search_history)) },
                         icon = { Icon(painterResource(R.drawable.clear_all), null) },
                         onClick = { showClearSearchHistoryDialog = true },
-                    )
-                },
-            ),
-        )
-
-        SettingsCardGroup(
-            title = stringResource(R.string.misc),
-            rows = listOf(
-                {
-                    SwitchPreference(
-                        title = { Text(stringResource(R.string.disable_screenshot)) },
-                        description = stringResource(R.string.disable_screenshot_desc),
-                        icon = { Icon(painterResource(R.drawable.screenshot), null) },
-                        checked = disableScreenshot,
-                        onCheckedChange = onDisableScreenshotChange,
                     )
                 },
             ),

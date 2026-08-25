@@ -304,8 +304,6 @@
     <string name="pause_search_history">Pause search history</string>
     <string name="clear_search_history">Clear search history</string>
     <string name="clear_search_history_confirm">Are you sure you want to clear all search history?</string>
-    <string name="disable_screenshot">Disable screenshot</string>
-    <string name="disable_screenshot_desc">When this option is on, screenshots and the app\'s view in Recents are disabled.</string>
     <string name="enable_lrclib">Enable LrcLib lyrics provider</string>
 
     <string name="backup_restore">Backup and restore</string>
@@ -398,13 +396,6 @@
     <string name="splash_continue">Let\'s go</string>
     <string name="splash_syncing_background_action">Continue while we sync</string>
     <string name="splash_syncing_background_waiting">Syncing in background…</string>
-    <string name="new_release_error_title">New releases unavailable</string>
-    <string name="new_release_empty_title">No new releases</string>
-    <string name="new_release_empty_subtitle">We could not find new releases right now. Try again in a bit.</string>
-    <string name="new_release_retry">Try again</string>
-    <string name="new_release_title">Recent releases</string>
-    <string name="new_release_songs_title">Latest singles</string>
-    <string name="new_release_albums_title">Latest albums</string>
     <string name="search_error_title">Search is having trouble</string>
     <string name="search_empty_title">No results</string>
     <string name="search_retry">Search again</string>
