@@ -256,8 +256,8 @@ data class ZemerCuratedPlaylistResponse(
 @Serializable
 data class ZemerAlbumHeader(
     val id: String = "",
-    // The album's own playlist id (OLAK…), when the server sends it — used for the album's radio/automix
-    // when the opener didn't thread one. Absent on older builds; [toAlbumPage] then falls back to the id.
+    // The album's own playlist id (OLAK…), when the server sends it — used for the album's radio when the
+    // opener didn't thread one. Absent on older builds; [toAlbumPage] then falls back to the id.
     val playlistId: String? = null,
     val title: String = "",
     val artist: String = "",

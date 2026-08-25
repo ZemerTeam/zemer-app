@@ -565,7 +565,6 @@ fun Queue(
     ) {
         val queueTitle by playerConnection.queueTitle.collectAsState()
         val queueWindows by playerConnection.queueWindows.collectAsState()
-        val automix by playerConnection.service.automixItems.collectAsState()
         val mutableQueueWindows = remember { mutableStateListOf<Timeline.Window>() }
         val queueLength =
             remember(queueWindows) {
@@ -810,82 +809,6 @@ fun Queue(
                             ) {
                                 content()
                             }
-                        }
-                    }
-                }
-
-                if (automix.isNotEmpty()) {
-                    item(key = "automix_divider") {
-                        HorizontalDivider(
-                            modifier = Modifier
-                                .padding(vertical = 8.dp, horizontal = 4.dp)
-                                .animateItem(),
-                        )
-                    }
-
-                    itemsIndexed(
-                        items = automix,
-                        key = { _, it -> it.mediaId },
-                    ) { index, item ->
-                        Row(
-                            horizontalArrangement = Arrangement.Center,
-                        ) {
-                            MediaMetadataListItem(
-                                mediaMetadata = item.metadata!!,
-                                trailingContent = {
-                                    IconButton(
-                                        onClick = {
-                                            playerConnection.service.playNextAutomix(
-                                                item,
-                                                index,
-                                            )
-                                        },
-                                    ) {
-                                        Icon(
-                                            painter = painterResource(R.drawable.playlist_play),
-                                            contentDescription = null,
-                                        )
-                                    }
-                                    IconButton(
-                                        onClick = {
-                                            playerConnection.service.addToQueueAutomix(
-                                                item,
-                                                index,
-                                            )
-                                        },
-                                    ) {
-                                        Icon(
-                                            painter = painterResource(R.drawable.queue_music),
-                                            contentDescription = null,
-                                        )
-                                    }
-                                },
-                                modifier =
-                                Modifier
-                                    .fillMaxWidth()
-                                    .combinedClickable(
-                                        onClick = {},
-                                        onLongClick = {
-                                            menuState.show {
-                                                PlayerMenu(
-                                                    mediaMetadata = item.metadata!!,
-                                                    navController = navController,
-                                                    playerBottomSheetState = playerBottomSheetState,
-                                                    isQueueTrigger = true,
-                                                    onShowDetailsDialog = {
-                                                        item.mediaId.let {
-                                                            bottomSheetPageState.show {
-                                                                ShowMediaInfo(it, isEpisodeHint = item.metadata?.isEpisode == true)
-                                                            }
-                                                        }
-                                                    },
-                                                    onDismiss = menuState::dismiss,
-                                                )
-                                            }
-                                        },
-                                    )
-                                    .animateItem(),
-                            )
                         }
                     }
                 }

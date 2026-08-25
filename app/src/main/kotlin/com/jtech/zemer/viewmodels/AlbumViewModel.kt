@@ -47,7 +47,6 @@ constructor(
     // one (a search/artist card); otherwise the server's own `album.playlistId` is used.
     private val zemerPlaylistId = savedStateHandle.get<String>("playlistId")
 
-    val playlistId = MutableStateFlow("")
     // True once the `/album` fetch 404s / fails (or returns no tracks) and there's nothing local to show —
     // the screen renders a "not available" state instead of an endless loading shimmer.
     val notFound = MutableStateFlow(false)
@@ -98,7 +97,6 @@ constructor(
                         }
                         return@onSuccess
                     }
-                    playlistId.value = page.album.playlistId
                     notFound.value = page.songs.isEmpty()
                     Timber.d(
                         "AlbumOpen: page routeAlbumId=%s pageAlbumId=%s songs=%d artists=%s",

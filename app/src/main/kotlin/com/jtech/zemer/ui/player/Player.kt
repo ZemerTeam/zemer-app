@@ -222,7 +222,6 @@ fun BottomSheetPlayer(
     val isCasting by playerConnection.isCasting.collectAsState()
     val mediaMetadata by playerConnection.mediaMetadata.collectAsState()
     val currentSong by playerConnection.currentSong.collectAsState(initial = null)
-    val automix by playerConnection.service.automixItems.collectAsState()
     val repeatMode by playerConnection.repeatMode.collectAsState()
     val shuffleModeEnabled by playerConnection.shuffleModeEnabled.collectAsState()
     val canSkipPrevious by playerConnection.canSkipPrevious.collectAsState()
@@ -281,10 +280,6 @@ fun BottomSheetPlayer(
         mutableStateOf<Long?>(null)
     }
     // Track if we're in control focus mode (showing outlines)
-
-    if (!canSkipNext && automix.isNotEmpty()) {
-        playerConnection.service.addToQueueAutomix(automix[0], 0)
-    }
 
     val fallbackColor = MaterialTheme.colorScheme.surface.toArgb()
     // Shared, bounded, deduped gradient extraction (see rememberPlayerGradient).
