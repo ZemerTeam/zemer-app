@@ -49,7 +49,6 @@ import com.jtech.zemer.ui.screens.settings.StorageSettings
 import com.jtech.zemer.ui.screens.settings.ThemeScreen
 import com.jtech.zemer.ui.screens.settings.StreamSourceSettings
 import com.jtech.zemer.ui.screens.settings.UpdaterScreen
-import com.jtech.zemer.ui.screens.settings.integrations.IntegrationScreen
 import androidx.compose.runtime.LaunchedEffect
 import com.jtech.zemer.viewmodels.HomeSeeAllRow
 import com.jtech.zemer.viewmodels.HomeViewModel
@@ -480,9 +479,6 @@ fun NavGraphBuilder.navigationBuilder(
     }
     composable("settings/backup_restore") {
         BackupAndRestore(navController, scrollBehavior)
-    }
-    composable("settings/integrations") {
-        IntegrationScreen(navController, scrollBehavior)
     }
     composable("settings/updater") {
         UpdaterScreen(navController, scrollBehavior)
