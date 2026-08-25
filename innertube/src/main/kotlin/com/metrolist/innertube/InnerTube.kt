@@ -45,7 +45,6 @@ import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.json.Json
 import okhttp3.ConnectionPool
 import okhttp3.Dispatcher
-import java.net.Proxy
 import java.util.Locale
 import java.util.concurrent.TimeUnit
 
@@ -68,15 +67,6 @@ class InnerTube {
             cookieMap = if (value == null) emptyMap() else parseCookieString(value)
         }
     private var cookieMap = emptyMap<String, String>()
-
-    var proxy: Proxy? = null
-        set(value) {
-            field = value
-            httpClient.close()
-            httpClient = createClient()
-        }
-    
-    var proxyAuth: String? = null
 
     var useLoginForBrowse: Boolean = false
 
@@ -106,19 +96,6 @@ class InnerTube {
                 connectTimeout(5, TimeUnit.SECONDS)
                 readTimeout(10, TimeUnit.SECONDS)
                 writeTimeout(10, TimeUnit.SECONDS)
-            }
-
-            proxy?.let {
-                proxy = this@InnerTube.proxy
-                proxyAuth?.let {
-                    config {
-                        proxyAuthenticator { _, response ->
-                            response.request.newBuilder()
-                                .header("Proxy-Authorization", proxyAuth!!)
-                                .build()
-                        }
-                    }
-                }
             }
         }
 

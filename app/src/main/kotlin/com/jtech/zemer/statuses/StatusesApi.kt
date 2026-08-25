@@ -17,7 +17,7 @@ import java.net.URL
  *
  * This is a THIRD-PARTY service the app cannot guarantee is up, so every consumer treats a failure as
  * "no data" (the Home row hides itself). Kept deliberately dependency-free (raw [HttpURLConnection], no
- * coupling to the app's OkHttp / YouTube proxy) — it talks to a different backend.
+ * coupling to the app's OkHttp client) — it talks to a different backend.
  *
  * The Supabase base URL, the **publishable** anon key (client-safe by design - the JewishStatus web app
  * ships the same one publicly, NOT a secret), and which category ids count as "music" are all supplied by

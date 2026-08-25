@@ -84,18 +84,10 @@ constructor(
     private val audioQuality by enumPreference(context, AudioQualityKey, AudioQuality.AUTO)
     private val httpClient = OkHttpClient.Builder()
         .dns(ResilientDns())
-        .proxy(YouTube.proxy)
-        .proxyAuthenticator { _, response ->
-            YouTube.proxyAuth?.let { auth ->
-                response.request.newBuilder()
-                    .header("Proxy-Authorization", auth)
-                    .build()
-            } ?: response.request
-        }
         .build()
 
-    // RELAY downloads hit the whitelisted relay host directly (NOT through YouTube.proxy — that proxy is
-    // for googlevideo) and carry a read timeout: the relay buffers the whole file server-side, and the
+    // RELAY downloads hit the whitelisted relay host directly and carry a read timeout: the relay buffers
+    // the whole file server-side, and the
     // default client has NO read timeout, so a truly stalled pull would hang forever. The timeout turns a
     // dead connection into a retriable failure. It is the INTER-read gap — INCLUDING time-to-first-byte,
     // which scales with file size here (the server buffers before the first byte) — so it must comfortably
@@ -866,7 +858,7 @@ constructor(
         val validatedUrl = UrlValidator.validateAndParseUrl(url)
             ?: throw Exception("Invalid download URL: $url")
 
-        // Relay downloads use the direct, read-timeout client (no YouTube proxy) and hit the dedicated
+        // Relay downloads use the direct, read-timeout client and hit the dedicated
         // /download endpoint, which resolves + buffers the whole file server-side and returns ONE clean
         // response (accurate Content-Length, clean close). So a plain one-shot GET -> save is reliable — no
         // client-side chunking needed (a full pull of the range-based /stream was what stalled at the tail).

@@ -459,7 +459,6 @@
     <string name="download_channel_desc">Notifications for music download progress</string>
     <string name="download_preparing">Preparing downloads…</string>
     <string name="download_in_progress">Music downloads in progress</string>
-    <string name="proxy_url_parse_failed">Failed to parse proxy url.</string>
 
     <!-- Clipboard labels -->
     <string name="clip_label_title">Title</string>

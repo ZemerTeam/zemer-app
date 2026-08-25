@@ -79,11 +79,6 @@ val AppLanguageKey = stringPreferencesKey("appLanguage")
 val ContentLanguageKey = stringPreferencesKey("contentLanguage")
 val ContentCountryKey = stringPreferencesKey("contentCountry")
 val EnableLrcLibKey = booleanPreferencesKey("enableLrclib")
-val ProxyEnabledKey = booleanPreferencesKey("proxyEnabled")
-val ProxyUrlKey = stringPreferencesKey("proxyUrl")
-val ProxyTypeKey = stringPreferencesKey("proxyType")
-val ProxyUsernameKey = stringPreferencesKey("proxyUsername")
-val ProxyPasswordKey = stringPreferencesKey("proxyPassword")
 val YtmSyncKey = booleanPreferencesKey("ytmSync")
 // Persisted snapshot of the server's blockedContentIds list (newline-joined), loaded at startup so the
 // blocklist is active before the first sync of the session and survives offline launches.

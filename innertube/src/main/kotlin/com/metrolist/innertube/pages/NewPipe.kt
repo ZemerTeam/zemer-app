@@ -15,20 +15,11 @@ import org.schabi.newpipe.extractor.exceptions.ParsingException
 import org.schabi.newpipe.extractor.exceptions.ReCaptchaException
 import org.schabi.newpipe.extractor.services.youtube.YoutubeJavaScriptPlayerManager
 import java.io.IOException
-import java.net.Proxy
 
-private class NewPipeDownloaderImpl(proxy: Proxy?, proxyAuth: String?) : Downloader() {
+private class NewPipeDownloaderImpl : Downloader() {
 
     private val client = OkHttpClient.Builder()
         .dns(ResilientDns())
-        .proxy(proxy)
-        .proxyAuthenticator { _, response ->
-            proxyAuth?.let { auth ->
-                response.request.newBuilder()
-                    .header("Proxy-Authorization", auth)
-                    .build()
-            } ?: response.request
-        }
         .build()
 
     @Throws(IOException::class, ReCaptchaException::class)
@@ -73,7 +64,7 @@ private class NewPipeDownloaderImpl(proxy: Proxy?, proxyAuth: String?) : Downloa
 object NewPipeUtils {
 
     init {
-        NewPipe.init(NewPipeDownloaderImpl(YouTube.proxy, YouTube.proxyAuth))
+        NewPipe.init(NewPipeDownloaderImpl())
     }
 
     fun getSignatureTimestamp(videoId: String): Result<Int> = runCatching {
