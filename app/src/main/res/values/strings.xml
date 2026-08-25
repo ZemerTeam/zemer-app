@@ -258,8 +258,6 @@
     <string name="report_failure">Failed to send report.</string>
     <string name="report_choose_reason">Please select a reason.</string>
 
-    <string name="content_language">Default content language</string>
-    <string name="content_country">Default content country</string>
     <string name="system_default">System default</string>
 
     <string name="player_and_audio">Player and audio</string>
@@ -322,7 +320,6 @@
     <string name="allow_female_singers">Allow female singers</string>
     <string name="block_videos">Block videos</string>
     <string name="enable_personal_filters">Enable personal feed filters</string>
-    <string name="i_am_chasidish">Promote chassidish content</string>
     <string name="radio_mode">Radio mode</string>
 
     <!-- D-pad Button Mapper -->

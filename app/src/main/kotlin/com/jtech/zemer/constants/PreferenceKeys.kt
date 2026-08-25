@@ -74,8 +74,6 @@ enum class SliderStyle {
 
 const val SYSTEM_DEFAULT = "SYSTEM_DEFAULT"
 val AppLanguageKey = stringPreferencesKey("appLanguage")
-val ContentLanguageKey = stringPreferencesKey("contentLanguage")
-val ContentCountryKey = stringPreferencesKey("contentCountry")
 val EnableLrcLibKey = booleanPreferencesKey("enableLrclib")
 val YtmSyncKey = booleanPreferencesKey("ytmSync")
 // Persisted snapshot of the server's blockedContentIds list (newline-joined), loaded at startup so the
@@ -177,7 +175,6 @@ val QuickPicksKey = stringPreferencesKey("discover")
 val QueueEditLockKey = booleanPreferencesKey("queueEditLock")
 val AllowFemaleSingersKey = booleanPreferencesKey("allowFemaleSingers")
 val FemalePasscodeHashKey = stringPreferencesKey("femalePasscodeHash")
-val AllowChasidishKey = booleanPreferencesKey("allowChasidish")
 val BlockVideosKey = booleanPreferencesKey("blockVideos")
 val BlockPodcastsKey = booleanPreferencesKey("blockPodcasts")
 // One-time seed guard: on first run after podcast-blocking shipped, blockPodcasts is seeded from
