@@ -962,9 +962,8 @@ fun EpisodeListItem(
 ) {
     // For an in-progress (not finished, not just-started) episode, show how much time is left.
     val durationMs = episode.duration?.times(1000L)
-    val timeLeft = resumePositionMs
-        ?.takeIf { com.jtech.zemer.playback.EpisodeResume.shouldResume(it, durationMs) }
-        ?.let { pos -> durationMs?.let { d -> makeTimeString((d - pos).coerceAtLeast(0)) } }
+    val timeLeft = com.jtech.zemer.playback.EpisodeResume.timeLeftMs(resumePositionMs, durationMs)
+        ?.let { makeTimeString(it) }
     ListItem(
         title = episode.title,
         titleMarquee = true,
