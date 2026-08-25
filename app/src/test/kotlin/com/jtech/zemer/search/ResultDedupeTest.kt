@@ -17,7 +17,7 @@ class ResultDedupeTest {
 
     private fun song(id: String, title: String = "T") =
         SongItem(id = id, title = title, artists = listOf(Artist(name = "A", id = null)), album = null,
-            duration = null, thumbnail = "", explicit = false, isVideo = false)
+            duration = null, thumbnail = "", isVideo = false)
 
     private fun video(id: String, title: String = "T") = song(id, title).copy(isVideo = true)
 

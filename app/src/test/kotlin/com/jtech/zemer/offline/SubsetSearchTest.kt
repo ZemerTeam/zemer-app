@@ -68,7 +68,7 @@ class SubsetSearchTest {
     private val kids = SubArtist("a_kids", "KidZone Singers", null, isFemale = false, isChasid = false, isKidZone = true)
 
     private fun track(videoId: String, title: String, artistId: String, isVideo: Boolean = false) =
-        SubTrack(videoId, title, artistId, isVideo = isVideo, explicit = false, durationSec = 100, playCount = null, uploadDate = null)
+        SubTrack(videoId, title, artistId, isVideo = isVideo, durationSec = 100, playCount = null, uploadDate = null)
 
     private fun album(id: String, title: String, type: String) =
         SubAlbum(id, playlistId = null, title = title, artistId = "a_miami", type = type, year = 2020, thumbnail = null, uploadDate = null)

@@ -82,7 +82,6 @@ import com.jtech.zemer.LocalPlayerConnection
 import com.jtech.zemer.R
 import com.jtech.zemer.constants.AppBarHeight
 import com.jtech.zemer.constants.BlockVideosKey
-import com.jtech.zemer.constants.HideExplicitKey
 import com.jtech.zemer.db.entities.ArtistEntity
 import com.jtech.zemer.extensions.toMediaItem
 import com.jtech.zemer.extensions.copyToClipboard
@@ -155,7 +154,6 @@ fun ArtistScreen(
     val libraryArtistEntity by viewModel.libraryArtistEntity.collectAsState()
     val librarySongs by viewModel.librarySongs.collectAsState()
     val libraryAlbums by viewModel.libraryAlbums.collectAsState()
-    val hideExplicit by rememberPreference(key = HideExplicitKey, defaultValue = false)
     val (blockVideos, _) = rememberPreference(BlockVideosKey, false)
     // With video imagery blocked, a video section keeps the same grid but is retitled "Video songs"
     // (every tile plays audio-first either way; video is the in-player toggle, gated on the filter).
@@ -531,13 +529,8 @@ fun ArtistScreen(
                             )
                         }
 
-                        val filteredLibrarySongs = if (hideExplicit) {
-                            librarySongs.filter { !it.song.explicit }
-                        } else {
-                            librarySongs
-                        }
                         itemsIndexed(
-                            items = filteredLibrarySongs,
+                            items = librarySongs,
                             key = { index, item -> "local_song_${item.id}_$index" }
                         ) { index, song ->
                             SongListItem(
@@ -606,17 +599,12 @@ fun ArtistScreen(
                         }
 
                         item(key = "local_albums_list") {
-                            val filteredLibraryAlbums = if (hideExplicit) {
-                                libraryAlbums.filter { !it.album.explicit }
-                            } else {
-                                libraryAlbums
-                            }
                             LazyRow(
                                 contentPadding = WindowInsets.systemBars.only(WindowInsetsSides.Horizontal).asPaddingValues(),
                             ) {
                                 items(
-                                    items = filteredLibraryAlbums,
-                                    key = { "local_album_${it.id}_${filteredLibraryAlbums.indexOf(it)}" }
+                                    items = libraryAlbums,
+                                    key = { "local_album_${it.id}_${libraryAlbums.indexOf(it)}" }
                                 ) { album ->
                                     AlbumGridItem(
                                         album = album,

@@ -43,7 +43,6 @@ import com.jtech.zemer.LocalPlayerConnection
 import com.jtech.zemer.R
 import com.jtech.zemer.constants.CONTENT_TYPE_HEADER
 import com.jtech.zemer.constants.CONTENT_TYPE_SONG
-import com.jtech.zemer.constants.HideExplicitKey
 import com.jtech.zemer.constants.SongFilter
 import com.jtech.zemer.constants.SongFilterKey
 import com.jtech.zemer.constants.SongSortDescendingKey
@@ -91,7 +90,6 @@ fun LibrarySongsScreen(
     val (sortDescending, onSortDescendingChange) = rememberPreference(SongSortDescendingKey, true)
 
     val (ytmSync) = rememberPreference(YtmSyncKey, true)
-    val hideExplicit by rememberPreference(key = HideExplicitKey, defaultValue = false)
 
     val songs by viewModel.allSongs.collectAsState()
 
@@ -233,13 +231,8 @@ fun LibrarySongsScreen(
                 }
             }
 
-            val filteredSongs = if (hideExplicit) {
-                wrappedSongs.filter { !it.item.song.explicit }
-            } else {
-                wrappedSongs
-            }
             itemsIndexed(
-                items = filteredSongs,
+                items = wrappedSongs,
                 key = { _, item -> item.item.song.id },
                 contentType = { _, _ -> CONTENT_TYPE_SONG },
             ) { index, songWrapper ->

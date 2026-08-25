@@ -113,7 +113,6 @@ object SubsetDecoder {
             title = r[1].asString(),
             artistId = r[2].asString(),
             isVideo = flags and 1 != 0,
-            explicit = flags and 2 != 0,
             durationSec = r[4].asIntOrNull(),
             playCount = r[5].asLongOrNull(),
             uploadDate = r[6].asStringOrNull(),

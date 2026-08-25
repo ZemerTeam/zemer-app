@@ -6,11 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.metrolist.innertube.YouTube
 import com.metrolist.innertube.models.SongItem
 import com.metrolist.innertube.models.AlbumItem
-import com.metrolist.innertube.models.filterExplicit
-import com.jtech.zemer.constants.HideExplicitKey
 import com.jtech.zemer.db.MusicDatabase
-import com.jtech.zemer.utils.dataStore
-import com.jtech.zemer.utils.getSuspend
 import com.jtech.zemer.utils.filterWhitelisted
 import com.jtech.zemer.utils.reportException
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -38,13 +34,11 @@ constructor(
     private suspend fun loadInternal() {
         isLoading.value = true
         error.value = null
-        val hideExplicit = context.dataStore.getSuspend(HideExplicitKey, false)
         runCatching {
             YouTube.browse(browseId = "FEmusic_new_releases", params = null).getOrNull()
         }.onSuccess { browseResult ->
             if (browseResult != null) {
-                val filtered = browseResult.filterExplicit(hideExplicit)
-                val allItems = filtered.items.flatMap { it.items }.filterWhitelisted(database)
+                val allItems = browseResult.items.flatMap { it.items }.filterWhitelisted(database)
                 _newReleaseAlbums.value = allItems.filterIsInstance<AlbumItem>()
                 _newReleaseSongs.value = allItems.filterIsInstance<SongItem>()
             } else {
@@ -87,7 +81,6 @@ constructor(
                                     } ?: Int.MAX_VALUE
                                 firstArtistKey
                             }
-                            .filterExplicit(hideExplicit)
                             .filterWhitelisted(database)
                             .filterIsInstance<AlbumItem>()
                 }.onFailure {

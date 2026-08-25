@@ -802,7 +802,6 @@ class SyncUtils @Inject constructor(
                                     title = mediaMetadata.title,
                                     duration = mediaMetadata.duration,
                                     thumbnailUrl = mediaMetadata.thumbnailUrl,
-                                    explicit = mediaMetadata.explicit,
                                     albumId = mediaMetadata.album?.id,
                                     albumName = mediaMetadata.album?.title
                                 )

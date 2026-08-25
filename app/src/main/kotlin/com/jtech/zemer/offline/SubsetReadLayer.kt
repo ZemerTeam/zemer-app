@@ -170,7 +170,6 @@ fun offlineAlbum(
             videoId = t.videoId,
             title = t.title,
             artist = trackArtist?.name ?: "",
-            explicit = t.explicit,
             durationSec = t.durationSec,
             trackNumber = at.pos + 1,
         )
@@ -228,7 +227,6 @@ fun offlineArtist(
         videoId = t.videoId,
         title = t.title,
         artist = a.name,
-        explicit = t.explicit,
         durationSec = t.durationSec,
     )
 
@@ -275,7 +273,7 @@ fun offlineHomeRows(
     fun ranked(row: String) = corpus.homeRankByRow[row].orEmpty()
 
     // top-albums → ZemerAlbum(+artistId). Gate by the album's primary artist; require it still exists;
-    // drop id-blocked ref/artist. (explicit is emitted by the server but not modeled by ZemerAlbum.)
+    // drop id-blocked ref/artist.
     val topAlbums = ranked("top-albums").mapNotNull { corpus.albumsById[it.refId] }
         .filter { al ->
             val artist = corpus.artistsById[al.artistId]
@@ -298,7 +296,7 @@ fun offlineHomeRows(
         }
         // realVideo left at its default false: the snapshot has no CLIP classifier, so no video is flagged
         // real -> the ViewModel's empty-pool fallback shows the whole set in the hero (no special-case here).
-        .map { ZemerTrack(videoId = it.videoId, title = it.title, artist = corpus.artistsById[it.artistId]?.name ?: "", artistId = it.artistId, explicit = it.explicit, durationSec = it.durationSec) }
+        .map { ZemerTrack(videoId = it.videoId, title = it.title, artist = corpus.artistsById[it.artistId]?.name ?: "", artistId = it.artistId, durationSec = it.durationSec) }
 
     // top-artists → ZemerArtist. Gate by the artist's own flags + id-override; no _female cross-credit.
     val topArtists = ranked("top-artists").mapNotNull { corpus.artistsById[it.refId] }
@@ -530,7 +528,6 @@ private fun zemerPlaylistTracks(
                 videoId = t.videoId,
                 title = t.title,
                 artist = artist?.name ?: "",
-                explicit = t.explicit,
                 durationSec = t.durationSec,
                 fromAlbum = fromAlbum,
             ),

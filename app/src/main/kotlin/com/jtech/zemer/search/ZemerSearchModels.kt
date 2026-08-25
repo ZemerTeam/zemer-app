@@ -75,7 +75,6 @@ data class ZemerTrack(
     // The track's album {id (browseId), name}, when the server links it — powers the song menu's
     // "View album". Null for standalone singles / videos (no album in the corpus).
     val album: ZemerTrackAlbum? = null,
-    val explicit: Boolean = false,
     // `/album` tracks only; absent (null) on the search categories.
     val durationSec: Int? = null,
     val trackNumber: Int? = null,
@@ -92,7 +91,7 @@ data class ZemerTrack(
     // different arrows to different users for the same chart. See [chartMovementOf].
     /**
      * 1-based position on the RAW, UNFILTERED chart — not this list's row index, which is filtered
-     * both server-side (the content flags we send) and client-side (explicit filter, chip). Present
+     * both server-side (the content flags we send) and client-side (chip). Present
      * whenever the chart has a stored ordering, INDEPENDENTLY of the rank history: a position is
      * knowable in cases the movement is not, so this is the test for "is this a ranked chart",
      * never [ZemerCuratedPlaylist.anchorDate], which is absent during a post-formula-change blackout
@@ -162,7 +161,7 @@ data class ZemerPlaylist(
  * by real distinct-device listening over a 30-day live window (contract: `handoff-docs/home-rows-plan.md`).
  * Every list is already whitelist-scoped and content-filtered (female / blocked-ids / kidZone) server-side
  * for the flags sent, so the app does NOT re-run the artist-membership whitelist; it re-applies only the
- * client-owned checks as defence-in-depth (female/israeli via [ZemerTrack.artistId], `hideExplicit`).
+ * client-owned checks as defence-in-depth (female/israeli via [ZemerTrack.artistId]).
  *
  * [topCommunity] stays empty until the app tags `community:<playlistId>` playback; the lenient parser
  * ([zemerResponseJson]) tolerates the key being absent on older servers.

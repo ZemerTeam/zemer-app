@@ -33,8 +33,7 @@ import javax.inject.Singleton
  * The decoded corpus is cached behind a [SoftReference] — warm across repeated offline reads, but never
  * pinning heap the app needs elsewhere (the snapshot is tens of MB in memory). It is reloaded when the
  * on-disk manifest version changes (a sync landed) or the GC reclaimed it. All flags mirror the client:
- * `kidZone` is always false (the client sends `kidZone=0` for these surfaces) and `hideExplicit` is
- * applied by the shared mapper afterwards, not here.
+ * `kidZone` is always false (the client sends `kidZone=0` for these surfaces).
  *
  * The endpoints that are NOT reproducible offline — `/playlist` (live YouTube) and `/radio` (needs the
  * co-occurrence graph, not shipped) — have no method here; the repository leaves those server-only.

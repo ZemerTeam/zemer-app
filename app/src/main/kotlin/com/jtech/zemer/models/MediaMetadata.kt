@@ -19,7 +19,6 @@ data class MediaMetadata(
     val thumbnailUrl: String? = null,
     val album: Album? = null,
     val setVideoId: String? = null,
-    val explicit: Boolean = false,
     val liked: Boolean = false,
     val likedDate: LocalDateTime? = null,
     val inLibrary: LocalDateTime? = null,
@@ -46,7 +45,6 @@ data class MediaMetadata(
             thumbnailUrl = thumbnailUrl,
             albumId = album?.id,
             albumName = album?.title,
-            explicit = explicit,
             liked = liked,
             likedDate = likedDate,
             inLibrary = inLibrary,
@@ -110,7 +108,6 @@ fun SongItem.toMediaMetadata(): MediaMetadata {
                 title = it.name,
             )
         },
-        explicit = explicit,
         setVideoId = setVideoId,
         libraryAddToken = libraryAddToken,
         libraryRemoveToken = libraryRemoveToken,
@@ -136,7 +133,6 @@ fun EpisodeItem.toMediaMetadata() =
                 title = it.name,
             )
         },
-        explicit = explicit,
         libraryAddToken = libraryAddToken,
         libraryRemoveToken = libraryRemoveToken,
         isEpisode = true
