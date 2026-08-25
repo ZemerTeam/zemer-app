@@ -84,6 +84,7 @@ import com.jtech.zemer.ui.component.MoreVertMenuButton
 import com.jtech.zemer.ui.component.SelectionActions
 import com.jtech.zemer.ui.component.SongListItem
 import com.jtech.zemer.ui.component.SortHeader
+import com.jtech.zemer.ui.component.songSortTypeLabel
 import com.jtech.zemer.ui.component.zemerTopAppBarColors
 import com.jtech.zemer.ui.menu.SelectionSongMenu
 import com.jtech.zemer.ui.menu.SongMenu
@@ -299,14 +300,7 @@ fun DownloadedVideosScreen(
                                 sortDescending = sortDescending,
                                 onSortTypeChange = onSortTypeChange,
                                 onSortDescendingChange = onSortDescendingChange,
-                                sortTypeText = { sortType ->
-                                    when (sortType) {
-                                        SongSortType.CREATE_DATE -> R.string.sort_by_create_date
-                                        SongSortType.NAME -> R.string.sort_by_name
-                                        SongSortType.ARTIST -> R.string.sort_by_artist
-                                        SongSortType.PLAY_TIME -> R.string.sort_by_play_time
-                                    }
-                                },
+                                sortTypeText = ::songSortTypeLabel,
                                 modifier = Modifier.weight(1f),
                             )
                         }

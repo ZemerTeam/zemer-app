@@ -48,7 +48,6 @@ import com.jtech.zemer.constants.CONTENT_TYPE_PLAYLIST
 import com.jtech.zemer.constants.GridItemSize
 import com.jtech.zemer.constants.GridItemsSizeKey
 import com.jtech.zemer.constants.GridThumbnailHeight
-import com.jtech.zemer.constants.InnerTubeCookieKey
 import com.jtech.zemer.constants.LibraryViewType
 import com.jtech.zemer.constants.PlaylistSortDescendingKey
 import com.jtech.zemer.constants.PlaylistSortType
@@ -73,7 +72,6 @@ import com.jtech.zemer.utils.rememberEnumPreference
 import com.jtech.zemer.utils.rememberPreference
 import com.jtech.zemer.viewmodels.LibraryAutoPlaylistViewModel
 import com.jtech.zemer.viewmodels.LibraryPlaylistsViewModel
-import com.metrolist.innertube.utils.parseCookieString
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -177,11 +175,6 @@ fun LibraryPlaylistsScreen(
     val backStackEntry by navController.currentBackStackEntryAsState()
     val scrollToTop =
         backStackEntry?.savedStateHandle?.getStateFlow("scrollToTop", false)?.collectAsState()
-
-    val (innerTubeCookie) = rememberPreference(InnerTubeCookieKey, "")
-    remember(innerTubeCookie) {
-        "SAPISID" in parseCookieString(innerTubeCookie)
-    }
 
     val (ytmSync) = rememberPreference(YtmSyncKey, true)
 

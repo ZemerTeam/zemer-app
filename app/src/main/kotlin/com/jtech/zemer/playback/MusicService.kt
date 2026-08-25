@@ -111,6 +111,7 @@ import com.jtech.zemer.di.PlayerCache
 import com.jtech.zemer.extensions.SilentHandler
 import com.jtech.zemer.extensions.collect
 import com.jtech.zemer.extensions.collectLatest
+import com.jtech.zemer.extensions.cookieHasSession
 import com.jtech.zemer.extensions.currentMetadata
 import com.jtech.zemer.extensions.findNextMediaItemById
 import com.jtech.zemer.extensions.mediaItems
@@ -151,7 +152,6 @@ import com.jtech.zemer.utils.enumPreference
 import com.jtech.zemer.utils.enumPreferenceFlow
 import com.jtech.zemer.utils.get
 import com.jtech.zemer.utils.reportException
-import com.metrolist.innertube.utils.parseCookieString
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -724,7 +724,7 @@ class MusicService :
                     songMimeCache.clear()
 
                     // Log authentication state change for debugging
-                    val isLoggedIn = cookie != null && "SAPISID" in parseCookieString(cookie ?: "")
+                    val isLoggedIn = cookie.cookieHasSession()
                     android.util.Log.d("MusicService", "Auth state changed: isLoggedIn=$isLoggedIn")
                 }
         }
@@ -2284,7 +2284,7 @@ class MusicService :
 
             // Validate current authentication state before fetching stream
             val currentAuthCookie = YouTube.cookie
-            val isLoggedIn = currentAuthCookie != null && "SAPISID" in parseCookieString(currentAuthCookie)
+            val isLoggedIn = currentAuthCookie.cookieHasSession()
 
             val playbackData = runBlocking(Dispatchers.IO) {
                 YTPlayerUtils.playerResponseForPlayback(

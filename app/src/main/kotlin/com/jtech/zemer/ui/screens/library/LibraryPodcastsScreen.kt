@@ -78,6 +78,7 @@ import com.jtech.zemer.ui.component.Material3MenuItemData
 import com.jtech.zemer.ui.component.MoreVertMenuButton
 import com.jtech.zemer.ui.component.SongListItem
 import com.jtech.zemer.ui.component.SortHeader
+import com.jtech.zemer.ui.component.songSortTypeLabel
 import com.jtech.zemer.ui.menu.SongMenu
 import com.jtech.zemer.ui.utils.navigateToArtist
 import com.jtech.zemer.ui.utils.navigateToPodcast
@@ -335,14 +336,7 @@ fun LibraryPodcastsScreen(
                                 sortDescending = sortDescending,
                                 onSortTypeChange = onSortTypeChange,
                                 onSortDescendingChange = onSortDescendingChange,
-                                sortTypeText = { st ->
-                                    when (st) {
-                                        SongSortType.CREATE_DATE -> R.string.sort_by_create_date
-                                        SongSortType.NAME -> R.string.sort_by_name
-                                        SongSortType.ARTIST -> R.string.sort_by_artist
-                                        SongSortType.PLAY_TIME -> R.string.sort_by_play_time
-                                    }
-                                },
+                                sortTypeText = ::songSortTypeLabel,
                             )
                             Spacer(Modifier.weight(1f))
                             Text(

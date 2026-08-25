@@ -19,7 +19,6 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarScrollBehavior
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -39,7 +38,7 @@ import com.jtech.zemer.LocalDatabase
 import com.jtech.zemer.LocalPlayerAwareWindowInsets
 import com.jtech.zemer.R
 import com.jtech.zemer.ui.component.AppBarTitle
-import com.jtech.zemer.ui.component.BackNavigationIcon
+import com.jtech.zemer.ui.component.BackTopAppBar
 import com.jtech.zemer.ui.component.DefaultDialog
 import com.jtech.zemer.constants.AndroidAutoSectionsOrderKey
 import com.jtech.zemer.constants.AndroidAutoTargetPlaylistKey
@@ -48,7 +47,6 @@ import com.jtech.zemer.ui.component.PreferenceEntry
 import com.jtech.zemer.ui.component.PreferenceGroupTitle
 import com.jtech.zemer.ui.component.SettingsCardGroup
 import com.jtech.zemer.ui.component.focusBorder
-import com.jtech.zemer.ui.component.zemerTopAppBarColors
 import com.jtech.zemer.utils.rememberPreference
 import kotlinx.coroutines.flow.map
 import sh.calvin.reorderable.ReorderableItem
@@ -264,10 +262,9 @@ fun AndroidAutoSettings(
         )
     }
 
-    TopAppBar(
+    BackTopAppBar(
         title = { AppBarTitle(stringResource(R.string.android_auto)) },
-        navigationIcon = { BackNavigationIcon(navController) },
+        navController = navController,
         scrollBehavior = scrollBehavior,
-        colors = zemerTopAppBarColors(),
     )
 }

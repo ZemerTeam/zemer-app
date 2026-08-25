@@ -169,6 +169,7 @@ import coil3.toBitmap
 import com.google.firebase.auth.FirebaseAuth
 import com.jtech.zemer.constants.AppBarHeight
 import com.jtech.zemer.constants.HomeContentTabKey
+import com.jtech.zemer.extensions.cookieHasSession
 import com.jtech.zemer.extensions.toEnum
 import com.jtech.zemer.ui.screens.HomeContentTab
 import com.jtech.zemer.ui.screens.effectiveHomeTab
@@ -878,7 +879,7 @@ class MainActivity : ComponentActivity() {
                         val (innerTubeCookie) = rememberPreference(InnerTubeCookieKey, defaultValue = "")
                         val (storedVisitorData) = rememberPreference(VisitorDataKey, defaultValue = "")
                         val isLoggedIn = remember(innerTubeCookie) {
-                            parseCookieString(innerTubeCookie).containsKey("SAPISID")
+                            innerTubeCookie.cookieHasSession()
                         }
                         val hasVisitorToken = remember(storedVisitorData) {
                             storedVisitorData.startsWith("Cg")

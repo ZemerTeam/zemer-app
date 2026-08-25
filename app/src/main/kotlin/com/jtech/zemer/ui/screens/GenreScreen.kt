@@ -67,6 +67,7 @@ import com.jtech.zemer.tracking.TrackImpressionsByKey
 import com.jtech.zemer.tracking.TrackingSurface
 import com.jtech.zemer.ui.component.AppBarTitle
 import com.jtech.zemer.ui.component.BackNavigationIcon
+import com.jtech.zemer.ui.component.ErrorRetryState
 import com.jtech.zemer.ui.component.LocalMenuState
 import com.jtech.zemer.ui.component.MenuState
 import com.jtech.zemer.ui.component.MoreVertMenuButton
@@ -332,22 +333,7 @@ fun GenreScreen(
             }
 
             UiState.Error -> item(key = "error_state") {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(32.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                ) {
-                    Text(
-                        text = stringResource(R.string.error_unknown),
-                        style = MaterialTheme.typography.titleLarge,
-                        color = MaterialTheme.colorScheme.error,
-                    )
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Button(onClick = viewModel::load) {
-                        Text(stringResource(R.string.retry))
-                    }
-                }
+                ErrorRetryState(onRetry = viewModel::load)
             }
         }
     }
