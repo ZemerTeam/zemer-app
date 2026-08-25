@@ -72,7 +72,8 @@ import com.jtech.zemer.constants.ChipSortTypeKey
 import com.jtech.zemer.constants.CropAlbumArtKey
 import com.jtech.zemer.constants.CustomDensityScaleKey
 import com.jtech.zemer.constants.DarkModeKey
-import com.jtech.zemer.constants.EnableHighRefreshRateKey
+import com.jtech.zemer.constants.RefreshRateMode
+import com.jtech.zemer.constants.RefreshRateModeKey
 import com.jtech.zemer.constants.DefaultOpenTabKey
 import com.jtech.zemer.constants.DensityScale
 import com.jtech.zemer.constants.DensityScaleKey
@@ -150,9 +151,9 @@ fun AppearanceSettings(
             .roundToInt().coerceAtLeast(0)
         appearanceScrollState.animateScrollTo(target)
     }
-    val (enableHighRefreshRate, onEnableHighRefreshRateChange) = rememberPreference(
-        EnableHighRefreshRateKey,
-        defaultValue = true,
+    val (refreshRateMode, onRefreshRateModeChange) = rememberEnumPreference(
+        RefreshRateModeKey,
+        defaultValue = RefreshRateMode.SYSTEM,
     )
     val (floatingMiniPlayerEnabled, onFloatingMiniPlayerEnabledChange) = rememberPreference(
         FloatingMiniPlayerKey,
@@ -472,12 +473,12 @@ fun AppearanceSettings(
             title = stringResource(R.string.theme),
             rows = listOfNotNull(
                 {
-                    SwitchPreference(
-                        title = { Text(stringResource(R.string.enable_high_refresh_rate)) },
-                        description = stringResource(R.string.enable_high_refresh_rate_desc),
+                    EnumListPreference(
+                        title = { Text(stringResource(R.string.refresh_rate)) },
                         icon = { Icon(painterResource(R.drawable.speed), null) },
-                        checked = enableHighRefreshRate,
-                        onCheckedChange = onEnableHighRefreshRateChange,
+                        selectedValue = refreshRateMode,
+                        onValueSelected = onRefreshRateModeChange,
+                        valueText = { stringResource(it.labelRes) },
                     )
                 },
                 {

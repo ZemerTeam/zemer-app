@@ -23,7 +23,12 @@ val PlaybackModeKey = stringPreferencesKey("playbackMode")
 val RelayDeviceIdKey = stringPreferencesKey("relayDeviceId")
 
 val DynamicThemeKey = booleanPreferencesKey("dynamicTheme")
+// Legacy boolean high-refresh toggle. Superseded by [RefreshRateModeKey]; kept declared only so the
+// one-time migration can read whether a user had explicitly turned it off. Do not read it elsewhere.
 val EnableHighRefreshRateKey = booleanPreferencesKey("enableHighRefreshRate")
+// Display refresh-rate policy: SYSTEM (no forced rate, adaptive - the default), STANDARD (~60Hz), or
+// HIGH (force the highest rate at the current resolution). Read via [RefreshRateMode].
+val RefreshRateModeKey = stringPreferencesKey("refreshRateMode")
 val SelectedThemeColorKey = intPreferencesKey("selectedThemeColor")
 val DarkModeKey = stringPreferencesKey("darkMode")
 val PureBlackKey = booleanPreferencesKey("pureBlack")
@@ -70,6 +75,15 @@ enum class SliderStyle {
     DEFAULT,
     SQUIGGLY,
     SLIM,
+}
+
+// Display refresh-rate policy (see RefreshRateSelection). SYSTEM leaves the rate unforced so the OS
+// runs adaptive refresh (high while interacting, low when idle) and is the default; STANDARD pins
+// ~60Hz for battery; HIGH forces the highest rate at the current resolution.
+enum class RefreshRateMode(@StringRes val labelRes: Int) {
+    SYSTEM(R.string.refresh_rate_system),
+    STANDARD(R.string.refresh_rate_standard),
+    HIGH(R.string.refresh_rate_high),
 }
 
 const val SYSTEM_DEFAULT = "SYSTEM_DEFAULT"
