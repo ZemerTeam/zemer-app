@@ -110,9 +110,6 @@ data class MiniPlayerFocusTargets(
     val down: FocusRequester?
 )
 
-private fun Modifier.disableTvFocus(): Modifier =
-    this.focusable(false).focusProperties { canFocus = false }
-
 @SuppressLint("ConfigurationScreenWidthHeight")
 @Composable
 fun MiniPlayer(

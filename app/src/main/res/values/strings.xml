@@ -23,8 +23,6 @@
 
     <!-- Home -->
     <string name="history">History</string>
-    <string name="stats">Stats</string>
-    <string name="mood_and_genres">Mood and Genres</string>
     <string name="account">Account</string>
     <string name="quick_picks">Quick picks</string>
     <string name="forgotten_favorites">Forgotten favorites</string>
@@ -37,7 +35,6 @@
     <string name="last_week">Last week</string>
 
     <!-- Stats -->
-    <string name="most_played_songs">Most played songs</string>
 
     <!-- Search -->
     <string name="search">Search</string>
@@ -408,10 +405,6 @@
     <string name="new_release_title">Recent releases</string>
     <string name="new_release_songs_title">Latest singles</string>
     <string name="new_release_albums_title">Latest albums</string>
-    <string name="mood_and_genres_error_title">Could not load moods &amp; genres</string>
-    <string name="mood_and_genres_empty_title">No moods &amp; genres found</string>
-    <string name="mood_and_genres_empty_subtitle">Try refreshing to pull fresh categories.</string>
-    <string name="mood_and_genres_retry">Retry</string>
     <string name="search_error_title">Search is having trouble</string>
     <string name="search_empty_title">No results</string>
     <string name="search_retry">Search again</string>

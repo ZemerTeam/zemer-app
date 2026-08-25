@@ -27,18 +27,12 @@
 | `kid_zone` | `KidZoneScreen` |
 | `library` | `LibraryScreen` |
 | `history` | `HistoryScreen` |
-| `stats` | `StatsScreen` |
-| `mood_and_genres` | `MoodAndGenresScreen` |
-| `account` | `AccountScreen` |
 | `new_release` | `NewReleaseScreen` |
-| `browse/{browseId}` | `BrowseScreen` |
 | `search/{query}?filter={filter}` | `OnlineSearchResult` |
 | `album/{albumId}` | `AlbumScreen` |
 | `artist/{artistId}` | `ArtistScreen` |
 | `artist/{artistId}/songs` | `ArtistSongsScreen` |
 | `artist/{artistId}/albums` | `ArtistAlbumsScreen` |
-| `artist/{artistId}/items?browseId={browseId}?params={params}` | `ArtistItemsScreen` |
-| `video/{videoId}?title={title}&artist={artist}` | `VideoPlayerScreen` |
 | `online_playlist/{playlistId}` | `OnlinePlaylistScreen` |
 | `local_playlist/{playlistId}` | `LocalPlaylistScreen` |
 | `auto_playlist/{playlist}` | `AutoPlaylistScreen` |
@@ -46,7 +40,6 @@
 | `downloaded_content` | `DownloadedContentScreen` |
 | `downloaded_videos` | `DownloadedVideosScreen` |
 | `top_playlist/{top}` | `TopPlaylistScreen` |
-| `youtube_browse/{browseId}?params={params}` | `YouTubeBrowseScreen` |
 | `settings` | `SettingsScreen` |
 | `settings/appearance` | `AppearanceSettings` |
 | `settings/content` | `ContentSettings` |
@@ -66,15 +59,15 @@
 
 | Group | Files | Observable responsibility |
 | --- | --- | --- |
-| Root screens | `AccountScreen`, `AlbumScreen`, `HistoryScreen`, `HomeScreen`, `KidZoneScreen`, `LoginGateScreen`, `LoginScreen`, `NewReleaseScreen`, `OnboardingScreen`, `SplashScreen`, `StatsScreen`, `WhitelistedArtistsScreen` | Top-level and feature screens wired from navigation or startup/auth flows. |
+| Root screens | `AlbumScreen`, `HistoryScreen`, `HomeScreen`, `KidZoneScreen`, `LoginGateScreen`, `LoginScreen`, `NewReleaseScreen`, `OnboardingScreen`, `SplashScreen`, `WhitelistedArtistsScreen` | Top-level and feature screens wired from navigation or startup/auth flows. |
 | Onboarding screens | `OnboardingSearchBackupScreen`, `OnboardingChoiceCard` (`screens/onboarding/`) | The search-backup onboarding step and the shared radio-choice card every onboarding step uses. |
 | Stations screens | `ZemerStationsScreen` | The "Zemer Radio" See-all grid of live broadcast stations. |
-| Artist screens | `ArtistScreen`, `ArtistSongsScreen`, `ArtistAlbumsScreen`, `ArtistItemsScreen`, `ArtistSectionScreen` | Artist detail, song, album, extra item, and Zemer per-section see-all views. |
+| Artist screens | `ArtistScreen`, `ArtistSongsScreen`, `ArtistAlbumsScreen`, `ArtistSectionScreen` | Artist detail, song, album, and Zemer per-section see-all views. |
 | Library screens | `LibraryScreen`, `LibrarySongsScreen`, `LibraryAlbumsScreen`, `LibraryArtistsScreen`, `LibraryPlaylistsScreen`, `LibraryMixScreen`, `LibraryVideosScreen` | Local/library tabs and media groupings. |
 | Playlist screens | `AutoPlaylistScreen`, `CachePlaylistScreen`, `DownloadedContentScreen`, `DownloadedVideosScreen`, `LocalPlaylistScreen`, `OnlinePlaylistScreen`, `TopPlaylistScreen` | Playlist, cache, downloaded, online, and ranked media views. |
 | Search screens | `OnlineSearchScreen`, `OnlineSearchResult` | Search suggestions and search result presentation. |
 | Settings screens | `SettingsScreen`, `AccountSettings`, `AppearanceSettings`, `BackupAndRestore`, `ButtonSetupScreen`, `ContentSettings`, `GeneralSettings`, `OfflineSearchSettings`, `PlayerSettings`, `PrivacySettings`, `StorageSettings`, `UpdaterSettings`, `integrations/IntegrationScreen` | Settings hub and individual settings/detail flows. |
-| Player UI | `player/*.kt`, `screens/player/VideoPlayerScreen.kt` | Now-playing surface, lyrics, queue, thumbnails, controls, and video playback screen. |
+| Player UI | `player/*.kt` | Now-playing surface, lyrics, queue, thumbnails, and controls. |
 | Reusable components | `component/*.kt`, `component/shimmer/*.kt`, `menu/*.kt`, `utils/*.kt` | Cards, list/grid rows, dialogs, menus, app bars, layout utilities, shimmer placeholders, and support components. |
 | Theme | `theme/*.kt` | Compose colors, typography/theme wrapper, slider colors, and dynamic color helpers. |
 
@@ -140,23 +133,17 @@
 | `app/src/main/kotlin/com/jtech/zemer/ui/player/Player.kt` | 1531 | BottomSheetPlayer |
 | `app/src/main/kotlin/com/jtech/zemer/ui/player/Queue.kt` | 1131 | Queue |
 | `app/src/main/kotlin/com/jtech/zemer/ui/player/Thumbnail.kt` | 472 | Thumbnail |
-| `app/src/main/kotlin/com/jtech/zemer/ui/screens/AccountScreen.kt` | 200 | AccountScreen |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/AlbumScreen.kt` | 723 | AlbumScreen |
-| `app/src/main/kotlin/com/jtech/zemer/ui/screens/BrowseScreen.kt` | 143 | BrowseScreen |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/HistoryScreen.kt` | 518 | HistoryScreen |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/HomeScreen.kt` | 1037 | HomeScreen |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/KidZoneScreen.kt` | 336 | KidZoneScreen |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/LoginGateScreen.kt` | 253 | LoginGateScreen |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/LoginScreen.kt` | 227 | LoginScreen |
-| `app/src/main/kotlin/com/jtech/zemer/ui/screens/MoodAndGenresScreen.kt` | 171 | MoodAndGenresScreen, MoodAndGenresButton |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/NewReleaseScreen.kt` | 254 | NewReleaseScreen |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/OnboardingScreen.kt` | 2077 | NetworkStatusBanner, OnboardingFlow, WelcomeScreen, DensityScreen, RestartDialog, CustomDensityDialog, ContentFiltersScreen, FilterOptionCard, PermissionsScreen, PermissionCard, LegalOverlay, LoadingScreen, DisposableLifecycle, DisposableEffectWithLifecycle, BottomNavSetupScreen |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/SplashScreen.kt` | 165 | SplashScreen |
-| `app/src/main/kotlin/com/jtech/zemer/ui/screens/StatsScreen.kt` | 426 | StatsScreen |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/WhitelistedArtistsScreen.kt` | 404 | WhitelistedArtistsScreen |
-| `app/src/main/kotlin/com/jtech/zemer/ui/screens/YouTubeBrowseScreen.kt` | 284 | YouTubeBrowseScreen |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/artist/ArtistAlbumsScreen.kt` | 157 | ArtistAlbumsScreen |
-| `app/src/main/kotlin/com/jtech/zemer/ui/screens/artist/ArtistItemsScreen.kt` | 329 | ArtistItemsScreen |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/artist/ArtistScreen.kt` | 858 | ArtistScreen |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/artist/ArtistSongsScreen.kt` | 211 | ArtistSongsScreen |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/library/LibraryAlbumsScreen.kt` | 324 | LibraryAlbumsScreen |
@@ -166,7 +153,6 @@
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/library/LibraryScreen.kt` | 87 | LibraryScreen |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/library/LibrarySongsScreen.kt` | 356 | LibrarySongsScreen |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/library/LibraryVideosScreen.kt` | 156 | LibraryVideosScreen |
-| `app/src/main/kotlin/com/jtech/zemer/ui/screens/player/VideoPlayerScreen.kt` | 1114 | VideoPlayerScreen, formatTime |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/playlist/AutoPlaylistScreen.kt` | 680 | AutoPlaylistScreen |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/playlist/CachePlaylistScreen.kt` | 490 | CachePlaylistScreen |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/playlist/DownloadedContentScreen.kt` | 182 | DownloadedContentScreen |
@@ -252,26 +238,19 @@
 | `app/src/main/kotlin/com/jtech/zemer/ui/player/Player.kt` | 1364 | fun BottomSheetPlayer, val context, val clipboardManager, val menuState, val bottomSheetPageState, val playerConnection, val floatingMiniPlayerEnabled, val playerBackground, val playerButtonsStyle, val isSystemInDarkTheme, val darkTheme, val useDarkTheme, val onBackgroundColor, val useBlackBackground |
 | `app/src/main/kotlin/com/jtech/zemer/ui/player/Queue.kt` | 1131 | fun Queue, val context, val haptic, val menuState, val bottomSheetPageState, val playerConnection, val isPlaying, val repeatMode, val currentWindowIndex, val mediaMetadata, val selectedSongs, val selectedItems, var selection, var locked |
 | `app/src/main/kotlin/com/jtech/zemer/ui/player/Thumbnail.kt` | 472 | fun Thumbnail, val playerConnection, val context, val mediaMetadata, val error, val queueTitle, val swipeThumbnail, val hidePlayerThumbnail, val canSkipPrevious, val canSkipNext, val playerBackground, val textBackgroundColor, val thumbnailLazyGridState, val timeline |
-| `app/src/main/kotlin/com/jtech/zemer/ui/screens/AccountScreen.kt` | 200 | fun AccountScreen, val menuState, val haptic, val coroutineScope, val playlists, val albums, val artists, val selectedContentType |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/AlbumScreen.kt` | 723 | fun AlbumScreen, val context, val menuState, val database, val haptic, val coroutineScope, val playerConnection, val isPlaying, val mediaMetadata, val playlistId, val albumWithSongs, val hideExplicit, val wrappedSongs, val filteredSongs |
-| `app/src/main/kotlin/com/jtech/zemer/ui/screens/BrowseScreen.kt` | 143 | fun BrowseScreen, val menuState, val playerConnection, val isPlaying, val title, val items, val coroutineScope |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/HistoryScreen.kt` | 518 | fun HistoryScreen, val context, val database, val menuState, val haptic, val playerConnection, val isPlaying, val mediaMetadata, var selection, var isSearching, var query, val focusRequester, val historySource, val historyPage |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/HomeScreen.kt` | 1037 | fun HomeScreen, val viewModel, val menuState, val database, val playerConnection, val haptic, val context, val isPlaying, val mediaMetadata, val homeUiState, val quickPicks, val featuredPlaylists, val trendingSongs, val forgottenFavorites |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/KidZoneScreen.kt` | 336 | fun KidZoneScreen, val menuState, var viewType, val firstFocus, val searchFocus, val firstArtistFocus, val artists, val searchQuery, val syncProgress, val isSyncing, val coroutineScope, var showSyncOverlay, val lazyListState, val lazyGridState |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/LoginGateScreen.kt` | 253 | fun LoginGateScreen, val context, val coroutineScope, var isAnonymousLoading, var visitorData, var dataSyncId, var innerTubeCookie, var accountName, var accountEmail, var accountChannelHandle, val gradient, val httpClient, val responseText, val json |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/LoginScreen.kt` | 227 | fun LoginScreen, val context, val coroutineScope, var visitorData, var dataSyncId, var innerTubeCookie, var accountName, var accountEmail, var accountChannelHandle, var hasCompletedLogin, var webView, val url, val blockedUrls, val intent |
-| `app/src/main/kotlin/com/jtech/zemer/ui/screens/MoodAndGenresScreen.kt` | 171 | fun MoodAndGenresScreen, val localConfiguration, val itemsPerRow, val moodAndGenresList, val isLoading, val error, fun MoodAndGenresButton, val MoodAndGenresButtonHeight |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/NavigationBuilder.kt` | 338 | fun NavGraphBuilder, val videoId, val title, val artist |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/NewReleaseScreen.kt` | 254 | fun NewReleaseScreen, val menuState, val haptic, val playerConnection, val database, val isPlaying, val mediaMetadata, val newReleaseAlbums, val newReleaseSongs, val isLoading, val error, val coroutineScope |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/OnboardingScreen.kt` | 2077 | class OnboardingStep, class LegalKind, fun NetworkStatusBanner, val context, var isConnected, var isChecking, val newConnectionState, fun OnboardingFlow, val context, val viewModel, val uiState, val densityAlreadySet, val prefs, val contentFiltersAlreadySet |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/Screens.kt` | 53 | class Screens, val route, object Home, object Artists, object KidZone, object Search, object Library, val MainScreens |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/SplashScreen.kt` | 165 | fun SplashScreen, var hasTappedSkip, val composition, val lottieColors, val loopingState |
-| `app/src/main/kotlin/com/jtech/zemer/ui/screens/StatsScreen.kt` | 426 | fun StatsScreen, val menuState, val database, val haptic, val playerConnection, val isPlaying, val mediaMetadata, val context, val indexChips, val mostPlayedSongs, val mostPlayedSongsStats, val mostPlayedArtists, val mostPlayedAlbums, val firstEvent |
-| `app/src/main/kotlin/com/jtech/zemer/ui/screens/VideoNavigation.kt` | 12 | fun videoRoute, val params, val query |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/WhitelistedArtistsScreen.kt` | 404 | fun WhitelistedArtistsScreen, val menuState, var viewType, val firstFocus, val searchFocus, val firstArtistFocus, val artists, val searchQuery, val syncProgress, val isSyncing, val coroutineScope, var showSyncOverlay, val lazyListState, val lazyGridState |
-| `app/src/main/kotlin/com/jtech/zemer/ui/screens/YouTubeBrowseScreen.kt` | 284 | fun YouTubeBrowseScreen, val menuState, val database, val haptic, val playerConnection, val isPlaying, val mediaMetadata, val browseResult, val coroutineScope, val horizontalLazyGridItemWidthFactor, val lazyGridState, val snapLayoutInfoProvider |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/artist/ArtistAlbumsScreen.kt` | 157 | fun ArtistAlbumsScreen, val menuState, val playerConnection, val isPlaying, val mediaMetadata, val artist, val albums, val coroutineScope, val lazyGridState, var inSelectMode, val selection, val onExitSelectionMode, val snackbarHostState |
-| `app/src/main/kotlin/com/jtech/zemer/ui/screens/artist/ArtistItemsScreen.kt` | 329 | fun ArtistItemsScreen, val menuState, val database, val haptic, val playerConnection, val isPlaying, val mediaMetadata, val lazyListState, val lazyGridState, val coroutineScope, val title, val itemsPage, val isVideoSection, val artistDisplay |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/artist/ArtistScreen.kt` | 858 | fun ArtistScreen, val context, val database, val menuState, val haptic, val coroutineScope, val playerConnection, val isPlaying, val mediaMetadata, val artistPage, val isLoadingArtist, val libraryArtist, val librarySongs, val libraryAlbums |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/artist/ArtistSongsScreen.kt` | 211 | fun ArtistSongsScreen, val context, val menuState, val haptic, val playerConnection, val isPlaying, val mediaMetadata, val artist, val songs, val lazyListState |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/library/LibraryAlbumsScreen.kt` | 324 | fun LibraryAlbumsScreen, val menuState, val playerConnection, val isPlaying, val mediaMetadata, var viewType, var filter, val gridItemSize, val hideExplicit, val filterContent, val albums, val coroutineScope, val lazyListState, val lazyGridState |
@@ -281,7 +260,6 @@
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/library/LibraryScreen.kt` | 87 | fun LibraryScreen, var filterType, val availableFilters, val filterContent |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/library/LibrarySongsScreen.kt` | 356 | fun LibrarySongsScreen, val context, val menuState, val haptic, val playerConnection, val isPlaying, val mediaMetadata, val hideExplicit, val songs, var filter, val wrappedSongs, var selection, val permissionLauncher, val lazyListState |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/library/LibraryVideosScreen.kt` | 156 | fun LibraryVideosScreen, val menuState, val haptic, val playerConnection, val database, val isPlaying, val mediaMetadata, val videos, val lazyListState, val artistDisplay |
-| `app/src/main/kotlin/com/jtech/zemer/ui/screens/player/VideoPlayerScreen.kt` | 1114 | fun VideoPlayerScreen, val context, val activity, val clipboard, val connectivityManager, val database, val scope, val playerConnection, val lifecycleOwner, var videoItem, var playerInstance, var isLoading, var loadError, var showDownloadDialog |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/playlist/AutoPlaylistScreen.kt` | 680 | fun AutoPlaylistScreen, val context, val coroutineScope, val menuState, val haptic, val focusManager, val playerConnection, val isPlaying, val mediaMetadata, val playlist, val songs, val mutableSongs, var isSearching, var query |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/playlist/CachePlaylistScreen.kt` | 490 | fun CachePlaylistScreen, val menuState, val playerConnection, val haptic, val focusManager, val isPlaying, val mediaMetadata, val cachedSongs, val wrappedSongs, val sortedSongs, var selection, var isSearching, var query, val focusRequester |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/playlist/DownloadedContentScreen.kt` | 182 | fun DownloadedContentScreen, val musicCount, val videoCount |

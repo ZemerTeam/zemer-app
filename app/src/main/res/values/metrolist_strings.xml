@@ -30,11 +30,6 @@
     <string name="featured_artists">Featured Artists</string>
     <string name="featured_albums">Featured Albums</string>
 
-    <string name="weeks">Weeks</string>
-    <string name="months">Months</string>
-    <string name="years">Years</string>
-    <string name="continuous">Continuous</string>
-
     <string name="liked">Liked</string>
     <string name="offline">Downloaded</string>
     <string name="my_top">My top</string>

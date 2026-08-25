@@ -7,7 +7,7 @@
 | Gradle module | `:app` |
 | Namespace / application ID | `com.jtech.zemer` / `com.jtech.zemer` |
 | Compile / min / target SDK | `36` / `26` / `36` |
-| Version code/name | `25` / `25` |
+| Version code/name | `38` / `38` |
 | Kotlin/JVM target | JVM 21 |
 | Compose | Enabled |
 | BuildConfig fields visible in Gradle | `ARCHITECTURE`, `GOOGLE_TOKEN_EXCHANGE_URL` |

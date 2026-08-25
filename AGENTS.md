@@ -6,7 +6,7 @@ Zemer is a "Kosher" YouTube Music client for Android (Kotlin, Jetpack Compose, M
 
 1. Pull the latest `main` before starting, to minimize merge conflicts.
 2. Commit messages follow `type(scope): short description` (e.g. `fix(player): skip HEAD validation for WEB_REMIX`, `feat(ui): add history button`); the scope is optional.
-3. User-facing strings: add/edit **only** the default English `app/src/main/res/values/metrolist_strings.xml`. Do **not** edit `strings.xml` or any translated `metrolist_strings.xml` - other locales are managed separately.
+3. User-facing strings live in two default-English files, `app/src/main/res/values/strings.xml` and `app/src/main/res/values/metrolist_strings.xml` - **both are editable**. (The old "never touch `strings.xml`" rule was a Metrolist-fork holdover, retired now that the app no longer tracks Metrolist upstream; its dead strings were removed and the dead-resource ratchet baseline emptied.) Do **not** edit the translated files under `values-iw/` (`strings.xml` and `metrolist_strings.xml`) - other locales are managed separately.
 4. Database schema changes (`app/.../db/MusicDatabase.kt` + entities) require a versioned Room migration and are high-risk - confirm with a human before changing the schema.
 5. Don't rename the `com.metrolist.*` library namespace, and don't bump the app version - version bumps are a release-team decision.
 6. Follow Kotlin/Android best practices; prioritize performance, battery, and maintainability.
@@ -312,7 +312,7 @@ full detail in `docs/zemer_playlists/README.md`. The rules that must not regress
 ### Genres (the song-level genre layer: Home chips, catalog, detail, radio)
 
 Song-level genre browsing served by the search server's `/genres` family; full detail in
-`docs/genres/README.md`, server contract in `handoff-docs/zemer-app-genres.md`. Genre is
+`docs/genres/README.md`. Genre is
 a property of the SONG (via its release), independent of the artist flags - never conflate the two.
 The rules that must not regress:
 
@@ -336,7 +336,7 @@ The rules that must not regress:
   radio). **No Artists shelf** on a genre page - an artist card opens a full, mostly-unrelated
   catalog (deliberately omitted).
 - **Tracklist paging + cross-list dedup** (`viewmodels/ZemerGenreViewModel`): near-edge prefetch
-  (`shouldPrefetchNearEnd`, off-composition `snapshotFlow`), and a track the corpus returns in BOTH
+  (the pure `shouldPrefetchNearEnd` in `ui/screens/GenreScreen.kt`, off-composition `snapshotFlow`), and a track the corpus returns in BOTH
   the song and video arrays is de-duped across the two lists (page 0 AND `loadMore`) with disjoint
   `song_`/`video_` `LazyColumn` keys.
 - **See-all uses the facet endpoint, not a `k` cap** (`viewmodels/ZemerGenreSectionViewModel`,
@@ -372,7 +372,7 @@ scrolled so bars never grey-out on scroll; baked into `BackTopAppBar`, and every
 ArtistScreen's over-header transparent state; the in-player fullscreen video overlay
 (`PlayerVideoFullscreen`) has no `TopAppBar` at all, just an exit icon over the scrim),
 `PlaylistPlayShuffleButtons` + `PlaylistHeaderShimmer` (playlist headers/skeletons),
-`shimmer/BoxPlaceholder` (the base shimmer slab under `ButtonPlaceholder`/`GridItemPlaceholder`),
+`shimmer/BoxPlaceholder` (the base shimmer slab under `ButtonPlaceholder`/`GridItemPlaceHolder`),
 `SettingsCardGroup` (the settings grouped-card stack - every settings row run renders through it:
 position-shaped per-row cards via the unit-tested `settingsCardCorners`, one geometry shared with
 `Material3SettingsGroup`; screens whose column already pads pass `horizontalPadding = 0.dp`),
@@ -637,7 +637,7 @@ only. Rules that must not regress:
   against the ids already in the player (`continuationItemsToAppend`) instead.
 - **Single-song taps are seed-first** (`ZemerRadioQueue.song()`): the tapped song is the
   `preloadItem` (plays instantly) AND heads the queue at index 0, with the `/radio?kind=song` fill
-  deduped around it. Every converted tap site (Home, History, Charts, Stats, artist page, search,
+  deduped around it. Every converted tap site (Home, History, artist page, genre, search,
   menus' Start radio, recognition history, latest releases) uses this factory - a bare
   `ZemerRadioQueue("song", …)` without the seed is a station, not a tap.
 - **A failed fetch is never silent**: `playQueue()` surfaces it (toast + session error). With no
@@ -934,9 +934,11 @@ YouTube account (`SyncUtils.syncPodcastSubscriptions`/`syncEpisodesForLater`, ga
   (`HomeViewModel`); regular `downloadedSongs*` queries exclude `isEpisode` too. Episodes live ONLY on
   the podcast surfaces.
 - **Library → Podcasts = three sub-filter tabs** (`PodcastFilter` EPISODES/CHANNELS/DOWNLOADED, own
-  `PodcastSortTypeKey`/`PodcastSortDescendingKey` - must NOT reuse the Songs sort keys). New-Episodes /
-  Episodes-for-Later are `AutoPlaylistCard`s (personal → `online_playlist/RDPN`,`/SE`; anon → local
-  inline). The shared podcast data sources (whitelist filter + leak gate) live in ONE place,
+  `PodcastSortTypeKey`/`PodcastSortDescendingKey` - must NOT reuse the Songs sort keys). New Episodes
+  is an `AutoPlaylistCard` that PLAYS the whitelist-pure `/podcasts/new-episodes` feed (never the raw
+  InnerTube `RDPN` playlist - unfiltered, a kosher leak); Episodes-for-Later is ALWAYS the local
+  saved-episodes list rendered inline (never the online `SE` playlist). Both behave identically for
+  personal and anon sessions. The shared podcast data sources (whitelist filter + leak gate) live in ONE place,
   `utils/PodcastLibrarySources`, so the two podcast VMs can't drift.
 - **Whitelist:** podcasts have their OWN channel-level whitelist (`podcastChannelsWhitelist` → `PodcastWhitelistCache`),
   separate from the artist whitelist. `filterWhitelisted` gates `PodcastItem`/`EpisodeItem` against it too
