@@ -14,7 +14,7 @@ import org.junit.Test
  *   degrade instead of failing the whole response;
  * - kind handling — non-music and UNKNOWN kinds never reach a music surface (fail-closed), grouping
  *   preserves the server's popularity order, the home chips row is capped;
- * - the page mapper — sparse-row drop, de-dup, hide-explicit, nextOffset passthrough.
+ * - the page mapper — sparse-row drop, de-dup, nextOffset passthrough.
  */
 class ZemerGenresTest {
 
@@ -240,7 +240,7 @@ class ZemerGenresTest {
             nextOffset = 100,
         )
 
-        val mapped = page.toGenrePage(hideExplicit = false)
+        val mapped = page.toGenrePage()
 
         assertEquals("purim", mapped.header.id)
         assertEquals(listOf("UCa"), mapped.artists.map { it.id })
@@ -256,17 +256,17 @@ class ZemerGenresTest {
     }
 
     @Test
-    fun `toGenrePage honors hideExplicit on both track lists and passes null nextOffset through`() {
+    fun `toGenrePage passes null nextOffset through`() {
         val page = ZemerGenrePageResponse(
-            songs = listOf(ZemerTrack("clean", "C", "A"), ZemerTrack("dirty", "D", "A", explicit = true)),
-            videos = listOf(ZemerTrack("vdirty", "VD", "A", explicit = true)),
+            songs = listOf(ZemerTrack("clean", "C", "A"), ZemerTrack("song2", "D", "A")),
+            videos = listOf(ZemerTrack("vid2", "VD", "A")),
             nextOffset = null,
         )
 
-        val mapped = page.toGenrePage(hideExplicit = true)
+        val mapped = page.toGenrePage()
 
-        assertEquals(listOf("clean"), mapped.songs.map { it.id })
-        assertTrue(mapped.videos.isEmpty())
+        assertEquals(listOf("clean", "song2"), mapped.songs.map { it.id })
+        assertEquals(listOf("vid2"), mapped.videos.map { it.id })
         assertNull(mapped.nextOffset)
     }
 }

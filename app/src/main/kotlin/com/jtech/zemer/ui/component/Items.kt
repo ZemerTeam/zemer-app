@@ -337,9 +337,6 @@ fun SongListItem(
         if (showLikedIcon && song.song.liked) {
             Icon.Favorite()
         }
-        if (song.song.explicit) {
-            Icon.Explicit()
-        }
         if (song.song.isVideo) {
             Icon.Video()
         }
@@ -539,7 +536,7 @@ fun ArtistGridItem(
 )
 
 /**
- * The standard library badges for an album row — bookmarked / explicit / aggregate download state
+ * The standard library badges for an album row — bookmarked / aggregate download state
  * (downloaded when every track is, downloading when any is). Single source of truth shared by the
  * library album rows and any other surface that renders an album (e.g. the Latest Releases rows).
  */
@@ -561,9 +558,6 @@ fun RowScope.AlbumBadges(
 
     if (showLikedIcon && album.album.bookmarkedAt != null) {
         Icon.Favorite()
-    }
-    if (album.album.explicit) {
-        Icon.Explicit()
     }
     DownloadStatusIcon(downloadStatus, downloadProgress)
 }
@@ -619,9 +613,6 @@ fun AlbumGridItem(
 
         if (album.album.bookmarkedAt != null) {
             Icon.Favorite()
-        }
-        if (album.album.explicit) {
-            Icon.Explicit()
         }
         DownloadStatusIcon(downloadStatus, downloadProgress)
     },
@@ -883,7 +874,6 @@ fun YouTubeListItem(
         ) {
             Icon.Favorite()
         }
-        if (item.explicit) Icon.Explicit()
         if (item is SongItem && item.isVideo) Icon.Video()
         if (item is SongItem && song?.song?.inLibrary != null) {
             Icon.Library()
@@ -972,9 +962,7 @@ fun EpisodeListItem(
             if (timeLeft != null) stringResource(R.string.episode_time_left, timeLeft)
             else episode.duration?.let { makeTimeString(it.times(1000L)) }
         ),
-        badges = {
-            if (episode.explicit) Icon.Explicit()
-        },
+        badges = {},
         thumbnailContent = {
             ItemThumbnail(
                 thumbnailUrl = episode.thumbnail,
@@ -1020,7 +1008,6 @@ fun YouTubeGridItem(
         ) {
             Icon.Favorite()
         }
-        if (item.explicit) Icon.Explicit()
         if (showVideoBadge && item is SongItem && item.isVideo) Icon.Video()
         if (item is SongItem && song?.song?.inLibrary != null) Icon.Library()
         when (item) {
@@ -1787,17 +1774,6 @@ private object Icon {
 
     // Download badge lives in DownloadStatusUi.kt (DownloadStatusIcon / SongDownloadBadge) — the one
     // place download/progress state is rendered, so it can't drift between surfaces.
-
-    @Composable
-    fun Explicit() {
-        Icon(
-            painter = painterResource(R.drawable.explicit),
-            contentDescription = null,
-            modifier = Modifier
-                .size(18.dp)
-                .padding(end = 2.dp)
-        )
-    }
 
     /** Marks a row that is a video being surfaced as a "video song" (played as audio). */
     @Composable

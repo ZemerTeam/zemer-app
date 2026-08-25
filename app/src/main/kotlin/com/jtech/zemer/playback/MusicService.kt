@@ -87,7 +87,6 @@ import com.jtech.zemer.constants.AutoDownloadOnLikeKey
 import com.jtech.zemer.constants.AutoLoadMoreKey
 import com.jtech.zemer.constants.AutoSkipNextOnErrorKey
 import com.jtech.zemer.constants.DisableLoadMoreWhenRepeatAllKey
-import com.jtech.zemer.constants.HideExplicitKey
 import com.jtech.zemer.constants.HistoryDuration
 import com.jtech.zemer.constants.MediaSessionConstants
 import com.jtech.zemer.constants.MediaSessionConstants.CommandAddToTargetPlaylist
@@ -136,7 +135,6 @@ import com.jtech.zemer.playback.queues.YouTubeQueue
 import com.jtech.zemer.playback.queues.ZemerRadioQueue
 import com.jtech.zemer.playback.queues.continuationItemsToAppend
 import com.jtech.zemer.playback.queues.filterBlockedEpisodes
-import com.jtech.zemer.playback.queues.filterExplicit
 import com.jtech.zemer.sync.PodcastSyncLogic
 import com.jtech.zemer.utils.ContentFilterState
 import com.jtech.zemer.tracking.Tracker
@@ -1151,7 +1149,6 @@ class MusicService :
                 try {
                     withContext(Dispatchers.IO) {
                         queue.getInitialStatus()
-                            .filterExplicit(dataStore.get(HideExplicitKey, false))
                             .filterBlockedPodcasts(podcastsBlocked())
                     }
                 } catch (e: CancellationException) {
@@ -1657,7 +1654,6 @@ class MusicService :
             scope.launch(SilentHandler) {
                 val page =
                     currentQueue.nextPage()
-                        .filterExplicit(dataStore.get(HideExplicitKey, false))
                         .filterBlockedEpisodes(podcastsBlocked())
                 // Append only what isn't queued yet: YouTube-style pages lead with the already-queued
                 // current item, Zemer /radio pages are pure fresh tracks — the old blanket drop(1)

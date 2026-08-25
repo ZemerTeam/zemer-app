@@ -1,6 +1,6 @@
 # Non-Kotlin file reference
 
-Every tracked non-Kotlin path outside `docs/` is listed. Text files report line counts; binary files report byte counts; gitlinks are recorded as non-file tracked paths. Total paths: `381`.
+Every tracked non-Kotlin path outside `docs/` is listed. Text files report line counts; binary files report byte counts; gitlinks are recorded as non-file tracked paths. Total paths: `379`.
 
 | Path | Size/status | Type metadata |
 | --- | ---: | --- |
@@ -97,7 +97,6 @@ Every tracked non-Kotlin path outside `docs/` is listed. Text files report line 
 | `app/src/main/res/drawable/equalizer.xml` | 9 lines | text `.xml`; XML root `vector` |
 | `app/src/main/res/drawable/expand_less.xml` | 9 lines | text `.xml`; XML root `vector` |
 | `app/src/main/res/drawable/expand_more.xml` | 9 lines | text `.xml`; XML root `vector` |
-| `app/src/main/res/drawable/explicit.xml` | 9 lines | text `.xml`; XML root `vector` |
 | `app/src/main/res/drawable/explore_outlined.xml` | 16 lines | text `.xml`; XML root `vector` |
 | `app/src/main/res/drawable/fast_forward.xml` | 9 lines | text `.xml`; XML root `vector` |
 | `app/src/main/res/drawable/fast_rewind.xml` | 14 lines | text `.xml`; XML root `vector` |
@@ -263,7 +262,6 @@ Every tracked non-Kotlin path outside `docs/` is listed. Text files report line 
 | `app/src/main/res/values-v31/styles.xml` | 22 lines | text `.xml`; XML root `resources` |
 | `app/src/main/res/values/app_name.xml` | 4 lines | text `.xml`; XML root `resources` |
 | `app/src/main/res/values/colors.xml` | 9 lines | text `.xml`; XML root `resources` |
-| `app/src/main/res/values/ic_launcher_background.xml` | 6 lines | text `.xml`; XML root `resources` |
 | `app/src/main/res/values/metrolist_strings.xml` | 701 lines | text `.xml`; XML root `resources` |
 | `app/src/main/res/values/strings.xml` | 430 lines | text `.xml`; XML root `resources` |
 | `app/src/main/res/values/styles.xml` | 26 lines | text `.xml`; XML root `resources` |

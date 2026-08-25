@@ -88,7 +88,7 @@ constructor(
                             zemerRepository.album(
                                 albumId,
                                 zemerPlaylistId,
-                                ZemerSearchOptions(allowFemale = true, blockVideos = false, hideExplicit = false),
+                                ZemerSearchOptions(allowFemale = true, blockVideos = false),
                             ) == null
                         }.getOrNull()
                         if (staleAlbumGoneForEveryone(flagsRestrictive, openFlags404)) {

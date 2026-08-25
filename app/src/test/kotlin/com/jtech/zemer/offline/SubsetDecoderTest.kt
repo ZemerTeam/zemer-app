@@ -27,7 +27,7 @@ class SubsetDecoderTest {
     }
 
     @Test
-    fun `tracks decode positions, video and explicit bits, and nullable playCount and date`() {
+    fun `tracks decode positions, video bit, and nullable playCount and date`() {
         val t = SubsetDecoder.decodeTracks(
             """[["--CBg_MWYAI","Mi Ha'ish","UCPgvMW042hVrcLn73zGyeqg",0,239,7300,"2015-07-02T05:27:44-07:00"],
                 ["--sU8olZCYM","Nafshi Acapella","UCu6IT3jTOtAcNfjIQSIyCQQ",1,262,null,null],
@@ -35,13 +35,13 @@ class SubsetDecoderTest {
         )
         assertEquals("--CBg_MWYAI", t[0].videoId)
         assertEquals("UCPgvMW042hVrcLn73zGyeqg", t[0].artistId)
-        assertFalse(t[0].isVideo); assertFalse(t[0].explicit)
+        assertFalse(t[0].isVideo)
         assertEquals(239, t[0].durationSec); assertEquals(7300L, t[0].playCount)
         assertEquals("2015-07-02T05:27:44-07:00", t[0].uploadDate)
-        assertTrue(t[1].isVideo); assertFalse(t[1].explicit)
+        assertTrue(t[1].isVideo)
         assertNull(t[1].playCount); assertNull(t[1].uploadDate)
-        // flags = 2 → explicit, not video
-        assertFalse(t[2].isVideo); assertTrue(t[2].explicit)
+        // flags = 2 → the (unused) explicit bit only, so isVideo stays false
+        assertFalse(t[2].isVideo)
     }
 
     @Test

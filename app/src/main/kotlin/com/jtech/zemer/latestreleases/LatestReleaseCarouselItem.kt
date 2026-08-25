@@ -52,7 +52,7 @@ import kotlinx.coroutines.launch
  * - **D-pad focus** - [focusable] plus a [maskBorder] ring (accent, following the carousel morph) that
  *   shows only in a key-driven session ([focusVisualsEnabled]); the shelf is otherwise invisible to a
  *   TV remote, breaking the app's 100%-D-pad-navigable rule.
- * - **Library badges** - the [ReleaseBadges] row (download progress / liked / explicit) the card
+ * - **Library badges** - the [ReleaseBadges] row (download progress / liked) the card
  *   carried, forced white so it reads on the cover's dark scrim.
  */
 @Composable
@@ -109,7 +109,7 @@ fun CarouselItemScope.LatestReleaseCarouselItem(
             title = release.title,
             subtitle = joinByBullet(release.artistName, release.relativeDateLabel()).ifEmpty { null },
         ) {
-            // The library badges (download progress / liked / explicit) the card carried before this
+            // The library badges (download progress / liked) the card carried before this
             // shelf became a cover-only carousel; forced white so they read on the dark scrim.
             CompositionLocalProvider(LocalContentColor provides Color.White) {
                 Row(

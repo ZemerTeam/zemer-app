@@ -22,9 +22,6 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 import android.content.Context
-import com.jtech.zemer.constants.HideExplicitKey
-import com.jtech.zemer.extensions.filterExplicit
-import com.jtech.zemer.extensions.filterExplicitAlbums
 import com.jtech.zemer.utils.ContentFilterState
 import com.jtech.zemer.utils.dataStore
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -62,37 +59,13 @@ class ArtistViewModel @Inject constructor(
     // podcast host channels too (they are never whitelisted, so libraryArtist above is always null).
     val libraryArtistEntity = database.artistEntity(artistId)
         .stateIn(viewModelScope, SharingStarted.Lazily, null)
-    val librarySongs = context.dataStore.data
-        .map { it[HideExplicitKey] ?: false }
-        .distinctUntilChanged()
-        .flatMapLatest { hideExplicit ->
-            database.artistSongsPreview(artistId).map { it.filterExplicit(hideExplicit) }
-        }
+    val librarySongs = database.artistSongsPreview(artistId)
         .stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
-    val libraryAlbums = context.dataStore.data
-        .map { it[HideExplicitKey] ?: false }
-        .distinctUntilChanged()
-        .flatMapLatest { hideExplicit ->
-            database.artistAlbumsPreview(artistId).map { albums ->
-                timber.log.Timber.d("ArtistViewModel: artistId=$artistId, albums from query=${albums.size}, hideExplicit=$hideExplicit")
-                albums.forEach { album ->
-                    timber.log.Timber.d("ArtistViewModel: album=${album.album.title}, explicit=${album.album.explicit}")
-                }
-                albums.filterExplicitAlbums(hideExplicit)
-            }
-        }
+    val libraryAlbums = database.artistAlbumsPreview(artistId)
         .stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
 
     init {
-        // Load artist page and reload when hide explicit setting changes
-        viewModelScope.launch {
-            context.dataStore.data
-                .map { it[HideExplicitKey] ?: false }
-                .distinctUntilChanged()
-                .collect {
-                    fetchArtistsFromYTM()
-                }
-        }
+        fetchArtistsFromYTM()
     }
 
     fun fetchArtistsFromYTM() {

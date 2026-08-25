@@ -49,19 +49,10 @@ interface Queue {
         val mediaItemIndex: Int,
         val position: Long = 0L,
     ) {
-        fun filterExplicit(enabled: Boolean = true) =
-            if (enabled) {
-                copy(
-                    items = items.filterExplicit(),
-                )
-            } else {
-                this
-            }
-
         /**
-         * Drops podcast episodes when Block Podcasts is on (the filterExplicit pattern). The start
-         * index is re-clamped because dropped episodes can shift or empty the list — a stale index
-         * would crash [androidx.media3.common.Player.setMediaItems].
+         * Drops podcast episodes when Block Podcasts is on. The start index is re-clamped because
+         * dropped episodes can shift or empty the list — a stale index would crash
+         * [androidx.media3.common.Player.setMediaItems].
          */
         fun filterBlockedPodcasts(blocked: Boolean) =
             if (blocked) {
@@ -75,15 +66,6 @@ interface Queue {
             }
     }
 }
-
-fun List<MediaItem>.filterExplicit(enabled: Boolean = true) =
-    if (enabled) {
-        filterNot {
-            it.metadata?.explicit == true
-        }
-    } else {
-        this
-    }
 
 /**
  * A queue start index re-clamped after filtering shrank the item list: media3's setMediaItems

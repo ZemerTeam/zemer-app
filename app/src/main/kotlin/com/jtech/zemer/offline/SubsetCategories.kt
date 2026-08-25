@@ -35,7 +35,7 @@ internal class CatArtistDoc(
 
 internal class CatTrackDoc(
     val videoId: String, override val title: String, override val artistName: String,
-    val explicit: Boolean, val durationSec: Int?, val isVideo: Boolean,
+    val durationSec: Int?, val isVideo: Boolean,
     val isKidZone: Boolean, val femaleInvolved: Boolean,
 ) : SearchDoc {
     override val sortId get() = videoId
@@ -141,7 +141,7 @@ class BuiltCategories internal constructor(
         fun trackRows(index: SubsetIndex<CatTrackDoc>) = pick(index, k,
             { allowed(it.femaleInvolved, it.isKidZone, it.isVideo, allowFemale, blockVideos, kidZone) },
             { listOf(it.videoId) })
-            .map { ZemerTrack(videoId = it.videoId, title = it.title, artist = it.artistName, explicit = it.explicit, durationSec = it.durationSec) }
+            .map { ZemerTrack(videoId = it.videoId, title = it.title, artist = it.artistName, durationSec = it.durationSec) }
 
         fun albumRows(index: SubsetIndex<CatAlbumDoc>) = pick(index, k,
             { allowed(it.femaleInvolved, it.isKidZone, isVideo = false, allowFemale, blockVideos, kidZone) },
@@ -274,7 +274,7 @@ class BuiltCategories internal constructor(
                 trackDocs.add(
                     CatTrackDoc(
                         videoId = t.videoId, title = t.title, artistName = artist?.name ?: "",
-                        explicit = t.explicit, durationSec = t.durationSec, isVideo = t.isVideo,
+                        durationSec = t.durationSec, isVideo = t.isVideo,
                         isKidZone = artist?.isKidZone ?: false, femaleInvolved = t.videoId in involvedVideoIds,
                     ),
                 )

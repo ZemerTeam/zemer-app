@@ -127,17 +127,17 @@ class ZemerSearchRepository @Inject constructor(
         { n -> context.resources.getQuantityString(R.plurals.n_song, n, n) }
 
     suspend fun summary(query: String, options: ZemerSearchOptions): SearchSummaryPage =
-        ZemerResultMapper.summaryPage(fetch(query, options, K_SUMMARY), options.hideExplicit, formatSongCount)
+        ZemerResultMapper.summaryPage(fetch(query, options, K_SUMMARY), formatSongCount)
 
     suspend fun filtered(query: String, filter: SearchFilter, options: ZemerSearchOptions): SearchResult {
         // The Community chip browses a whole curated set, so it must not be clipped by the default
         // per-chip cap; every other chip uses K_FILTER.
         val k = if (filter.value == SearchFilter.FILTER_COMMUNITY_PLAYLIST.value) K_COMMUNITY else K_FILTER
-        return ZemerResultMapper.filtered(fetch(query, options, k), filter, options.hideExplicit, formatSongCount)
+        return ZemerResultMapper.filtered(fetch(query, options, k), filter, formatSongCount)
     }
 
     suspend fun suggestions(query: String, options: ZemerSearchOptions): SearchSuggestions =
-        ZemerResultMapper.suggestions(fetch(query, options, K_SUGGEST), options.hideExplicit, formatSongCount)
+        ZemerResultMapper.suggestions(fetch(query, options, K_SUGGEST), formatSongCount)
 
     /**
      * Open a playlist through the server's `/playlist` endpoint so the tracks, count and cover match the
@@ -148,7 +148,7 @@ class ZemerSearchRepository @Inject constructor(
      */
     suspend fun playlist(id: String, options: ZemerSearchOptions): ZemerPlaylistPage {
         val response = client.playlist(id, options.allowFemale, options.blockVideos)
-        val songs = response.toSongItems(options.hideExplicit)
+        val songs = response.toSongItems()
         val header = PlaylistItem(
             id = id,
             title = response.playlist.title,
@@ -205,7 +205,7 @@ class ZemerSearchRepository @Inject constructor(
         serverOrOffline(
             server = { client.artist(id, options.allowFemale, options.blockVideos) },
             offline = { offlineReads.artist(id, options.allowFemale, options.blockVideos) },
-        )?.toArtistPage(options.hideExplicit, formatSongCount)
+        )?.toArtistPage(formatSongCount)
 
     // --- Podcasts. Server-first with the on-device snapshot fallback (server reply 4: the subset now
     // carries podcast shards, pre-gated to approved channels). The browse grid + channel allow-set come
@@ -363,7 +363,7 @@ class ZemerSearchRepository @Inject constructor(
         )?.let { response ->
             ZemerCuratedPlaylistPage(
                 playlist = response.playlist,
-                songs = response.toSongItems(options.hideExplicit),
+                songs = response.toSongItems(),
                 albums = response.toAlbumItems(),
                 albumTrackIds = response.tracks
                     .filter { it.fromAlbum && it.videoId.isNotBlank() }
@@ -415,7 +415,7 @@ class ZemerSearchRepository @Inject constructor(
      * gracefully, mirroring [curatedPlaylist]. Live-only and uncached, like [genres].
      */
     suspend fun genre(id: String, options: ZemerSearchOptions, offset: Int = 0): ZemerResultMapper.ZemerGenrePage? =
-        client.genre(id, options.allowFemale, options.blockVideos, offset)?.toGenrePage(options.hideExplicit)
+        client.genre(id, options.allowFemale, options.blockVideos, offset)?.toGenrePage()
 
     /**
      * One page of a genre's full Albums or Singles list (`facet` see-all). Null = 404 (gone/empty).

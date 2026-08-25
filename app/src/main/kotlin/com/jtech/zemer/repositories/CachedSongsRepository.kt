@@ -2,12 +2,10 @@ package com.jtech.zemer.repositories
 
 import android.content.Context
 import androidx.media3.datasource.cache.SimpleCache
-import com.jtech.zemer.constants.HideExplicitKey
 import com.jtech.zemer.db.MusicDatabase
 import com.jtech.zemer.db.entities.Song
 import com.jtech.zemer.di.DownloadCache
 import com.jtech.zemer.di.PlayerCache
-import com.jtech.zemer.extensions.filterExplicit
 import com.jtech.zemer.utils.dataStore
 import com.jtech.zemer.utils.get
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -55,7 +53,6 @@ class CachedSongsRepository @Inject constructor(
     }
 
     private suspend fun refreshInternal() {
-        val hideExplicit = context.dataStore.get(HideExplicitKey, false)
         val cachedIds = playerCache.keys.mapNotNull { it?.toString() }.toSet()
         val downloadedIds = downloadCache.keys.mapNotNull { it?.toString() }.toSet()
         val pureCacheIds = cachedIds.subtract(downloadedIds)
@@ -86,7 +83,6 @@ class CachedSongsRepository @Inject constructor(
         _cachedSongs.value = completeSongs
             .filter { it.song.dateDownload != null }
             .sortedByDescending { it.song.dateDownload }
-            .filterExplicit(hideExplicit)
     }
 
     fun removeSongFromCache(songId: String) {

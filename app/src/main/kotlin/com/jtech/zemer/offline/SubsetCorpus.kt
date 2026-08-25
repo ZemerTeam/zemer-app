@@ -79,7 +79,6 @@ data class SubTrack(
     val title: String,
     val artistId: String,
     val isVideo: Boolean,
-    val explicit: Boolean,
     val durationSec: Int?,
     val playCount: Long?,
     val uploadDate: String?,

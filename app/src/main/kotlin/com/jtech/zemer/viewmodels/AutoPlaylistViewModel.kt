@@ -4,13 +4,11 @@ import android.content.Context
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.jtech.zemer.constants.HideExplicitKey
 import com.jtech.zemer.constants.VideoDownloadsInMusicKey
 import com.jtech.zemer.constants.SongSortDescendingKey
 import com.jtech.zemer.constants.SongSortType
 import com.jtech.zemer.constants.SongSortTypeKey
 import com.jtech.zemer.db.MusicDatabase
-import com.jtech.zemer.extensions.filterExplicit
 import com.jtech.zemer.extensions.toEnum
 import com.jtech.zemer.utils.SyncUtils
 import com.jtech.zemer.utils.dataStore
@@ -46,27 +44,22 @@ constructor(
                 Pair(
                     it[SongSortTypeKey].toEnum(SongSortType.CREATE_DATE) to (it[SongSortDescendingKey]
                         ?: true),
-                    (it[HideExplicitKey] ?: false) to (it[VideoDownloadsInMusicKey] ?: true)
+                    it[VideoDownloadsInMusicKey] ?: true
                 )
             }
             .distinctUntilChanged()
-            .flatMapLatest { (sortDesc, flags) ->
+            .flatMapLatest { (sortDesc, videosInMusic) ->
                 val (sortType, descending) = sortDesc
-                val (hideExplicit, videosInMusic) = flags
                 when (playlist) {
                     "liked" -> database.likedSongs(sortType, descending)
-                        .map { it.filterExplicit(hideExplicit) }
 
                     "downloaded" -> database.downloadedSongs(sortType, descending, videosInMusic)
-                        .map { it.filterExplicit(hideExplicit) }
 
                     // Downloaded podcast episodes (isEpisode = 1) - reuses this whole screen for the
                     // Library -> Downloaded "Podcasts" tile, just a different song source.
                     "downloaded_episodes" -> database.downloadedEpisodes(sortType, descending)
-                        .map { it.filterExplicit(hideExplicit) }
 
                     "uploaded" -> database.uploadedSongs(sortType, descending)
-                        .map { it.filterExplicit(hideExplicit) }
 
                     else -> kotlinx.coroutines.flow.flowOf(emptyList())
                 }

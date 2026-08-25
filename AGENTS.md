@@ -294,7 +294,7 @@ full detail in `docs/zemer_playlists/README.md`. The rules that must not regress
   `zemerCuratedPlaylistsParameters()` is the unit-tested contract), and the repository deliberately
   does **not** cache - a plain re-fetch per screen-open is the endpoint's freshness contract and
   guarantees a response fetched under one flag set is never shown under another. No client
-  re-filtering beyond the usual `dropBlocked` + `hideExplicit`.
+  re-filtering beyond the usual `dropBlocked`.
 - **Covers are server-generated SVGs at relative URLs** - resolved by `resolveZemerUrl()` and
   decoded by the `SvgDecoder` registered in `App.newImageLoader` (that's why `coil-svg` exists).
 - Empty list = hidden section (normal state); detail 404 = back out + Home re-fetch. The Home shelf
@@ -953,8 +953,8 @@ YouTube account (`SyncUtils.syncPodcastSubscriptions`/`syncEpisodesForLater`, ga
   previously read the static `Screens.MainScreens`, which was the leak); (3) every podcast nav
   destination (`podcasts` browse, `online_podcast`, `podcast_genres`, `podcast_genre`, and
   `artist`/`artist_section` with `isPodcastChannel=true`) carries a `podcastsBlockedRedirect` guard that
-  bounces a restored back stack/deep link to Home; (4) PLAYBACK itself is gated in `MusicService` - `podcastsBlocked()` + `filterBlockedEpisodes`/`Status.filterBlockedPodcasts` (the `filterExplicit`
-  pattern in `playback/queues/Queue.kt`) drop episodes at `playQueue` (preload + initial items, start
+  bounces a restored back stack/deep link to Home; (4) PLAYBACK itself is gated in `MusicService` - `podcastsBlocked()` + `filterBlockedEpisodes`/`Status.filterBlockedPodcasts`
+  (in `playback/queues/Queue.kt`) drop episodes at `playQueue` (preload + initial items, start
   index re-clamped via the unit-tested `clampStartIndex`), `playNext`, `addToQueue`, the automix
   restore and the auto-load-more append, so an episode can't play even from a persisted queue. Every
   layer is a strict no-op while the flag is off. Regression tests: `PodcastSyncLogicTest`

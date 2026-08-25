@@ -81,7 +81,6 @@ import com.jtech.zemer.LocalPlayerAwareWindowInsets
 import com.jtech.zemer.LocalPlayerConnection
 import com.jtech.zemer.R
 import com.jtech.zemer.constants.AlbumThumbnailSize
-import com.jtech.zemer.constants.HideExplicitKey
 import com.jtech.zemer.constants.ThumbnailCornerRadius
 import com.jtech.zemer.db.entities.PlaylistEntity
 import com.jtech.zemer.db.entities.PlaylistSongMap
@@ -107,7 +106,6 @@ import com.jtech.zemer.ui.utils.activeRowTapTogglesPlayPause
 import com.jtech.zemer.ui.utils.ItemWrapper
 import com.jtech.zemer.ui.utils.backToMain
 import com.jtech.zemer.ui.utils.navigateToArtist
-import com.jtech.zemer.utils.rememberPreference
 import com.jtech.zemer.viewmodels.OnlinePlaylistViewModel
 import com.metrolist.innertube.models.SongItem
 
@@ -135,7 +133,6 @@ fun OnlinePlaylistScreen(
     var selection by remember {
         mutableStateOf(false)
     }
-    val hideExplicit by rememberPreference(key = HideExplicitKey, defaultValue = false)
 
     val lazyListState = rememberLazyListState()
     val coroutineScope = rememberCoroutineScope()
@@ -444,7 +441,6 @@ fun OnlinePlaylistScreen(
                             modifier =
                             Modifier
                                 .combinedClickable(
-                                    enabled = !hideExplicit || !song.item.second.explicit,
                                     onClick = {
                                         if (!selection) {
                                             if (activeRowTapTogglesPlayPause(song.item.second.id == mediaMetadata?.id, playerConnection.isStationBroadcast.value)) {
