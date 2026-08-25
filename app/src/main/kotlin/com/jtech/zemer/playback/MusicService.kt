@@ -280,6 +280,22 @@ class MusicService :
     private val deferredStatsScope =
         CoroutineScope(Dispatchers.IO.limitedParallelism(1) + SupervisorJob())
 
+    // Single-threaded, off-main scope for queue persistence. saveQueueToDisk() snapshots the player on
+    // the caller (main) thread, but the Java-serialization + disk writes ran there too — on a small
+    // heap / slow flash device that main-thread spike every 10s (the periodic save, over a now-larger
+    // seed-first radio queue) stalls the UI and compounds GC pressure (issue #515). limitedParallelism(1)
+    // serializes writes so the three files can never be written concurrently.
+    private val queuePersistScope =
+        CoroutineScope(Dispatchers.IO.limitedParallelism(1) + SupervisorJob())
+
+    // Content signature of the last-persisted queue (see QueuePersist). The heavy queue
+    // file is re-serialized only when its content changes; the tiny player-state file carries
+    // position on every save, and restore seeks from THAT file, not the queue file. Touched only from
+    // saveQueueToDisk on the caller (main) thread. (Trade-off: if a content-change write fails silently
+    // and no further change or clean teardown follows, the queue file stays one edit stale — a graceful
+    // resume-an-older-queue degradation, never a crash; teardown and the next edit both heal it.)
+    private var lastPersistedQueueSignature: String? = null
+
     // The offline/cached-play recovery queue: captures listens the live watch-time session drops (no
     // network → no tracking URLs) and re-pushes them as a deferred stats session on reconnect. JSONL
     // under filesDir (no Room), reusing TrackingQueue + FlushSchedule.
@@ -2664,7 +2680,13 @@ class MusicService :
         }
     }
 
-    private fun saveQueueToDisk() {
+    /**
+     * Persists the queue/player-state snapshots. The player is read on the caller (main)
+     * thread; by default the serialization + disk writes are offloaded to [queuePersistScope] so the
+     * periodic save never spikes the main thread. [blocking] = true writes inline on the caller thread
+     * for teardown ([onDestroy]), where the write must complete before the process ends.
+     */
+    private fun saveQueueToDisk(blocking: Boolean = false) {
         if (player.mediaItemCount == 0) {
             return
         }
@@ -2693,14 +2715,45 @@ class MusicService :
             playbackState = player.playbackState
         )
 
-        runCatching {
-            filesDir.resolve(PERSISTENT_QUEUE_FILE).outputStream().use { fos ->
-                ObjectOutputStream(fos).use { oos ->
-                    oos.writeObject(persistQueue)
-                }
+        // The heavy queue file changes only on a content edit; the tiny player-state file
+        // (position/index) is what restore seeks from, so it is written on every save. This keeps the
+        // steady-playback save cheap: no full queue re-serialization every 10s.
+        val queueSignature = QueuePersist.signature(persistQueue.items.map { it.id }, persistQueue.title)
+        val writeQueue = blocking || queueSignature != lastPersistedQueueSignature
+        lastPersistedQueueSignature = queueSignature
+        val queueToWrite = persistQueue.takeIf { writeQueue }
+
+        // Snapshots are captured above on the caller (main) thread — player state must be read there.
+        // The Java-serialization + disk writes are the expensive part and move off the main thread,
+        // except on teardown where the write must finish before the process dies.
+        if (blocking) {
+            writePersistedSnapshots(queueToWrite, persistPlayerState)
+        } else {
+            queuePersistScope.launch {
+                writePersistedSnapshots(queueToWrite, persistPlayerState)
             }
-        }.onFailure {
-            reportException(it)
+        }
+    }
+
+    /**
+     * Serializes the queue snapshots to disk. Runs on [queuePersistScope] (single-threaded, off-main),
+     * or inline on teardown. A null [persistQueue] skips that file (content unchanged since the last
+     * write); the player-state file is always written.
+     */
+    private fun writePersistedSnapshots(
+        persistQueue: PersistQueue?,
+        persistPlayerState: PersistPlayerState,
+    ) {
+        if (persistQueue != null) {
+            runCatching {
+                filesDir.resolve(PERSISTENT_QUEUE_FILE).outputStream().use { fos ->
+                    ObjectOutputStream(fos).use { oos ->
+                        oos.writeObject(persistQueue)
+                    }
+                }
+            }.onFailure {
+                reportException(it)
+            }
         }
         runCatching {
             filesDir.resolve(PERSISTENT_PLAYER_STATE_FILE).outputStream().use { fos ->
@@ -2724,7 +2777,7 @@ class MusicService :
         // and enqueues onto this scope, so cancelling would silently drop the very offline listen the
         // queue exists to recover. The scope dies with the process anyway (nothing to clean up).
         if (dataStore.get(PersistentQueueKey, true)) {
-            saveQueueToDisk()
+            saveQueueToDisk(blocking = true)
         }
         // Tear down any active cast session so the receiver doesn't keep playing an orphaned stream
         // after the service dies. Clear onDisconnect first so the async Disconnected callback can't
