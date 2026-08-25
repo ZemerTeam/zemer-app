@@ -62,6 +62,6 @@ sealed class Screens(
         // The whitelist browse screens keep their top bar PINNED: no collapsing nested-scroll
         // connection is attached on these routes (MainActivity), so scrolling the catalog never
         // hides the bar.
-        val PinnedTopBarRoutes = setOf(Artists.route, Podcasts.route, KidZone.route)
+        val PinnedTopBarRoutes = setOf(Home.route, Artists.route, Podcasts.route, KidZone.route)
     }
 }
