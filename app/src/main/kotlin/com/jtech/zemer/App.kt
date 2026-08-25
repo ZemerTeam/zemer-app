@@ -27,6 +27,7 @@ import com.metrolist.innertube.YouTube
 import com.metrolist.innertube.models.YouTubeLocale
 import com.jtech.zemer.constants.*
 import com.jtech.zemer.di.ApplicationScope
+import com.jtech.zemer.extensions.isValidVisitorData
 import com.jtech.zemer.extensions.toEnum
 import com.jtech.zemer.extensions.toInetSocketAddress
 import com.jtech.zemer.extensions.toast
@@ -260,7 +261,7 @@ class App : Application(), SingletonImageLoader.Factory {
 
             if (!visitorData.isNullOrEmpty()) {
                 // Validate token format
-                val isValidToken = visitorData.startsWith("Cg") && visitorData.length > 20
+                val isValidToken = isValidVisitorData(visitorData)
 
                 if (isValidToken) {
                     dataStore.edit { prefs ->

@@ -26,7 +26,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBar
@@ -81,7 +80,7 @@ import com.jtech.zemer.playback.queues.ListQueue
 import com.jtech.zemer.ui.component.AggregateDownloadButton
 import com.jtech.zemer.ui.component.AppBarTitle
 import com.jtech.zemer.ui.component.AutoResizeText
-import com.jtech.zemer.ui.component.DefaultDialog
+import com.jtech.zemer.ui.component.RemoveDownloadConfirmDialog
 import com.jtech.zemer.ui.component.DraggableScrollbar
 import com.jtech.zemer.ui.component.EmptyPlaceholder
 import com.jtech.zemer.ui.component.FontSizeRange
@@ -91,6 +90,7 @@ import com.jtech.zemer.ui.component.MoreVertMenuButton
 import com.jtech.zemer.ui.component.SelectionActions
 import com.jtech.zemer.ui.component.SongListItem
 import com.jtech.zemer.ui.component.SortHeader
+import com.jtech.zemer.ui.component.songSortTypeLabel
 import com.jtech.zemer.ui.component.zemerTopAppBarColors
 import com.jtech.zemer.ui.menu.SelectionSongMenu
 import com.jtech.zemer.ui.menu.SongMenu
@@ -208,33 +208,15 @@ fun AutoPlaylistScreen(
     }
 
     if (showRemoveDownloadDialog) {
-        DefaultDialog(
+        RemoveDownloadConfirmDialog(
+            playlistName = playlist,
             onDismiss = { showRemoveDownloadDialog = false },
-            content = {
-                Text(
-                    text = stringResource(R.string.remove_download_playlist_confirm, playlist),
-                    style = MaterialTheme.typography.bodyLarge,
-                    modifier = Modifier.padding(horizontal = 18.dp),
-                )
-            },
-            buttons = {
-                TextButton(
-                    onClick = { showRemoveDownloadDialog = false },
-                ) {
-                    Text(text = stringResource(android.R.string.cancel))
-                }
-
-                TextButton(
-                    onClick = {
-                        showRemoveDownloadDialog = false
-                        songs!!.forEach { song ->
-                            coroutineScope.launch {
-                                downloadUtil.removeDownload(song.song.id)
-                            }
-                        }
-                    },
-                ) {
-                    Text(text = stringResource(android.R.string.ok))
+            onConfirm = {
+                showRemoveDownloadDialog = false
+                songs!!.forEach { song ->
+                    coroutineScope.launch {
+                        downloadUtil.removeDownload(song.song.id)
+                    }
                 }
             },
         )
@@ -386,14 +368,7 @@ fun AutoPlaylistScreen(
                                 sortDescending = sortDescending,
                                 onSortTypeChange = onSortTypeChange,
                                 onSortDescendingChange = onSortDescendingChange,
-                                sortTypeText = { sortType ->
-                                    when (sortType) {
-                                        SongSortType.CREATE_DATE -> R.string.sort_by_create_date
-                                        SongSortType.NAME -> R.string.sort_by_name
-                                        SongSortType.ARTIST -> R.string.sort_by_artist
-                                        SongSortType.PLAY_TIME -> R.string.sort_by_play_time
-                                    }
-                                },
+                                sortTypeText = ::songSortTypeLabel,
                                 modifier = Modifier.weight(1f),
                             )
                         }

@@ -26,7 +26,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBar
@@ -78,7 +77,7 @@ import com.jtech.zemer.playback.queues.ListQueue
 import com.jtech.zemer.ui.component.AggregateDownloadButton
 import com.jtech.zemer.ui.component.AppBarTitle
 import com.jtech.zemer.ui.component.AutoResizeText
-import com.jtech.zemer.ui.component.DefaultDialog
+import com.jtech.zemer.ui.component.RemoveDownloadConfirmDialog
 import com.jtech.zemer.ui.component.DraggableScrollbar
 import com.jtech.zemer.ui.component.EmptyPlaceholder
 import com.jtech.zemer.ui.component.FontSizeRange
@@ -165,33 +164,15 @@ fun TopPlaylistScreen(
     var showRemoveDownloadDialog by remember { mutableStateOf(false) }
 
     if (showRemoveDownloadDialog) {
-        DefaultDialog(
+        RemoveDownloadConfirmDialog(
+            playlistName = name,
             onDismiss = { showRemoveDownloadDialog = false },
-            content = {
-                Text(
-                    text = stringResource(R.string.remove_download_playlist_confirm, name),
-                    style = MaterialTheme.typography.bodyLarge,
-                    modifier = Modifier.padding(horizontal = 18.dp),
-                )
-            },
-            buttons = {
-                TextButton(
-                    onClick = { showRemoveDownloadDialog = false },
-                ) {
-                    Text(text = stringResource(android.R.string.cancel))
-                }
-
-                TextButton(
-                    onClick = {
-                        showRemoveDownloadDialog = false
-                        songs!!.forEach { song ->
-                            coroutineScope.launch {
-                                downloadUtil.removeDownload(song.song.id)
-                            }
-                        }
-                    },
-                ) {
-                    Text(text = stringResource(android.R.string.ok))
+            onConfirm = {
+                showRemoveDownloadDialog = false
+                songs!!.forEach { song ->
+                    coroutineScope.launch {
+                        downloadUtil.removeDownload(song.song.id)
+                    }
                 }
             },
         )

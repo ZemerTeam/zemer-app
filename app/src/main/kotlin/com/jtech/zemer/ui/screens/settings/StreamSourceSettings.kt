@@ -54,7 +54,7 @@ import com.jtech.zemer.ui.component.zemerTopAppBarColors
 import com.jtech.zemer.ui.utils.backToMain
 import com.jtech.zemer.utils.rememberEnumPreference
 import com.jtech.zemer.utils.rememberPreference
-import com.metrolist.innertube.utils.parseCookieString
+import com.jtech.zemer.extensions.cookieHasSession
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -78,7 +78,7 @@ fun StreamSourceSettings(
     // login (both carry a SAPISID cookie) has working direct playback, so it must not see or flip this
     // switch — the whole "Filtered devices" group is hidden for them, leaving just the client list.
     val (loginCookie) = rememberPreference(InnerTubeCookieKey, defaultValue = "")
-    val loggedInNormally = remember(loginCookie) { parseCookieString(loginCookie).containsKey("SAPISID") }
+    val loggedInNormally = remember(loginCookie) { loginCookie.cookieHasSession() }
     // The "a normal login forces DIRECT" reset lives globally in App.kt (so it fires from ANY login entry
     // point), not here — a screen-local reset stranded users who logged in elsewhere and also flashed an
     // empty settings screen with no focused row.

@@ -13,6 +13,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -126,4 +127,37 @@ fun AlreadyInPlaylistDialog(
         }
         songs()
     }
+}
+
+/**
+ * The shared "Remove downloads from <playlist>?" confirmation. Every playlist screen (auto, top,
+ * local) showed a byte-identical [DefaultDialog] here; the only difference was the removal loop, so
+ * that stays with the caller via [onConfirm] (which also flips its own show-dialog state, exactly as
+ * the inlined OK buttons did). [onDismiss] backs both Cancel and the scrim.
+ */
+@Composable
+fun RemoveDownloadConfirmDialog(
+    playlistName: String,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    DefaultDialog(
+        onDismiss = onDismiss,
+        content = {
+            Text(
+                text = stringResource(R.string.remove_download_playlist_confirm, playlistName),
+                style = MaterialTheme.typography.bodyLarge,
+                modifier = Modifier.padding(horizontal = 18.dp),
+            )
+        },
+        buttons = {
+            TextButton(onClick = onDismiss) {
+                Text(text = stringResource(android.R.string.cancel))
+            }
+
+            TextButton(onClick = onConfirm) {
+                Text(text = stringResource(android.R.string.ok))
+            }
+        },
+    )
 }

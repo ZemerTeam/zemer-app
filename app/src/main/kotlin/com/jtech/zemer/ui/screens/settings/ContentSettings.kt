@@ -25,7 +25,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarScrollBehavior
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -74,7 +73,7 @@ import com.jtech.zemer.constants.TopSize
 import com.jtech.zemer.sync.SyncState
 import com.jtech.zemer.sync.SyncStatus
 import com.jtech.zemer.ui.component.AppBarTitle
-import com.jtech.zemer.ui.component.BackNavigationIcon
+import com.jtech.zemer.ui.component.BackTopAppBar
 import com.jtech.zemer.ui.component.EditTextPreference
 import com.jtech.zemer.ui.component.ListPreference
 import com.jtech.zemer.ui.component.PreferenceEntry
@@ -82,7 +81,6 @@ import com.jtech.zemer.ui.component.PreferenceGroupTitle
 import com.jtech.zemer.ui.component.SettingsCardGroup
 import com.jtech.zemer.ui.component.SettingsScreenTopSpacing
 import com.jtech.zemer.ui.component.SwitchPreference
-import com.jtech.zemer.ui.component.zemerTopAppBarColors
 import com.jtech.zemer.ui.utils.backToMain
 import com.jtech.zemer.utils.ContentFilterState
 import com.jtech.zemer.utils.rememberEnumPreference
@@ -516,10 +514,9 @@ fun ContentSettings(
         )
     }
 
-    TopAppBar(
+    BackTopAppBar(
         title = { AppBarTitle(stringResource(R.string.content)) },
-        navigationIcon = { BackNavigationIcon(navController) },
-        colors = zemerTopAppBarColors(),
+        navController = navController,
     )
 }
 
