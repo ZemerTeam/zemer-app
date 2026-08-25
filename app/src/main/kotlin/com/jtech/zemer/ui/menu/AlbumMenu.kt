@@ -242,9 +242,6 @@ fun AlbumMenu(
                         onClick = {
                             onDismiss()
                             if (songs.isNotEmpty()) {
-                                album.album.playlistId?.let { playlistId ->
-                                    playerConnection.service.getAutomix(playlistId)
-                                }
                                 playerConnection.playQueue(
                                     ListQueue(
                                         title = album.album.title,

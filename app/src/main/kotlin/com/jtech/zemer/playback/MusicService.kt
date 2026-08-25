@@ -401,8 +401,6 @@ class MusicService :
     // wipe a tempo the user set via the player's Tempo & Pitch dialog).
     private var previousItemWasEpisode = false
 
-    val automixItems = MutableStateFlow<List<MediaItem>>(emptyList())
-
     // MIME of the resolved stream per mediaId, populated by resolveStreamUrl — the cast receiver needs
     // the real container (webm/opus vs mp4), not the local decoder's (often-null) output format.
     private val songMimeCache = java.util.concurrent.ConcurrentHashMap<String, String>()
@@ -743,16 +741,6 @@ class MusicService :
                     queue = restoredQueue,
                     playWhenReady = false,
                 )
-            }
-            runCatching {
-                filesDir.resolve(PERSISTENT_AUTOMIX_FILE).inputStream().use { fis ->
-                    ObjectInputStream(fis).use { oos ->
-                        oos.readObject() as PersistQueue
-                    }
-                }
-            }.onSuccess { queue ->
-                automixItems.value = queue.items.map { it.toMediaItem() }
-                    .filterBlockedEpisodes(podcastsBlocked())
             }
 
             // Restore player state
@@ -1288,32 +1276,6 @@ class MusicService :
             SessionError(SessionError.ERROR_IO, getString(R.string.radio_start_failed)),
         )
         this.toast(getString(R.string.radio_start_failed))
-    }
-
-    fun getAutomix(playlistId: String) {
-        // Automix/similar content feature disabled
-    }
-
-    fun addToQueueAutomix(
-        item: MediaItem,
-        position: Int,
-    ) {
-        automixItems.value =
-            automixItems.value.toMutableList().apply {
-                removeAt(position)
-            }
-        addToQueue(listOf(item))
-    }
-
-    fun playNextAutomix(
-        item: MediaItem,
-        position: Int,
-    ) {
-        automixItems.value =
-            automixItems.value.toMutableList().apply {
-                removeAt(position)
-            }
-        playNext(listOf(item))
     }
 
     fun playNext(rawItems: List<MediaItem>) {
@@ -2723,14 +2685,6 @@ class MusicService :
             position = player.currentPosition
         )
 
-        val persistAutomix =
-            PersistQueue(
-                title = "automix",
-                items = automixItems.value.mapNotNull { it.metadata },
-                mediaItemIndex = 0,
-                position = 0,
-            )
-
         // Save player state
         val persistPlayerState = PersistPlayerState(
             playWhenReady = player.playWhenReady,
@@ -2746,15 +2700,6 @@ class MusicService :
             filesDir.resolve(PERSISTENT_QUEUE_FILE).outputStream().use { fos ->
                 ObjectOutputStream(fos).use { oos ->
                     oos.writeObject(persistQueue)
-                }
-            }
-        }.onFailure {
-            reportException(it)
-        }
-        runCatching {
-            filesDir.resolve(PERSISTENT_AUTOMIX_FILE).outputStream().use { fos ->
-                ObjectOutputStream(fos).use { oos ->
-                    oos.writeObject(persistAutomix)
                 }
             }
         }.onFailure {
@@ -2890,7 +2835,6 @@ class MusicService :
         // re-prepare failure (recover via URL refresh) rather than a normal unrecoverable error.
         private const val REVERT_RECOVERY_WINDOW_MS = 6_000L
         const val PERSISTENT_QUEUE_FILE = "persistent_queue.data"
-        const val PERSISTENT_AUTOMIX_FILE = "persistent_automix.data"
         const val PERSISTENT_PLAYER_STATE_FILE = "persistent_player_state.data"
         const val MAX_CONSECUTIVE_ERR = 5
         // Constants for audio normalization

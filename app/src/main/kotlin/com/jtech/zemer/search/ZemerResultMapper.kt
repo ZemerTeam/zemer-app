@@ -251,8 +251,7 @@ object ZemerResultMapper {
      * so the Zemer path reuses that whole pipeline unchanged. Like every Zemer surface the tracks are
      * whitelist-scoped server-side, so only the surgical id-overrides ([dropBlocked]) run here.
      * [playlistId] is
-     * the search card's OP playlist id — the server header carries none — falling back to the browseId
-     * (whose only consumer then is the disabled automix).
+     * the search card's OP playlist id — the server header carries none — falling back to the browseId.
      */
     fun ZemerAlbumResponse.toAlbumPage(playlistId: String?): AlbumPage {
         val albumItem = AlbumItem(

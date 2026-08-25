@@ -118,7 +118,6 @@ fun AlbumScreen(
     val isPlaying by playerConnection.isPlaying.collectAsState()
     val mediaMetadata by playerConnection.mediaMetadata.collectAsState()
 
-    val playlistId by viewModel.playlistId.collectAsState()
     val albumWithSongs by viewModel.albumWithSongs.collectAsState()
     val albumNotFound by viewModel.notFound.collectAsState()
 
@@ -331,13 +330,11 @@ fun AlbumScreen(
 
                     PlaylistPlayShuffleButtons(
                         onPlay = {
-                            playerConnection.service.getAutomix(playlistId)
                             playerConnection.playQueue(
                                 LocalAlbumRadio(albumWithSongs, context = context),
                             )
                         },
                         onShuffle = {
-                            playerConnection.service.getAutomix(playlistId)
                             playerConnection.playQueue(
                                 LocalAlbumRadio(albumWithSongs.copy(songs = albumWithSongs.songs.shuffled()), context = context),
                             )
@@ -396,7 +393,6 @@ fun AlbumScreen(
                                             if (activeRowTapTogglesPlayPause(songWrapper.item.id == mediaMetadata?.id, playerConnection.isStationBroadcast.value)) {
                                                 playerConnection.playPause()
                                             } else {
-                                                playerConnection.service.getAutomix(playlistId)
                                                 playerConnection.playQueue(
                                                     LocalAlbumRadio(albumWithSongs, startIndex = index, context = context),
                                                 )
