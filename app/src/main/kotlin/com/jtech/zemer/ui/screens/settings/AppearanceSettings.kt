@@ -107,8 +107,6 @@ import com.jtech.zemer.constants.SwipeToSongKey
 import com.jtech.zemer.constants.BottomNavigationBarEnabledKey
 import com.jtech.zemer.constants.RecognizeMusicFabKey
 import com.jtech.zemer.constants.BottomNavigationItemsKey
-import com.jtech.zemer.constants.UseNewMiniPlayerDesignKey
-import com.jtech.zemer.constants.UseNewPlayerDesignKey
 import com.jtech.zemer.ui.component.AppBarTitle
 import com.jtech.zemer.ui.component.BackNavigationIcon
 import com.jtech.zemer.ui.component.DefaultDialog
@@ -155,14 +153,6 @@ fun AppearanceSettings(
     val (enableHighRefreshRate, onEnableHighRefreshRateChange) = rememberPreference(
         EnableHighRefreshRateKey,
         defaultValue = true,
-    )
-    val (useNewPlayerDesign, onUseNewPlayerDesignChange) = rememberPreference(
-        UseNewPlayerDesignKey,
-        defaultValue = true
-    )
-    val (useNewMiniPlayerDesign, onUseNewMiniPlayerDesignChange) = rememberPreference(
-        UseNewMiniPlayerDesignKey,
-        defaultValue = true
     )
     val (floatingMiniPlayerEnabled, onFloatingMiniPlayerEnabledChange) = rememberPreference(
         FloatingMiniPlayerKey,
@@ -525,22 +515,6 @@ fun AppearanceSettings(
         SettingsCardGroup(
             title = stringResource(R.string.player),
             rows = listOfNotNull(
-                {
-                    SwitchPreference(
-                        title = { Text(stringResource(R.string.new_player_design)) },
-                        icon = { Icon(painterResource(R.drawable.palette), null) },
-                        checked = useNewPlayerDesign,
-                        onCheckedChange = onUseNewPlayerDesignChange,
-                    )
-                },
-                {
-                    SwitchPreference(
-                        title = { Text(stringResource(R.string.new_mini_player_design)) },
-                        icon = { Icon(painterResource(R.drawable.nav_bar), null) },
-                        checked = useNewMiniPlayerDesign,
-                        onCheckedChange = onUseNewMiniPlayerDesignChange,
-                    )
-                },
                 {
                     SwitchPreference(
                         title = { Text(stringResource(R.string.floating_mini_player)) },

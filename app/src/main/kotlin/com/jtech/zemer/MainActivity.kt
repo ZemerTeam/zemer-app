@@ -13,7 +13,6 @@ import android.view.InputDevice
 import android.view.KeyEvent
 import android.view.MotionEvent
 import android.view.View
-import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
@@ -180,7 +179,6 @@ import com.jtech.zemer.constants.EnableHighRefreshRateKey
 import com.jtech.zemer.constants.LastNightlyAnnouncedKey
 import com.jtech.zemer.constants.DarkModeKey
 import com.jtech.zemer.constants.DefaultOpenTabKey
-import com.jtech.zemer.constants.DisableScreenshotKey
 import com.jtech.zemer.constants.DynamicThemeKey
 import com.jtech.zemer.constants.SelectedThemeColorKey
 import com.jtech.zemer.constants.FloatingMiniPlayerKey
@@ -205,7 +203,6 @@ import com.jtech.zemer.constants.BottomNavigationBarEnabledKey
 import com.jtech.zemer.constants.BottomNavigationItemsKey
 import com.jtech.zemer.constants.StopMusicOnTaskClearKey
 import com.jtech.zemer.constants.UpdateNotificationsEnabledKey
-import com.jtech.zemer.constants.UseNewMiniPlayerDesignKey
 import com.jtech.zemer.constants.VisitorDataKey
 import com.jtech.zemer.db.MusicDatabase
 import com.jtech.zemer.db.entities.SearchHistory
@@ -496,22 +493,6 @@ class MainActivity : ComponentActivity() {
         // Request storage permissions at startup for MediaStore downloads
         // NOTE: Files permission is now handled in the onboarding flow
         // requestStoragePermissionsIfNeeded()
-
-        lifecycleScope.launch {
-            dataStore.data
-                .map { it[DisableScreenshotKey] ?: false }
-                .distinctUntilChanged()
-                .collectLatest {
-                    if (it) {
-                        window.setFlags(
-                            WindowManager.LayoutParams.FLAG_SECURE,
-                            WindowManager.LayoutParams.FLAG_SECURE,
-                        )
-                    } else {
-                        window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
-                    }
-                }
-        }
 
         // Initialize content filter sync service
         contentFilterSyncService.initialize()
@@ -873,7 +854,6 @@ class MainActivity : ComponentActivity() {
                             }
                             items
                         }
-                        val (useNewMiniPlayerDesign) = rememberPreference(UseNewMiniPlayerDesignKey, defaultValue = true)
                         val (floatingMiniPlayerEnabled) = rememberPreference(FloatingMiniPlayerKey, defaultValue = true)
                         val (recognizeMusicFab) = rememberPreference(RecognizeMusicFabKey, defaultValue = true)
                         val (innerTubeCookie) = rememberPreference(InnerTubeCookieKey, defaultValue = "")
@@ -1076,13 +1056,12 @@ class MainActivity : ComponentActivity() {
                         bottomInset,
                         shouldShowNavigationBar,
                         showRail,
-                        useNewMiniPlayerDesign,
                         floatingMiniPlayerAllowed
                     ) {
                         if (floatingMiniPlayerAllowed) {
                             bottomInset +
                                 (if (!showRail && shouldShowNavigationBar) NavigationBarHeight + 1.dp else 0.dp) +
-                                (if (useNewMiniPlayerDesign) MiniPlayerBottomSpacing else 0.dp) +
+                                MiniPlayerBottomSpacing +
                                 MiniPlayerHeight
                         } else {
                             0.dp

@@ -122,9 +122,6 @@ fun NavGraphBuilder.navigationBuilder(
     composable("recognition_history") {
         RecognitionHistoryScreen(navController)
     }
-    composable("new_release") {
-        NewReleaseScreen(navController, scrollBehavior)
-    }
     composable("latest_releases") {
         LatestReleasesScreen(navController, scrollBehavior)
     }

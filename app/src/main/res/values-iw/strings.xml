@@ -214,8 +214,6 @@
     <string name="pause_search_history">השהיית היסטוריית החיפוש</string>
     <string name="clear_search_history">…נקה את היסטוריית החיפוש</string>
     <string name="clear_search_history_confirm">האם אתה בטוח שברצונך למחוק את כל היסטוריית החיפוש?</string>
-    <string name="disable_screenshot">השבתת צילום מסך</string>
-    <string name="disable_screenshot_desc">כאשר אפשרות זו מופעלת, צילומי מסך ותצוגת האפליקציה תחת \'אחרונים\' מושבתות.</string>
     <string name="enable_lrclib">הפעל את ספק המילים של LrcLib</string>
     <string name="backup_restore">גיבוי ושחזור</string>
     <string name="action_backup">גיבוי</string>
@@ -267,13 +265,6 @@
     <string name="splash_syncing_progress">מסנכרן %1$d/%2$d אמנים</string>
     <string name="splash_syncing_background_action">המשך בזמן שאנחנו מסתנכרנים</string>
     <string name="splash_syncing_background_waiting">מסנכרן ברקע…</string>
-    <string name="new_release_error_title">לא ניתן לטעון יציאות חדשות</string>
-    <string name="new_release_empty_title">אין יציאות חדשות</string>
-    <string name="new_release_empty_subtitle">לא מצאנו יציאות חדשות כרגע. נסו שוב מאוחר יותר.</string>
-    <string name="new_release_retry">נסו שוב</string>
-    <string name="new_release_title">יציאות אחרונות</string>
-    <string name="new_release_songs_title">סינגלים אחרונים</string>
-    <string name="new_release_albums_title">אלבומים אחרונים</string>
     <string name="search_error_title">החיפוש נתקל בבעיה</string>
     <string name="search_empty_title">לא נמצאו תוצאות</string>
     <string name="search_retry">חיפוש מחדש</string>
