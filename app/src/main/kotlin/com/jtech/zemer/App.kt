@@ -320,9 +320,6 @@ class App : Application(), SingletonImageLoader.Factory {
         if (!settings.contains(AllowFemaleSingersKey)) {
             dataStore.edit { it[AllowFemaleSingersKey] = false }
         }
-        if (!settings.contains(AllowChasidishKey)) {
-            dataStore.edit { it[AllowChasidishKey] = false }
-        }
         // One-time seed: whoever already blocks videos gets podcasts blocked too. Runs exactly once
         // (fresh installs seed false=false, matching the default-off parity); after this the two are
         // independent toggles. See BlockPodcastsSeededKey.
@@ -339,13 +336,10 @@ class App : Application(), SingletonImageLoader.Factory {
         }
 
         YouTube.locale = YouTubeLocale(
-            gl = settings[ContentCountryKey]?.takeIf { it != SYSTEM_DEFAULT }
-                ?: locale.country.takeIf { it in CountryCodeToName }
-                ?: "US",
-            hl = settings[ContentLanguageKey]?.takeIf { it != SYSTEM_DEFAULT }
-                ?: locale.language.takeIf { it in LanguageCodeToName }
+            gl = locale.country.takeIf { it in CountryCodeToName } ?: "US",
+            hl = locale.language.takeIf { it in LanguageCodeToName }
                 ?: languageTag.takeIf { it in LanguageCodeToName }
-                ?: "en"
+                ?: "en",
         )
 
         YouTube.useLoginForBrowse = settings[UseLoginForBrowse] ?: true

@@ -400,7 +400,6 @@
     <string name="settings_desc_updater">Check for app updates</string>
     <string name="settings_desc_about">About Zemer</string>
     <string name="settings_desc_android_auto">Customize browsing &amp; quick-add</string>
-    <string name="recommendations">Recommendations</string>
 
     <!-- Bottom navigation customization -->
     <string name="bottom_nav_items">Bottom Navigation Items</string>

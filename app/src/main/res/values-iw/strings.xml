@@ -176,8 +176,6 @@
     <string name="content">תוכן</string>
     <string name="action_logout">התנתקות</string>
     <string name="login">התחברות</string>
-    <string name="content_language">שפת תוכן ברירת מחדל</string>
-    <string name="content_country">מדינת תוכן ברירת מחדל</string>
     <string name="system_default">ברירת מחדל מערכת</string>
     <string name="player_and_audio">נגן ושמע</string>
     <string name="general">כללי</string>
@@ -227,7 +225,6 @@
     <string name="content_filters">סינון תוכן</string>
     <string name="allow_female_singers">אפשר זמרות</string>
     <string name="enable_personal_filters">הפעלת מסננים אישיים</string>
-    <string name="i_am_chasidish">אני חסידי</string>
     <string name="radio_mode">מצב רדיו</string>
     <string name="sign_out_description">התנתק מהחשבון</string>
     <string name="onboarding_agree_label">קראתי והסכמתי לתנאי השירות ומדיניות הפרטיות</string>

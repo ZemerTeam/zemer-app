@@ -153,9 +153,6 @@ suspend fun List<YTItem>.filterWhitelisted(
     requireAllArtists: Boolean = false,
     fallbackArtistId: String? = null,
 ): List<YTItem> {
-    // Chasidish preference is now handled separately since it's for recommendations only
-    // For now, default to false - in a real implementation, you might want to get this from a separate source
-    val promoteChasidish = false
     Timber.d("WhitelistFilter: Filtering ${this.size} items")
     var allowedEntries = WhitelistCache.allowedEntries(config)
     if (allowedEntries.isEmpty()) {
@@ -164,7 +161,7 @@ suspend fun List<YTItem>.filterWhitelisted(
     }
     val allowedIds: Set<String>? = allowedEntries.takeIf { it.isNotEmpty() }?.map { it.artistId }?.toSet()
     val artistCache = mutableMapOf<String, ArtistWhitelistEntity?>()
-    val filtered = mutableListOf<Pair<YTItem, Boolean>>()
+    val filtered = mutableListOf<YTItem>()
 
     this.forEach { item ->
         // Id-level override: a specific item can be hidden everywhere even when its artist is whitelisted
@@ -231,15 +228,11 @@ suspend fun List<YTItem>.filterWhitelisted(
                 )
         }
         if (decision.allowed) {
-            filtered.add(item to decision.isChasidish)
+            filtered.add(item)
         }
     }
 
-    val result = if (promoteChasidish) {
-        filtered.sortedByDescending { it.second }.map { it.first }
-    } else {
-        filtered.map { it.first }
-    }
+    val result = filtered.toList()
 
     Timber.d("WhitelistFilter: Result: ${result.size} items passed filter (${this.size - result.size} filtered out)")
     return result

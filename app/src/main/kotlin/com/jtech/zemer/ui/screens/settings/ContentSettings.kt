@@ -55,14 +55,10 @@ import com.jtech.zemer.ui.component.SyncAccountWarning
 import com.jtech.zemer.ui.component.DefaultDialog
 import com.jtech.zemer.auth.AuthState
 import com.jtech.zemer.auth.UserAuthManager
-import com.jtech.zemer.constants.AllowChasidishKey
 import com.jtech.zemer.constants.AllowFemaleSingersKey
 import com.jtech.zemer.constants.BlockVideosKey
 import com.jtech.zemer.constants.BlockPodcastsKey
 import com.jtech.zemer.constants.AppLanguageKey
-import com.jtech.zemer.constants.ContentCountryKey
-import com.jtech.zemer.constants.ContentLanguageKey
-import com.jtech.zemer.constants.CountryCodeToName
 import com.jtech.zemer.constants.EnableContentFiltersKey
 import com.jtech.zemer.constants.EnableLrcLibKey
 import com.jtech.zemer.constants.LanguageCodeToName
@@ -86,7 +82,6 @@ import com.jtech.zemer.utils.ContentFilterState
 import com.jtech.zemer.utils.rememberEnumPreference
 import com.jtech.zemer.utils.rememberPreference
 import com.jtech.zemer.utils.setAppLocale
-import com.metrolist.innertube.YouTube
 import dagger.hilt.android.lifecycle.HiltViewModel
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -185,18 +180,15 @@ fun ContentSettings(
     // Used only before Android 13
     val (appLanguage, onAppLanguageChange) = rememberPreference(key = AppLanguageKey, defaultValue = SYSTEM_DEFAULT)
 
-    val (contentLanguage, onContentLanguageChange) = rememberPreference(key = ContentLanguageKey, defaultValue = "system")
-    val (contentCountry, onContentCountryChange) = rememberPreference(key = ContentCountryKey, defaultValue = "system")
     val (enableLrclib, onEnableLrclibChange) = rememberPreference(key = EnableLrcLibKey, defaultValue = true)
     val (lengthTop, onLengthTopChange) = rememberPreference(key = TopSize, defaultValue = "50")
     val (quickPicks, onQuickPicksChange) = rememberEnumPreference(key = QuickPicksKey, defaultValue = QuickPicks.QUICK_PICKS)
     val (enableContentFilters, onEnableContentFiltersChange) = rememberPreference(key = EnableContentFiltersKey, defaultValue = true)
     val (allowFemaleSingers, onAllowFemaleSingersChange) = rememberPreference(key = AllowFemaleSingersKey, defaultValue = false)
-    val (allowChasidish, onAllowChasidishChange) = rememberPreference(key = AllowChasidishKey, defaultValue = false)
     val (blockVideos, onBlockVideosChange) = rememberPreference(key = BlockVideosKey, defaultValue = false)
     val (blockPodcasts, onBlockPodcastsChange) = rememberPreference(key = BlockPodcastsKey, defaultValue = false)
 
-    // Update ContentFilterState when preferences change (excluding chasidish since it's for recommendations only)
+    // Update ContentFilterState when preferences change
     LaunchedEffect(enableContentFilters, allowFemaleSingers, blockVideos, blockPodcasts) {
         ContentFilterState.updateContentFilters(
             filtersEnabled = enableContentFilters,
@@ -225,58 +217,6 @@ fun ContentSettings(
             .verticalScroll(rememberScrollState()),
     ) {
         Spacer(Modifier.height(SettingsScreenTopSpacing))
-        SettingsCardGroup(
-            title = stringResource(R.string.general),
-            rows = listOf(
-                {
-                    ListPreference(
-                        title = { Text(stringResource(R.string.content_language)) },
-                        icon = { Icon(painterResource(R.drawable.language), null) },
-                        selectedValue = contentLanguage,
-                        values = listOf(SYSTEM_DEFAULT) + LanguageCodeToName.keys.toList(),
-                        valueText = {
-                            LanguageCodeToName.getOrElse(it) { stringResource(R.string.system_default) }
-                        },
-                        onValueSelected = { newValue ->
-                            val locale = Locale.getDefault()
-                            val languageTag = locale.toLanguageTag().replace("-Hant", "")
-
-                            YouTube.locale = YouTube.locale.copy(
-                                hl = newValue.takeIf { it != SYSTEM_DEFAULT }
-                                    ?: locale.language.takeIf { it in LanguageCodeToName }
-                                    ?: languageTag.takeIf { it in LanguageCodeToName }
-                                    ?: "en"
-                            )
-
-                            onContentLanguageChange(newValue)
-                        }
-                    )
-                },
-                {
-                    ListPreference(
-                        title = { Text(stringResource(R.string.content_country)) },
-                        icon = { Icon(painterResource(R.drawable.location_on), null) },
-                        selectedValue = contentCountry,
-                        values = listOf(SYSTEM_DEFAULT) + CountryCodeToName.keys.toList(),
-                        valueText = {
-                            CountryCodeToName.getOrElse(it) { stringResource(R.string.system_default) }
-                        },
-                        onValueSelected = { newValue ->
-                            val locale = Locale.getDefault()
-
-                            YouTube.locale = YouTube.locale.copy(
-                                gl = newValue.takeIf { it != SYSTEM_DEFAULT }
-                                    ?: locale.country.takeIf { it in CountryCodeToName }
-                                    ?: "US"
-                            )
-
-                            onContentCountryChange(newValue)
-                        }
-                    )
-                },
-            ),
-        )
-
         SettingsCardGroup(
             title = stringResource(R.string.app_language),
             rows = buildList {
@@ -388,21 +328,6 @@ fun ContentSettings(
                         checked = blockPodcasts,
                         onCheckedChange = onBlockPodcastsChange,
                         isEnabled = enableContentFilters && togglesEnabled
-                    )
-                },
-            ),
-        )
-
-        SettingsCardGroup(
-            title = stringResource(R.string.recommendations),
-            rows = listOf(
-                {
-                    SwitchPreference(
-                        title = { Text(stringResource(R.string.i_am_chasidish)) },
-                        icon = { Icon(painterResource(R.drawable.person), null) },
-                        checked = allowChasidish,
-                        onCheckedChange = onAllowChasidishChange,
-                        isEnabled = true // Chasidish is not locked, it's for recommendations only
                     )
                 },
             ),
