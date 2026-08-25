@@ -7,7 +7,6 @@ import com.jtech.zemer.constants.AudioQuality
 import com.jtech.zemer.playback.VideoDecoderCaps
 import com.jtech.zemer.playback.VideoQualityLogic
 import com.jtech.zemer.playback.VideoQualityRung
-import com.jtech.zemer.constants.StreamSourceAndroidVRKey
 import com.jtech.zemer.constants.StreamSourceTVHTML5Key
 import com.jtech.zemer.constants.StreamSourceWebRemixKey
 import kotlinx.coroutines.flow.first
@@ -20,7 +19,6 @@ import com.zemer.cipher.potoken.PoTokenGenerator
 import com.zemer.cipher.potoken.PoTokenResult
 import com.jtech.zemer.utils.sabr.EjsNTransformSolver
 import com.metrolist.innertube.models.YouTubeClient
-import com.metrolist.innertube.models.YouTubeClient.Companion.ANDROID_VR_1_65_10
 import com.metrolist.innertube.models.YouTubeClient.Companion.VISIONOS
 import com.metrolist.innertube.models.YouTubeClient.Companion.VISIONOS_0_1
 import com.metrolist.innertube.models.YouTubeClient.Companion.MWEB
@@ -49,7 +47,7 @@ object YTPlayerUtils {
     private val poTokenGenerator = PoTokenGenerator()
 
     // Track videoIds where WEB_REMIX stream URLs 403 on ExoPlayer GET, so the next
-    // resolution falls through to TVHTML5/ANDROID_VR instead of looping.
+    // resolution falls through to TVHTML5/VISIONOS instead of looping.
     private val webRemixFailedIds = java.util.Collections.newSetFromMap(
         java.util.concurrent.ConcurrentHashMap<String, Boolean>()
     )
@@ -82,20 +80,15 @@ object YTPlayerUtils {
 
     private val ALL_FALLBACK_CLIENTS: Array<YouTubeClient> = arrayOf(
         // VISIONOS first: its CDN URL has no `spc` gate, so it streams the whole song with no
-        // poToken and no cipher (HEAD 200) — the most reliable fallback, ahead of the ANDROID_VR
-        // and TVHTML5 clients. (The proven-dead clients were removed 2026-08-15: the pre-1.65 VR
-        // variants are version-bot-gated; MOBILE 400s authenticated / SABR-only anonymous; WEB,
+        // poToken and no cipher (HEAD 200) — the most reliable fallback, ahead of the
+        // TVHTML5 client. (The proven-dead clients were removed: the ANDROID_VR family (incl. the
+        // last-living 1.65.10) 403s after 0 bytes on a whole-song drain; the pre-1.65 VR
+        // variants were also version-bot-gated; MOBILE 400s authenticated / SABR-only anonymous; WEB,
         // IOS and IPADOS are SABR-only or 403-wall past the 1 MiB free window.)
         VISIONOS,
         // The previous visionOS config as its second chance behind the current 1.02.
         VISIONOS_0_1,
         WEB_CREATOR,
-        // The one living VR client (1.65.10, eureka build): its eureka-style UA clears the "confirm
-        // you're not a bot" gate that permanently rejects the older 1.61.48/1.43.32 versions (the
-        // gate keys on the VERSION — verified by probing the old versions under the eureka UA — so
-        // the retired variants were removed as proven dead). Direct URL, used AS-IS (yt-dlp
-        // android_vr: REQUIRE_JS_PLAYER=false, no poToken) — no cipher, no n-transform, no pot.
-        ANDROID_VR_1_65_10,
         // The one TV cipher client, governed by the "TVHTML5" stream-source toggle (7.x TVHTML5 and
         // tv_downgraded were both removed as proven dead: 7.x is SABR-only, tv_downgraded 403-walls
         // even yt-dlp-master-exact — re-add from clients-retired.mjs only if YouTube reverts them).
@@ -311,13 +304,13 @@ object YTPlayerUtils {
                 // Use the player response as-is. The old NewPipe StreamInfo.getInfo
                 // pre-processing ran a full second extraction for EVERY song (fetch watch
                 // page + decipher all ~18 formats) — slow with the bundled extractor and
-                // redundant. Direct-url clients (IOS/ANDROID_VR/IPADOS/VISIONOS) already
+                // redundant. Direct-url clients (VISIONOS) already
                 // carry playable URLs; web clients are deciphered per-format by the Zemer
                 // cipher in findUrlOrNull (sig) + transformNParamInUrl (n) below.
                 val responseToUse = streamPlayerResponse
 
                 // An EXPLICIT quality-rung streaming resolution (videoItag) must come from a WEB client
-                // only: a non-web fallback (IOS/ANDROID_VR) can carry the itag, but its pot-bound URL
+                // only: a non-web fallback (VISIONOS) can carry the itag, but its pot-bound URL
                 // 403s past the 1 MiB wall — so the switched-to quality would play ~1 MiB then revert.
                 // Skip non-web clients here so the loop finds a web client or fails safe (revert to
                 // audio, re-resolve fresh on re-entry). Mirrors the ladder-seed's web-only rule.
@@ -354,7 +347,7 @@ object YTPlayerUtils {
                 // Apply n-transform and PoToken for web clients (n-transform FIRST, then pot=)
                 val needsNTransform = clientNeedsNTransform(client)
 
-                // ANDROID_VR (and other direct-URL clients) use the URL AS-IS: per yt-dlp
+                // VISIONOS (and other direct-URL clients) use the URL AS-IS: per yt-dlp
                 // (REQUIRE_JS_PLAYER=False, no GVS poToken policy) their URLs are already ready — no
                 // sig, no n-transform, no pot. Applying the web transforms would CORRUPT them.
                 if (needsNTransform) {
@@ -389,7 +382,7 @@ object YTPlayerUtils {
                 // WEB_REMIX authenticated CDN URLs 403 on HEAD but serve correctly
                 // on the actual byte-range GET that ExoPlayer makes. Skip HEAD validation
                 // for streaming UNLESS this videoId already failed on GET (tracked in
-                // webRemixFailedIds), in which case fall through to TVHTML5/ANDROID_VR.
+                // webRemixFailedIds), in which case fall through to TVHTML5/VISIONOS.
                 // For downloads, always fall through — WEB_REMIX signed URLs don't support
                 // the &range= query-param download pattern.
                 if (client.clientName == "WEB_REMIX" && clientIndex == -1
@@ -562,7 +555,7 @@ object YTPlayerUtils {
         videoId: String,
         playlistId: String? = null,
     ): Result<PlayerResponse> {
-        return YouTube.player(videoId, playlistId, client = WEB_REMIX) // ANDROID_VR does not work with history
+        return YouTube.player(videoId, playlistId, client = WEB_REMIX) // non-web fallbacks do not work with history
     }
 
     private fun clientNeedsNTransform(client: YouTubeClient): Boolean =

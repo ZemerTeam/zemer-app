@@ -116,29 +116,6 @@ data class YouTubeClient(
 
 
         /**
-         * The current VR client (v1.65.10, eureka build). Its eureka-style UA clears the bot gate
-         * ("confirm you're not a bot") where the older 1.61.48/1.43.32 UAs are rejected. Like every VR
-         * client it serves a DIRECT stream URL used AS-IS — no signatureCipher, no n-transform, no
-         * poToken (yt-dlp `android_vr`: REQUIRE_JS_PLAYER=false, no GVS poToken policy); on-device
-         * validated. Shares clientName "ANDROID_VR" (the "Android VR" stream-source toggle governs it).
-         */
-        val ANDROID_VR_1_65_10 = YouTubeClient(
-            clientName = "ANDROID_VR",
-            clientVersion = "1.65.10",
-            clientId = "28",
-            userAgent = "com.google.android.apps.youtube.vr.oculus/1.65.10 (Linux; U; Android 12L; eureka-user Build/SQ3A.220605.009.A1) gzip",
-            osName = "Android",
-            osVersion = "12L",
-            deviceMake = "Oculus",
-            deviceModel = "Quest 3",
-            androidSdkVersion = "32",
-            loginSupported = false,
-            useSignatureTimestamp = false
-        )
-
-
-
-        /**
          * Cannot play livestreams and lacks HDR, but can play videos with music and labeled "for children".
          * <a href=\"https://dumps.tadiphone.dev/dumps/google/barbet\">Google Pixel 9 Pro Fold</a>
          */

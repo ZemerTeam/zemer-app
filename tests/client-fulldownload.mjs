@@ -19,7 +19,7 @@ const kb = (n) => `${(n / 1024).toFixed(0)}KB`;
 // order as YTPlayerUtils.kt ("ANDROID" here = the app's MOBILE client). Override with
 // CLIENTS=WEB_REMIX,TVHTML5,... to test a subset.
 const TEST = process.env.CLIENTS?.split(",").map((s) => s.trim()).filter(Boolean) || [
-  "WEB_REMIX", "VISIONOS", "VISIONOS_0_1", "WEB_CREATOR", "ANDROID_VR_1_65_10",
+  "WEB_REMIX", "VISIONOS", "VISIONOS_0_1", "WEB_CREATOR",
   "TVHTML5_SIMPLY", "MWEB",
 ];
 
