@@ -1,10 +1,13 @@
 package com.jtech.zemer.ui.screens.playlist
 
+import androidx.annotation.PluralsRes
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -12,6 +15,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
@@ -20,15 +24,23 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import coil3.compose.AsyncImage
 import com.jtech.zemer.R
 import com.jtech.zemer.constants.AlbumThumbnailSize
 import com.jtech.zemer.constants.ThumbnailCornerRadius
+import com.jtech.zemer.ui.component.AutoResizeText
+import com.jtech.zemer.ui.component.FontSizeRange
 import com.jtech.zemer.ui.component.shimmer.ButtonPlaceholder
 import com.jtech.zemer.ui.component.shimmer.ListItemPlaceHolder
 import com.jtech.zemer.ui.component.shimmer.ShimmerHost
 import com.jtech.zemer.ui.component.shimmer.TextPlaceholder
+import com.jtech.zemer.utils.makeTimeString
 
 /**
  * The loading skeleton every playlist-detail screen shows: header cover + text placeholders, the
@@ -116,5 +128,93 @@ fun PlaylistPlayShuffleButtons(
                 Text(stringResource(R.string.shuffle))
             }
         }
+    }
+}
+
+/**
+ * The playlist-detail header (cover + title + item count + duration + a trailing action Row + the
+ * Play/Shuffle pair). ONE copy for the auto/top/downloaded-videos detail screens so the layout can't
+ * drift. [aggregateDownload] is the optional download-all control (null for screens with none, e.g.
+ * Downloaded Videos); [pluralRes] is the count plural (`n_song` vs `n_video`); [totalDurationMs] is
+ * the summed duration already in milliseconds.
+ */
+@Composable
+fun PlaylistDetailHeader(
+    coverUrl: String?,
+    title: String,
+    itemCount: Int,
+    @PluralsRes pluralRes: Int,
+    totalDurationMs: Long,
+    aggregateDownload: (@Composable () -> Unit)?,
+    onAddToQueue: () -> Unit,
+    onPlay: () -> Unit,
+    onShuffle: () -> Unit,
+) {
+    Column(
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+        modifier = Modifier.padding(12.dp),
+    ) {
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Box(
+                contentAlignment = Alignment.Center,
+                modifier = Modifier
+                    .size(AlbumThumbnailSize)
+                    .clip(RoundedCornerShape(ThumbnailCornerRadius))
+                    .fillMaxWidth(),
+            ) {
+                AsyncImage(
+                    model = coverUrl,
+                    contentDescription = null,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(ThumbnailCornerRadius)),
+                )
+            }
+
+            Column(
+                verticalArrangement = Arrangement.Center,
+            ) {
+                AutoResizeText(
+                    text = title,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                    fontSizeRange = FontSizeRange(16.sp, 22.sp),
+                )
+
+                Text(
+                    text = pluralStringResource(pluralRes, itemCount, itemCount),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Normal,
+                )
+
+                Text(
+                    text = makeTimeString(totalDurationMs),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Normal,
+                )
+
+                Row {
+                    aggregateDownload?.invoke()
+
+                    IconButton(
+                        onClick = onAddToQueue,
+                    ) {
+                        Icon(
+                            painter = painterResource(R.drawable.queue_music),
+                            contentDescription = null,
+                        )
+                    }
+                }
+            }
+        }
+
+        PlaylistPlayShuffleButtons(
+            onPlay = onPlay,
+            onShuffle = onShuffle,
+        )
     }
 }

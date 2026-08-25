@@ -34,7 +34,6 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -46,9 +45,6 @@ import androidx.compose.material3.SwipeToDismissBox
 import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TextField
-import androidx.compose.material3.TextFieldDefaults
-import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarScrollBehavior
 import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
@@ -69,7 +65,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.ContentScale
@@ -80,7 +75,6 @@ import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -114,12 +108,10 @@ import com.jtech.zemer.db.entities.PlaylistSongMap
 import com.jtech.zemer.extensions.isPersonalAccountSignedIn
 import com.jtech.zemer.extensions.move
 import com.jtech.zemer.extensions.toMediaItem
-import com.jtech.zemer.extensions.togglePlayPause
 import com.jtech.zemer.models.toMediaMetadata
 import com.jtech.zemer.playback.queues.ListQueue
 import com.jtech.zemer.ui.component.ActionPromptDialog
 import com.jtech.zemer.ui.component.AggregateDownloadButton
-import com.jtech.zemer.ui.component.AppBarTitle
 import com.jtech.zemer.ui.component.AutoResizeText
 import com.jtech.zemer.ui.component.DefaultDialog
 import com.jtech.zemer.ui.component.RemoveDownloadConfirmDialog
@@ -130,10 +122,10 @@ import com.jtech.zemer.ui.component.IconButton
 import com.jtech.zemer.ui.component.LocalMenuState
 import com.jtech.zemer.ui.component.MoreVertMenuButton
 import com.jtech.zemer.ui.component.OverlayEditButton
+import com.jtech.zemer.ui.component.SearchableSelectableTopAppBar
 import com.jtech.zemer.ui.component.SongListItem
 import com.jtech.zemer.ui.component.SortHeader
 import com.jtech.zemer.ui.component.TextFieldDialog
-import com.jtech.zemer.ui.component.zemerTopAppBarColors
 import com.jtech.zemer.ui.menu.CustomThumbnailMenu
 import com.jtech.zemer.ui.component.SelectionActions
 import com.jtech.zemer.ui.menu.SelectionSongMenu
@@ -141,7 +133,6 @@ import com.jtech.zemer.ui.menu.SongMenu
 import com.jtech.zemer.ui.screens.settings.DarkMode
 import com.jtech.zemer.ui.utils.activeRowTapTogglesPlayPause
 import com.jtech.zemer.ui.utils.ItemWrapper
-import com.jtech.zemer.ui.utils.backToMain
 import com.jtech.zemer.utils.filterWhitelisted
 import com.jtech.zemer.utils.makeTimeString
 import com.jtech.zemer.utils.rememberEnumPreference
@@ -762,99 +753,38 @@ fun LocalPlaylistScreen(
             headerItems = 2
         )
 
-        TopAppBar(
-            title = {
-                if (selection) {
-                    val count = wrappedSongs.count { it.isSelected }
-                    AppBarTitle(
-                        text = pluralStringResource(R.plurals.n_song, count, count)
-                    )
-                } else if (isSearching) {
-                    TextField(
-                        value = query,
-                        onValueChange = { query = it },
-                        placeholder = {
-                            Text(
-                                text = stringResource(R.string.search),
-                                style = MaterialTheme.typography.titleLarge
+        SearchableSelectableTopAppBar(
+            navController = navController,
+            idleTitle = if (showTopBarTitle) playlist?.playlist?.name.orEmpty() else null,
+            isSearching = isSearching,
+            onIsSearchingChange = { isSearching = it },
+            query = query,
+            onQueryChange = { query = it },
+            focusRequester = focusRequester,
+            selectionCount = if (selection) wrappedSongs.count { it.isSelected } else null,
+            selectionCountPlural = R.plurals.n_song,
+            onExitSelection = { selection = false },
+            backToMainDuringSelection = true,
+            actions = {
+                SelectionActions(
+                    wrapped = wrappedSongs,
+                    onMore = {
+                        menuState.show {
+                            SelectionSongMenu(
+                                songSelection = wrappedSongs.filter { it.isSelected }
+                                    .map { it.item.song },
+                                songPosition = wrappedSongs.filter { it.isSelected }
+                                    .map { it.item.map },
+                                onDismiss = menuState::dismiss,
+                                clearAction = {
+                                    selection = false
+                                    wrappedSongs.clear()
+                                }
                             )
-                        },
-                        singleLine = true,
-                        textStyle = MaterialTheme.typography.titleLarge,
-                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-                        colors = TextFieldDefaults.colors(
-                            focusedContainerColor = Color.Transparent,
-                            unfocusedContainerColor = Color.Transparent,
-                            focusedIndicatorColor = Color.Transparent,
-                            unfocusedIndicatorColor = Color.Transparent,
-                            disabledIndicatorColor = Color.Transparent,
-                        ),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .focusRequester(focusRequester)
-                    )
-                } else if (showTopBarTitle) {
-                    AppBarTitle(text = playlist?.playlist?.name.orEmpty())
-                }
-            },
-            navigationIcon = {
-                IconButton(
-                    onClick = {
-                        if (isSearching) {
-                            isSearching = false
-                            query = TextFieldValue()
-                        } else if (selection) {
-                            selection = false
-                        } else {
-                            navController.navigateUp()
                         }
                     },
-                    onLongClick = {
-                        if (!isSearching) {
-                            navController.backToMain()
-                        }
-                    }
-                ) {
-                    Icon(
-                        painter = painterResource(
-                            if (selection) R.drawable.close else R.drawable.arrow_back
-                        ),
-                        contentDescription = null
-                    )
-                }
+                )
             },
-            actions = {
-                if (selection) {
-                    SelectionActions(
-                        wrapped = wrappedSongs,
-                        onMore = {
-                            menuState.show {
-                                SelectionSongMenu(
-                                    songSelection = wrappedSongs.filter { it.isSelected }
-                                        .map { it.item.song },
-                                    songPosition = wrappedSongs.filter { it.isSelected }
-                                        .map { it.item.map },
-                                    onDismiss = menuState::dismiss,
-                                    clearAction = {
-                                        selection = false
-                                        wrappedSongs.clear()
-                                    }
-                                )
-                            }
-                        },
-                    )
-                } else if (!isSearching) {
-                    IconButton(
-                        onClick = { isSearching = true }
-                    ) {
-                        Icon(
-                            painter = painterResource(R.drawable.search),
-                            contentDescription = null
-                        )
-                    }
-                }
-            },
-            colors = zemerTopAppBarColors(),
         )
 
         SnackbarHost(
