@@ -44,6 +44,7 @@ import com.jtech.zemer.constants.ThumbnailCornerRadius
 import com.jtech.zemer.db.entities.PodcastEntity
 import com.jtech.zemer.extensions.toMediaItem
 import com.jtech.zemer.playback.queues.ListQueue
+import com.jtech.zemer.tracking.PlaySource
 import com.jtech.zemer.search.SEARCH_FILTER_EPISODES
 import com.jtech.zemer.search.zemerSearchRoute
 import com.jtech.zemer.ui.component.BrowseScreenScaffold
@@ -106,7 +107,11 @@ fun WhitelistedPodcastsScreen(
                     onRefresh = { viewModel.fetchNewEpisodes() },
                     onEpisodeClick = { episode ->
                         playerConnection.playQueue(
-                            ListQueue(title = episode.title, items = listOf(episode.toMediaItem())),
+                            ListQueue(
+                                title = episode.title,
+                                items = listOf(episode.toMediaItem()),
+                                playSource = PlaySource.podcast(episode.album?.id),
+                            ),
                         )
                     },
                 )
