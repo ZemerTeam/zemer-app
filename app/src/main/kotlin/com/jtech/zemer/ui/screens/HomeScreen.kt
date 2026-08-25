@@ -570,9 +570,9 @@ fun HomeScreen(
         ) {
                 // Content-type selector (Music / Podcasts / Radio / Video) — reuses the Library
                 // ChipsRow. Each tab renders only its own shelves below; Video is dropped when videos
-                // are blocked. See HomeContentTab.
-                stickyHeader(key = "home_content_tabs", contentType = "header") {
-                    // Opaque background so shelves scrolling under the pinned selector stay hidden.
+                // are blocked. See HomeContentTab. A plain item (not a sticky header) so the chips
+                // scroll away with the content instead of staying pinned at the top.
+                item(key = "home_content_tabs", contentType = "header") {
                     Box(
                         Modifier
                             .fillMaxWidth()
