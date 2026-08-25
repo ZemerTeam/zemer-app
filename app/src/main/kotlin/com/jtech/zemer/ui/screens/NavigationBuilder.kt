@@ -123,12 +123,6 @@ fun NavGraphBuilder.navigationBuilder(
     composable("recognition_history") {
         RecognitionHistoryScreen(navController)
     }
-    composable("stats") {
-        StatsScreen(navController)
-    }
-    composable("account") {
-        AccountScreen(navController, scrollBehavior)
-    }
     composable("new_release") {
         NewReleaseScreen(navController, scrollBehavior)
     }

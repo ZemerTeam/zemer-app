@@ -6,10 +6,10 @@
 | --- | --- |
 | Database class | `MusicDatabase.InternalDatabase` |
 | Wrapper class | `MusicDatabase` delegates `DatabaseDao` to `delegate.dao` |
-| Schema version | `32` |
-| Identity hash | `c0d9725767925415a739bfd72a3d4335` |
-| Entity count in schema 32 | `16` |
-| Schema files tracked | `32` |
+| Schema version | `34` |
+| Identity hash | `34aedfb248fca6ea1217dc974399c622` |
+| Entity count in schema 34 | `19` |
+| Schema files tracked | `34` |
 | DAO file | `app/src/main/kotlin/com/jtech/zemer/db/DatabaseDao.kt` |
 | DAO methods found by regex | `199` |
 
@@ -53,6 +53,7 @@
 | 23 | 24 | `none` |
 | 24 | 25 | `none` |
 | 25 | 26 | `none` |
+| 32 | 33 | `none` |
 
 ## Manual migrations declared in `MusicDatabase.kt`
 
@@ -65,8 +66,9 @@
 | `MIGRATION_29_30` | 29 | 30 |
 | `MIGRATION_30_31` | 30 | 31 |
 | `MIGRATION_31_32` | 31 | 32 |
+| `MIGRATION_33_34` | 33 | 34 |
 
-## Schema 32 entities
+## Schema 34 entities
 
 ### `song`
 

@@ -1,15 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="weeks">שבועות</string>
-    <string name="months">חודשים</string>
     <string name="background_color">צבע רקע</string>
     <string name="local_history">מקומי</string>
     <string name="remote_history">מרוחק</string>
     <string name="charts">טבלאות</string>
     <string name="unknown_artist">אמן לא ידוע</string>
     <string name="trending">טרנדינג</string>
-    <string name="years">שנים</string>
-    <string name="continuous">מתמשך</string>
     <string name="liked">אהוב</string>
     <string name="offline">הורד</string>
     <string name="my_top">הנשמעים ביותר שלי</string>
