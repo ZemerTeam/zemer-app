@@ -18,6 +18,21 @@ class AppNavigationTest {
     }
 
     @Test
+    fun kidZoneContext_ridesTheRoutes() {
+        // The KidZone navigation flag (drill-in discipline, issue-free leak path): shows opened
+        // from the KidZone grid, and channels opened from those shows, keep kidZone=true.
+        assertEquals("online_podcast/MPSP1?kidZone=true", podcastRoute("MPSP1", kidZone = true))
+        assertEquals("online_podcast/MPSP1", podcastRoute("MPSP1"))
+        assertEquals(
+            "artist/UC1?isPodcastChannel=true&kidZone=true",
+            artistRoute("UC1", isPodcastChannel = true, kidZone = true),
+        )
+        // kidZone is a podcast-context flag: it never changes a music artist route.
+        assertEquals("artist/UC1", artistRoute("UC1", isPodcastChannel = false, kidZone = true))
+        assertNull(podcastRoute("", kidZone = true))
+    }
+
+    @Test
     fun artistRoute_nullOrBlank_isNull() {
         assertNull(artistRoute(null))
         assertNull(artistRoute(""))

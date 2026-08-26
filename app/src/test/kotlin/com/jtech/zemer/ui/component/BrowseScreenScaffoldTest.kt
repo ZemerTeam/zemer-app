@@ -27,6 +27,9 @@ class BrowseScreenScaffoldTest {
     @Test
     fun `header count adds the sections item`() {
         assertEquals(3, browseHeaderItemCount(hasHeaderSections = true))
+        // The KidZone chips ride an extra item ABOVE the search pill; both slots are counted.
+        assertEquals(3, browseHeaderItemCount(hasHeaderSections = false, hasTopSections = true))
+        assertEquals(4, browseHeaderItemCount(hasHeaderSections = true, hasTopSections = true))
     }
 
     // --- browseFastScrollProgress (takes a CONTENT index, see browseContentIndexOf) ---

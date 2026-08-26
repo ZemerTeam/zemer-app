@@ -306,6 +306,12 @@ data class ZemerRadioResponse(
 // when YouTube truly has no length; the client resume math degrades gracefully).
 // ---------------------------------------------------------------------------------------------------
 
+/** The `/podcasts` catalog response (the KidZone podcast grid consumes it with `kidZone=1`). */
+@Serializable
+data class ZemerPodcastsResponse(
+    val podcasts: List<ZemerPodcastShow> = emptyList(),
+)
+
 /** A podcast SHOW row (browse grid, search, host-channel shelf). Keyed/routed on the `MPSP…` id. */
 @Serializable
 data class ZemerPodcastShow(

@@ -172,14 +172,15 @@ class BuiltCategories internal constructor(
             }
 
         // Podcasts: shows + episodes folded into the same matcher (server reply 4). Both gated on the
-        // channel-inherited female/KidZone flags (isVideo=false: episodes are audio) + the blocked shard.
+        // female/kid flags (isVideo=false: episodes are audio) + the blocked shard. Search is a
+        // BROWSE surface: the shared podcastKidBrowseGate default-excludes kid shows (server parity).
         val podcastRows = pick(podcasts, k,
-            { allowed(it.femaleInvolved, it.isKidZone, isVideo = false, allowFemale, blockVideos, kidZone) },
+            { podcastKidBrowseGate(it.isKidZone, kidZone) && allowed(it.femaleInvolved, it.isKidZone, isVideo = false, allowFemale, blockVideos, kidZone) },
             { listOf(it.id, it.channelId) })
             .map { ZemerPodcastShow(id = it.id, name = it.title, author = it.author, channelId = it.channelId, thumbnail = it.thumbnail, episodeCountText = it.episodeCountText) }
 
         val episodeRows = pick(episodes, k,
-            { allowed(it.femaleInvolved, it.isKidZone, isVideo = false, allowFemale, blockVideos, kidZone) },
+            { podcastKidBrowseGate(it.isKidZone, kidZone) && allowed(it.femaleInvolved, it.isKidZone, isVideo = false, allowFemale, blockVideos, kidZone) },
             // A show blocked by id (per-show exception on a mixed channel) must also drop its
             // episodes here — every other offline podcast surface checks the show id, so matching
             // only the videoId let blocked shows' episodes leak through offline search.
@@ -356,14 +357,15 @@ class BuiltCategories internal constructor(
                 }
             }
 
-            // Podcast docs: female/KidZone inherited from the host channel. Orphan episodes (no in-corpus
-            // show) are dropped — they can't render a show name or be routed.
+            // Podcast docs: female inherited from the host channel; kid = the per-SHOW flag OR the
+            // channel's (server 2026-08-26). Orphan episodes (no in-corpus show) are dropped — they
+            // can't render a show name or be routed.
             val podcastDocs = corpus.podcasts.map { s ->
                 val ch = s.channelId?.let { corpus.podcastChannelsById[it] }
                 CatPodcastDoc(
                     id = s.id, title = s.name, author = s.author, channelId = s.channelId,
                     thumbnail = s.thumbnail, episodeCountText = s.episodeCountText,
-                    femaleInvolved = ch?.isFemale ?: false, isKidZone = ch?.isKidZone ?: false,
+                    femaleInvolved = ch?.isFemale ?: false, isKidZone = corpus.podcastIsKid(s),
                 )
             }
             val episodeDocs = corpus.podcastEpisodes.mapNotNull { e ->
@@ -372,7 +374,7 @@ class BuiltCategories internal constructor(
                 CatEpisodeDoc(
                     videoId = e.videoId, title = e.title, showId = e.showId, showName = s.name,
                     channelId = s.channelId, thumbnail = e.thumbnail, durationSec = e.durationSec, publishedAt = e.publishedAt,
-                    femaleInvolved = ch?.isFemale ?: false, isKidZone = ch?.isKidZone ?: false,
+                    femaleInvolved = ch?.isFemale ?: false, isKidZone = corpus.podcastIsKid(s),
                 )
             }
 

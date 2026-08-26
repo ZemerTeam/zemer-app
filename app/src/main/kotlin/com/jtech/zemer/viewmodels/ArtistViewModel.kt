@@ -44,6 +44,9 @@ class ArtistViewModel @Inject constructor(
     // Podcast HOST channels are their own animal: served whitelist-pure by the Zemer server
     // (`/podcast-channel`, mapped to an ArtistPage), NOT InnerTube. Music artists use the corpus path.
     val isPodcastChannel = savedStateHandle.get<Boolean>("isPodcastChannel") ?: false
+    // KidZone navigation context (podcast-channel mode only): server calls stay kid-restricted,
+    // and the screen's drill-outs (show cards) propagate it.
+    val kidZone = savedStateHandle.get<Boolean>("kidZone") ?: false
     var artistPage by mutableStateOf<ArtistPage?>(null)
     var isLoading by mutableStateOf(true)
 
@@ -83,7 +86,7 @@ class ArtistViewModel @Inject constructor(
                     // mapped to an ArtistPage), not InnerTube `YouTube.artist`. A 404/null leaves the page
                     // empty → the channel's not-available state, same as a corpus artist. The response also
                     // carries the episodes paging cursor for the see-all screen.
-                    zemerRepository.podcastChannel(artistId, zemerSearchOptions(context))
+                    zemerRepository.podcastChannel(artistId, zemerSearchOptions(context).copy(kidZone = kidZone))
                         ?.also { episodesNextOffset = it.episodesNextOffset }
                         ?.artistPage
                 } else {
@@ -128,7 +131,7 @@ class ArtistViewModel @Inject constructor(
         if (isLoadingMoreEpisodes) return EpisodePageFetch.BUSY
         isLoadingMoreEpisodes = true
         try {
-            val options = zemerSearchOptions(context)
+            val options = zemerSearchOptions(context).copy(kidZone = kidZone)
             runCatching {
                 zemerRepository.podcastChannelEpisodes(artistId, offset, options)
             }.onSuccess { result ->

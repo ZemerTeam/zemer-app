@@ -11,6 +11,10 @@ import com.jtech.zemer.utils.ContentFilterState
 data class ZemerSearchOptions(
     val allowFemale: Boolean,
     val blockVideos: Boolean,
+    // KidZone navigation context: true only for requests made from inside the KidZone tab (the kid
+    // podcasts grid and every drill-in from it), restricting the server response to kid-flagged
+    // content. Never derived from the content-filter state - it is a per-screen navigation fact.
+    val kidZone: Boolean = false,
 )
 
 /** Builds the options from the live content-filter state. */

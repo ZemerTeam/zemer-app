@@ -8,6 +8,7 @@ import com.jtech.zemer.search.ZemerResultMapper.toAlbumItems
 import com.jtech.zemer.search.ZemerResultMapper.toAlbumPage
 import com.jtech.zemer.search.ZemerResultMapper.toArtistPage
 import com.jtech.zemer.search.ZemerResultMapper.toEpisodeItems
+import com.jtech.zemer.search.ZemerResultMapper.toPodcastItems
 import com.jtech.zemer.search.ZemerResultMapper.toGenrePage
 import com.jtech.zemer.search.ZemerResultMapper.toChannelEpisodeItems
 import com.jtech.zemer.search.ZemerResultMapper.toPodcastChannelPage
@@ -18,6 +19,7 @@ import com.metrolist.innertube.YouTube.SearchFilter
 import com.metrolist.innertube.models.AlbumItem
 import com.metrolist.innertube.models.Artist
 import com.metrolist.innertube.models.EpisodeItem
+import com.metrolist.innertube.models.PodcastItem
 import com.metrolist.innertube.models.PlaylistItem
 import com.metrolist.innertube.models.SearchSuggestions
 import com.metrolist.innertube.models.SongItem
@@ -212,11 +214,24 @@ class ZemerSearchRepository @Inject constructor(
     // from the Room-backed content mirror. Playback stays InnerTube: an episode carries its YouTube
     // videoId and plays through the existing pipeline. `/playlist` + `/radio` remain live-only. ---
 
+    /**
+     * The kid-flagged show catalog (`/podcasts?kidZone=1`) as browsable cards — the KidZone
+     * podcasts grid, with the offline-subset fallback. NOTE: [serverOrOffline] RETHROWS when the
+     * server is unreachable and no snapshot exists — callers must catch (KidZoneViewModel does).
+     */
+    suspend fun kidZonePodcasts(options: ZemerSearchOptions): List<PodcastItem>? =
+        serverOrOffline(
+            server = { client.podcasts(options.allowFemale, options.blockVideos, kidZone = true) },
+            offline = { offlineReads.podcasts(options.allowFemale, options.blockVideos, kidZone = true) },
+        )?.toPodcastItems()
+
     /** A SHOW page (header + one episode page). Null when the show is unknown / filtered out (404). */
     suspend fun podcast(id: String, offset: Int, options: ZemerSearchOptions): PodcastPage? =
         serverOrOffline(
-            server = { client.podcast(id, offset, options.allowFemale, options.blockVideos) },
-            offline = { offlineReads.podcast(id, offset, options.allowFemale, options.blockVideos) },
+            server = { client.podcast(id, offset, options.allowFemale, options.blockVideos, options.kidZone) },
+            // The shards carry the per-show kid flag (server reply, 2026-08-26), so the offline
+            // fallback enforces the kid restriction too — same drill-in discipline offline.
+            offline = { offlineReads.podcast(id, offset, options.allowFemale, options.blockVideos, options.kidZone) },
         )?.toPodcastPage()
 
     /**
@@ -226,8 +241,8 @@ class ZemerSearchRepository @Inject constructor(
      */
     suspend fun podcastChannel(id: String, options: ZemerSearchOptions): ZemerResultMapper.PodcastChannelPage? =
         serverOrOffline(
-            server = { client.podcastChannel(id, options.allowFemale, options.blockVideos) },
-            offline = { offlineReads.podcastChannel(id, options.allowFemale, options.blockVideos) },
+            server = { client.podcastChannel(id, options.allowFemale, options.blockVideos, options.kidZone) },
+            offline = { offlineReads.podcastChannel(id, options.allowFemale, options.blockVideos, options.kidZone) },
         )?.toPodcastChannelPage()
 
     /**
@@ -241,7 +256,7 @@ class ZemerSearchRepository @Inject constructor(
         offset: Int,
         options: ZemerSearchOptions,
     ): Pair<List<EpisodeItem>, Int?>? =
-        client.podcastChannel(id, options.allowFemale, options.blockVideos, offset)
+        client.podcastChannel(id, options.allowFemale, options.blockVideos, options.kidZone, offset = offset)
             ?.let { it.toChannelEpisodeItems() to it.nextOffset }
 
     /**
@@ -259,8 +274,8 @@ class ZemerSearchRepository @Inject constructor(
     /** Latest episodes across all whitelisted shows (Library New Episodes), newest-first. */
     suspend fun podcastsNewEpisodes(k: Int, options: ZemerSearchOptions): List<EpisodeItem> =
         serverOrOffline(
-            server = { client.podcastsNewEpisodes(k, options.allowFemale, options.blockVideos) },
-            offline = { offlineReads.podcastsNewEpisodes(k, options.allowFemale, options.blockVideos) },
+            server = { client.podcastsNewEpisodes(k, options.allowFemale, options.blockVideos, options.kidZone) },
+            offline = { offlineReads.podcastsNewEpisodes(k, options.allowFemale, options.blockVideos, options.kidZone) },
         ).toEpisodeItems()
 
     /**
@@ -451,7 +466,7 @@ class ZemerSearchRepository @Inject constructor(
         // only runs from the error-state Retry path — which a "successfully" cached result never shows.
         return serverOrOffline(
             server = {
-                client.search(trimmed, options.allowFemale, options.blockVideos, k)
+                client.search(trimmed, options.allowFemale, options.blockVideos, k, kidZone = options.kidZone)
                     .also { response -> cacheMutex.withLock { cache[key] = response } }
             },
             offline = { offlineReads.search(trimmed, k, options.allowFemale, options.blockVideos) },

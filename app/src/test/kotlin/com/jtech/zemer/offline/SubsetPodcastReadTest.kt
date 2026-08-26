@@ -22,12 +22,15 @@ class SubsetPodcastReadTest {
     private val s1 = SubPodcastShow("MPS1", "Alpha Show", "Host A", "UCn", "ts1", "2 episodes", genres = listOf("gemara", "history"))
     private val s2 = SubPodcastShow("MPS2", "Beta Show", "Host B", "UCn", "ts2", null, genres = listOf("gemara")) // female-blocked per item
     private val sf = SubPodcastShow("MPSF", "Ladies Show", "Host F", "UCw", "tsf", null, genres = listOf("gemara"))
+    // Per-SHOW kid flag on a mixed (non-kid) channel — the 2026-08-26 shard column.
+    private val sk = SubPodcastShow("MPSK", "Kids Show", "Host K", "UCn", "tsk", null, genres = listOf("gemara"), isKidZone = true)
 
     // episodes (videoId, showId, title, thumbnail, durationSec, publishedAt)
     private val e1 = SubPodcastEpisode("ve1", "MPS1", "Ep One", "te1", 100, "2026-05-01")
     private val e2 = SubPodcastEpisode("ve2", "MPS1", "Ep Two", "te2", 120, "2026-06-01") // newer than e1
     private val e3 = SubPodcastEpisode("ve3", "MPS2", "Ep Three", "te3", 90, null) // null date → sorts last
     private val ef = SubPodcastEpisode("vef", "MPSF", "Ladies Ep", "tef", 80, "2026-04-01")
+    private val ek = SubPodcastEpisode("vek", "MPSK", "Kids Ep", "tek", 70, "2026-07-01")
 
     private val corpus = SubsetCorpus(
         artists = emptyList(),
@@ -43,8 +46,8 @@ class SubsetPodcastReadTest {
         // MPS2 is a female show on a mixed (non-female) channel → rides the `blocked` shard.
         blocked = SubBlocked(global = emptySet(), female = setOf("MPS2")),
         podcastChannels = listOf(chNorm, chFem),
-        podcasts = listOf(s1, s2, sf),
-        podcastEpisodes = listOf(e1, e2, e3, ef),
+        podcasts = listOf(s1, s2, sf, sk),
+        podcastEpisodes = listOf(e1, e2, e3, ef, ek),
     )
 
     private val matcher = buildFemaleMatcher(corpus.artists)
@@ -53,10 +56,11 @@ class SubsetPodcastReadTest {
     fun `channel returns gated shows and newest-first episodes`() {
         val r = offlinePodcastChannel(corpus, "UCn", allowFemale = true, blockVideos = false, kidZone = false)!!
         assertEquals("Normal Cast", r.channel!!.name)
-        assertEquals(listOf("MPS1", "MPS2"), r.shows.map { it.id })
-        // newest-first: ve2 (2026-06) → ve1 (2026-05) → ve3 (null last)
-        assertEquals(listOf("ve2", "ve1", "ve3"), r.episodes.map { it.videoId })
-        assertEquals("Alpha Show", r.episodes.first().podcastName)
+        // The kid show stays visible on the channel DETAIL shelf without the flag (server carve-out).
+        assertEquals(listOf("MPS1", "MPS2", "MPSK"), r.shows.map { it.id })
+        // newest-first: vek (2026-07) → ve2 (2026-06) → ve1 (2026-05) → ve3 (null last)
+        assertEquals(listOf("vek", "ve2", "ve1", "ve3"), r.episodes.map { it.videoId })
+        assertEquals("Kids Show", r.episodes.first().podcastName)
     }
 
     @Test
@@ -123,7 +127,7 @@ class SubsetPodcastReadTest {
     fun `live podcast whitelist overlay drops de-approved channels with their shows and episodes`() {
         val overlaid = corpus.withLivePodcastWhitelist(setOf("UCn"))
         assertEquals(listOf("UCn"), overlaid.podcastChannels.map { it.id })
-        assertEquals(listOf("MPS1", "MPS2"), overlaid.podcasts.map { it.id })
+        assertEquals(listOf("MPS1", "MPS2", "MPSK"), overlaid.podcasts.map { it.id })
         assertTrue(overlaid.podcastEpisodes.none { it.videoId == "vef" })
         // empty live set = not synced yet -> no-op, never wipes the snapshot
         assertTrue(corpus === corpus.withLivePodcastWhitelist(emptySet()))
@@ -159,5 +163,59 @@ class SubsetPodcastReadTest {
         // history has only s1; an unknown slug is a 404.
         assertEquals(listOf("MPS1"), offlinePodcastGenre(corpus, "history", allowFemale = true, blockVideos = false, kidZone = false)!!.shows.map { it.id })
         assertNull(offlinePodcastGenre(corpus, "nonexistent", allowFemale = true, blockVideos = false, kidZone = false))
+    }
+
+    // --- kid semantics (server parity, 2026-08-26: per-show flag; default-exclude on browse,
+    // kidZone=1-only, carve-out on detail opens by id) ---
+
+    @Test
+    fun `browse surfaces default-exclude kid shows and serve only them under kidZone`() {
+        assertEquals(
+            listOf("MPS1", "MPS2", "MPSF"),
+            offlinePodcasts(corpus, allowFemale = true, blockVideos = false, kidZone = false).podcasts.map { it.id },
+        )
+        assertEquals(
+            listOf("MPSK"),
+            offlinePodcasts(corpus, allowFemale = true, blockVideos = false, kidZone = true).podcasts.map { it.id },
+        )
+        // ek (2026-07-01) is the newest episode but rides a kid show: excluded by default, alone under the flag.
+        assertEquals(
+            listOf("vek"),
+            offlinePodcastsNewEpisodes(corpus, k = 10, allowFemale = true, blockVideos = false, kidZone = true).episodes.map { it.videoId },
+        )
+        // Genre pages: gemara has s1+s2+sf+sk; default excludes the kid show, the flag serves only it.
+        assertTrue(offlinePodcastGenre(corpus, "gemara", allowFemale = true, blockVideos = false, kidZone = false)!!.shows.none { it.id == "MPSK" })
+        assertEquals(
+            listOf("MPSK"),
+            offlinePodcastGenre(corpus, "gemara", allowFemale = true, blockVideos = false, kidZone = true)!!.shows.map { it.id },
+        )
+    }
+
+    @Test
+    fun `detail opens by id keep the server carve-out - a kid show serves without the flag`() {
+        // A saved subscription/deep-link must keep working with no flag sent.
+        assertNotNull(offlinePodcast(corpus, "MPSK", 0, allowFemale = true, blockVideos = false, kidZone = false))
+        // Under the flag a NON-kid show 404s (the server's kidZone=1 contract).
+        assertNull(offlinePodcast(corpus, "MPS1", 0, allowFemale = true, blockVideos = false, kidZone = true))
+    }
+
+    @Test
+    fun `a mixed channel hosting a kid show serves under kidZone with only its kid shows`() {
+        // Server contract: 404 only unless the channel hosts a kid show; the shelf filters to them.
+        val r = offlinePodcastChannel(corpus, "UCn", allowFemale = true, blockVideos = false, kidZone = true)!!
+        assertEquals(listOf("MPSK"), r.shows.map { it.id })
+        assertEquals(listOf("vek"), r.episodes.map { it.videoId })
+        // A channel with no kid content 404s under the flag.
+        assertNull(offlinePodcastChannel(corpus, "UCw", allowFemale = true, blockVideos = false, kidZone = true))
+    }
+
+    @Test
+    fun `search default-excludes kid shows and their episodes, kidZone serves only them`() {
+        val def = offlineSearch(corpus, matcher, "Kids", 10, allowFemale = true, blockVideos = false, kidZone = false)
+        assertTrue(def.categories.podcasts.none { it.id == "MPSK" })
+        assertTrue(def.categories.episodes.none { it.videoId == "vek" })
+        val kid = offlineSearch(corpus, matcher, "Kids", 10, allowFemale = true, blockVideos = false, kidZone = true)
+        assertTrue(kid.categories.podcasts.any { it.id == "MPSK" })
+        assertTrue(kid.categories.episodes.any { it.videoId == "vek" })
     }
 }

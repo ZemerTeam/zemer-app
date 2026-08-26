@@ -1,6 +1,7 @@
 package com.jtech.zemer.ui.utils
 
 import androidx.navigation.NavController
+import com.jtech.zemer.utils.PodcastWhitelistCache
 
 /**
  * Null-safe navigation to the id-bearing detail routes.
@@ -16,18 +17,26 @@ import androidx.navigation.NavController
  * The route strings are built by the pure [artistRoute] / [albumRoute] so the blank-id guard is
  * unit-tested without an Android runtime (see AppNavigationTest).
  */
-fun artistRoute(artistId: String?, isPodcastChannel: Boolean = false): String? =
+fun artistRoute(artistId: String?, isPodcastChannel: Boolean = false, kidZone: Boolean = false): String? =
     artistId?.takeIf { it.isNotBlank() }?.let {
         // A podcast host channel reuses ArtistScreen; the flag rides the route so ArtistViewModel loads it
         // from the Zemer server (/podcast-channel), whitelist-pure - not the deleted InnerTube artist path.
-        if (isPodcastChannel) "artist/$it?isPodcastChannel=true" else "artist/$it"
+        when {
+            isPodcastChannel && kidZone -> "artist/$it?isPodcastChannel=true&kidZone=true"
+            isPodcastChannel -> "artist/$it?isPodcastChannel=true"
+            else -> "artist/$it"
+        }
     }
 
 fun albumRoute(albumId: String?): String? =
     albumId?.takeIf { it.isNotBlank() }?.let { "album/$it" }
 
-fun podcastRoute(podcastId: String?): String? =
-    podcastId?.takeIf { it.isNotBlank() }?.let { "online_podcast/$it" }
+fun podcastRoute(podcastId: String?, kidZone: Boolean = false): String? =
+    podcastId?.takeIf { it.isNotBlank() }?.let {
+        // kidZone = the KidZone navigation context (drill-in discipline): the opened show keeps
+        // every server call restricted to kid content. Pure + unit-tested (AppNavigationTest).
+        if (kidZone) "online_podcast/$it?kidZone=true" else "online_podcast/$it"
+    }
 
 /**
  * Where a browsed whitelisted podcast opens: the host CHANNEL page when a channelId is known (that is
@@ -49,14 +58,18 @@ fun channelDeepLinkRoute(channelId: String?, artistWhitelisted: Boolean, podcast
     else -> null
 }
 
-fun NavController.navigateToArtist(artistId: String?, isPodcastChannel: Boolean = false) {
-    artistRoute(artistId, isPodcastChannel)?.let(::navigate)
+fun NavController.navigateToArtist(artistId: String?, isPodcastChannel: Boolean = false, kidZone: Boolean = false) {
+    // A WHOLLY-kid channel always opens kid-scoped, whatever surface routed here (menus, player,
+    // library) - the chokepoint fix for the "View artist escapes the kid scope" leak class. A MIXED
+    // channel scopes only when the caller carries the KidZone navigation context explicitly.
+    val kidScoped = kidZone || (isPodcastChannel && artistId != null && PodcastWhitelistCache.isKidChannel(artistId))
+    artistRoute(artistId, isPodcastChannel, kidScoped)?.let(::navigate)
 }
 
 fun NavController.navigateToAlbum(albumId: String?) {
     albumRoute(albumId)?.let(::navigate)
 }
 
-fun NavController.navigateToPodcast(podcastId: String?) {
-    podcastRoute(podcastId)?.let(::navigate)
+fun NavController.navigateToPodcast(podcastId: String?, kidZone: Boolean = false) {
+    podcastRoute(podcastId, kidZone)?.let(::navigate)
 }

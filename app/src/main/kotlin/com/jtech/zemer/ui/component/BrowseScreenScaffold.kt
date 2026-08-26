@@ -66,11 +66,12 @@ import kotlinx.coroutines.launch
 // The always-present lazy items ("search", "header") that precede the content in BOTH the list and
 // the grid — the fast scroller scrolls to itemIndex + this, so a header item added to one container
 // must be added to the other and counted here. [browseHeaderItemCount] adds the optional
-// header-sections item (the Podcasts browse's Subscribed Channels / New Episodes block).
+// header-sections item (the Podcasts browse's Subscribed Channels / New Episodes block) and the
+// optional top-sections item (the KidZone tab chips, ABOVE the search pill).
 internal const val BROWSE_BASE_HEADER_ITEM_COUNT = 2
 
-internal fun browseHeaderItemCount(hasHeaderSections: Boolean): Int =
-    BROWSE_BASE_HEADER_ITEM_COUNT + if (hasHeaderSections) 1 else 0
+internal fun browseHeaderItemCount(hasHeaderSections: Boolean, hasTopSections: Boolean = false): Int =
+    BROWSE_BASE_HEADER_ITEM_COUNT + (if (hasHeaderSections) 1 else 0) + (if (hasTopSections) 1 else 0)
 
 /**
  * Approximate scroll position of the active container as a 0..1 fraction, driving the fast
@@ -188,6 +189,8 @@ fun <T : Any> BrowseScreenScaffold(
     countPluralRes: Int = R.plurals.n_artist,
     searchPlaceholderRes: Int = R.string.search_artists,
     headerSections: (@Composable () -> Unit)? = null,
+    // Renders ABOVE the search pill (the KidZone content-tab chips); scrolls with content.
+    topSections: (@Composable () -> Unit)? = null,
     trailingItem: (@Composable () -> Unit)? = null,
 ) {
     val firstFocus = remember { FocusRequester() }
@@ -204,7 +207,7 @@ fun <T : Any> BrowseScreenScaffold(
     val lazyListState = rememberLazyListState()
     val lazyGridState = rememberLazyGridState()
     val pullRefreshState = rememberPullToRefreshState()
-    val headerItemCount = browseHeaderItemCount(headerSections != null)
+    val headerItemCount = browseHeaderItemCount(headerSections != null, topSections != null)
 
     // Sticky letter sections in the LIST view, gated with the fast scroller (a short list doesn't
     // need either navigation aid).
@@ -347,6 +350,12 @@ fun <T : Any> BrowseScreenScaffold(
                             state = lazyListState,
                             contentPadding = contentPadding,
                         ) {
+                            if (topSections != null) {
+                                item(key = "top_sections", contentType = CONTENT_TYPE_HEADER) {
+                                    topSections()
+                                }
+                            }
+
                             item(key = "search", contentType = CONTENT_TYPE_HEADER) {
                                 searchContent()
                             }
@@ -423,6 +432,12 @@ fun <T : Any> BrowseScreenScaffold(
                             columns = GridCells.Fixed(3),
                             contentPadding = contentPadding,
                         ) {
+                            if (topSections != null) {
+                                item(key = "top_sections", span = { GridItemSpan(maxLineSpan) }, contentType = CONTENT_TYPE_HEADER) {
+                                    topSections()
+                                }
+                            }
+
                             item(key = "search", span = { GridItemSpan(maxLineSpan) }, contentType = CONTENT_TYPE_HEADER) {
                                 searchContent()
                             }

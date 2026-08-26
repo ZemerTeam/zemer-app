@@ -161,6 +161,8 @@ data class SubPodcastShow(
     val episodeCountText: String?,
     /** The show's genre slugs (appended shard column; empty on a pre-genres snapshot). */
     val genres: List<String> = emptyList(),
+    /** Per-SHOW kid flag (appended shard column, 2026-08-26; false on an older snapshot). */
+    val isKidZone: Boolean = false,
 )
 
 /** A podcast EPISODE (played by `videoId` via InnerTube). `durationSec`/`publishedAt` may be absent. */

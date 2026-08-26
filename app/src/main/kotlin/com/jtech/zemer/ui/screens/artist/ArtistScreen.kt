@@ -543,6 +543,7 @@ fun ArtistScreen(
                                         onClick = {
                                             menuState.show {
                                                 SongMenu(
+                                                    kidZone = viewModel.kidZone,
                                                     originalSong = song,
                                                     navController = navController,
                                                     onDismiss = menuState::dismiss,
@@ -572,6 +573,7 @@ fun ArtistScreen(
                                             haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                                             menuState.show {
                                                 SongMenu(
+                                                    kidZone = viewModel.kidZone,
                                                     originalSong = song,
                                                     navController = navController,
                                                     onDismiss = menuState::dismiss,
@@ -679,7 +681,7 @@ fun ArtistScreen(
                                     // so a short row (nothing more to reveal) shows no arrow.
                                     onClick = seeAllOnClick(distinctItems.size) {
                                         navController.navigate(
-                                            "artist_section/${viewModel.artistId}?title=${java.net.URLEncoder.encode(section.title, "UTF-8")}&isPodcastChannel=${viewModel.isPodcastChannel}",
+                                            "artist_section/${viewModel.artistId}?title=${java.net.URLEncoder.encode(section.title, "UTF-8")}&isPodcastChannel=${viewModel.isPodcastChannel}&kidZone=${viewModel.kidZone}",
                                         )
                                     },
                                 )
@@ -707,6 +709,7 @@ fun ArtistScreen(
                                             onClick = {
                                                 menuState.show {
                                                     YouTubeSongMenu(
+                                                        kidZone = viewModel.kidZone,
                                                         song = song,
                                                         navController = navController,
                                                         onDismiss = menuState::dismiss,
@@ -735,6 +738,7 @@ fun ArtistScreen(
                                                 haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                                                 menuState.show {
                                                     YouTubeSongMenu(
+                                                        kidZone = viewModel.kidZone,
                                                         song = song,
                                                         navController = navController,
                                                         onDismiss = menuState::dismiss,
@@ -790,7 +794,7 @@ fun ArtistScreen(
                                                             // episode alone (NOT YouTubeQueue - that whitelist-filters
                                                             // via YouTube.next and would clip a non-corpus episode).
                                                             is com.metrolist.innertube.models.PodcastItem ->
-                                                                navController.navigateToPodcast(item.id)
+                                                                navController.navigateToPodcast(item.id, kidZone = viewModel.kidZone)
                                                             is com.metrolist.innertube.models.EpisodeItem ->
                                                                 playerConnection.playQueue(
                                                                     ListQueue.episode(item, PlaySource.podcast(item.podcast?.id)),
