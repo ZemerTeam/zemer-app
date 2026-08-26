@@ -310,7 +310,9 @@ are non-obvious and regression-prone; full detail in `docs/whitelist/README.md`:
   (`/podcasts?kidZone=1`, live-only, fail-soft). `kidZone` is a NAVIGATION-context flag (like
   `isPodcastChannel`) riding the show/channel routes, so every server call from a KidZone-opened
   screen sends `kidZone=1` (drill-in discipline - the server 404s/filters non-kid content under it
-  as the second layer) and the offline fallback is disabled there (the shards carry no kid flag).
+  as the second layer), with full OFFLINE parity: the subset's per-show `isKidZone` slot drives the
+  same semantics in the read layer (default-exclude on browse/search, only-kid under the flag,
+  detail-open carve-out), so the KidZone grid + drill-ins work from the snapshot too.
   The Podcasts chip is REMOVED under Block Podcasts (the category gate), leaving the plain artist
   browse. The chip row is the shared `ContentTabChipsRow` (`ui/component/ChipsRow.kt`) - ONE
   geometry with Home's content selector - riding the scaffold's `topSections` slot (above the

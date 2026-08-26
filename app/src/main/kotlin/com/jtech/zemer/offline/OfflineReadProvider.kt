@@ -12,6 +12,7 @@ import com.jtech.zemer.search.ZemerPodcastChannelResponse
 import com.jtech.zemer.search.ZemerPodcastGenrePageResponse
 import com.jtech.zemer.search.ZemerPodcastGenresResponse
 import com.jtech.zemer.search.ZemerPodcastResponse
+import com.jtech.zemer.search.ZemerPodcastsResponse
 import com.jtech.zemer.search.ZemerSearchResponse
 import com.jtech.zemer.utils.PodcastWhitelistCache
 import com.jtech.zemer.utils.WhitelistCache
@@ -110,14 +111,20 @@ class OfflineReadProvider @Inject constructor(
 
     // Podcasts (server reply 4 — pre-gated to approved channels in the snapshot). The browse-grid + channel
     // allow-set come from the Room-backed content mirror, not here; these serve the drill-in reads.
-    suspend fun podcast(id: String, offset: Int, allowFemale: Boolean, blockVideos: Boolean): ZemerPodcastResponse? =
+    suspend fun podcast(id: String, offset: Int, allowFemale: Boolean, blockVideos: Boolean, kidZone: Boolean = false): ZemerPodcastResponse? =
         withContext(Dispatchers.IO) {
-            snapshot()?.let { offlinePodcast(it.corpus, id, offset, allowFemale, blockVideos, kidZone = false) }
+            snapshot()?.let { offlinePodcast(it.corpus, id, offset, allowFemale, blockVideos, kidZone) }
         }
 
-    suspend fun podcastChannel(id: String, allowFemale: Boolean, blockVideos: Boolean): ZemerPodcastChannelResponse? =
+    suspend fun podcastChannel(id: String, allowFemale: Boolean, blockVideos: Boolean, kidZone: Boolean = false): ZemerPodcastChannelResponse? =
         withContext(Dispatchers.IO) {
-            snapshot()?.let { offlinePodcastChannel(it.corpus, id, allowFemale, blockVideos, kidZone = false) }
+            snapshot()?.let { offlinePodcastChannel(it.corpus, id, allowFemale, blockVideos, kidZone) }
+        }
+
+    /** The `/podcasts` catalog (the KidZone grid's outage fallback with kidZone = true). */
+    suspend fun podcasts(allowFemale: Boolean, blockVideos: Boolean, kidZone: Boolean): ZemerPodcastsResponse? =
+        withContext(Dispatchers.IO) {
+            snapshot()?.let { offlinePodcasts(it.corpus, allowFemale, blockVideos, kidZone) }
         }
 
     suspend fun podcastsNewEpisodes(k: Int, allowFemale: Boolean, blockVideos: Boolean): ZemerNewEpisodesResponse? =

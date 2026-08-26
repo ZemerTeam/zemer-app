@@ -220,17 +220,18 @@ class ZemerSearchRepository @Inject constructor(
      * fail-soft state on null.
      */
     suspend fun kidZonePodcasts(options: ZemerSearchOptions): List<PodcastItem>? =
-        runCatching {
-            client.podcasts(options.allowFemale, options.blockVideos, kidZone = true).toPodcastItems()
-        }.getOrNull()
+        serverOrOffline(
+            server = { client.podcasts(options.allowFemale, options.blockVideos, kidZone = true) },
+            offline = { offlineReads.podcasts(options.allowFemale, options.blockVideos, kidZone = true) },
+        )?.toPodcastItems()
 
     /** A SHOW page (header + one episode page). Null when the show is unknown / filtered out (404). */
     suspend fun podcast(id: String, offset: Int, options: ZemerSearchOptions): PodcastPage? =
         serverOrOffline(
             server = { client.podcast(id, offset, options.allowFemale, options.blockVideos, options.kidZone) },
-            // The offline shards carry no kid flag, so a KidZone-context open is SERVER-ONLY: an
-            // offline fallback could not enforce the kid restriction (handoff doc's offline note).
-            offline = { if (options.kidZone) null else offlineReads.podcast(id, offset, options.allowFemale, options.blockVideos) },
+            // The shards carry the per-show kid flag (server reply, 2026-08-26), so the offline
+            // fallback enforces the kid restriction too — same drill-in discipline offline.
+            offline = { offlineReads.podcast(id, offset, options.allowFemale, options.blockVideos, options.kidZone) },
         )?.toPodcastPage()
 
     /**
@@ -241,8 +242,7 @@ class ZemerSearchRepository @Inject constructor(
     suspend fun podcastChannel(id: String, options: ZemerSearchOptions): ZemerResultMapper.PodcastChannelPage? =
         serverOrOffline(
             server = { client.podcastChannel(id, options.allowFemale, options.blockVideos, options.kidZone) },
-            // Server-only under kidZone: the offline channel page would list non-kid sibling shows.
-            offline = { if (options.kidZone) null else offlineReads.podcastChannel(id, options.allowFemale, options.blockVideos) },
+            offline = { offlineReads.podcastChannel(id, options.allowFemale, options.blockVideos, options.kidZone) },
         )?.toPodcastChannelPage()
 
     /**

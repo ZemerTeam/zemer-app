@@ -115,22 +115,27 @@ class SubsetDecoderTest {
 
     @Test
     fun `podcast shows decode with nullable author and channelId`() {
-        // Real rows sampled from live /subset/podcasts. Col 6 = comma-separated genre slugs (appended);
-        // a legacy 6-column row (row 3) must still decode, with genres empty.
+        // Real rows sampled from live /subset/podcasts. Col 6 = comma-separated genre slugs and
+        // col 7 = the per-show kid flag (both appended); legacy 6- and 7-column rows (rows 2-3)
+        // must still decode, with genres empty / kid false.
         val s = SubsetDecoder.decodePodcastShows(
-            """[["MPSPOLSIMs3bBf6gYi_OroS7rJPzDfCfO78ozaQ","History For The Curious",null,null,"https://i.ytimg/hq720.jpg",null,"history,stories"],
+            """[["MPSPOLSIMs3bBf6gYi_OroS7rJPzDfCfO78ozaQ","History For The Curious",null,null,"https://i.ytimg/hq720.jpg",null,"history,stories",1],
                 ["MPSPPL-PrlHukcayUrySa1UcDHcUzA5gItQQ0R","Nexus Podcast","James Dice","UCbnQAiPQEsvAqK84-q5IHcw","https://yt3/x=w544","12 episodes","shiur"],
                 ["MPSPlegacy6col","Legacy Show",null,null,null,null]]""",
         )
         assertEquals("History For The Curious", s[0].name)
         assertNull(s[0].author); assertNull(s[0].channelId); assertNull(s[0].episodeCountText)
         assertEquals(listOf("history", "stories"), s[0].genres)
+        assertTrue(s[0].isKidZone)
         assertEquals("James Dice", s[1].author)
         assertEquals("UCbnQAiPQEsvAqK84-q5IHcw", s[1].channelId)
         assertEquals("12 episodes", s[1].episodeCountText)
         assertEquals(listOf("shiur"), s[1].genres)
-        // Legacy 6-column row → no genres, no crash.
+        // Pre-kid-flag 7-column row → kid false.
+        assertFalse(s[1].isKidZone)
+        // Legacy 6-column row → no genres, no kid flag, no crash.
         assertEquals(emptyList<String>(), s[2].genres)
+        assertFalse(s[2].isKidZone)
     }
 
     @Test
