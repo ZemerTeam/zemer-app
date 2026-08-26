@@ -66,6 +66,7 @@ import com.jtech.zemer.extensions.shareText
 import com.jtech.zemer.extensions.toMediaItem
 import com.jtech.zemer.extensions.togglePlayPause
 import com.jtech.zemer.playback.queues.ListQueue
+import com.jtech.zemer.tracking.PlaySource
 import com.jtech.zemer.ui.component.ChipsRow
 import com.jtech.zemer.ui.component.LibraryFilterChip
 import com.jtech.zemer.ui.component.EmptyPlaceholder
@@ -192,6 +193,9 @@ fun LibraryPodcastsScreen(
                                         ListQueue(
                                             title = newEpisodesTitle,
                                             items = newEpisodes.map { it.toMediaItem() },
+                                            // Mixed-show feed: the bare slug, never one show's id
+                                            // (it would claim other shows' episodes in this queue).
+                                            playSource = PlaySource.podcast(null),
                                         ),
                                     )
                                 },
@@ -226,6 +230,7 @@ fun LibraryPodcastsScreen(
                                                 title = song.song.title,
                                                 items = savedEpisodes.map { it.toMediaItem() },
                                                 startIndex = index,
+                                                playSource = PlaySource.podcast(null),
                                             ),
                                         )
                                     }
@@ -379,6 +384,7 @@ fun LibraryPodcastsScreen(
                                                     title = downloadedEpisodesStr,
                                                     items = downloadedEpisodes.map { it.toMediaItem() },
                                                     startIndex = index,
+                                                    playSource = PlaySource.podcast(null),
                                                 ),
                                             )
                                         }
@@ -418,6 +424,7 @@ fun LibraryPodcastsScreen(
                             ListQueue(
                                 title = downloadedEpisodesStr,
                                 items = downloadedEpisodes.shuffled().map { it.toMediaItem() },
+                                playSource = PlaySource.podcast(null),
                             ),
                         )
                     },
