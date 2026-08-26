@@ -168,11 +168,11 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/main/ic_launcher-playstore.png` | 23742 bytes | `.png` |
 | `app/src/main/jniLibs/arm64-v8a/libcoverart.so` | 644248 bytes | `.so` |
 | `app/src/main/jniLibs/armeabi-v7a/libcoverart.so` | 406200 bytes | `.so` |
-| `app/src/main/kotlin/com/dpi/ActivityLifecycleManager.kt` | 116 lines | `.kt` |
+| `app/src/main/kotlin/com/dpi/ActivityLifecycleManager.kt` | 127 lines | `.kt` |
 | `app/src/main/kotlin/com/dpi/BaseLifecycleContentProvider.kt` | 36 lines | `.kt` |
-| `app/src/main/kotlin/com/dpi/DensityConfiguration.kt` | 111 lines | `.kt` |
-| `app/src/main/kotlin/com/dpi/DensityMath.kt` | 26 lines | `.kt` |
-| `app/src/main/kotlin/com/dpi/DensityScaler.kt` | 62 lines | `.kt` |
+| `app/src/main/kotlin/com/dpi/DensityConfiguration.kt` | 121 lines | `.kt` |
+| `app/src/main/kotlin/com/dpi/DensityMath.kt` | 25 lines | `.kt` |
+| `app/src/main/kotlin/com/dpi/DensityScaler.kt` | 80 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/App.kt` | 492 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/MainActivity.kt` | 2433 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/accessibility/ButtonMapperAccessibilityService.kt` | 45 lines | `.kt` |
@@ -928,7 +928,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/main/res/xml/data_extraction_rules.xml` | 29 lines | `.xml` |
 | `app/src/main/res/xml/music_widget_info.xml` | 18 lines | `.xml` |
 | `app/src/main/res/xml/provider_paths.xml` | 12 lines | `.xml` |
-| `app/src/test/kotlin/com/dpi/DensityMathTest.kt` | 48 lines | `.kt` |
+| `app/src/test/kotlin/com/dpi/DensityMathTest.kt` | 69 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/constants/PreferenceKeysTest.kt` | 26 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/extensions/ContextExtLogicTest.kt` | 27 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/extensions/PlayerIconResTest.kt` | 42 lines | `.kt` |

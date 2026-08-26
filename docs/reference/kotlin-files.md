@@ -6,11 +6,11 @@ Every tracked Kotlin file is listed with hard metadata extracted from the file t
 
 | File | Lines | Package | Compose | Imports | Decls | External import roots |
 | --- | ---: | --- | --- | ---: | ---: | --- |
-| `app/src/main/kotlin/com/dpi/ActivityLifecycleManager.kt` | 116 | `com.dpi` | no | 9 | 27 | android.annotation, android.app, android.os, java.util, timber.log |
+| `app/src/main/kotlin/com/dpi/ActivityLifecycleManager.kt` | 127 | `com.dpi` | no | 9 | 28 | android.annotation, android.app, android.os, java.util, timber.log |
 | `app/src/main/kotlin/com/dpi/BaseLifecycleContentProvider.kt` | 36 | `com.dpi` | no | 4 | 7 | android.content, android.database, android.net |
-| `app/src/main/kotlin/com/dpi/DensityConfiguration.kt` | 111 | `com.dpi` | no | 8 | 14 | android.annotation, android.app, android.content, android.util, timber.log |
-| `app/src/main/kotlin/com/dpi/DensityMath.kt` | 26 | `com.dpi` | no | 1 | 3 | kotlin.math |
-| `app/src/main/kotlin/com/dpi/DensityScaler.kt` | 62 | `com.dpi` | no | 2 | 12 | android.content, timber.log |
+| `app/src/main/kotlin/com/dpi/DensityConfiguration.kt` | 121 | `com.dpi` | no | 7 | 14 | android.annotation, android.app, android.content, android.util, timber.log |
+| `app/src/main/kotlin/com/dpi/DensityMath.kt` | 25 | `com.dpi` | no | 1 | 3 | kotlin.math |
+| `app/src/main/kotlin/com/dpi/DensityScaler.kt` | 80 | `com.dpi` | no | 4 | 13 | android.app, android.content, timber.log |
 | `app/src/main/kotlin/com/jtech/zemer/App.kt` | 492 | `com.jtech.zemer` | no | 69 | 48 | android.app, android.content, android.os, android.util, android.webkit, androidx.datastore, coil3.ImageLoader, coil3.PlatformContext, coil3.SingletonImageLoader, coil3.disk, coil3.network, coil3.request, coil3.svg, com.google, com.zemer, dagger.hilt, io.ktor, java.util, javax.inject, kotlinx.coroutines, kotlinx.serialization, okhttp3.Dispatcher, okhttp3.OkHttpClient, timber.log |
 | `app/src/main/kotlin/com/jtech/zemer/MainActivity.kt` | 2433 | `com.jtech.zemer` | no | 312 | 243 | android.annotation, android.app, android.content, android.os, android.view, androidx.activity, androidx.compose, androidx.core, androidx.datastore, androidx.hilt, androidx.lifecycle, androidx.media3, androidx.navigation, coil3.compose, coil3.imageLoader, coil3.request, coil3.toBitmap, com.google, com.valentinilk, dagger.hilt, java.net, java.util, javax.inject, kotlin.time, kotlinx.coroutines, timber.log |
 | `app/src/main/kotlin/com/jtech/zemer/accessibility/ButtonMapperAccessibilityService.kt` | 45 | `com.jtech.zemer.accessibility` | no | 7 | 6 | android.accessibilityservice, android.annotation, android.view |
@@ -558,7 +558,7 @@ Every tracked Kotlin file is listed with hard metadata extracted from the file t
 | `app/src/main/kotlin/com/jtech/zemer/viewmodels/ZemerStatusesViewModel.kt` | 63 | `com.jtech.zemer.viewmodels` | no | 18 | 6 | android.content, androidx.lifecycle, dagger.hilt, javax.inject, kotlinx.coroutines |
 | `app/src/main/kotlin/com/jtech/zemer/widget/MusicWidget.kt` | 391 | `com.jtech.zemer.widget` | no | 62 | 49 | android.content, android.graphics, androidx.compose, androidx.datastore, androidx.glance, coil3.SingletonImageLoader, coil3.request, coil3.toBitmap, java.io, kotlinx.coroutines |
 | `app/src/main/kotlin/com/jtech/zemer/widget/WidgetLayout.kt` | 14 | `com.jtech.zemer.widget` | no | 0 | 3 |  |
-| `app/src/test/kotlin/com/dpi/DensityMathTest.kt` | 48 | `com.dpi` | no | 3 | 1 | org.junit |
+| `app/src/test/kotlin/com/dpi/DensityMathTest.kt` | 69 | `com.dpi` | no | 3 | 1 | org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/constants/PreferenceKeysTest.kt` | 26 | `com.jtech.zemer.constants` | no | 4 | 3 | androidx.datastore, java.lang, org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/extensions/ContextExtLogicTest.kt` | 27 | `com.jtech.zemer.extensions` | no | 3 | 1 | org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/extensions/PlayerIconResTest.kt` | 42 | `com.jtech.zemer.extensions` | no | 4 | 2 | androidx.media3, org.junit |
