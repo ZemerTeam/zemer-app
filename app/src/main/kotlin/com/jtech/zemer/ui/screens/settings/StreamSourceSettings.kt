@@ -82,7 +82,7 @@ fun StreamSourceSettings(
     // empty settings screen with no focused row.
 
     // Effective stream order shown to the user: WEB_REMIX is the primary client; the rest mirror
-    // YTPlayerUtils.ALL_FALLBACK_CLIENTS (ANDROID_VR variants deduped). Only enabled toggles appear.
+    // YTPlayerUtils.ALL_FALLBACK_CLIENTS. Only enabled toggles appear.
     val streamOrder = listOf(
         "WEB_REMIX" to webRemixEnabled,
         "visionOS" to visionosEnabled,

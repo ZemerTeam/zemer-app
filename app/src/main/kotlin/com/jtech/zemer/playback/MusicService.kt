@@ -1951,7 +1951,7 @@ class MusicService :
         val mediaId = player.currentMediaItem?.mediaId
         if (mediaId != null) {
             // If this was a WEB_REMIX stream that 403d on GET, mark it so the next
-            // resolution skips WEB_REMIX and falls through to TVHTML5/ANDROID_VR.
+            // resolution skips WEB_REMIX and falls through to the fallback-client chain.
             YTPlayerUtils.markWebRemixFailed(mediaId)
             // Clear the cached URL so it will be refreshed on next request
             DownloadUtil.invalidateUrl(mediaId)
