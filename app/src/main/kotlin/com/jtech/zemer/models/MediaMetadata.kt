@@ -30,12 +30,20 @@ data class MediaMetadata(
     data class Artist(
         val id: String?,
         val name: String,
-    ) : Serializable
+    ) : Serializable {
+        companion object {
+            private const val serialVersionUID = -355198349731679509L
+        }
+    }
 
     data class Album(
         val id: String,
         val title: String,
-    ) : Serializable
+    ) : Serializable {
+        companion object {
+            private const val serialVersionUID = -3879000833009517336L
+        }
+    }
 
     fun toSongEntity() =
         SongEntity(
@@ -53,6 +61,14 @@ data class MediaMetadata(
             isVideo = isVideo,
             isEpisode = isEpisode
         )
+
+    companion object {
+        // Pinned to the value computed for the v37 class (which still carried the removed
+        // `explicit` field) so a persisted queue written by an older build keeps deserializing;
+        // the stream's extra field is ignored. Java serialization derives this from the class
+        // shape when undeclared, so an undeclared value here breaks queue restore on any edit.
+        private const val serialVersionUID = 3273021534433957495L
+    }
 }
 
 fun Song.toMediaMetadata() =
