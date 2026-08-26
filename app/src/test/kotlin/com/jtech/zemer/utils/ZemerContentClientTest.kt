@@ -51,6 +51,24 @@ class ZemerContentClientTest {
     }
 
     @Test
+    fun `whitelist doc reads displayName and altName when present, null when absent (pre-split docs)`() {
+        val split = json.decodeFromString(
+            ContentWhitelistDoc.serializer(),
+            """{"id":"UC1","name":"Aaron Razel - אהרן רזאל","displayName":"Aaron Razel","altName":"אהרן רזאל"}""",
+        )
+        assertEquals("Aaron Razel - אהרן רזאל", split.name) // legacy value untouched
+        assertEquals("Aaron Razel", split.displayName)
+        assertEquals("אהרן רזאל", split.altName)
+
+        val preSplit = json.decodeFromString(
+            ContentWhitelistDoc.serializer(),
+            """{"id":"UC2","name":"Plain"}""",
+        )
+        assertNull(preSplit.displayName)
+        assertNull(preSplit.altName)
+    }
+
+    @Test
     fun `whitelist doc reads the thumbnail when present, null when absent`() {
         val withThumb = json.decodeFromString(
             ContentWhitelistDoc.serializer(),

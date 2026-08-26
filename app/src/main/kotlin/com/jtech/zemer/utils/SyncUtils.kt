@@ -4,6 +4,7 @@ import android.content.Context
 import android.util.Log
 import androidx.datastore.preferences.core.edit
 import com.jtech.zemer.constants.BlockedContentIdsKey
+import com.jtech.zemer.constants.DisplayNamesBackfilledKey
 import com.jtech.zemer.constants.LastWhitelistVersionKey
 import com.jtech.zemer.constants.LastPodcastWhitelistVersionKey
 import com.jtech.zemer.constants.LastPodcastWhitelistSyncTimeKey
@@ -879,8 +880,21 @@ class SyncUtils @Inject constructor(
                 val manyThumbsMissing = !localEmpty &&
                     database.getWhitelistedArtistIdsMissingThumb(MISSING_THUMB_BOOTSTRAP_THRESHOLD).size >= MISSING_THUMB_BOOTSTRAP_THRESHOLD
 
+                // One-time backfill of the v35 displayName/altName columns (added NULL by the migration):
+                // while unset, take the full-fetch path so an already-synced install picks up the split
+                // names on its first sync after updating, instead of waiting for a server version bump.
+                val displayNamesBackfilled = context.dataStore.get(DisplayNamesBackfilledKey, false)
+
                 // Always fetch at least once per version (including version 1). Subsequent runs skip if already synced.
-                if (!forceSync && remoteVersion != null && remoteVersion <= localVersion && !localEmpty && !manyThumbsMissing) {
+                if (whitelistFastPathEligible(
+                        forceSync = forceSync,
+                        remoteVersion = remoteVersion,
+                        localVersion = localVersion,
+                        localEmpty = localEmpty,
+                        manyThumbsMissing = manyThumbsMissing,
+                        displayNamesBackfilled = displayNamesBackfilled,
+                    )
+                ) {
                     runCatching { WhitelistCache.updateAll(database.getWhitelistEntriesSync()) }
                     refreshBlockedIds()
                     _whitelistSyncProgress.value = WhitelistSyncProgress(isComplete = true)
@@ -924,7 +938,7 @@ class SyncUtils @Inject constructor(
                     val existingArtistIds = getAllArtistIdsSync().toSet()
                     val missingArtists = whitelistEntries
                         .filter { it.artistId !in existingArtistIds }
-                        .map { ArtistEntity(id = it.artistId, name = it.artistName, thumbnailUrl = it.thumbnailUrl) }
+                        .map { ArtistEntity(id = it.artistId, name = it.displayName ?: it.artistName, thumbnailUrl = it.thumbnailUrl) }
                     if (missingArtists.isNotEmpty()) {
                         insertArtists(missingArtists)
                     }
@@ -935,6 +949,11 @@ class SyncUtils @Inject constructor(
                     artistThumbnailUpdates(whitelistEntries, existingArtistIds).forEach { (artistId, thumb) ->
                         updateArtistThumbnailUrl(artistId, thumb)
                     }
+                    // The curated displayName is authoritative for its artist row (split docs only —
+                    // one set-based, idempotent, self-terminating statement): repairs pre-split
+                    // seeds, re-applies after a stale YTM refresh restored the dual title, and lands
+                    // later server-side displayName corrections. See the DAO doc.
+                    applyWhitelistDisplayNames()
                 }
                 WhitelistCache.updateAll(whitelistEntries)
                 refreshBlockedIds()
@@ -947,6 +966,13 @@ class SyncUtils @Inject constructor(
 
                 context.dataStore.edit { settings ->
                     remoteVersion?.let { settings[LastWhitelistVersionKey] = it }
+                    // A full fetch just ran insertWhitelist with the split names, so the one-time
+                    // backfill is done — subsequent syncs may take the version-gated fast path again.
+                    // Gated on the fetch actually CARRYING split names: a pre-split payload (stale
+                    // mirror snapshot) must not burn the one-time flag with all-NULL columns.
+                    if (whitelistCarriesDisplayNames(whitelistEntries)) {
+                        settings[DisplayNamesBackfilledKey] = true
+                    }
                 }
             } catch (e: Exception) {
                 _whitelistSyncProgress.value = WhitelistSyncProgress(isComplete = true)
@@ -1111,6 +1137,32 @@ class SyncUtils @Inject constructor(
 internal const val MISSING_THUMB_BOOTSTRAP_THRESHOLD = 25
 
 /**
+ * Whether the whitelist sync may take the version-gated FAST PATH (skip the full fetch) instead of
+ * fetching the whole allow-set. Pure so the gate is regression-tested. The fast path is eligible only
+ * when a full fetch is genuinely unnecessary: the caller did not force a sync, the server version
+ * probe succeeded and is not newer than the local version, the local table is non-empty, thumbnails
+ * are not being bootstrapped ([MISSING_THUMB_BOOTSTRAP_THRESHOLD]), AND the one-time display-name
+ * backfill has run. That last gate makes the v35 displayName/altName columns (added NULL by
+ * MIGRATION_34_35) populate on the first sync after an update, so both-script Library search and the
+ * legacy-name cleanup reach already-synced installs without a coordinated server version bump; once a
+ * full fetch has run it is set and the fast path is available again.
+ */
+internal fun whitelistFastPathEligible(
+    forceSync: Boolean,
+    remoteVersion: Long?,
+    localVersion: Long,
+    localEmpty: Boolean,
+    manyThumbsMissing: Boolean,
+    displayNamesBackfilled: Boolean,
+): Boolean =
+    !forceSync &&
+        remoteVersion != null &&
+        remoteVersion <= localVersion &&
+        !localEmpty &&
+        !manyThumbsMissing &&
+        displayNamesBackfilled
+
+/**
  * Which (artistId, thumbnailUrl) pairs the whitelist sync writes onto EXISTING artist rows — pure so
  * the population rules are regression-tested: a null/blank server thumbnail is never written (never
  * wipes), and only rows already in the artist table are targeted (new rows carry the thumbnail via
@@ -1124,3 +1176,13 @@ internal fun artistThumbnailUpdates(
         val thumb = entry.thumbnailUrl?.takeIf { it.isNotBlank() } ?: return@mapNotNull null
         if (entry.artistId in existingArtistIds) entry.artistId to thumb else null
     }
+
+/**
+ * Whether a fetched whitelist payload carries the v35 split display names at all — the gate that
+ * lets a completed full fetch set [DisplayNamesBackfilledKey]. Pure so the rule is regression-
+ * tested: a pre-split payload (every displayName null/blank) must NOT burn the one-time backfill
+ * flag, or the split names would never arrive without an unrelated version bump.
+ */
+internal fun whitelistCarriesDisplayNames(
+    entries: List<com.jtech.zemer.db.entities.ArtistWhitelistEntity>,
+): Boolean = entries.any { !it.displayName.isNullOrBlank() }
