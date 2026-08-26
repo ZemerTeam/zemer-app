@@ -126,6 +126,7 @@ import com.jtech.zemer.extensions.toggleRepeatMode
 import com.jtech.zemer.extensions.shareText
 import com.jtech.zemer.extensions.copyToClipboard
 import com.jtech.zemer.models.MediaMetadata
+import com.jtech.zemer.models.withResolvedNavIds
 import com.jtech.zemer.playback.PlayerVideoUiLogic
 import com.jtech.zemer.ui.component.DefaultDialog
 import com.jtech.zemer.ui.component.BottomSheet
@@ -215,8 +216,13 @@ fun BottomSheetPlayer(
     val playbackState by playerConnection.playbackState.collectAsState()
     val isPlaying by playerConnection.isPlaying.collectAsState()
     val isCasting by playerConnection.isCasting.collectAsState()
-    val mediaMetadata by playerConnection.mediaMetadata.collectAsState()
+    val rawMediaMetadata by playerConnection.mediaMetadata.collectAsState()
     val currentSong by playerConnection.currentSong.collectAsState(initial = null)
+    // Fill navigation ids (artist / album) the wire item lacked from the played song's DB row, so the
+    // title/artist taps and the player menu's view rows work on name-only Zemer surfaces too.
+    val mediaMetadata = remember(rawMediaMetadata, currentSong) {
+        rawMediaMetadata?.withResolvedNavIds(currentSong)
+    }
     val repeatMode by playerConnection.repeatMode.collectAsState()
     val shuffleModeEnabled by playerConnection.shuffleModeEnabled.collectAsState()
     val canSkipPrevious by playerConnection.canSkipPrevious.collectAsState()

@@ -303,15 +303,24 @@ object ZemerResultMapper {
     ): ArtistPage {
         fun albumSection(list: List<ZemerAlbum>): List<AlbumItem> =
             list.filter { it.id.isNotBlank() }.map { it.toAlbumItem() }.distinctBy { it.id }.dropBlocked()
+        // The wire tracks carry no artist credit (the page IS the artist) — thread the page artist's
+        // name + id in, so a played track shows a (tappable) artist line in the player instead of
+        // none, the same threading toAlbumPage does for its album artist.
+        fun credited(tracks: List<ZemerTrack>): List<ZemerTrack> =
+            tracks.map { t ->
+                if (t.artist.isBlank()) {
+                    t.copy(artist = artist.name, artistId = t.artistId ?: artist.id.takeIf { it.isNotBlank() })
+                } else t
+            }
         // Section order mirrors the InnerTube artist page: Songs, Albums, Singles, Videos, Playlists.
         val sections = buildList {
-            songItems(songs).takeIf { it.isNotEmpty() }
+            songItems(credited(songs)).takeIf { it.isNotEmpty() }
                 ?.let { add(ArtistSection(TITLE_SONGS, it, null)) }
             albumSection(albums).takeIf { it.isNotEmpty() }
                 ?.let { add(ArtistSection(TITLE_ALBUMS, it, null)) }
             albumSection(singles).takeIf { it.isNotEmpty() }
                 ?.let { add(ArtistSection(TITLE_SINGLES, it, null)) }
-            songItems(videos, isVideo = true).takeIf { it.isNotEmpty() }
+            songItems(credited(videos), isVideo = true).takeIf { it.isNotEmpty() }
                 ?.let { add(ArtistSection(TITLE_VIDEOS, it, null)) }
             playlistItems(playlists, formatSongCount).takeIf { it.isNotEmpty() }
                 ?.let { add(ArtistSection(TITLE_PLAYLISTS, it, null)) }
