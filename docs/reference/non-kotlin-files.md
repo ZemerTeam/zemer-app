@@ -1,6 +1,6 @@
 # Non-Kotlin file reference
 
-Every tracked non-Kotlin path outside `docs/` is listed. Text files report line counts; binary files report byte counts; gitlinks are recorded as non-file tracked paths. Total paths: `379`.
+Every tracked non-Kotlin path outside `docs/` is listed. Text files report line counts; binary files report byte counts; gitlinks are recorded as non-file tracked paths. Total paths: `377`.
 
 | Path | Size/status | Type metadata |
 | --- | ---: | --- |
@@ -11,7 +11,7 @@ Every tracked non-Kotlin path outside `docs/` is listed. Text files report line 
 | `.github/workflows/ui-audit.yml` | 50 lines | text `.yml` |
 | `.gitignore` | 117 lines | text `[none]` |
 | `.gitmodules` | 6 lines | text `[none]` |
-| `AGENTS.md` | 1540 lines | text `.md` |
+| `AGENTS.md` | 1541 lines | text `.md` |
 | `LICENSE` | 674 lines | text `[none]` |
 | `README.md` | 19 lines | text `.md` |
 | `app/.gitignore` | 1 lines | text `[none]` |
@@ -170,7 +170,6 @@ Every tracked non-Kotlin path outside `docs/` is listed. Text files report line 
 | `app/src/main/res/drawable/library_music_outlined.xml` | 16 lines | text `.xml`; XML root `vector` |
 | `app/src/main/res/drawable/link.xml` | 9 lines | text `.xml`; XML root `vector` |
 | `app/src/main/res/drawable/list.xml` | 10 lines | text `.xml`; XML root `vector` |
-| `app/src/main/res/drawable/location_on.xml` | 9 lines | text `.xml`; XML root `vector` |
 | `app/src/main/res/drawable/lock.xml` | 9 lines | text `.xml`; XML root `vector` |
 | `app/src/main/res/drawable/lock_open.xml` | 9 lines | text `.xml`; XML root `vector` |
 | `app/src/main/res/drawable/lyrics.xml` | 37 lines | text `.xml`; XML root `vector` |
@@ -201,7 +200,6 @@ Every tracked non-Kotlin path outside `docs/` is listed. Text files report line 
 | `app/src/main/res/drawable/repeat_one_on.xml` | 9 lines | text `.xml`; XML root `vector` |
 | `app/src/main/res/drawable/replay.xml` | 9 lines | text `.xml`; XML root `vector` |
 | `app/src/main/res/drawable/restore.xml` | 9 lines | text `.xml`; XML root `vector` |
-| `app/src/main/res/drawable/screenshot.xml` | 9 lines | text `.xml`; XML root `vector` |
 | `app/src/main/res/drawable/search.xml` | 9 lines | text `.xml`; XML root `vector` |
 | `app/src/main/res/drawable/search_off.xml` | 9 lines | text `.xml`; XML root `vector` |
 | `app/src/main/res/drawable/security.xml` | 9 lines | text `.xml`; XML root `vector` |
@@ -257,13 +255,13 @@ Every tracked non-Kotlin path outside `docs/` is listed. Text files report line 
 | `app/src/main/res/raw/welcome.lottie` | 2138 bytes | binary `.lottie` |
 | `app/src/main/res/resources.properties` | 1 lines | text `.properties` |
 | `app/src/main/res/values-iw/metrolist_strings.xml` | 32 lines | text `.xml`; XML root `resources` |
-| `app/src/main/res/values-iw/strings.xml` | 281 lines | text `.xml`; XML root `resources` |
+| `app/src/main/res/values-iw/strings.xml` | 269 lines | text `.xml`; XML root `resources` |
 | `app/src/main/res/values-night/colors.xml` | 6 lines | text `.xml`; XML root `resources` |
 | `app/src/main/res/values-v31/styles.xml` | 22 lines | text `.xml`; XML root `resources` |
 | `app/src/main/res/values/app_name.xml` | 4 lines | text `.xml`; XML root `resources` |
 | `app/src/main/res/values/colors.xml` | 9 lines | text `.xml`; XML root `resources` |
-| `app/src/main/res/values/metrolist_strings.xml` | 701 lines | text `.xml`; XML root `resources` |
-| `app/src/main/res/values/strings.xml` | 430 lines | text `.xml`; XML root `resources` |
+| `app/src/main/res/values/metrolist_strings.xml` | 694 lines | text `.xml`; XML root `resources` |
+| `app/src/main/res/values/strings.xml` | 418 lines | text `.xml`; XML root `resources` |
 | `app/src/main/res/values/styles.xml` | 26 lines | text `.xml`; XML root `resources` |
 | `app/src/main/res/values/values.xml` | 8 lines | text `.xml`; XML root `resources` |
 | `app/src/main/res/xml-v25/shortcuts.xml` | 23 lines | text `.xml`; XML root `shortcuts` |
@@ -293,7 +291,7 @@ Every tracked non-Kotlin path outside `docs/` is listed. Text files report line 
 | `scripts/check-download-unification.sh` | 58 lines | text `.sh` |
 | `scripts/dead-resources-baseline.txt` | 4 lines | text `.txt` |
 | `scripts/telegram-chats.sh` | 38 lines | text `.sh` |
-| `scripts/ui-audit-baseline.tsv` | 20 lines | text `.tsv` |
+| `scripts/ui-audit-baseline.tsv` | 14 lines | text `.tsv` |
 | `scripts/ui-audit.sh` | 248 lines | text `.sh` |
 | `scripts/ui-strings-scan.py` | 96 lines | text `.py` |
 | `settings.gradle.kts` | 56 lines | text `.kts`; plugins `org.gradle.toolchains.foojay-resolver-convention` |
@@ -307,8 +305,8 @@ Every tracked non-Kotlin path outside `docs/` is listed. Text files report line 
 | `tests/cipher-check.mjs` | 86 lines | text `.mjs` |
 | `tests/cipher.mjs` | 205 lines | text `.mjs` |
 | `tests/client-fulldownload.mjs` | 118 lines | text `.mjs` |
-| `tests/clients-retired.mjs` | 67 lines | text `.mjs` |
-| `tests/clients.mjs` | 53 lines | text `.mjs` |
+| `tests/clients-retired.mjs` | 76 lines | text `.mjs` |
+| `tests/clients.mjs` | 49 lines | text `.mjs` |
 | `tests/config-covers.mjs` | 24 lines | text `.mjs` |
 | `tests/cred.mjs` | 82 lines | text `.mjs` |
 | `tests/derive-player-config.mjs` | 89 lines | text `.mjs` |
