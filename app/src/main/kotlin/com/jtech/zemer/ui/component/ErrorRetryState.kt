@@ -19,7 +19,8 @@ import com.jtech.zemer.R
  * The shared "something went wrong, tap to retry" block: a centered error [message] over a retry
  * [Button]. Every Zemer discovery screen (genres, genre detail/section, podcast genres/detail,
  * curated playlists) showed a byte-identical copy of this, so it lives here once. [message] defaults
- * to the generic unknown-error string; screens that pick error-vs-notfound copy pass it in.
+ * to the generic unknown-error string; screens that pick error-vs-notfound copy pass it in, and
+ * [detail] adds an optional secondary line under it (e.g. the caught exception's message).
  *
  * Callers inside a `LazyColumn` wrap this in their own `item { }`.
  */
@@ -28,6 +29,7 @@ fun ErrorRetryState(
     onRetry: () -> Unit,
     modifier: Modifier = Modifier,
     message: String = stringResource(R.string.error_unknown),
+    detail: String? = null,
 ) {
     Column(
         modifier = modifier
@@ -40,6 +42,14 @@ fun ErrorRetryState(
             style = MaterialTheme.typography.titleLarge,
             color = MaterialTheme.colorScheme.error,
         )
+        if (detail != null) {
+            Spacer(Modifier.height(8.dp))
+            Text(
+                text = detail,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
         Spacer(Modifier.height(16.dp))
         Button(onClick = onRetry) {
             Text(stringResource(R.string.retry))
