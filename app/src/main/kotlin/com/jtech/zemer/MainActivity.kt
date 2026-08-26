@@ -4,6 +4,7 @@ import android.annotation.SuppressLint
 import android.app.PendingIntent
 import android.content.ComponentName
 import android.content.Intent
+import android.content.res.Configuration
 import android.content.ServiceConnection
 import android.os.Build
 import android.os.Bundle
@@ -164,6 +165,7 @@ import coil3.request.allowHardware
 import coil3.request.crossfade
 import coil3.toBitmap
 import com.google.firebase.auth.FirebaseAuth
+import com.dpi.DensityScaler
 import com.jtech.zemer.constants.AppBarHeight
 import com.jtech.zemer.constants.HomeContentTabKey
 import com.jtech.zemer.extensions.cookieHasSession
@@ -405,6 +407,16 @@ class MainActivity : ComponentActivity() {
             }
         }
         ButtonMapperBridge.register(this)
+    }
+
+    override fun onConfigurationChanged(newConfig: Configuration) {
+        // This Activity opts into configChanges (orientation|screenSize|...), so a rotation — incl.
+        // the fullscreen video player's forced landscape — delivers a fresh Configuration that WIPES
+        // the custom density override with no lifecycle event to heal it (#521). Reapply BEFORE
+        // dispatching to super: the view tree re-reads density from the resources during dispatch,
+        // so the order is what keeps Compose on the scaled metrics. Idempotent; no-op at native scale.
+        DensityScaler.reapply(this)
+        super.onConfigurationChanged(newConfig)
     }
 
     override fun onStop() {
