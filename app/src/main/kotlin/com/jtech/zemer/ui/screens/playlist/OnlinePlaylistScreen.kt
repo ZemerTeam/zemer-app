@@ -87,6 +87,8 @@ import com.jtech.zemer.ui.component.FontSizeRange
 import com.jtech.zemer.ui.component.IconButton
 import com.jtech.zemer.ui.component.LocalMenuState
 import com.jtech.zemer.ui.component.MoreVertMenuButton
+import com.jtech.zemer.ui.component.ErrorRetryState
+import com.jtech.zemer.ui.component.SelectionActions
 import com.jtech.zemer.ui.component.SearchableSelectableTopAppBar
 import com.jtech.zemer.ui.component.YouTubeListItem
 import com.jtech.zemer.ui.component.shimmer.LoadingListPlaceholder
@@ -471,40 +473,30 @@ fun OnlinePlaylistScreen(
                 } else {
                     // Show error state when playlist is null and there's an error
                     item(key = "error_state") {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(32.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally
-                        ) {
-                            Text(
-                                text = if (error != null) {
-                                    stringResource(R.string.error_unknown)
-                                } else {
-                                    stringResource(R.string.playlist_not_found)
-                                },
-                                style = MaterialTheme.typography.titleLarge,
-                                color = if (error != null) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface
+                        if (error != null) {
+                            ErrorRetryState(
+                                onRetry = { viewModel.retry() },
+                                detail = error,
                             )
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Text(
-                                text = if (error != null) {
-                                    error!!
-                                } else {
-                                    stringResource(R.string.playlist_not_found_desc)
-                                },
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                            if (error != null) {
-                                Spacer(modifier = Modifier.height(16.dp))
-                                Button(
-                                    onClick = { 
-                                        viewModel.retry()
-                                    }
-                                ) {
-                                    Text(stringResource(R.string.retry))
-                                }
+                        } else {
+                            // Not-found is not an error: neutral copy, no retry (it won't appear).
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(32.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Text(
+                                    text = stringResource(R.string.playlist_not_found),
+                                    style = MaterialTheme.typography.titleLarge,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Text(
+                                    text = stringResource(R.string.playlist_not_found_desc),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
                             }
                         }
                     }
@@ -531,29 +523,13 @@ fun OnlinePlaylistScreen(
             query = query,
             onQueryChange = { query = it },
             focusRequester = focusRequester,
-            selectionCount = if (selection) wrappedSongs.count { it.isSelected } else null,
+            selectionCount = { if (selection) wrappedSongs.count { it.isSelected } else null },
             selectionCountPlural = R.plurals.n_song,
             onExitSelection = { selection = false },
             actions = {
-                val count = wrappedSongs.count { it.isSelected }
-                IconButton(
-                    onClick = {
-                        if (count == wrappedSongs.size) {
-                            wrappedSongs.forEach { it.isSelected = false }
-                        } else {
-                            wrappedSongs.forEach { it.isSelected = true }
-                        }
-                    },
-                ) {
-                    Icon(
-                        painter = painterResource(
-                            if (count == wrappedSongs.size) R.drawable.deselect else R.drawable.select_all
-                        ),
-                        contentDescription = null
-                    )
-                }
-                MoreVertMenuButton(
-                    onClick = {
+                SelectionActions(
+                    wrapped = wrappedSongs,
+                    onMore = {
                         menuState.show {
                             SelectionMediaMetadataMenu(
                                 songSelection = wrappedSongs.filter { it.isSelected }
