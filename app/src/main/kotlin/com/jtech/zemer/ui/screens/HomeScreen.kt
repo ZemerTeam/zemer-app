@@ -34,10 +34,9 @@ import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.carousel.CarouselDefaults
 import androidx.compose.material3.carousel.HorizontalMultiBrowseCarousel
 import androidx.compose.material3.carousel.rememberCarouselState
-import androidx.compose.animation.core.tween
+import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults.LoadingIndicator
 import androidx.compose.material3.pulltorefresh.pullToRefresh
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.Composable
@@ -91,6 +90,7 @@ import com.jtech.zemer.ui.component.AlbumGridItem
 import com.jtech.zemer.ui.component.ArtistGridItem
 import com.jtech.zemer.ui.component.LocalBottomSheetPageState
 import com.jtech.zemer.ui.component.LocalMenuState
+import com.jtech.zemer.ui.component.heroCarouselFlingBehavior
 import com.jtech.zemer.ui.component.MoreVertMenuButton
 import com.jtech.zemer.extensions.toMediaItem
 import com.jtech.zemer.playback.queues.ListQueue
@@ -741,13 +741,8 @@ fun HomeScreen(
                             state = latestCarouselState,
                             preferredItemWidth = 180.dp,
                             itemSpacing = 8.dp,
-                            // Advance ONE item per swipe at a FIXED animation speed, so the carousel moves
-                            // the same regardless of how hard it is flung (no velocity-scaled multi-item
-                            // fling).
-                            flingBehavior = CarouselDefaults.singleAdvanceFlingBehavior(
-                                latestCarouselState,
-                                tween(durationMillis = 400),
-                            ),
+                            // One item per swipe; the spec + rationale live in heroCarouselFlingBehavior.
+                            flingBehavior = heroCarouselFlingBehavior(latestCarouselState),
                             contentPadding = WindowInsets.systemBars
                                 .only(WindowInsetsSides.Horizontal)
                                 .asPaddingValues(),

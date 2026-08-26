@@ -1139,8 +1139,11 @@ can't ride the shared signal). The **in-player VIDEO buffering** spinner is deli
 CONTAINED, theme-colored `ZemerLoadingIndicator` (bigger, exactly the Home pull-to-refresh look - a video
 buffer is a content load), NOT the small neutral card spinner. The two full-bleed **carousel heroes**
 (Latest Releases + Featured Videos) share their focus ring + `ui/component/HeroTitleOverlay` (the bottom
-gradient title/subtitle, with an optional badges slot) and advance ONE item per swipe at a fixed speed
-(`CarouselDefaults.singleAdvanceFlingBehavior` + a fixed `tween`, so a fling never scrolls many items). A
+gradient title/subtitle, with an optional badges slot) and advance ONE item per swipe through the shared
+`heroCarouselFlingBehavior` (`ui/component/CarouselHeroFrame.kt`): `singleAdvanceFlingBehavior` with its
+DEFAULT spring snap - single advance comes from the behavior's internal `PagerSnapDistance.atMost(1)`, and
+the spring consumes the fling's release velocity for a continuous hand-off. Do NOT pass a fixed-duration
+`tween` snap (a tween ignores that velocity and hitches on every swipe - the choppy-carousel bug). A
 separate **Enable high refresh rate** setting (Appearance ->
 Theme, default on; `MainActivity` sets the window's `preferredDisplayModeId`/`preferredRefreshRate` via the
 pure, unit-tested `utils/RefreshRateSelection` - `preferredDisplayModeId(target)` maps a null selection to

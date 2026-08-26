@@ -6,7 +6,6 @@
 
 package com.jtech.zemer.ui.screens
 
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.height
@@ -16,7 +15,6 @@ import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.carousel.CarouselDefaults
 import androidx.compose.material3.carousel.CarouselItemScope
 import androidx.compose.material3.carousel.HorizontalUncontainedCarousel
 import androidx.compose.material3.carousel.rememberCarouselState
@@ -39,6 +37,7 @@ import com.jtech.zemer.playback.queues.ZemerRadioQueue
 import com.jtech.zemer.tracking.Tracker
 import com.jtech.zemer.ui.component.CarouselHeroFrame
 import com.jtech.zemer.ui.component.HeroTitleOverlay
+import com.jtech.zemer.ui.component.heroCarouselFlingBehavior
 import com.jtech.zemer.ui.component.MenuState
 import com.jtech.zemer.ui.component.NavigationTitle
 import com.jtech.zemer.ui.component.PreparingOverlay
@@ -104,11 +103,8 @@ fun LazyListScope.videoHeroCarousel(
             state = carouselState,
             itemWidth = heroW.dp,
             itemSpacing = 8.dp,
-            // One item per swipe at a fixed speed, matching the Latest Releases carousel.
-            flingBehavior = CarouselDefaults.singleAdvanceFlingBehavior(
-                carouselState,
-                tween(durationMillis = 400),
-            ),
+            // One item per swipe, matching Latest Releases; spec + rationale live in heroCarouselFlingBehavior.
+            flingBehavior = heroCarouselFlingBehavior(carouselState),
             contentPadding = PaddingValues(horizontal = 12.dp),
             modifier = Modifier
                 .padding(vertical = 12.dp)
