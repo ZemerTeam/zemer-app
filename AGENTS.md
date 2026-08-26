@@ -1147,11 +1147,15 @@ gradient title/subtitle, with an optional badges slot) and advance ONE item per 
 DEFAULT spring snap - single advance comes from the behavior's internal `PagerSnapDistance.atMost(1)`, and
 the spring consumes the fling's release velocity for a continuous hand-off. Do NOT pass a fixed-duration
 `tween` snap (a tween ignores that velocity and hitches on every swipe - the choppy-carousel bug). A
-separate **Enable high refresh rate** setting (Appearance ->
-Theme, default on; `MainActivity` sets the window's `preferredDisplayModeId`/`preferredRefreshRate` via the
-pure, unit-tested `utils/RefreshRateSelection` - `preferredDisplayModeId(target)` maps a null selection to
-0 = system default so turning the setting OFF clears a previously-forced high mode, not leaves it stale)
-forces the display to up to 120Hz so all of this renders smoothly. New
+separate 3-state **Refresh rate** setting (Appearance -> Theme; `RefreshRateMode` - **System** the
+default: no forced mode, the OS runs adaptive refresh; **Standard** pins ~60Hz for battery; **High**
+forces the highest rate at the current resolution, kept because some panels resolve "no preference"
+to 60Hz) drives `MainActivity`'s window `preferredDisplayModeId`/`preferredRefreshRate` via the pure,
+unit-tested `utils/RefreshRateSelection` (`selectRefreshRateMode` returns null for SYSTEM ->
+`preferredDisplayModeId(null)` = 0 = system default, so switching modes clears a previously-forced
+one, not leaves it stale; a one-time migration maps the old boolean's explicit OFF to Standard and
+ON/unset to System - the old default force-pinned the max rate, a continuous battery cost in an
+audio-first app). New
 transport buttons reuse `TransportSkipButton` + the accent focus border; new D-pad rows reuse
 `Modifier.focusBorder()`. `scripts/ui-audit.sh` ratchets raw `Modifier.blur(` in `ui/` (R12) - route
 player blur through the effective style.

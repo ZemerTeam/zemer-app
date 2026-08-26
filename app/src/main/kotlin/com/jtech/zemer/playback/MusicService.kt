@@ -284,7 +284,8 @@ class MusicService :
     // the caller (main) thread, but the Java-serialization + disk writes ran there too — on a small
     // heap / slow flash device that main-thread spike every 10s (the periodic save, over a now-larger
     // seed-first radio queue) stalls the UI and compounds GC pressure (issue #515). limitedParallelism(1)
-    // serializes writes so the three files can never be written concurrently.
+    // serializes writes so the two files (queue + player state) can never be written concurrently —
+    // which is why the teardown write must go THROUGH this scope too (join), never inline beside it.
     private val queuePersistScope =
         CoroutineScope(Dispatchers.IO.limitedParallelism(1) + SupervisorJob())
 
@@ -2725,9 +2726,17 @@ class MusicService :
 
         // Snapshots are captured above on the caller (main) thread — player state must be read there.
         // The Java-serialization + disk writes are the expensive part and move off the main thread,
-        // except on teardown where the write must finish before the process dies.
+        // except on teardown where the write must finish before the process dies. The teardown write
+        // still goes THROUGH the single-threaded scope (joined, not inline): writing inline would
+        // race a still-in-flight periodic write — concurrent truncating writes corrupt the file
+        // (restore's runCatching silently drops the queue), and a stale async snapshot finishing
+        // last would roll the persisted position back. Queued FIFO behind it, neither can happen.
         if (blocking) {
-            writePersistedSnapshots(queueToWrite, persistPlayerState)
+            runBlocking {
+                queuePersistScope.launch {
+                    writePersistedSnapshots(queueToWrite, persistPlayerState)
+                }.join()
+            }
         } else {
             queuePersistScope.launch {
                 writePersistedSnapshots(queueToWrite, persistPlayerState)
