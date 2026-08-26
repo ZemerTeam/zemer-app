@@ -2,6 +2,7 @@
 
 package com.jtech.zemer.playback
 
+import androidx.core.util.AtomicFile
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -178,6 +179,7 @@ import kotlinx.coroutines.plus
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
+import java.io.FileNotFoundException
 import java.io.ObjectInputStream
 import java.io.ObjectOutputStream
 import java.util.concurrent.Executor
@@ -279,6 +281,24 @@ class MusicService :
     // all queue access is confined here, mirroring the telemetry Tracker's dispatcher confinement.
     private val deferredStatsScope =
         CoroutineScope(Dispatchers.IO.limitedParallelism(1) + SupervisorJob())
+
+    // Single-threaded, off-main scope for queue persistence. saveQueueToDisk() snapshots the player on
+    // the caller (main) thread, but the Java-serialization + disk writes ran there too — on a small
+    // heap / slow flash device that main-thread spike every 10s (the periodic save, over a now-larger
+    // seed-first radio queue) stalls the UI and compounds GC pressure (issue #515). limitedParallelism(1)
+    // serializes writes so the two files (queue + player state) can never be written concurrently —
+    // which is why the teardown write must go THROUGH this scope too (join), never inline beside it.
+    private val queuePersistScope =
+        CoroutineScope(Dispatchers.IO.limitedParallelism(1) + SupervisorJob())
+
+    // Content signature of the last-persisted queue (see QueuePersist). The heavy queue
+    // file is re-serialized only when its content changes; the tiny player-state file carries
+    // position on every save, and restore seeks from THAT file, not the queue file. Touched only from
+    // saveQueueToDisk on the caller (main) thread. (Trade-off: if a content-change write fails silently
+    // and no further change or clean teardown follows, the queue file stays one edit stale — a graceful
+    // resume-an-older-queue degradation, never a crash; teardown and the next edit both heal it.)
+    private var lastPersistedQueueSignature: String? = null
+    private var lastPersistedPlayerState: PersistPlayerState? = null
 
     // The offline/cached-play recovery queue: captures listens the live watch-time session drops (no
     // network → no tracking URLs) and re-pushes them as a deferred stats session on reconnect. JSONL
@@ -725,11 +745,13 @@ class MusicService :
         }
 
         if (dataStore.get(PersistentQueueKey, true)) {
+            // AtomicFile.openRead pairs with the atomic writer: it recovers the previous good file
+            // if a write was interrupted. A restore FAILURE is reported (silent queue loss was
+            // invisible — the one signal for every corruption/incompatibility bug in this path);
+            // only a missing file (fresh install / first run) is expected and stays quiet.
             runCatching {
-                filesDir.resolve(PERSISTENT_QUEUE_FILE).inputStream().use { fis ->
-                    ObjectInputStream(fis).use { oos ->
-                        oos.readObject() as PersistQueue
-                    }
+                ObjectInputStream(AtomicFile(filesDir.resolve(PERSISTENT_QUEUE_FILE)).openRead()).use { ois ->
+                    ois.readObject() as PersistQueue
                 }
             }.onSuccess { queue ->
                 // Convert back to proper queue type
@@ -738,14 +760,14 @@ class MusicService :
                     queue = restoredQueue,
                     playWhenReady = false,
                 )
+            }.onFailure {
+                if (it !is FileNotFoundException) reportException(it)
             }
 
             // Restore player state
             runCatching {
-                filesDir.resolve(PERSISTENT_PLAYER_STATE_FILE).inputStream().use { fis ->
-                    ObjectInputStream(fis).use { oos ->
-                        oos.readObject() as PersistPlayerState
-                    }
+                ObjectInputStream(AtomicFile(filesDir.resolve(PERSISTENT_PLAYER_STATE_FILE)).openRead()).use { ois ->
+                    ois.readObject() as PersistPlayerState
                 }
             }.onSuccess { playerState ->
                 // Restore player settings after queue is loaded
@@ -760,6 +782,8 @@ class MusicService :
                         player.seekTo(playerState.currentMediaItemIndex, playerState.currentPosition)
                     }
                 }
+            }.onFailure {
+                if (it !is FileNotFoundException) reportException(it)
             }
         }
 
@@ -2664,7 +2688,13 @@ class MusicService :
         }
     }
 
-    private fun saveQueueToDisk() {
+    /**
+     * Persists the queue/player-state snapshots. The player is read on the caller (main)
+     * thread; by default the serialization + disk writes are offloaded to [queuePersistScope] so the
+     * periodic save never spikes the main thread. [blocking] = true writes inline on the caller thread
+     * for teardown ([onDestroy]), where the write must complete before the process ends.
+     */
+    private fun saveQueueToDisk(blocking: Boolean = false) {
         if (player.mediaItemCount == 0) {
             return
         }
@@ -2693,20 +2723,73 @@ class MusicService :
             playbackState = player.playbackState
         )
 
-        runCatching {
-            filesDir.resolve(PERSISTENT_QUEUE_FILE).outputStream().use { fos ->
-                ObjectOutputStream(fos).use { oos ->
-                    oos.writeObject(persistQueue)
-                }
-            }
-        }.onFailure {
-            reportException(it)
+        // The heavy queue file changes only on a content edit; the tiny player-state file writes
+        // whenever the state MOVED (playing advances position every tick; a paused idle service
+        // skips both files entirely). Teardown always writes both. Decisions are the pure, tested
+        // QueuePersist helpers; the diff basis is always the last WRITTEN snapshot.
+        val queueSignature = QueuePersist.signature(persistQueue.items.map { it.id }, persistQueue.title)
+        val queueToWrite = persistQueue.takeIf {
+            QueuePersist.shouldWrite(blocking, queueSignature, lastPersistedQueueSignature)
         }
+        val stateToWrite = persistPlayerState.takeIf {
+            blocking || queueToWrite != null ||
+                QueuePersist.playerStateChanged(lastPersistedPlayerState, persistPlayerState)
+        }
+        if (queueToWrite != null) lastPersistedQueueSignature = queueSignature
+        if (stateToWrite != null) lastPersistedPlayerState = stateToWrite
+
+        // Snapshots are captured above on the caller (main) thread — player state must be read there.
+        // The Java-serialization + disk writes are the expensive part and move off the main thread,
+        // except on teardown where the write must finish before the process dies. The teardown write
+        // still goes THROUGH the single-threaded scope (joined, not inline): writing inline would
+        // race a still-in-flight periodic write — concurrent truncating writes corrupt the file
+        // (restore's runCatching silently drops the queue), and a stale async snapshot finishing
+        // last would roll the persisted position back. Queued FIFO behind it, neither can happen.
+        if (blocking) {
+            runBlocking {
+                queuePersistScope.launch {
+                    writePersistedSnapshots(queueToWrite, stateToWrite)
+                }.join()
+            }
+        } else if (queueToWrite != null || stateToWrite != null) {
+            queuePersistScope.launch {
+                writePersistedSnapshots(queueToWrite, stateToWrite)
+            }
+        }
+    }
+
+    /**
+     * Serializes the queue snapshots to disk. Runs on [queuePersistScope] (single-threaded, off-main),
+     * or through it (joined) on teardown. A null [persistQueue]/[persistPlayerState] skips that file
+     * (content unchanged since the last write — see the decision helpers in [QueuePersist]).
+     */
+    private fun writePersistedSnapshots(
+        persistQueue: PersistQueue?,
+        persistPlayerState: PersistPlayerState?,
+    ) {
+        if (persistQueue != null) writeSnapshotAtomically(PERSISTENT_QUEUE_FILE, persistQueue)
+        if (persistPlayerState != null) writeSnapshotAtomically(PERSISTENT_PLAYER_STATE_FILE, persistPlayerState)
+    }
+
+    /**
+     * One snapshot write, ATOMIC (write-to-temp + rename via [AtomicFile]): a process kill or power
+     * loss mid-write must leave the previous good file behind, never a truncated one — restore's
+     * runCatching would otherwise silently drop the queue, the exact loss (issue #515) this
+     * persistence exists to prevent. The single-threaded scope serializes writERS; this makes each
+     * individual write all-or-nothing. Reads must go through [AtomicFile.openRead] for the rollback.
+     */
+    private fun writeSnapshotAtomically(fileName: String, payload: Any) {
+        val atomicFile = AtomicFile(filesDir.resolve(fileName))
         runCatching {
-            filesDir.resolve(PERSISTENT_PLAYER_STATE_FILE).outputStream().use { fos ->
-                ObjectOutputStream(fos).use { oos ->
-                    oos.writeObject(persistPlayerState)
-                }
+            val fos = atomicFile.startWrite()
+            try {
+                val oos = ObjectOutputStream(fos)
+                oos.writeObject(payload)
+                oos.flush()
+                atomicFile.finishWrite(fos)
+            } catch (e: Exception) {
+                atomicFile.failWrite(fos)
+                throw e
             }
         }.onFailure {
             reportException(it)
@@ -2724,7 +2807,7 @@ class MusicService :
         // and enqueues onto this scope, so cancelling would silently drop the very offline listen the
         // queue exists to recover. The scope dies with the process anyway (nothing to clean up).
         if (dataStore.get(PersistentQueueKey, true)) {
-            saveQueueToDisk()
+            saveQueueToDisk(blocking = true)
         }
         // Tear down any active cast session so the receiver doesn't keep playing an orphaned stream
         // after the service dies. Clear onDisconnect first so the async Disconnected callback can't
