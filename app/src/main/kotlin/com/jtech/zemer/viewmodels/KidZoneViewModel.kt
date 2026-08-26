@@ -6,6 +6,7 @@ import com.jtech.zemer.db.MusicDatabase
 import com.jtech.zemer.db.entities.Artist
 import com.jtech.zemer.utils.ArtistThumbResolver
 import com.jtech.zemer.utils.SyncUtils
+import com.jtech.zemer.utils.WhitelistCache
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -43,7 +44,11 @@ constructor(
             Timber.d("KidZoneVM: Total kids artists from DB: ${artists.size}, Search query: '$query'")
             val filteredByQuery =
                 if (query.isBlank()) artists
-                else artists.filter { artist -> artist.artist.name.contains(query, ignoreCase = true) }
+                // Match the other-script altName too (see WhitelistedArtistsViewModel).
+                else artists.filter { artist ->
+                    artist.artist.name.contains(query, ignoreCase = true) ||
+                        WhitelistCache.get(artist.id)?.altName?.contains(query, ignoreCase = true) == true
+                }
 
             Timber.d("KidZoneVM: Filtered result: ${filteredByQuery.size} artists")
             filteredByQuery

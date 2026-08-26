@@ -60,32 +60,29 @@ class ArtistThumbResolverTest {
         assertEquals(listOf("existing" to "https://yt3/x"), updates)
     }
 
-    // --- artistDisplayNameUpdates (display-name split rename rules) ---
+    // --- whitelistCarriesDisplayNames (the one-time backfill flag's payload gate) ---
 
     private fun named(id: String, legacy: String, display: String?) =
         ArtistWhitelistEntity(artistId = id, artistName = legacy, displayName = display)
 
     @Test
-    fun `only entries with a clean displayName differing from the legacy name qualify`() {
-        val updates = artistDisplayNameUpdates(
-            listOf(
-                named("a", "Aaron Razel - אהרן רזאל", "Aaron Razel"), // real split -> renamed
-                named("b", "Plain Name", null),                        // pre-split doc -> untouched
-                named("c", "Same Name", "Same Name"),                  // no-op rename -> skipped
-                named("d", "Legacy", "   "),                           // blank -> skipped
+    fun `a payload with at least one split displayName marks the backfill done`() {
+        assertEquals(
+            true,
+            whitelistCarriesDisplayNames(
+                listOf(named("a", "Plain Name", null), named("b", "Aaron Razel - אהרן רזאל", "Aaron Razel")),
             ),
-            existingArtistIds = setOf("a", "b", "c", "d"),
         )
-        assertEquals(listOf(Triple("a", "Aaron Razel - אהרן רזאל", "Aaron Razel")), updates)
     }
 
     @Test
-    fun `rename targets only rows already in the artist table (new rows insert the displayName directly)`() {
-        val updates = artistDisplayNameUpdates(
-            listOf(named("existing", "E - ע", "E"), named("new", "N - נ", "N")),
-            existingArtistIds = setOf("existing"),
+    fun `a pre-split payload (all displayNames null or blank) must not burn the one-time flag`() {
+        assertEquals(
+            false,
+            whitelistCarriesDisplayNames(
+                listOf(named("a", "Plain Name", null), named("b", "Legacy", "   ")),
+            ),
         )
-        assertEquals(listOf(Triple("existing", "E - ע", "E")), updates)
     }
 
     // --- whitelistFastPathEligible (version-gate + one-time display-name backfill) ---

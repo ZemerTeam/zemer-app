@@ -1272,10 +1272,15 @@ interface DatabaseDao {
     // whitelisted row: devices can hold a generated local row AND the whitelisted channel row under
     // the same name, and resolving to the local one maps content outside every whitelist-joined
     // query — the confirmed cause of the infinite album skeleton (zemer-app-album-open-stuck-skeleton).
+    // Matches the whitelist doc's artistName/displayName/altName too, not just the row name: the
+    // server keeps serving the legacy dual "English - עברית" credit while the local row is renamed
+    // to the clean displayName, so a name-only wire credit must still land on the whitelisted row
+    // (missing it mints a generated duplicate — the same skeleton bug class the ordering fixed).
     @Transaction
     @Query(
         "SELECT artist.* FROM artist LEFT JOIN artist_whitelist ON artist.id = artist_whitelist.artistId " +
-            "WHERE artist.name = :name " +
+            "WHERE artist.name = :name OR artist_whitelist.artistName = :name " +
+            "OR artist_whitelist.displayName = :name OR artist_whitelist.altName = :name " +
             "ORDER BY CASE WHEN artist_whitelist.artistId IS NULL THEN 1 ELSE 0 END, artist.rowid LIMIT 1"
     )
     fun artistByName(name: String): ArtistEntity?
@@ -1469,12 +1474,23 @@ interface DatabaseDao {
     fun updateArtistThumbnailUrl(artistId: String, thumbnailUrl: String)
 
     /**
-     * Renames a whitelist-seeded artist row to the clean [displayName] — guarded on the row still
-     * holding the legacy whitelist [legacyName] (the dual dash form), so a name since resolved from
-     * YTM (or edited any other way) is never overwritten.
+     * Makes the curated whitelist `displayName` AUTHORITATIVE for its artist row, in one set-based
+     * statement: only split docs carry a displayName (the ~50 dual dash-form artists), and for those
+     * the curator's clean name always wins — over the legacy whitelist seed AND over a YTM-resolved
+     * dual title (the raw channel title IS the dash form the curator split). Idempotent and
+     * self-terminating (matches zero rows once names agree), so a later server-side displayName
+     * correction lands on already-renamed installs too. Run after insertWhitelist on every full fetch.
      */
-    @Query("UPDATE artist SET name = :displayName WHERE id = :artistId AND name = :legacyName")
-    fun renameArtistFromWhitelist(artistId: String, legacyName: String, displayName: String)
+    @Query(
+        "UPDATE artist SET name = (SELECT w.displayName FROM artist_whitelist w WHERE w.artistId = artist.id) " +
+            "WHERE id IN (SELECT artistId FROM artist_whitelist WHERE displayName IS NOT NULL AND displayName != '') " +
+            "AND name != (SELECT w.displayName FROM artist_whitelist w WHERE w.artistId = artist.id)"
+    )
+    fun applyWhitelistDisplayNames()
+
+    /** The whitelist doc's curated displayName for [artistId] (null when absent/not a split doc). */
+    @Query("SELECT displayName FROM artist_whitelist WHERE artistId = :artistId")
+    fun whitelistDisplayNameSync(artistId: String): String?
 
     /** Overwrite the artist image unconditionally — for the fallback resolver replacing a dead URL. */
     @Query("UPDATE artist SET thumbnailUrl = :thumbnailUrl WHERE id = :artistId")
@@ -1494,9 +1510,13 @@ interface DatabaseDao {
         artist: ArtistEntity,
         artistPage: ArtistPage
     ) {
+        // A split whitelist doc's curated displayName beats the YTM channel title — for those ~50
+        // artists the raw title IS the dual dash form the curator cleaned, and taking it here made
+        // the >10-day stale refresh revert the clean name (oscillating with the whitelist sync).
+        val curatedName = whitelistDisplayNameSync(artist.id)?.takeIf { it.isNotBlank() }
         update(
             artist.copy(
-                name = artistPage.artist.title,
+                name = curatedName ?: artistPage.artist.title,
                 thumbnailUrl = artistPage.artist.thumbnail?.resize(544, 544),
                 lastUpdateTime = LocalDateTime.now()
             )

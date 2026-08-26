@@ -949,12 +949,11 @@ class SyncUtils @Inject constructor(
                     artistThumbnailUpdates(whitelistEntries, existingArtistIds).forEach { (artistId, thumb) ->
                         updateArtistThumbnailUrl(artistId, thumb)
                     }
-                    // Repair pre-split seeds: an existing artist row still carrying the legacy whitelist
-                    // name (the dual dash form) is renamed to the clean displayName. Guarded in the DAO
-                    // query (name must still equal the legacy value), so a YTM-resolved name never changes.
-                    artistDisplayNameUpdates(whitelistEntries, existingArtistIds).forEach { (artistId, legacyName, displayName) ->
-                        renameArtistFromWhitelist(artistId, legacyName, displayName)
-                    }
+                    // The curated displayName is authoritative for its artist row (split docs only —
+                    // one set-based, idempotent, self-terminating statement): repairs pre-split
+                    // seeds, re-applies after a stale YTM refresh restored the dual title, and lands
+                    // later server-side displayName corrections. See the DAO doc.
+                    applyWhitelistDisplayNames()
                 }
                 WhitelistCache.updateAll(whitelistEntries)
                 refreshBlockedIds()
@@ -969,7 +968,11 @@ class SyncUtils @Inject constructor(
                     remoteVersion?.let { settings[LastWhitelistVersionKey] = it }
                     // A full fetch just ran insertWhitelist with the split names, so the one-time
                     // backfill is done — subsequent syncs may take the version-gated fast path again.
-                    settings[DisplayNamesBackfilledKey] = true
+                    // Gated on the fetch actually CARRYING split names: a pre-split payload (stale
+                    // mirror snapshot) must not burn the one-time flag with all-NULL columns.
+                    if (whitelistCarriesDisplayNames(whitelistEntries)) {
+                        settings[DisplayNamesBackfilledKey] = true
+                    }
                 }
             } catch (e: Exception) {
                 _whitelistSyncProgress.value = WhitelistSyncProgress(isComplete = true)
@@ -1175,17 +1178,11 @@ internal fun artistThumbnailUpdates(
     }
 
 /**
- * Which (artistId, legacyName, displayName) renames the whitelist sync applies to EXISTING artist rows —
- * pure so the rules are regression-tested: only entries with a clean [displayName] that differs from the
- * legacy [artistName] qualify (new rows get the displayName via their insert), and only rows already in
- * the artist table are targeted. The never-clobber guard (the row's name must still equal the legacy
- * value, i.e. it was seeded from the whitelist and not since resolved from YTM) lives in the DAO query.
+ * Whether a fetched whitelist payload carries the v35 split display names at all — the gate that
+ * lets a completed full fetch set [DisplayNamesBackfilledKey]. Pure so the rule is regression-
+ * tested: a pre-split payload (every displayName null/blank) must NOT burn the one-time backfill
+ * flag, or the split names would never arrive without an unrelated version bump.
  */
-internal fun artistDisplayNameUpdates(
+internal fun whitelistCarriesDisplayNames(
     entries: List<com.jtech.zemer.db.entities.ArtistWhitelistEntity>,
-    existingArtistIds: Set<String>,
-): List<Triple<String, String, String>> =
-    entries.mapNotNull { entry ->
-        val display = entry.displayName?.takeIf { it.isNotBlank() && it != entry.artistName } ?: return@mapNotNull null
-        if (entry.artistId in existingArtistIds) Triple(entry.artistId, entry.artistName, display) else null
-    }
+): Boolean = entries.any { !it.displayName.isNullOrBlank() }

@@ -22,7 +22,8 @@ data class ArtistWhitelistEntity(
     val isKidZone: Boolean = false,
     // Display-name split: artistName keeps the legacy value (may be the dual "English - עברית" dash
     // form); displayName is the clean single-script name to render, altName the other-script name
-    // (matched by Library artist search). Both null on docs that predate the split.
+    // (matched by Library artist search, the Artists/KidZone browse filters, and artistByName's
+    // wire-credit resolution). Both null on docs that predate the split.
     @ColumnInfo(name = "displayName") val displayName: String? = null,
     @ColumnInfo(name = "altName") val altName: String? = null,
 ) {
