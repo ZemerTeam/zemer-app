@@ -2,6 +2,7 @@
 
 package com.jtech.zemer.playback
 
+import androidx.core.util.AtomicFile
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -178,6 +179,7 @@ import kotlinx.coroutines.plus
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
+import java.io.FileNotFoundException
 import java.io.ObjectInputStream
 import java.io.ObjectOutputStream
 import java.util.concurrent.Executor
@@ -296,6 +298,7 @@ class MusicService :
     // and no further change or clean teardown follows, the queue file stays one edit stale — a graceful
     // resume-an-older-queue degradation, never a crash; teardown and the next edit both heal it.)
     private var lastPersistedQueueSignature: String? = null
+    private var lastPersistedPlayerState: PersistPlayerState? = null
 
     // The offline/cached-play recovery queue: captures listens the live watch-time session drops (no
     // network → no tracking URLs) and re-pushes them as a deferred stats session on reconnect. JSONL
@@ -742,11 +745,13 @@ class MusicService :
         }
 
         if (dataStore.get(PersistentQueueKey, true)) {
+            // AtomicFile.openRead pairs with the atomic writer: it recovers the previous good file
+            // if a write was interrupted. A restore FAILURE is reported (silent queue loss was
+            // invisible — the one signal for every corruption/incompatibility bug in this path);
+            // only a missing file (fresh install / first run) is expected and stays quiet.
             runCatching {
-                filesDir.resolve(PERSISTENT_QUEUE_FILE).inputStream().use { fis ->
-                    ObjectInputStream(fis).use { oos ->
-                        oos.readObject() as PersistQueue
-                    }
+                ObjectInputStream(AtomicFile(filesDir.resolve(PERSISTENT_QUEUE_FILE)).openRead()).use { ois ->
+                    ois.readObject() as PersistQueue
                 }
             }.onSuccess { queue ->
                 // Convert back to proper queue type
@@ -755,14 +760,14 @@ class MusicService :
                     queue = restoredQueue,
                     playWhenReady = false,
                 )
+            }.onFailure {
+                if (it !is FileNotFoundException) reportException(it)
             }
 
             // Restore player state
             runCatching {
-                filesDir.resolve(PERSISTENT_PLAYER_STATE_FILE).inputStream().use { fis ->
-                    ObjectInputStream(fis).use { oos ->
-                        oos.readObject() as PersistPlayerState
-                    }
+                ObjectInputStream(AtomicFile(filesDir.resolve(PERSISTENT_PLAYER_STATE_FILE)).openRead()).use { ois ->
+                    ois.readObject() as PersistPlayerState
                 }
             }.onSuccess { playerState ->
                 // Restore player settings after queue is loaded
@@ -777,6 +782,8 @@ class MusicService :
                         player.seekTo(playerState.currentMediaItemIndex, playerState.currentPosition)
                     }
                 }
+            }.onFailure {
+                if (it !is FileNotFoundException) reportException(it)
             }
         }
 
@@ -2716,13 +2723,20 @@ class MusicService :
             playbackState = player.playbackState
         )
 
-        // The heavy queue file changes only on a content edit; the tiny player-state file
-        // (position/index) is what restore seeks from, so it is written on every save. This keeps the
-        // steady-playback save cheap: no full queue re-serialization every 10s.
+        // The heavy queue file changes only on a content edit; the tiny player-state file writes
+        // whenever the state MOVED (playing advances position every tick; a paused idle service
+        // skips both files entirely). Teardown always writes both. Decisions are the pure, tested
+        // QueuePersist helpers; the diff basis is always the last WRITTEN snapshot.
         val queueSignature = QueuePersist.signature(persistQueue.items.map { it.id }, persistQueue.title)
-        val writeQueue = blocking || queueSignature != lastPersistedQueueSignature
-        lastPersistedQueueSignature = queueSignature
-        val queueToWrite = persistQueue.takeIf { writeQueue }
+        val queueToWrite = persistQueue.takeIf {
+            QueuePersist.shouldWrite(blocking, queueSignature, lastPersistedQueueSignature)
+        }
+        val stateToWrite = persistPlayerState.takeIf {
+            blocking || queueToWrite != null ||
+                QueuePersist.playerStateChanged(lastPersistedPlayerState, persistPlayerState)
+        }
+        if (queueToWrite != null) lastPersistedQueueSignature = queueSignature
+        if (stateToWrite != null) lastPersistedPlayerState = stateToWrite
 
         // Snapshots are captured above on the caller (main) thread — player state must be read there.
         // The Java-serialization + disk writes are the expensive part and move off the main thread,
@@ -2734,41 +2748,48 @@ class MusicService :
         if (blocking) {
             runBlocking {
                 queuePersistScope.launch {
-                    writePersistedSnapshots(queueToWrite, persistPlayerState)
+                    writePersistedSnapshots(queueToWrite, stateToWrite)
                 }.join()
             }
-        } else {
+        } else if (queueToWrite != null || stateToWrite != null) {
             queuePersistScope.launch {
-                writePersistedSnapshots(queueToWrite, persistPlayerState)
+                writePersistedSnapshots(queueToWrite, stateToWrite)
             }
         }
     }
 
     /**
      * Serializes the queue snapshots to disk. Runs on [queuePersistScope] (single-threaded, off-main),
-     * or inline on teardown. A null [persistQueue] skips that file (content unchanged since the last
-     * write); the player-state file is always written.
+     * or through it (joined) on teardown. A null [persistQueue]/[persistPlayerState] skips that file
+     * (content unchanged since the last write — see the decision helpers in [QueuePersist]).
      */
     private fun writePersistedSnapshots(
         persistQueue: PersistQueue?,
-        persistPlayerState: PersistPlayerState,
+        persistPlayerState: PersistPlayerState?,
     ) {
-        if (persistQueue != null) {
-            runCatching {
-                filesDir.resolve(PERSISTENT_QUEUE_FILE).outputStream().use { fos ->
-                    ObjectOutputStream(fos).use { oos ->
-                        oos.writeObject(persistQueue)
-                    }
-                }
-            }.onFailure {
-                reportException(it)
-            }
-        }
+        if (persistQueue != null) writeSnapshotAtomically(PERSISTENT_QUEUE_FILE, persistQueue)
+        if (persistPlayerState != null) writeSnapshotAtomically(PERSISTENT_PLAYER_STATE_FILE, persistPlayerState)
+    }
+
+    /**
+     * One snapshot write, ATOMIC (write-to-temp + rename via [AtomicFile]): a process kill or power
+     * loss mid-write must leave the previous good file behind, never a truncated one — restore's
+     * runCatching would otherwise silently drop the queue, the exact loss (issue #515) this
+     * persistence exists to prevent. The single-threaded scope serializes writERS; this makes each
+     * individual write all-or-nothing. Reads must go through [AtomicFile.openRead] for the rollback.
+     */
+    private fun writeSnapshotAtomically(fileName: String, payload: Any) {
+        val atomicFile = AtomicFile(filesDir.resolve(fileName))
         runCatching {
-            filesDir.resolve(PERSISTENT_PLAYER_STATE_FILE).outputStream().use { fos ->
-                ObjectOutputStream(fos).use { oos ->
-                    oos.writeObject(persistPlayerState)
-                }
+            val fos = atomicFile.startWrite()
+            try {
+                val oos = ObjectOutputStream(fos)
+                oos.writeObject(payload)
+                oos.flush()
+                atomicFile.finishWrite(fos)
+            } catch (e: Exception) {
+                atomicFile.failWrite(fos)
+                throw e
             }
         }.onFailure {
             reportException(it)

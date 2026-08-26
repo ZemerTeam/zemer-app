@@ -140,12 +140,12 @@ Every tracked Kotlin file is listed with hard metadata extracted from the file t
 | `app/src/main/kotlin/com/jtech/zemer/playback/MediaLibrarySessionCallback.kt` | 810 | `com.jtech.zemer.playback` | no | 58 | 80 | android.content, android.net, android.os, androidx.annotation, androidx.core, androidx.media3, com.google, dagger.hilt, javax.inject, kotlinx.coroutines |
 | `app/src/main/kotlin/com/jtech/zemer/playback/MediaStoreDownloadManager.kt` | 1077 | `com.jtech.zemer.playback` | no | 55 | 127 | android.content, android.media, android.net, androidx.core, dagger.hilt, java.io, java.time, java.util, javax.inject, kotlin.math, kotlinx.coroutines, okhttp3.OkHttpClient, okhttp3.Request, timber.log |
 | `app/src/main/kotlin/com/jtech/zemer/playback/MediaStoreDownloadService.kt` | 302 | `com.jtech.zemer.playback` | no | 27 | 48 | android.app, android.content, android.os, androidx.core, dagger.hilt, javax.inject, kotlin.math, kotlinx.coroutines, timber.log |
-| `app/src/main/kotlin/com/jtech/zemer/playback/MusicService.kt` | 2908 | `com.jtech.zemer.playback` | no | 183 | 305 | android.app, android.content, android.database, android.media, android.net, android.os, androidx.core, androidx.datastore, androidx.media3, com.zemer, dagger.hilt, java.io, java.time, java.util, javax.inject, kotlin.time, kotlinx.coroutines, okhttp3.OkHttpClient, org.fcast, timber.log |
+| `app/src/main/kotlin/com/jtech/zemer/playback/MusicService.kt` | 2929 | `com.jtech.zemer.playback` | no | 185 | 310 | android.app, android.content, android.database, android.media, android.net, android.os, androidx.core, androidx.datastore, androidx.media3, com.zemer, dagger.hilt, java.io, java.time, java.util, javax.inject, kotlin.time, kotlinx.coroutines, okhttp3.OkHttpClient, org.fcast, timber.log |
 | `app/src/main/kotlin/com/jtech/zemer/playback/PlaybackNonceRegistry.kt` | 76 | `com.jtech.zemer.playback` | no | 1 | 13 |  |
 | `app/src/main/kotlin/com/jtech/zemer/playback/PlaybackProbe.kt` | 31 | `com.jtech.zemer.playback` | no | 0 | 8 |  |
 | `app/src/main/kotlin/com/jtech/zemer/playback/PlayerConnection.kt` | 413 | `com.jtech.zemer.playback` | no | 30 | 71 | android.content, androidx.media3, kotlinx.coroutines, org.fcast |
 | `app/src/main/kotlin/com/jtech/zemer/playback/PlayerVideoUiLogic.kt` | 49 | `com.jtech.zemer.playback` | no | 0 | 5 |  |
-| `app/src/main/kotlin/com/jtech/zemer/playback/QueuePersist.kt` | 27 | `com.jtech.zemer.playback` | no | 0 | 2 |  |
+| `app/src/main/kotlin/com/jtech/zemer/playback/QueuePersist.kt` | 46 | `com.jtech.zemer.playback` | no | 1 | 4 |  |
 | `app/src/main/kotlin/com/jtech/zemer/playback/RemoteVolumeTracker.kt` | 54 | `com.jtech.zemer.playback` | no | 3 | 9 | kotlinx.coroutines |
 | `app/src/main/kotlin/com/jtech/zemer/playback/SeekMath.kt` | 15 | `com.jtech.zemer.playback` | no | 0 | 3 |  |
 | `app/src/main/kotlin/com/jtech/zemer/playback/SleepTimer.kt` | 81 | `com.jtech.zemer.playback` | no | 11 | 12 | androidx.compose, androidx.media3, kotlin.time, kotlinx.coroutines |
@@ -596,7 +596,7 @@ Every tracked Kotlin file is listed with hard metadata extracted from the file t
 | `app/src/test/kotlin/com/jtech/zemer/playback/PlaybackNonceRegistryTest.kt` | 134 | `com.jtech.zemer.playback` | no | 5 | 28 | java.util, org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/playback/PlayerVideoUiLogicTest.kt` | 74 | `com.jtech.zemer.playback` | no | 3 | 3 | org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/playback/QueueContinuationTest.kt` | 42 | `com.jtech.zemer.playback` | no | 4 | 7 | androidx.media3, org.junit |
-| `app/src/test/kotlin/com/jtech/zemer/playback/QueuePersistTest.kt` | 52 | `com.jtech.zemer.playback` | no | 3 | 2 | org.junit |
+| `app/src/test/kotlin/com/jtech/zemer/playback/QueuePersistTest.kt` | 116 | `com.jtech.zemer.playback` | no | 3 | 3 | org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/playback/RemoteVolumeTrackerTest.kt` | 57 | `com.jtech.zemer.playback` | no | 3 | 6 | org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/playback/SeekMathTest.kt` | 35 | `com.jtech.zemer.playback` | no | 2 | 1 | org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/playback/VideoAvailabilityCacheTest.kt` | 75 | `com.jtech.zemer.playback` | no | 4 | 11 | org.junit |

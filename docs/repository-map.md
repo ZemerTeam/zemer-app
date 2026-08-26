@@ -302,12 +302,12 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/main/kotlin/com/jtech/zemer/playback/MediaLibrarySessionCallback.kt` | 810 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/playback/MediaStoreDownloadManager.kt` | 1077 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/playback/MediaStoreDownloadService.kt` | 302 lines | `.kt` |
-| `app/src/main/kotlin/com/jtech/zemer/playback/MusicService.kt` | 2908 lines | `.kt` |
+| `app/src/main/kotlin/com/jtech/zemer/playback/MusicService.kt` | 2929 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/playback/PlaybackNonceRegistry.kt` | 76 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/playback/PlaybackProbe.kt` | 31 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/playback/PlayerConnection.kt` | 413 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/playback/PlayerVideoUiLogic.kt` | 49 lines | `.kt` |
-| `app/src/main/kotlin/com/jtech/zemer/playback/QueuePersist.kt` | 27 lines | `.kt` |
+| `app/src/main/kotlin/com/jtech/zemer/playback/QueuePersist.kt` | 46 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/playback/RemoteVolumeTracker.kt` | 54 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/playback/SeekMath.kt` | 15 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/playback/SleepTimer.kt` | 81 lines | `.kt` |
@@ -966,7 +966,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/test/kotlin/com/jtech/zemer/playback/PlaybackNonceRegistryTest.kt` | 134 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/playback/PlayerVideoUiLogicTest.kt` | 74 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/playback/QueueContinuationTest.kt` | 42 lines | `.kt` |
-| `app/src/test/kotlin/com/jtech/zemer/playback/QueuePersistTest.kt` | 52 lines | `.kt` |
+| `app/src/test/kotlin/com/jtech/zemer/playback/QueuePersistTest.kt` | 116 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/playback/RemoteVolumeTrackerTest.kt` | 57 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/playback/SeekMathTest.kt` | 35 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/playback/VideoAvailabilityCacheTest.kt` | 75 lines | `.kt` |
