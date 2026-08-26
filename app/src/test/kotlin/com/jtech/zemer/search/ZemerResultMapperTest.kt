@@ -472,6 +472,25 @@ class ZemerResultMapperTest {
         assertTrue(videos.single().isVideo)
     }
 
+    @Test
+    fun `artist page threads the page artist into credit-less tracks`() {
+        // The wire tracks carry no artist credit (the page IS the artist); without the threading a
+        // played track shows no (tappable) artist line in the player at all (issue #519).
+        val page = ZemerArtistResponse(
+            artist = ZemerArtist("UC1", "Page Artist"),
+            songs = listOf(ZemerTrack("s1", "Song")),
+            videos = listOf(ZemerTrack("v1", "Clip", artist = "Featured Guest", artistId = "UCg")),
+        ).toArtistPage()
+
+        val song = page.sections.first { it.title == "Songs" }.items.single() as SongItem
+        assertEquals("Page Artist", song.artists.single().name)
+        assertEquals("UC1", song.artists.single().id)
+        // An explicit wire credit is never overwritten.
+        val video = page.sections.first { it.title == "Videos" }.items.single() as SongItem
+        assertEquals("Featured Guest", video.artists.single().name)
+        assertEquals("UCg", video.artists.single().id)
+    }
+
     // --- /video-home-rows mapping (the Videos tab's ranked rows) ---
 
     @Test

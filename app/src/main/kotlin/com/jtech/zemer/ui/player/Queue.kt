@@ -101,6 +101,7 @@ import com.jtech.zemer.extensions.shuffleIconRes
 import com.jtech.zemer.extensions.togglePlayPause
 import com.jtech.zemer.extensions.toggleRepeatMode
 import com.jtech.zemer.models.MediaMetadata
+import com.jtech.zemer.models.withResolvedNavIds
 import com.jtech.zemer.ui.component.ActionPromptDialog
 import com.jtech.zemer.ui.component.BottomSheet
 import com.jtech.zemer.ui.component.BottomSheetState
@@ -152,7 +153,12 @@ fun Queue(
     val shuffleModeEnabled by playerConnection.shuffleModeEnabled.collectAsState()
 
     val currentWindowIndex by playerConnection.currentWindowIndex.collectAsState()
-    val mediaMetadata by playerConnection.mediaMetadata.collectAsState()
+    val rawMediaMetadata by playerConnection.mediaMetadata.collectAsState()
+    val currentSong by playerConnection.currentSong.collectAsState(initial = null)
+    // Same nav-id fill as Player.kt: the queue bar's PlayerMenu needs resolved artist/album ids too.
+    val mediaMetadata = remember(rawMediaMetadata, currentSong) {
+        rawMediaMetadata?.withResolvedNavIds(currentSong)
+    }
 
     val selectedSongs = remember { mutableStateListOf<MediaMetadata>() }
     val selectedItems = remember { mutableStateListOf<Timeline.Window>() }
