@@ -127,9 +127,9 @@ class OfflineReadProvider @Inject constructor(
             snapshot()?.let { offlinePodcasts(it.corpus, allowFemale, blockVideos, kidZone) }
         }
 
-    suspend fun podcastsNewEpisodes(k: Int, allowFemale: Boolean, blockVideos: Boolean): ZemerNewEpisodesResponse? =
+    suspend fun podcastsNewEpisodes(k: Int, allowFemale: Boolean, blockVideos: Boolean, kidZone: Boolean = false): ZemerNewEpisodesResponse? =
         withContext(Dispatchers.IO) {
-            snapshot()?.let { offlinePodcastsNewEpisodes(it.corpus, k, allowFemale, blockVideos, kidZone = false) }
+            snapshot()?.let { offlinePodcastsNewEpisodes(it.corpus, k, allowFemale, blockVideos, kidZone) }
         }
 
     suspend fun podcastGenres(allowFemale: Boolean, blockVideos: Boolean): ZemerPodcastGenresResponse? =

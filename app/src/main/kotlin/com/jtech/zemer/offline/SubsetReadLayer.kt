@@ -565,10 +565,22 @@ private fun SubsetCorpus.podcastShowPasses(
 ): Boolean {
     val ch = show.channelId?.let { podcastChannelsById[it] }
     if (idDropped(show.id, allowFemale) || idDropped(show.channelId, allowFemale)) return false
-    val isKid = show.isKidZone || ch?.isKidZone == true
-    if (!kidZone && defaultExcludesKid && isKid) return false
+    val isKid = podcastIsKid(show)
+    if (defaultExcludesKid && !podcastKidBrowseGate(isKid, kidZone)) return false
     return contentGatePasses(ch?.isFemale == true, isKid, isVideo = false, allowFemale, blockVideos, kidZone)
 }
+
+/** THE one "is this show kid content" derivation: the per-SHOW flag OR its host channel's. */
+internal fun SubsetCorpus.podcastIsKid(show: SubPodcastShow): Boolean =
+    show.isKidZone || show.channelId?.let { podcastChannelsById[it] }?.isKidZone == true
+
+/**
+ * THE shared kid gate for BROWSE surfaces (catalog, new-episodes, genres, search categories) —
+ * kid content only under `kidZone = 1`, excluded by default (server parity, 2026-08-26). Detail
+ * opens by id deliberately do NOT use it (the server's saved-subscription/deep-link carve-out).
+ */
+internal fun podcastKidBrowseGate(isKid: Boolean, kidZone: Boolean): Boolean =
+    if (kidZone) isKid else !isKid
 
 // newest-first: publishedAt desc (ISO dates sort lexicographically), NULLs last, then videoId asc.
 private val EPISODE_RECENCY = compareByDescending<SubPodcastEpisode> { it.publishedAt != null }
@@ -642,7 +654,12 @@ fun offlinePodcastChannel(
 ): ZemerPodcastChannelResponse? {
     val ch = corpus.podcastChannelsById[id] ?: return null
     if (corpus.idDropped(id, allowFemale)) return null
-    if (!contentGatePasses(ch.isFemale, ch.isKidZone, isVideo = false, allowFemale, blockVideos, kidZone)) return null
+    // Under kidZone the channel passes when it IS kid OR HOSTS a kid show (the server contract:
+    // 404 only unless the channel hosts a kid show) — a mixed publisher must not dead-end the
+    // "View channel" drill-in from a kid show; its shelf below filters to the kid shows.
+    val hostsKid = ch.isKidZone || corpus.podcastsByChannel[id].orEmpty().any { corpus.podcastIsKid(it) }
+    if (kidZone && !hostsKid) return null
+    if (!contentGatePasses(ch.isFemale, hostsKid, isVideo = false, allowFemale, blockVideos, kidZone)) return null
 
     val shows = corpus.podcastsByChannel[id].orEmpty()
         .filter { corpus.podcastShowPasses(it, allowFemale, blockVideos, kidZone) }

@@ -200,6 +200,16 @@ class SubsetPodcastReadTest {
     }
 
     @Test
+    fun `a mixed channel hosting a kid show serves under kidZone with only its kid shows`() {
+        // Server contract: 404 only unless the channel hosts a kid show; the shelf filters to them.
+        val r = offlinePodcastChannel(corpus, "UCn", allowFemale = true, blockVideos = false, kidZone = true)!!
+        assertEquals(listOf("MPSK"), r.shows.map { it.id })
+        assertEquals(listOf("vek"), r.episodes.map { it.videoId })
+        // A channel with no kid content 404s under the flag.
+        assertNull(offlinePodcastChannel(corpus, "UCw", allowFemale = true, blockVideos = false, kidZone = true))
+    }
+
+    @Test
     fun `search default-excludes kid shows and their episodes, kidZone serves only them`() {
         val def = offlineSearch(corpus, matcher, "Kids", 10, allowFemale = true, blockVideos = false, kidZone = false)
         assertTrue(def.categories.podcasts.none { it.id == "MPSK" })

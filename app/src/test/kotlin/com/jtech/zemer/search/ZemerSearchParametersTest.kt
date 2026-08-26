@@ -51,12 +51,20 @@ class ZemerSearchParametersTest {
     }
 
     @Test
-    fun `every request carries q, both flags, and k - and nothing is dropped`() {
+    fun `every request carries q, all three flags, and k - and nothing is dropped`() {
         val params = zemerSearchParameters("shwekey", allowFemale = false, blockVideos = false, k = 100)
 
+        // kidZone is sent explicitly on every /search (send-always contract): "0" outside the
+        // KidZone navigation context, "1" inside it.
         assertEquals(
-            listOf("q", "allowFemale", "blockVideos", "k"),
+            listOf("q", "allowFemale", "blockVideos", "kidZone", "k"),
             params.map { it.first },
+        )
+        assertEquals("0", params.toMap()["kidZone"])
+        assertEquals(
+            "1",
+            zemerSearchParameters("shwekey", allowFemale = false, blockVideos = false, k = 100, kidZone = true)
+                .toMap()["kidZone"],
         )
         assertEquals("shwekey", params.toMap()["q"])
         assertEquals("100", params.toMap()["k"])

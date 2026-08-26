@@ -72,8 +72,12 @@ internal fun zemerSearchParameters(
     allowFemale: Boolean,
     blockVideos: Boolean,
     k: Int,
+    kidZone: Boolean = false,
 ): List<Pair<String, String>> =
-    listOf("q" to query) + zemerContentFlagParameters(allowFemale, blockVideos) + ("k" to k.toString())
+    // /search takes kidZone (it filters the podcast/episode categories), so per the send-always
+    // contract above the flag is sent explicitly on EVERY request - relying on the server default
+    // is exactly the drift the contract precludes.
+    listOf("q" to query) + zemerContentFlagParameters(allowFemale, blockVideos, kidZone = kidZone) + ("k" to k.toString())
 
 /**
  * The exact query parameters a `/zemer-playlists` request carries, in order ([id] = null for the
@@ -151,9 +155,10 @@ class ZemerSearchClient @Inject constructor() {
         allowFemale: Boolean,
         blockVideos: Boolean,
         k: Int,
+        kidZone: Boolean = false,
     ): ZemerSearchResponse {
         val response: HttpResponse = client.get("$BASE_URL/search") {
-            applyParams(zemerSearchParameters(query, allowFemale, blockVideos, k))
+            applyParams(zemerSearchParameters(query, allowFemale, blockVideos, k, kidZone))
             // The Community chip asks for a large k (a few hundred rows); give that heavier response more
             // headroom than the default ceiling, while the as-you-type / filter calls keep the tighter
             // default so a genuinely hung request still fails fast.

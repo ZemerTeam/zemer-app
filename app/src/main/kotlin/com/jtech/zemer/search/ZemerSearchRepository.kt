@@ -216,8 +216,8 @@ class ZemerSearchRepository @Inject constructor(
 
     /**
      * The kid-flagged show catalog (`/podcasts?kidZone=1`) as browsable cards — the KidZone
-     * podcasts grid. LIVE-ONLY (the offline shards carry no kid flag); the caller renders its own
-     * fail-soft state on null.
+     * podcasts grid, with the offline-subset fallback. NOTE: [serverOrOffline] RETHROWS when the
+     * server is unreachable and no snapshot exists — callers must catch (KidZoneViewModel does).
      */
     suspend fun kidZonePodcasts(options: ZemerSearchOptions): List<PodcastItem>? =
         serverOrOffline(
@@ -274,8 +274,8 @@ class ZemerSearchRepository @Inject constructor(
     /** Latest episodes across all whitelisted shows (Library New Episodes), newest-first. */
     suspend fun podcastsNewEpisodes(k: Int, options: ZemerSearchOptions): List<EpisodeItem> =
         serverOrOffline(
-            server = { client.podcastsNewEpisodes(k, options.allowFemale, options.blockVideos) },
-            offline = { offlineReads.podcastsNewEpisodes(k, options.allowFemale, options.blockVideos) },
+            server = { client.podcastsNewEpisodes(k, options.allowFemale, options.blockVideos, options.kidZone) },
+            offline = { offlineReads.podcastsNewEpisodes(k, options.allowFemale, options.blockVideos, options.kidZone) },
         ).toEpisodeItems()
 
     /**
@@ -466,7 +466,7 @@ class ZemerSearchRepository @Inject constructor(
         // only runs from the error-state Retry path — which a "successfully" cached result never shows.
         return serverOrOffline(
             server = {
-                client.search(trimmed, options.allowFemale, options.blockVideos, k)
+                client.search(trimmed, options.allowFemale, options.blockVideos, k, kidZone = options.kidZone)
                     .also { response -> cacheMutex.withLock { cache[key] = response } }
             },
             offline = { offlineReads.search(trimmed, k, options.allowFemale, options.blockVideos) },

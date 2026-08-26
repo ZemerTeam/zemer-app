@@ -36,9 +36,10 @@ constructor(
 
     val isSyncing = syncUtils.isWhitelistSyncing
 
-    // The kid-flagged show catalog (/podcasts?kidZone=1) for the Podcasts tab. Null = loading
-    // (shimmer); empty = unreachable or genuinely none (the tab's empty state; pull-to-refresh
-    // retries). LIVE-ONLY and fail-soft - a fetch failure never affects the Artists tab.
+    // The kid-flagged show catalog (/podcasts?kidZone=1, with the offline-subset fallback) for the
+    // Podcasts tab. Null = loading (shimmer); empty = unreachable or genuinely none (the tab's
+    // empty state; pull-to-refresh retries). Fail-soft - a fetch failure (the repository RETHROWS
+    // when the server is unreachable and no snapshot exists) never affects the Artists tab.
     val kidPodcasts = MutableStateFlow<List<PodcastItem>?>(null)
     val isRefreshingPodcasts = MutableStateFlow(false)
     val podcastSearchQuery = MutableStateFlow("")
@@ -57,6 +58,10 @@ constructor(
             try {
                 kidPodcasts.value = zemerRepository.kidZonePodcasts(zemerSearchOptions(context).copy(kidZone = true))
                     ?: kidPodcasts.value ?: emptyList()
+            } catch (e: Exception) {
+                // Unreachable server with no offline snapshot rethrows - keep the last list (or the
+                // empty state) instead of crashing the screen open.
+                kidPodcasts.value = kidPodcasts.value ?: emptyList()
             } finally {
                 if (isRefresh) isRefreshingPodcasts.value = false
             }

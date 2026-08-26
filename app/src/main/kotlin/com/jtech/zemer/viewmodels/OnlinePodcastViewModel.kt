@@ -43,8 +43,9 @@ class OnlinePodcastViewModel @Inject constructor(
     val database: MusicDatabase,
 ) : ViewModel() {
     private val podcastId = savedStateHandle.get<String>("podcastId")!!
-    // KidZone navigation context: every server call from this screen stays kid-restricted.
-    private val kidZone = savedStateHandle.get<Boolean>("kidZone") ?: false
+    // KidZone navigation context: every server call from this screen stays kid-restricted, and the
+    // screen reads it for its drill-outs (View channel, the episode menus).
+    val kidZone = savedStateHandle.get<Boolean>("kidZone") ?: false
 
     val podcast = MutableStateFlow<PodcastItem?>(null)
     val episodes = MutableStateFlow<List<EpisodeItem>>(emptyList())

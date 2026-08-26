@@ -172,15 +172,15 @@ class BuiltCategories internal constructor(
             }
 
         // Podcasts: shows + episodes folded into the same matcher (server reply 4). Both gated on the
-        // female/kid flags (isVideo=false: episodes are audio) + the blocked shard. Kid shows are
-        // default-EXCLUDED from search (server parity, 2026-08-26): served only under kidZone=1.
+        // female/kid flags (isVideo=false: episodes are audio) + the blocked shard. Search is a
+        // BROWSE surface: the shared podcastKidBrowseGate default-excludes kid shows (server parity).
         val podcastRows = pick(podcasts, k,
-            { (kidZone || !it.isKidZone) && allowed(it.femaleInvolved, it.isKidZone, isVideo = false, allowFemale, blockVideos, kidZone) },
+            { podcastKidBrowseGate(it.isKidZone, kidZone) && allowed(it.femaleInvolved, it.isKidZone, isVideo = false, allowFemale, blockVideos, kidZone) },
             { listOf(it.id, it.channelId) })
             .map { ZemerPodcastShow(id = it.id, name = it.title, author = it.author, channelId = it.channelId, thumbnail = it.thumbnail, episodeCountText = it.episodeCountText) }
 
         val episodeRows = pick(episodes, k,
-            { (kidZone || !it.isKidZone) && allowed(it.femaleInvolved, it.isKidZone, isVideo = false, allowFemale, blockVideos, kidZone) },
+            { podcastKidBrowseGate(it.isKidZone, kidZone) && allowed(it.femaleInvolved, it.isKidZone, isVideo = false, allowFemale, blockVideos, kidZone) },
             // A show blocked by id (per-show exception on a mixed channel) must also drop its
             // episodes here — every other offline podcast surface checks the show id, so matching
             // only the videoId let blocked shows' episodes leak through offline search.
@@ -365,7 +365,7 @@ class BuiltCategories internal constructor(
                 CatPodcastDoc(
                     id = s.id, title = s.name, author = s.author, channelId = s.channelId,
                     thumbnail = s.thumbnail, episodeCountText = s.episodeCountText,
-                    femaleInvolved = ch?.isFemale ?: false, isKidZone = s.isKidZone || ch?.isKidZone == true,
+                    femaleInvolved = ch?.isFemale ?: false, isKidZone = corpus.podcastIsKid(s),
                 )
             }
             val episodeDocs = corpus.podcastEpisodes.mapNotNull { e ->
@@ -374,7 +374,7 @@ class BuiltCategories internal constructor(
                 CatEpisodeDoc(
                     videoId = e.videoId, title = e.title, showId = e.showId, showName = s.name,
                     channelId = s.channelId, thumbnail = e.thumbnail, durationSec = e.durationSec, publishedAt = e.publishedAt,
-                    femaleInvolved = ch?.isFemale ?: false, isKidZone = s.isKidZone || ch?.isKidZone == true,
+                    femaleInvolved = ch?.isFemale ?: false, isKidZone = corpus.podcastIsKid(s),
                 )
             }
 

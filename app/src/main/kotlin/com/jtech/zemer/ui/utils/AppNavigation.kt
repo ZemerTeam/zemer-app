@@ -1,6 +1,7 @@
 package com.jtech.zemer.ui.utils
 
 import androidx.navigation.NavController
+import com.jtech.zemer.utils.PodcastWhitelistCache
 
 /**
  * Null-safe navigation to the id-bearing detail routes.
@@ -58,7 +59,11 @@ fun channelDeepLinkRoute(channelId: String?, artistWhitelisted: Boolean, podcast
 }
 
 fun NavController.navigateToArtist(artistId: String?, isPodcastChannel: Boolean = false, kidZone: Boolean = false) {
-    artistRoute(artistId, isPodcastChannel, kidZone)?.let(::navigate)
+    // A WHOLLY-kid channel always opens kid-scoped, whatever surface routed here (menus, player,
+    // library) - the chokepoint fix for the "View artist escapes the kid scope" leak class. A MIXED
+    // channel scopes only when the caller carries the KidZone navigation context explicitly.
+    val kidScoped = kidZone || (isPodcastChannel && artistId != null && PodcastWhitelistCache.isKidChannel(artistId))
+    artistRoute(artistId, isPodcastChannel, kidScoped)?.let(::navigate)
 }
 
 fun NavController.navigateToAlbum(albumId: String?) {

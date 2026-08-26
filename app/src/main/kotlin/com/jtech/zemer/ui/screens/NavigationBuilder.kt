@@ -194,7 +194,7 @@ fun NavGraphBuilder.navigationBuilder(
         else HomeSeeAllScreen(navController, scrollBehavior, row)
     }
     composable(
-        route = "artist_section/{artistId}?title={title}&isPodcastChannel={isPodcastChannel}",
+        route = "artist_section/{artistId}?title={title}&isPodcastChannel={isPodcastChannel}&kidZone={kidZone}",
         arguments = listOf(
             navArgument("artistId") { type = NavType.StringType },
             navArgument("title") {
@@ -204,6 +204,11 @@ fun NavGraphBuilder.navigationBuilder(
             // Carried through so the section's ArtistViewModel loads the podcast-channel endpoint
             // (/podcast-channel) rather than the music /artist path for a UC... channel id.
             navArgument("isPodcastChannel") {
+                type = NavType.BoolType
+                defaultValue = false
+            },
+            // KidZone navigation context - the see-all must stay kid-scoped (see the artist route).
+            navArgument("kidZone") {
                 type = NavType.BoolType
                 defaultValue = false
             },

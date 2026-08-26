@@ -109,8 +109,10 @@ fun OnlinePodcastScreen(
     val isPlaying by playerConnection.isPlaying.collectAsState()
     val mediaMetadata by playerConnection.mediaMetadata.collectAsState()
 
-    // KidZone navigation context: drill-outs (View channel) keep the restriction (#drill-in rule).
-    val kidZone = navController.currentBackStackEntry?.arguments?.getBoolean("kidZone") == true
+    // KidZone navigation context: drill-outs (View channel, episode menus) keep the restriction.
+    // Read from the ViewModel's SavedStateHandle - the ONE stable source (a composition-time
+    // currentBackStackEntry read can land on another entry mid-transition).
+    val kidZone = viewModel.kidZone
     val podcast by viewModel.podcast.collectAsState()
     val episodes by viewModel.episodes.collectAsState()
     val resumePositions by viewModel.resumePositions.collectAsState()
@@ -403,6 +405,7 @@ fun OnlinePodcastScreen(
                                 onClick = {
                                     menuState.show {
                                         YouTubeSongMenu(
+                                            kidZone = kidZone,
                                             song = episode.asSongItem(),
                                             navController = navController,
                                             onDismiss = menuState::dismiss,
@@ -431,6 +434,7 @@ fun OnlinePodcastScreen(
                                 onLongClick = {
                                     menuState.show {
                                         YouTubeSongMenu(
+                                            kidZone = kidZone,
                                             song = episode.asSongItem(),
                                             navController = navController,
                                             onDismiss = menuState::dismiss,
