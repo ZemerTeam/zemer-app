@@ -235,6 +235,24 @@ rules that must not regress:
   requires re-reading base.js for its exact value semantics, not guessing. `muted` is captured on the
   main thread at enqueue time (player access); `fmt` rides the resolver's `onTrackingResolved`.
 
+### Queue persistence (`saveQueueToDisk` - crash-safe resume; issue #515)
+
+The queue + player-state snapshots persist to two files under `filesDir`. The rules that must not
+regress: the player is snapshotted on the caller (main) thread, but serialization + disk writes run
+on the single-threaded `queuePersistScope` - the TEARDOWN write also goes THROUGH that scope
+(joined), never inline beside it, so it queues FIFO behind any in-flight periodic write (inline
+writing raced it: concurrent truncating writes corrupt the file, and a stale async snapshot
+finishing last rolled the position back). Every write is ATOMIC (`AtomicFile` write-to-temp +
+rename; reads go through `AtomicFile.openRead` for the rollback) so an interrupted write leaves the
+previous good file. Restore failures are REPORTED (`reportException`; a fresh install's missing file
+stays quiet) - silent queue loss must never be invisible again. Write decisions are the pure,
+table-tested `QueuePersist` helpers against the last WRITTEN snapshot: the heavy queue file rewrites
+only on content change (`signature` - restore seeks from the small state file, not the queue file),
+the state file only when the state MOVED, so a paused idle service is fully write-silent; teardown
+always writes. The persisted classes pin `serialVersionUID` (see `models/PersistQueue.kt`) - an
+unpinned edit breaks every updating user's restore, guarded by `PersistQueueCompatTest`'s v37 blob.
+A Zemer Station broadcast is never persisted (see §Zemer Stations).
+
 ### Cipher / player rotation (the most common future break)
 
 The `cipher` submodule (package `com.zemer.cipher`, repo `ZemerTeam/zemer-cipher`) deciphers YouTube's `player_ias` signatures in an Android WebView and mints poTokens. It's wired **two ways**: a git submodule *and* a Gradle composite build - `includeBuild("cipher")` in `settings.gradle.kts` substitutes `com.zemer:cipher` → the local `:library`, so the app always builds the working tree.
@@ -273,6 +291,19 @@ are non-obvious and regression-prone; full detail in `docs/whitelist/README.md`:
   legitimate Hebrew/community hits), but a specific-id drop is safe there. Synced inside `syncArtistWhitelist` (no
   user interaction), persisted to DataStore, loaded at startup; a failed sync keeps the previous table
   (never unblocks). The `blockedContentIds` collection is managed by the separate **zemer-admin** app.
+- **The display-name split (`displayName`/`altName`, contract:
+  `handoff-docs/zemer-whitelist-display-names.md`):** ~50 whitelist docs carry a dual
+  "English - עברית" dash form as their legacy `name` (frozen forever - old installs and the wire
+  credits depend on it); `displayName` is the clean single-script name and is present ONLY on those
+  split docs, `altName` the other-script alias (~750 docs). The curated `displayName` is
+  AUTHORITATIVE for its artist row: one set-based, idempotent, self-terminating DAO UPDATE
+  (`applyWhitelistDisplayNames`) runs after every full whitelist fetch, and the >10-day stale
+  library-artist refresh prefers it over the YTM channel title (which IS the dash form) - never
+  reintroduce a one-shot legacy-name-guarded rename, it froze installs on stale names. `altName` is
+  matched by library artist search (SQL), the Artists/KidZone browse pills (via `WhitelistCache`),
+  and `artistByName` (see §Corpus-native artist/album opens). `DisplayNamesBackfilledKey` re-enables
+  the version-gated sync fast path only after a fetch that actually carried split names (pure
+  `whitelistCarriesDisplayNames`, tested).
 - **Playlist covers come from the filtered tracks, never the raw curator image.** A community/online
   playlist's `playlist.thumbnail` is YouTube's curator art and bypasses the filter, so a mostly-female
   playlist would otherwise show a female cover even when female is blocked.
@@ -429,7 +460,18 @@ D-pad cursor on every row the user leaves). `ListItem`/`GridItem` expose it as `
 GridItem applies it AROUND the opaque title slot, so slot content must not add its own marquee.
 `GridItem` also takes an opt-in `centerContent` (column-centered, centered title covering both the
 plain and marquee paths) used by the whitelist-browse tiles so the name sits under the artwork; every
-other grid keeps its default left alignment. New screens use these; a hand-rolled duplicate is a
+other grid keeps its default left alignment. The **list-detail selection family**:
+`SearchableSelectableTopAppBar` (the ONE search + multi-select top bar shared by the seven
+playlist/history screens - idle title / transparent in-bar search field / selection-count title, with
+the fixed back-precedence; its `selectionCount` is a LAMBDA invoked only inside the bar's slots, so
+the per-tap `count { it.isSelected }` snapshot read invalidates the bar, never the calling screen's
+whole body - do not regress it to an inline Int), `SelectionTopActions` (the full title-row
+select-mode cluster) and `SelectionActions` (the select-all + overflow pair for a `TopAppBar`
+`actions` slot), all over the shared `ItemWrapper`. Also shared: `PlaylistDetailHeader` (the playlist
+detail screens' header block), `ErrorRetryState` (the "something went wrong" + Retry block, with an
+optional `detail` line for the caught message), `GenreCatalogShimmer` (the genre-catalog loading
+shimmer) and `RemoveDownloadConfirmDialog` (the remove-download confirm).
+New screens use these; a hand-rolled duplicate is a
 review miss.
 
 **Componentize on every touch (non-negotiable).** Whenever you touch anything in the app, first check
@@ -485,6 +527,16 @@ rule covers repeated *logic*. The current shared helpers - reach for these befor
  - the ONE way an episode tap builds its queue: a plain one-item ListQueue with the surface's declared
   source, never `ZemerRadioQueue.song` (an episode must not seed music radio around its videoId; two call
   sites drifted exactly that way once).
+- **Player navigation-id fill:** `MediaMetadata.withResolvedNavIds(currentSong)`
+  (`models/MediaMetadata.kt`, unit-tested `MediaMetadataNavResolutionTest`) - the full player and the
+  queue bar apply it once where they collect `mediaMetadata`, filling a name-only queue item's artist
+  id / album ref from the played song's DB row (only from a name-matched row with a REAL channel id -
+  a generated local id would open a dead artist page), so the title/artist taps and the player menu's
+  view rows work on every surface (#519). Never overwrite a wire-provided id.
+- **Sort-type labels:** `songSortTypeLabel(sortType)` (`ui/component/SortHeader.kt`) over a
+  per-screen `when` mapping `SongSortType` to its display string.
+- **Library grid scroll-to-top:** `LibraryScrollToTopEffect` (`ui/utils/ScrollUtils.kt`) - the shared
+  filter-change scroll-reset effect the library grid screens each hand-rolled.
 - **Channel deep links:** `channelDeepLinkRoute(channelId, artistWhitelisted, podcastWhitelisted)`
   (`ui/utils/AppNavigation.kt`, unit-tested) - a `channel/UC…` link opens the music artist page when
   artist-whitelisted, the podcast channel page when podcast-whitelisted, else silently no-ops. Share
@@ -699,10 +751,13 @@ non-obvious rules:
 - **Artist credits resolve by ID, and name resolution prefers a whitelisted row** (the stuck-skeleton
   fix, handoff `zemer-app-album-open-stuck-skeleton.md`): `/album`, `/artist` cards and `/search`
   album rows carry `artistId` (live 2026-08-11) and `toAlbumPage` threads it into the album + matching
-  track credits, so Zemer inserts never hit the name lookup. For id-less credits (account-sync paths),
-  `artistByName` deterministically prefers a whitelisted row over a generated local one - devices held
-  BOTH under one name, and resolving to the generated row starved every whitelist-JOINed query (the
-  infinite album skeleton, the doubled artist credit). `insert(AlbumPage)` deliberately does NOT
+  track credits, so Zemer inserts never hit the name lookup. For id-less credits (account-sync paths,
+  the name-only wire surfaces), `artistByName` deterministically prefers a whitelisted row over a
+  generated local one - devices held BOTH under one name, and resolving to the generated row starved
+  every whitelist-JOINed query (the infinite album skeleton, the doubled artist credit) - AND matches
+  the whitelist doc's `artistName`/`displayName`/`altName`, not just the row name: since the
+  display-name split renames rows to the clean `displayName`, a wire credit still carrying the legacy
+  dual "English - עברית" name must keep landing on the whitelisted row (see §Content filtering). `insert(AlbumPage)` deliberately does NOT
   early-return on an existing row: every caller reaches it only when the whitelist-visible album read
   was null (absent OR poisoned), so it recreates the artist maps - the self-heal for poisoned rows.
   Diagnostic "AlbumOpen" Timber breadcrumbs stay in (client + ViewModel + post-insert map dump) for

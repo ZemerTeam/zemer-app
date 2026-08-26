@@ -116,7 +116,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `.github/workflows/ui-audit.yml` | 50 lines | `.yml` |
 | `.gitignore` | 117 lines | `[none]` |
 | `.gitmodules` | 6 lines | `[none]` |
-| `AGENTS.md` | 1551 lines | `.md` |
+| `AGENTS.md` | 1606 lines | `.md` |
 | `LICENSE` | 674 lines | `[none]` |
 | `README.md` | 19 lines | `.md` |
 | `app/.gitignore` | 1 lines | `[none]` |
@@ -1126,7 +1126,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `docs/ui/standards.md` | 389 lines | `.md` |
 | `docs/video_quality/README.md` | 134 lines | `.md` |
 | `docs/watchtime/README.md` | 304 lines | `.md` |
-| `docs/whitelist/README.md` | 245 lines | `.md` |
+| `docs/whitelist/README.md` | 263 lines | `.md` |
 | `docs/zemer_playlists/README.md` | 110 lines | `.md` |
 | `gradle.properties` | 40 lines | `.properties` |
 | `gradle/libs.versions.toml` | 153 lines | `.toml` |
