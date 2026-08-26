@@ -38,7 +38,7 @@ Zemer is a "Kosher" YouTube Music client for Android (Kotlin, Jetpack Compose, M
 ### The streaming pipeline (the core; where things break)
 
 `app/.../utils/YTPlayerUtils.kt` `playerResponseForPlayback()` is the heart of the app. It:
-1. Tries `WEB_REMIX` (main client), then the `STREAM_FALLBACK_CLIENTS` list - exactly `VISIONOS (1.02)` → `VISIONOS_0_1` (the old config as its second chance) → `WEB_CREATOR` → `ANDROID_VR_1_65_10` → `TVHTML5_SIMPLY` → `MWEB` - enable-state settable per client family in the Stream Sources setting (whose displayed order the array must keep matching). The 2026-08-15 validation pass (whole-song drains via `tests/client-fulldownload.mjs`, yt-dlp-master-exact configs, on-device confirmation) **removed every proven-dead client**: the pre-1.65 ANDROID_VR variants (version-keyed “confirm you’re not a bot” gate - only the 1.65.10 eureka build passes), MOBILE/ANDROID (HTTP 400 with auth, SABR-only without), WEB-as-stream-fallback (SABR-only; the def stays for InnerTube next/transcript), IOS/IPADOS (403 past the 1-MiB wall), ANDROID_CREATOR, TVHTML5_SIMPLY_EMBEDDED_PLAYER (server-killed), and the 7.x TVHTML5 itself (SABR-only; the "TVHTML5" toggle now governs TVHTML5_SIMPLY). Retired configs + verdicts live in `tests/clients-retired.mjs`. ANDROID_VR serves a DIRECT url used AS-IS (no sig/n-transform/pot - web transforms CORRUPT it); `MWEB` (yt-dlp-master iPad UA, own toggle) is a login-REQUIRED cipher fallback re-added 2026-08-15 - whole-song validated authenticated, 403s anonymous, so it sits last and login-less sessions skip it.
+1. Tries `WEB_REMIX` (main client), then the `STREAM_FALLBACK_CLIENTS` list - exactly `VISIONOS (1.02)` → `VISIONOS_0_1` (the old config as its second chance) → `WEB_CREATOR` → `TVHTML5_SIMPLY` → `MWEB` - enable-state settable per client family in the Stream Sources setting (whose displayed order the array must keep matching). The 2026-08-15 validation pass (whole-song drains via `tests/client-fulldownload.mjs`, yt-dlp-master-exact configs, on-device confirmation) **removed every proven-dead client**: the ANDROID_VR family - the pre-1.65 variants (version-keyed “confirm you’re not a bot” gate) then, 2026-08-25, the last-living 1.65.10 eureka build itself (resolves a URL but 403s after 0 bytes on a whole-song drain), MOBILE/ANDROID (HTTP 400 with auth, SABR-only without), WEB-as-stream-fallback (SABR-only; the def stays for InnerTube next/transcript), IOS/IPADOS (403 past the 1-MiB wall), ANDROID_CREATOR, TVHTML5_SIMPLY_EMBEDDED_PLAYER (server-killed), and the 7.x TVHTML5 itself (SABR-only; the "TVHTML5" toggle now governs TVHTML5_SIMPLY). Retired configs + verdicts live in `tests/clients-retired.mjs`. `MWEB` (yt-dlp-master iPad UA, own toggle) is a login-REQUIRED cipher fallback re-added 2026-08-15 - whole-song validated authenticated, 403s anonymous, so it sits last and login-less sessions skip it.
 2. For web clients, deciphers the `signatureCipher` (sig + n-transform) via the **`cipher` submodule**, then appends a BotGuard `pot=` token.
 3. Validates, then hands the URL to ExoPlayer in `MusicService`.
 
@@ -556,9 +556,10 @@ greenlight and evidence live in `handoff-docs/zemer-app-artist-album-innertube-s
 **Remaining InnerTube candidates (the punch list to complete the migration)** - everything still
 reaching YouTube for content, in rough priority order. Pick from here before inventing new scope:
 
-- **Whole-screen discovery surfaces:** `NewReleaseScreen`
-  (`FEmusic_new_releases`) remains; it wants a Zemer endpoint (or a handoff request) the way
-  home-rows got one. (`ChartsScreen` + `ChartsViewModel` + `YouTube.getChartsPage()` were DELETED -
+- **Whole-screen discovery surfaces:** none remain. (`NewReleaseScreen` + `NewReleaseViewModel` +
+  the `new_release` route + `YouTube.newReleaseAlbums()`/`NewReleaseAlbumPage` were DELETED as
+  unreachable dead code - nothing navigated to the route; the Latest Releases home shelf is the
+  new-releases surface. `ChartsScreen` + `ChartsViewModel` + `YouTube.getChartsPage()` were DELETED -
   the `charts_screen` route was registered but nothing navigated to it since the Trending row's
   removal, so the whole cluster was unreachable. `MoodAndGenresScreen`, `YouTubeBrowseScreen`, `BrowseScreen` and their
   `YouTube.moodAndGenres`/`explore`/`ExplorePage` InnerTube paths were DELETED with the Genres
@@ -691,7 +692,7 @@ non-obvious rules:
 - **An opener-threaded playlistId equal to the browseId never wins** (`toAlbumPage`): cards fall
   their playlistId back to the browseId, and persisting that MPRE as `AlbumEntity.playlistId`
   dead-presses album radio and mis-ids share links; the server's real OLAK id (or the browseId
-  fallback, whose only consumer is the disabled automix) is used instead.
+  fallback, now consumer-less since the automix feature's removal) is used instead.
 - **Artist credits resolve by ID, and name resolution prefers a whitelisted row** (the stuck-skeleton
   fix, handoff `zemer-app-album-open-stuck-skeleton.md`): `/album`, `/artist` cards and `/search`
   album rows carry `artistId` (live 2026-08-11) and `toAlbumPage` threads it into the album + matching
@@ -955,8 +956,8 @@ YouTube account (`SyncUtils.syncPodcastSubscriptions`/`syncEpisodesForLater`, ga
   `artist`/`artist_section` with `isPodcastChannel=true`) carries a `podcastsBlockedRedirect` guard that
   bounces a restored back stack/deep link to Home; (4) PLAYBACK itself is gated in `MusicService` - `podcastsBlocked()` + `filterBlockedEpisodes`/`Status.filterBlockedPodcasts`
   (in `playback/queues/Queue.kt`) drop episodes at `playQueue` (preload + initial items, start
-  index re-clamped via the unit-tested `clampStartIndex`), `playNext`, `addToQueue`, the automix
-  restore and the auto-load-more append, so an episode can't play even from a persisted queue. Every
+  index re-clamped via the unit-tested `clampStartIndex`), `playNext`, `addToQueue` and the
+  auto-load-more append, so an episode can't play even from a persisted queue. Every
   layer is a strict no-op while the flag is off. Regression tests: `PodcastSyncLogicTest`
   (category-gate truth table) + `BlockedPodcastsQueueTest` (identity + index clamp).
 
