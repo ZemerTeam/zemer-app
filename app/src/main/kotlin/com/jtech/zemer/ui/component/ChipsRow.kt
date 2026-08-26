@@ -3,15 +3,18 @@
 package com.jtech.zemer.ui.component
 
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.only
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
@@ -125,5 +128,30 @@ fun <E> ChipsRow(
 
             Spacer(Modifier.width(8.dp))
         }
+    }
+}
+
+/**
+ * THE content-tab selector row (Home's Music/Radio/Podcasts/Videos, KidZone's Artists/Podcasts):
+ * a [ChipsRow] with the standard breathing room (top 12 / bottom 4) on a full-width surface strip,
+ * so every screen's content-type chips share one geometry and can't drift.
+ */
+@Composable
+fun <E> ContentTabChipsRow(
+    chips: List<Pair<E, String>>,
+    currentValue: E,
+    onValueUpdate: (E) -> Unit,
+) {
+    Box(
+        Modifier
+            .fillMaxWidth()
+            .background(MaterialTheme.colorScheme.surface)
+            .padding(top = 12.dp, bottom = 4.dp),
+    ) {
+        ChipsRow(
+            chips = chips,
+            currentValue = currentValue,
+            onValueUpdate = onValueUpdate,
+        )
     }
 }

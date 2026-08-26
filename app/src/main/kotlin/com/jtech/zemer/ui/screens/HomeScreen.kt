@@ -97,6 +97,7 @@ import com.jtech.zemer.playback.queues.ListQueue
 import com.jtech.zemer.tracking.PlaySource
 import com.jtech.zemer.ui.component.NavigationTitle
 import com.jtech.zemer.ui.component.ChipsRow
+import com.jtech.zemer.ui.component.ContentTabChipsRow
 import com.jtech.zemer.ui.utils.whitelistedPodcastRoute
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
@@ -573,18 +574,11 @@ fun HomeScreen(
                 // are blocked. See HomeContentTab. A plain item (not a sticky header) so the chips
                 // scroll away with the content instead of staying pinned at the top.
                 item(key = "home_content_tabs", contentType = "header") {
-                    Box(
-                        Modifier
-                            .fillMaxWidth()
-                            .background(MaterialTheme.colorScheme.surface)
-                            .padding(top = 12.dp, bottom = 4.dp)
-                    ) {
-                        ChipsRow(
-                            chips = homeContentChips,
-                            currentValue = homeTab,
-                            onValueUpdate = { it?.let(setHomeTab) },
-                        )
-                    }
+                    ContentTabChipsRow(
+                        chips = homeContentChips,
+                        currentValue = homeTab,
+                        onValueUpdate = { it?.let(setHomeTab) },
+                    )
                 }
 
                 if (homeTab == HomeContentTab.MUSIC) {

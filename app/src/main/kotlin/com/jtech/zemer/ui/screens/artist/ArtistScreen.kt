@@ -790,7 +790,7 @@ fun ArtistScreen(
                                                             // episode alone (NOT YouTubeQueue - that whitelist-filters
                                                             // via YouTube.next and would clip a non-corpus episode).
                                                             is com.metrolist.innertube.models.PodcastItem ->
-                                                                navController.navigateToPodcast(item.id)
+                                                                navController.navigateToPodcast(item.id, kidZone = viewModel.kidZone)
                                                             is com.metrolist.innertube.models.EpisodeItem ->
                                                                 playerConnection.playQueue(
                                                                     ListQueue.episode(item, PlaySource.podcast(item.podcast?.id)),

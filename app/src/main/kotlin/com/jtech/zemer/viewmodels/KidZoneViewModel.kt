@@ -1,13 +1,18 @@
 package com.jtech.zemer.viewmodels
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.jtech.zemer.db.MusicDatabase
 import com.jtech.zemer.db.entities.Artist
+import com.jtech.zemer.search.ZemerSearchRepository
+import com.jtech.zemer.search.zemerSearchOptions
 import com.jtech.zemer.utils.ArtistThumbResolver
 import com.jtech.zemer.utils.SyncUtils
 import com.jtech.zemer.utils.WhitelistCache
+import com.metrolist.innertube.models.PodcastItem
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -24,10 +29,39 @@ constructor(
     private val database: MusicDatabase,
     private val syncUtils: SyncUtils,
     private val thumbResolver: ArtistThumbResolver,
+    private val zemerRepository: ZemerSearchRepository,
+    @ApplicationContext private val context: Context,
 ) : ViewModel() {
     val searchQuery = MutableStateFlow("")
 
     val isSyncing = syncUtils.isWhitelistSyncing
+
+    // The kid-flagged show catalog (/podcasts?kidZone=1) for the Podcasts tab. Null = loading
+    // (shimmer); empty = unreachable or genuinely none (the tab's empty state; pull-to-refresh
+    // retries). LIVE-ONLY and fail-soft - a fetch failure never affects the Artists tab.
+    val kidPodcasts = MutableStateFlow<List<PodcastItem>?>(null)
+    val isRefreshingPodcasts = MutableStateFlow(false)
+    val podcastSearchQuery = MutableStateFlow("")
+
+    init {
+        fetchKidPodcasts()
+    }
+
+    fun fetchKidPodcasts() {
+        viewModelScope.launch(Dispatchers.IO) {
+            // Spinner only on a RE-fetch (pull-to-refresh over data already on screen) - the
+            // initial load is the scaffold shimmer's job, matching the Artists tab, which never
+            // auto-spins on open.
+            val isRefresh = kidPodcasts.value != null
+            if (isRefresh) isRefreshingPodcasts.value = true
+            try {
+                kidPodcasts.value = zemerRepository.kidZonePodcasts(zemerSearchOptions(context).copy(kidZone = true))
+                    ?: kidPodcasts.value ?: emptyList()
+            } finally {
+                if (isRefresh) isRefreshingPodcasts.value = false
+            }
+        }
+    }
 
     fun sync() {
         viewModelScope.launch(Dispatchers.IO) {

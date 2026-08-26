@@ -375,6 +375,9 @@ object ZemerResultMapper {
     private fun List<ZemerPodcastEpisode>.toEpisodeItems(): List<EpisodeItem> =
         filter { it.videoId.isNotBlank() }.map { it.toEpisodeItem() }.distinctBy { it.id }.dropBlocked()
 
+    /** The `/podcasts` catalog as browsable show cards (the KidZone podcasts grid). */
+    fun ZemerPodcastsResponse.toPodcastItems(): List<PodcastItem> = podcasts.toPodcastItems()
+
     private fun List<ZemerPodcastShow>.toPodcastItems(): List<PodcastItem> =
         filter { it.id.isNotBlank() }.map { it.toPodcastItem() }.distinctBy { it.id }.dropBlocked()
 

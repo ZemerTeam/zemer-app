@@ -97,10 +97,17 @@ fun NavGraphBuilder.navigationBuilder(
         }
     }
     composable(
-        route = "online_podcast/{podcastId}",
+        // kidZone: the KidZone-navigation-context flag (like isPodcastChannel) - a show opened from
+        // the KidZone podcasts grid keeps every server call restricted to kid content (drill-in
+        // discipline; the server 404s non-kid shows under it as the second layer).
+        route = "online_podcast/{podcastId}?kidZone={kidZone}",
         arguments = listOf(
             navArgument("podcastId") {
                 type = NavType.StringType
+            },
+            navArgument("kidZone") {
+                type = NavType.BoolType
+                defaultValue = false
             },
         ),
     ) {
@@ -269,13 +276,18 @@ fun NavGraphBuilder.navigationBuilder(
         AlbumScreen(navController, scrollBehavior)
     }
     composable(
-        route = "artist/{artistId}?isPodcastChannel={isPodcastChannel}",
+        route = "artist/{artistId}?isPodcastChannel={isPodcastChannel}&kidZone={kidZone}",
         arguments =
         listOf(
             navArgument("artistId") {
                 type = NavType.StringType
             },
             navArgument("isPodcastChannel") {
+                type = NavType.BoolType
+                defaultValue = false
+            },
+            // KidZone navigation context - see the online_podcast route.
+            navArgument("kidZone") {
                 type = NavType.BoolType
                 defaultValue = false
             },

@@ -24,6 +24,25 @@ class ZemerSearchParametersTest {
     }
 
     @Test
+    fun `kidZone is omitted when null, else sent as 1 or 0`() {
+        // The KidZone contract: null = the endpoint takes no kidZone param; non-null endpoints send
+        // it explicitly on EVERY request (fail-closed, like the other flags) - "1" only from the
+        // KidZone navigation context.
+        assertEquals(
+            listOf("allowFemale" to "1", "blockVideos" to "0"),
+            zemerContentFlagParameters(allowFemale = true, blockVideos = false),
+        )
+        assertEquals(
+            listOf("allowFemale" to "1", "blockVideos" to "0", "kidZone" to "0"),
+            zemerContentFlagParameters(allowFemale = true, blockVideos = false, kidZone = false),
+        )
+        assertEquals(
+            listOf("allowFemale" to "1", "blockVideos" to "0", "kidZone" to "1"),
+            zemerContentFlagParameters(allowFemale = true, blockVideos = false, kidZone = true),
+        )
+    }
+
+    @Test
     fun `flags encode true as 1 and false as 0`() {
         assertEquals("1", paramMap(allowFemale = true, blockVideos = false)["allowFemale"])
         assertEquals("0", paramMap(allowFemale = false, blockVideos = true)["allowFemale"])

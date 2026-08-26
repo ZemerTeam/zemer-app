@@ -304,6 +304,19 @@ are non-obvious and regression-prone; full detail in `docs/whitelist/README.md`:
   and `artistByName` (see §Corpus-native artist/album opens). `DisplayNamesBackfilledKey` re-enables
   the version-gated sync fast path only after a fetch that actually carried split names (pure
   `whitelistCarriesDisplayNames`, tested).
+- **KidZone is a two-tab browse (Artists | Podcasts, the Home chip-selector pattern;
+  `ui/screens/KidZoneTab.kt`, pure + tested):** the Artists tab is the local whitelist slice
+  (`WHERE isKidZone = 1`), the Podcasts tab is the server's kid-flagged shows
+  (`/podcasts?kidZone=1`, live-only, fail-soft). `kidZone` is a NAVIGATION-context flag (like
+  `isPodcastChannel`) riding the show/channel routes, so every server call from a KidZone-opened
+  screen sends `kidZone=1` (drill-in discipline - the server 404s/filters non-kid content under it
+  as the second layer) and the offline fallback is disabled there (the shards carry no kid flag).
+  The Podcasts chip is REMOVED under Block Podcasts (the category gate), leaving the plain artist
+  browse. The chip row is the shared `ContentTabChipsRow` (`ui/component/ChipsRow.kt`) - ONE
+  geometry with Home's content selector - riding the scaffold's `topSections` slot (above the
+  search pill). The normal Podcasts browse filters wholly-kid channels out (`!isKidZone`, the podcast
+  mirror of the music browse's `WHERE isKidZone = 0`). Contract + the pending server ask
+  (default-exclude kid shows from normal surfaces): `handoff-docs/zemer-app-kidzone-redesign-request.md`.
 - **Playlist covers come from the filtered tracks, never the raw curator image.** A community/online
   playlist's `playlist.thumbnail` is YouTube's curator art and bypasses the filter, so a mostly-female
   playlist would otherwise show a female cover even when female is blocked.

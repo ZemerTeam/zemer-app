@@ -8,6 +8,7 @@ import com.jtech.zemer.search.ZemerResultMapper.toAlbumItems
 import com.jtech.zemer.search.ZemerResultMapper.toAlbumPage
 import com.jtech.zemer.search.ZemerResultMapper.toArtistPage
 import com.jtech.zemer.search.ZemerResultMapper.toEpisodeItems
+import com.jtech.zemer.search.ZemerResultMapper.toPodcastItems
 import com.jtech.zemer.search.ZemerResultMapper.toGenrePage
 import com.jtech.zemer.search.ZemerResultMapper.toChannelEpisodeItems
 import com.jtech.zemer.search.ZemerResultMapper.toPodcastChannelPage
@@ -18,6 +19,7 @@ import com.metrolist.innertube.YouTube.SearchFilter
 import com.metrolist.innertube.models.AlbumItem
 import com.metrolist.innertube.models.Artist
 import com.metrolist.innertube.models.EpisodeItem
+import com.metrolist.innertube.models.PodcastItem
 import com.metrolist.innertube.models.PlaylistItem
 import com.metrolist.innertube.models.SearchSuggestions
 import com.metrolist.innertube.models.SongItem
@@ -212,11 +214,23 @@ class ZemerSearchRepository @Inject constructor(
     // from the Room-backed content mirror. Playback stays InnerTube: an episode carries its YouTube
     // videoId and plays through the existing pipeline. `/playlist` + `/radio` remain live-only. ---
 
+    /**
+     * The kid-flagged show catalog (`/podcasts?kidZone=1`) as browsable cards — the KidZone
+     * podcasts grid. LIVE-ONLY (the offline shards carry no kid flag); the caller renders its own
+     * fail-soft state on null.
+     */
+    suspend fun kidZonePodcasts(options: ZemerSearchOptions): List<PodcastItem>? =
+        runCatching {
+            client.podcasts(options.allowFemale, options.blockVideos, kidZone = true).toPodcastItems()
+        }.getOrNull()
+
     /** A SHOW page (header + one episode page). Null when the show is unknown / filtered out (404). */
     suspend fun podcast(id: String, offset: Int, options: ZemerSearchOptions): PodcastPage? =
         serverOrOffline(
-            server = { client.podcast(id, offset, options.allowFemale, options.blockVideos) },
-            offline = { offlineReads.podcast(id, offset, options.allowFemale, options.blockVideos) },
+            server = { client.podcast(id, offset, options.allowFemale, options.blockVideos, options.kidZone) },
+            // The offline shards carry no kid flag, so a KidZone-context open is SERVER-ONLY: an
+            // offline fallback could not enforce the kid restriction (handoff doc's offline note).
+            offline = { if (options.kidZone) null else offlineReads.podcast(id, offset, options.allowFemale, options.blockVideos) },
         )?.toPodcastPage()
 
     /**
@@ -226,8 +240,9 @@ class ZemerSearchRepository @Inject constructor(
      */
     suspend fun podcastChannel(id: String, options: ZemerSearchOptions): ZemerResultMapper.PodcastChannelPage? =
         serverOrOffline(
-            server = { client.podcastChannel(id, options.allowFemale, options.blockVideos) },
-            offline = { offlineReads.podcastChannel(id, options.allowFemale, options.blockVideos) },
+            server = { client.podcastChannel(id, options.allowFemale, options.blockVideos, options.kidZone) },
+            // Server-only under kidZone: the offline channel page would list non-kid sibling shows.
+            offline = { if (options.kidZone) null else offlineReads.podcastChannel(id, options.allowFemale, options.blockVideos) },
         )?.toPodcastChannelPage()
 
     /**
@@ -241,7 +256,7 @@ class ZemerSearchRepository @Inject constructor(
         offset: Int,
         options: ZemerSearchOptions,
     ): Pair<List<EpisodeItem>, Int?>? =
-        client.podcastChannel(id, options.allowFemale, options.blockVideos, offset)
+        client.podcastChannel(id, options.allowFemale, options.blockVideos, options.kidZone, offset = offset)
             ?.let { it.toChannelEpisodeItems() to it.nextOffset }
 
     /**

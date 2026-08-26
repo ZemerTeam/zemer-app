@@ -60,6 +60,7 @@ internal fun ArtistBrowseScreenContent(
     emptyIconRes: Int,
     emptyTextRes: Int,
     onRequestThumb: (String) -> Unit,
+    topSections: (@Composable () -> Unit)? = null,
 ) {
     val menuState = LocalMenuState.current
     var viewType by rememberEnumPreference(ArtistViewTypeKey, LibraryViewType.GRID)
@@ -86,6 +87,7 @@ internal fun ArtistBrowseScreenContent(
         emptyIconRes = emptyIconRes,
         emptyTextRes = emptyTextRes,
         isSyncing = isSyncing,
+        topSections = topSections,
         listItemContent = { _, artist, modifier ->
             WhitelistedArtistListItem(
                 navController = navController,
