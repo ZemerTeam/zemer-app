@@ -36,9 +36,12 @@ import com.jtech.zemer.ui.utils.backToMain
  * Per-screen differences are parameters:
  * - [idleTitle] is the title shown when neither searching nor selecting; pass `null` to render no title
  *   (e.g. the online/local playlist screens only show it once scrolled past the header).
- * - [selectionCount] is the number of selected items, or `null` when NOT in selection mode. When
+ * - [selectionCount] returns the number of selected items, or `null` when NOT in selection mode. When
  *   non-null the bar shows the close nav icon, the `[selectionCountPlural]`-formatted count, and the
- *   caller's [actions] (its select-all / overflow cluster); otherwise it shows a search action.
+ *   caller's [actions] (its select-all / overflow cluster); otherwise it shows a search action. It is
+ *   a lambda, invoked only inside the bar's slots, so the per-tap `count { it.isSelected }` snapshot
+ *   read invalidates the bar - not the calling screen's whole body (pass the count inline and every
+ *   row-select tap recomposes the entire screen).
  * - [actions] is the selection-mode action cluster (e.g. [SelectionActions] or a custom select-all +
  *   overflow pair). It is only invoked in selection mode.
  *
@@ -57,7 +60,7 @@ fun SearchableSelectableTopAppBar(
     query: TextFieldValue,
     onQueryChange: (TextFieldValue) -> Unit,
     focusRequester: FocusRequester,
-    selectionCount: Int?,
+    selectionCount: () -> Int?,
     @PluralsRes selectionCountPlural: Int,
     onExitSelection: () -> Unit,
     modifier: Modifier = Modifier,
@@ -65,18 +68,18 @@ fun SearchableSelectableTopAppBar(
     actions: @Composable RowScope.() -> Unit,
 ) {
     val focusManager = LocalFocusManager.current
-    val inSelection = selectionCount != null
 
     TopAppBar(
         modifier = modifier,
         title = {
+            val count = selectionCount()
             when {
-                inSelection -> {
+                count != null -> {
                     AppBarTitle(
                         text = pluralStringResource(
                             selectionCountPlural,
-                            selectionCount,
-                            selectionCount,
+                            count,
+                            count,
                         )
                     )
                 }
@@ -119,7 +122,7 @@ fun SearchableSelectableTopAppBar(
                             onQueryChange(TextFieldValue())
                             focusManager.clearFocus()
                         }
-                        inSelection -> {
+                        selectionCount() != null -> {
                             onExitSelection()
                         }
                         else -> {
@@ -129,7 +132,8 @@ fun SearchableSelectableTopAppBar(
                 },
                 onLongClick = {
                     val allowed =
-                        if (backToMainDuringSelection) !isSearching else (!isSearching && !inSelection)
+                        if (backToMainDuringSelection) !isSearching
+                        else (!isSearching && selectionCount() == null)
                     if (allowed) {
                         navController.backToMain()
                     }
@@ -137,14 +141,14 @@ fun SearchableSelectableTopAppBar(
             ) {
                 Icon(
                     painter = painterResource(
-                        if (inSelection) R.drawable.close else R.drawable.arrow_back
+                        if (selectionCount() != null) R.drawable.close else R.drawable.arrow_back
                     ),
                     contentDescription = null
                 )
             }
         },
         actions = {
-            if (inSelection) {
+            if (selectionCount() != null) {
                 actions()
             } else if (!isSearching) {
                 Material3IconButton(

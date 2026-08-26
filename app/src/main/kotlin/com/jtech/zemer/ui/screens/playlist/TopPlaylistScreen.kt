@@ -329,7 +329,7 @@ fun TopPlaylistScreen(
             query = query,
             onQueryChange = { query = it },
             focusRequester = focusRequester,
-            selectionCount = if (selection) wrappedSongs.count { it.isSelected } else null,
+            selectionCount = { if (selection) wrappedSongs.count { it.isSelected } else null },
             selectionCountPlural = R.plurals.n_song,
             onExitSelection = { selection = false },
             actions = {

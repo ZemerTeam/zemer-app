@@ -294,7 +294,7 @@ fun DownloadedVideosScreen(
             query = query,
             onQueryChange = { query = it },
             focusRequester = focusRequester,
-            selectionCount = if (selection) wrappedVideos.count { it.isSelected } else null,
+            selectionCount = { if (selection) wrappedVideos.count { it.isSelected } else null },
             selectionCountPlural = R.plurals.n_video,
             onExitSelection = { selection = false },
             actions = {

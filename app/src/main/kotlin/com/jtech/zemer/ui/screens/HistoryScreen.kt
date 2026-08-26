@@ -57,11 +57,13 @@ import com.jtech.zemer.ui.component.LocalMenuState
 import com.jtech.zemer.ui.component.MoreVertMenuButton
 import com.jtech.zemer.ui.component.NavigationTitle
 import com.jtech.zemer.ui.component.SearchableSelectableTopAppBar
+import com.jtech.zemer.ui.component.SelectionActions
 import com.jtech.zemer.ui.component.SongListItem
 import com.jtech.zemer.ui.component.YouTubeListItem
 import com.jtech.zemer.ui.menu.SelectionMediaMetadataMenu
 import com.jtech.zemer.ui.menu.SongMenu
 import com.jtech.zemer.ui.menu.YouTubeSongMenu
+import com.jtech.zemer.ui.utils.ItemWrapper
 import com.jtech.zemer.ui.utils.activeRowTapTogglesPlayPause
 import com.jtech.zemer.utils.rememberPreference
 import com.jtech.zemer.viewmodels.DateAgo
@@ -127,10 +129,6 @@ fun HistoryScreen(
         }
     }
 
-    class WrappedHistoryItem(val item: EventWithSong) {
-        var isSelected by mutableStateOf(false)
-    }
-
     val filteredEvents = remember(events, query) {
         if (query.text.isEmpty()) {
             events
@@ -166,7 +164,8 @@ fun HistoryScreen(
 
     val wrappedItemsMap = remember(filteredEvents) {
         filteredEvents.mapValues { (_, events) ->
-            events.map { WrappedHistoryItem(it) }.toMutableStateList()
+            // ItemWrapper defaults to selected; history enters selection mode with nothing selected.
+            events.map { ItemWrapper(it).apply { isSelected = false } }.toMutableStateList()
         }
     }
 
@@ -385,29 +384,13 @@ fun HistoryScreen(
         query = query,
         onQueryChange = { query = it },
         focusRequester = focusRequester,
-        selectionCount = if (selection) allWrappedItems.count { it.isSelected } else null,
+        selectionCount = { if (selection) allWrappedItems.count { it.isSelected } else null },
         selectionCountPlural = R.plurals.n_song,
         onExitSelection = { selection = false },
         actions = {
-            val count = allWrappedItems.count { it.isSelected }
-            IconButton(
-                onClick = {
-                    if (count == allWrappedItems.size) {
-                        allWrappedItems.forEach { it.isSelected = false }
-                    } else {
-                        allWrappedItems.forEach { it.isSelected = true }
-                    }
-                }
-            ) {
-                Icon(
-                    painter = painterResource(
-                        if (count == allWrappedItems.size) R.drawable.deselect else R.drawable.select_all
-                    ),
-                    contentDescription = null
-                )
-            }
-            MoreVertMenuButton(
-                onClick = {
+            SelectionActions(
+                wrapped = allWrappedItems,
+                onMore = {
                     menuState.show {
                         SelectionMediaMetadataMenu(
                             songSelection = allWrappedItems
@@ -418,7 +401,7 @@ fun HistoryScreen(
                             currentItems = emptyList()
                         )
                     }
-                }
+                },
             )
         },
     )
