@@ -20,7 +20,9 @@ class DensityScaler : BaseLifecycleContentProvider() {
     override fun onCreate(): Boolean {
         val context = context ?: return false
         val scaleFactor = getScaleFactorFromPreferences(context)
-        DensityConfiguration(scaleFactor).applyDensityScaling(context)
+        val configuration = DensityConfiguration(scaleFactor)
+        active = configuration.takeIf { scaleFactor != 1.0f }
+        configuration.applyDensityScaling(context)
         return true
     }
 
@@ -28,6 +30,20 @@ class DensityScaler : BaseLifecycleContentProvider() {
         private const val PREFS_NAME = "metrolist_settings"
         private const val KEY_DENSITY_SCALE = "density_scale_factor"
         private const val DEFAULT_SCALE_FACTOR = 1.0f
+
+        @Volatile
+        private var active: DensityConfiguration? = null
+
+        /**
+         * Reapplies the density scale to [activity]'s resources — for an activity that handles its
+         * own `configChanges` (MainActivity), whose resources the framework just reset WITHOUT any
+         * lifecycle event firing (issue #521: the fullscreen video player's forced landscape).
+         * Idempotent and a strict no-op at native scale; call it from `onConfigurationChanged`
+         * BEFORE dispatching to super, so the view tree re-reads the already-rescaled metrics.
+         */
+        fun reapply(activity: android.app.Activity) {
+            active?.applyDensityToActivity(activity)
+        }
 
         /**
          * Reads the density scale factor from SharedPreferences.
