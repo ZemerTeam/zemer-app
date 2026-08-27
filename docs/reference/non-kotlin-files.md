@@ -278,13 +278,13 @@ Every tracked non-Kotlin path outside `docs/` is listed. Text files report line 
 | `build.gradle.kts` | 37 lines | text `.kts`; plugins `hilt, kotlin.ksp, google.gms.google.services, firebase.crashlytics, rikka.tools.refine` |
 | `cipher` | gitlink/non-file | tracked path is not a regular file in this checkout |
 | `gradle.properties` | 40 lines | text `.properties` |
-| `gradle/libs.versions.toml` | 153 lines | text `.toml` |
+| `gradle/libs.versions.toml` | 150 lines | text `.toml` |
 | `gradle/wrapper/gradle-wrapper.jar` | 45457 bytes | binary `.jar` |
 | `gradle/wrapper/gradle-wrapper.properties` | 8 lines | text `.properties` |
 | `gradlew` | 248 lines | text `[none]` |
 | `gradlew.bat` | 93 lines | text `.bat` |
 | `innertube/.gitignore` | 1 lines | text `[none]` |
-| `innertube/build.gradle.kts` | 21 lines | text `.kts`; plugins `kotlin.serialization, jvm` |
+| `innertube/build.gradle.kts` | 18 lines | text `.kts`; plugins `kotlin.serialization, jvm` |
 | `lint.xml` | 6 lines | text `.xml`; XML root `lint` |
 | `lrclib/.gitignore` | 1 lines | text `[none]` |
 | `lrclib/build.gradle.kts` | 16 lines | text `.kts`; plugins `kotlin.serialization, jvm` |

@@ -12,7 +12,6 @@ import com.jtech.zemer.constants.StreamSourceWebRemixKey
 import kotlinx.coroutines.flow.first
 
 import timber.log.Timber
-import com.metrolist.innertube.NewPipeUtils
 import com.metrolist.innertube.YouTube
 import com.zemer.cipher.CipherDeobfuscator
 import com.zemer.cipher.potoken.PoTokenGenerator
@@ -714,37 +713,37 @@ object YTPlayerUtils {
         return false
     }
     /**
-     * STS for the /player request. It must come from the same player generation the Zemer
-     * cipher deciphers with: during A/B rollouts NewPipe's independently fetched player can
-     * be a different one, and a sig minted for one player deciphered by another 403s on the
-     * CDN (observed 2026-06-09: NewPipe sts=20611/69e2a55d vs cipher player ce74690f).
-     * NewPipe is only the fallback for when the cipher player fetch fails entirely.
+     * STS for the /player request, from the cipher player - the SINGLE source. It must come
+     * from the same player generation the cipher deciphers with: a sig minted for one player
+     * deciphered by another 403s on the CDN (observed 2026-06-09 when an independently
+     * fetched player supplied sts=20611/69e2a55d while the cipher held ce74690f). A second,
+     * independently fetched sts source is therefore a hazard, not a fallback - and the cipher
+     * fetches the player over the same iframe_api route any fallback would use, so there is
+     * no failure the fallback could survive that the cipher cannot. Null sts degrades the
+     * /player response, never playback of clients that need no sig.
      */
     private suspend fun getSignatureTimestampOrNull(
-        videoId: String
+        @Suppress("UNUSED_PARAMETER") videoId: String
     ): Int? {
         val cipherSts = try {
             CipherDeobfuscator.signatureTimestamp()
         } catch (e: Exception) {
             Timber.tag(TAG).e("Cipher player STS fetch FAILED", e)
+            reportException(e)
             null
         }
         if (cipherSts != null) {
             Timber.tag(TAG).d("Signature timestamp from cipher player: $cipherSts")
-            return cipherSts
         }
-        return NewPipeUtils.getSignatureTimestamp(videoId)
-            .onSuccess { Timber.tag(TAG).d( "Signature timestamp fetched via NewPipe: $it") }
-            .onFailure {
-                Timber.tag(TAG).e( "Signature timestamp fetch FAILED", it)
-                reportException(it)
-            }
-            .getOrNull()
+        return cipherSts
     }
     /**
-     * Resolves a playable stream URL from the format.
-     * If the response was pre-processed by NewPipe, uses the direct URL.
-     * Otherwise tries custom cipher deobfuscation, then NewPipe extractor as fallback.
+     * Resolves a playable stream URL from the format: a direct URL when the client serves
+     * one, else the cipher deobfuscates the signatureCipher. The cipher is the SINGLE
+     * decipher pipeline - it self-heals on rotation (forced config refresh + retry, remote
+     * configs land within minutes), so there is deliberately no second extractor behind it
+     * (the removed one was live-probed 2026-08-27: its sig parse fails on the current
+     * player, so it could no longer produce a playable URL anyway).
      */
     private suspend fun findUrlOrNull(
         format: PlayerResponse.StreamingData.Format,
@@ -755,13 +754,13 @@ object YTPlayerUtils {
 
         var url: String? = null
 
-        // If format already has a direct URL (from NewPipe pre-processing), use it
+        // Some clients serve a plain URL with no cipher - use it as-is.
         if (format.url != null) {
-            Timber.tag(TAG).d( "Using URL from format directly (NewPipe pre-processed)")
+            Timber.tag(TAG).d( "Using direct URL from format")
             url = format.url
         }
 
-        // Try custom cipher deobfuscation (for signatureCipher URLs without direct URL)
+        // Cipher deobfuscation for signatureCipher URLs.
         if (url == null && format.signatureCipher != null) {
             try {
                 val deobfuscated = CipherDeobfuscator.deobfuscateStreamUrl(format.signatureCipher!!, videoId)
@@ -775,19 +774,6 @@ object YTPlayerUtils {
                 // Throwable-first overload: passing e as a message vararg (no %s) silently
                 // dropped the exception class/message/stack from logcat and Crashlytics.
                 Timber.tag(TAG).e(e, "Custom cipher deobfuscation FAILED for %s", videoId)
-            }
-        }
-
-        // If custom cipher failed, try NewPipe extractor as fallback
-        if (url == null) {
-            val extractorUrl = NewPipeUtils.getStreamUrl(format, videoId)
-                .onSuccess { Timber.tag(TAG).d( "NewPipe extractor succeeded for $videoId") }
-                .onFailure {
-                    Timber.tag(TAG).e(it, "NewPipe extractor FAILED for %s", videoId)
-                }
-                .getOrNull()
-            if (extractorUrl != null) {
-                url = extractorUrl
             }
         }
 
