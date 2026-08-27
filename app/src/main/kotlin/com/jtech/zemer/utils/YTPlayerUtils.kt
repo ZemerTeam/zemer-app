@@ -185,6 +185,10 @@ object YTPlayerUtils {
         preferVideo: Boolean = false,
         maxVideoBitrateKbps: Int? = null,
         forDownload: Boolean = false,
+        // When true, an AUDIO download may select Opus/WebM (itag 251) instead of being forced to
+        // AAC/m4a. The container is rewrapped to Ogg + tagged on-device (needs API 29+); the caller
+        // sets this from AudioRemux.oggMuxSupported so higher-quality Opus downloads are possible.
+        downloadOpusOk: Boolean = false,
         // Explicit video-quality selection (preferVideo only; both null = the automatic progressive
         // pick, the pre-switcher behavior). videoItag = the EXACT rung a streaming quality swap
         // encoded in its rendition key; videoQualityTarget = a target LABEL ("1080p") resolved to the
@@ -325,6 +329,7 @@ object YTPlayerUtils {
                         preferVideo,
                         maxVideoBitrateKbps,
                         forDownload,
+                        downloadOpusOk,
                         videoItag,
                         videoQualityTarget,
                     )
@@ -596,6 +601,7 @@ object YTPlayerUtils {
         preferVideo: Boolean,
         maxVideoBitrateKbps: Int?,
         forDownload: Boolean = false,
+        downloadOpusOk: Boolean = false,
         videoItag: Int? = null,
         videoQualityTarget: String? = null,
     ): PlayerResponse.StreamingData.Format? {
@@ -649,17 +655,16 @@ object YTPlayerUtils {
             return null
         }
 
-        // For downloads: exclude webm (MediaStore doesn't support it)
-        // For streaming: prefer opus (webm) for better quality
+        // Audio selection. Historically downloads EXCLUDED WebM (bento4 could only tag MP4, and
+        // MediaStore rejects a raw .webm audio entry), pinning them to the lower-quality AAC/m4a.
+        // With the on-device Ogg rewrap + tagger (downloadOpusOk, API 29+) a download can keep
+        // Opus/WebM (itag 251), so webm is allowed and gets the same opus preference as streaming.
+        val allowWebm = !forDownload || downloadOpusOk
         val audioFormats = playerResponse.streamingData?.adaptiveFormats
             ?.filter { it.isAudio && it.isOriginal }
             ?.let { formats ->
-                if (forDownload) {
-                    // Exclude webm for downloads - MediaStore only supports mp4/m4a
-                    formats.filter { !it.mimeType.startsWith("audio/webm") }.ifEmpty { formats }
-                } else {
-                    formats
-                }
+                if (allowWebm) formats
+                else formats.filter { !it.mimeType.startsWith("audio/webm") }.ifEmpty { formats }
             }
 
         val audioFormat = audioFormats?.maxByOrNull {
@@ -667,7 +672,7 @@ object YTPlayerUtils {
                 AudioQuality.AUTO -> if (connectivityManager.isActiveNetworkMetered) -1 else 1
                 AudioQuality.HIGH -> 1
                 AudioQuality.LOW -> -1
-            } + (if (!forDownload && it.mimeType.startsWith("audio/webm")) 10240 else 0) // prefer opus for streaming only
+            } + (if (allowWebm && it.mimeType.startsWith("audio/webm")) 10240 else 0) // prefer opus when webm is allowed
         }
 
         return audioFormat

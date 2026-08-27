@@ -34,9 +34,6 @@ concurrency:
   group: regression-${{ github.ref }}
   cancel-in-progress: true
 
-env:
-  USE_PREBUILT_NATIVE: true
-
 jobs:
   node-tests:
     runs-on: ubuntu-latest

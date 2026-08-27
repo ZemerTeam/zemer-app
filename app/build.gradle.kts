@@ -49,13 +49,6 @@ android {
             abiFilters += listOf("arm64-v8a", "armeabi-v7a")
         }
 
-        externalNativeBuild {
-            cmake {
-                cppFlags += "-std=c++17"
-                // NDK r27 needs this for 16 KB page-size ELF alignment (default from r28)
-                arguments += "-DANDROID_SUPPORT_FLEXIBLE_PAGE_SIZES=ON"
-            }
-        }
     }
 
     androidResources {
@@ -159,28 +152,16 @@ android {
     //     }
     // }
 
-    // Skip native build when using prebuilt libs (CI sets USE_PREBUILT_NATIVE=true)
-    if (System.getenv("USE_PREBUILT_NATIVE") != "true") {
-        externalNativeBuild {
-            cmake {
-                path = file("src/main/cpp/CMakeLists.txt")
-                version = "3.22.1"
-            }
-        }
-        ndkVersion = "27.0.12077973"
-    }
 
     packaging {
         jniLibs {
             useLegacyPackaging = false
-            pickFirsts += "**/libcoverart.so"
             // The FCast sender-SDK native lib is NOT bundled (~5.3 MB) — it is downloaded on demand from
             // ZemerTeam/zemer-cast when the user enables casting (see CastNativeLibLoader).
             excludes += "**/libfcast_sender_sdk.so"
             keepDebugSymbols += listOf(
                 "**/libandroidx.graphics.path.so",
-                "**/libdatastore_shared_counter.so",
-                "**/libcoverart.so"
+                "**/libdatastore_shared_counter.so"
             )
         }
         resources {
@@ -293,6 +274,9 @@ dependencies {
     implementation(libs.timber)
 
     testImplementation(libs.junit)
+    androidTestImplementation(libs.junit)
+    androidTestImplementation("androidx.test:runner:1.5.2")
+    androidTestImplementation("androidx.test:core:1.5.0")
     // Real org.json for JVM unit tests (Android's bundled org.json is a "not mocked" stub) so the
     // JewishStatus response parsers (StatusesApi) can be tested without Robolectric.
     testImplementation("org.json:json:20240303")

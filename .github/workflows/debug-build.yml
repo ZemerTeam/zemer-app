@@ -1,14 +1,11 @@
 name: Android Debug Build
 
 # Manual-only: produces a debug APK on demand and uploads it as a workflow artifact.
-# Mirrors release-build.yml's environment setup (JDK 21, submodules, prebuilt native libs,
-# Firebase config) but skips release-only steps (release signing, Crashlytics symbol upload,
+# Mirrors release-build.yml's environment setup (JDK 21, submodules, Firebase config) but skips
+# release-only steps (release signing, Crashlytics symbol upload,
 # 16 KB alignment gate, Telegram). Build it from the Actions tab via "Run workflow".
 on:
   workflow_dispatch:
-
-env:
-  USE_PREBUILT_NATIVE: true
 
 jobs:
   assemble-debug:
@@ -34,20 +31,6 @@ jobs:
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
 
-      - name: Cache native libs
-        id: cache-native
-        uses: actions/cache@v4
-        with:
-          path: app/src/main/jniLibs
-          key: bento4-libs-v1.0.1
-
-      - name: Download prebuilt native libs
-        if: steps.cache-native.outputs.cache-hit != 'true'
-        run: |
-          gh release download v1.0.1 --repo ZemerTeam/zemer-bento4 --pattern 'bento4-libs.zip'
-          unzip bento4-libs.zip -d app/src/main
-        env:
-          GH_TOKEN: ${{ github.token }}
 
       - name: Configure Android SDK path
         run: echo "sdk.dir=$ANDROID_SDK_ROOT" > local.properties

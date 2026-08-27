@@ -365,6 +365,15 @@ def _workflow_section():
 
 def _native_section():
     subs = re.findall(r'\[submodule\s+"([^"]+)"\]\s*\n\s*path\s*=\s*(\S+)\s*\n\s*url\s*=\s*(\S+)', _text(".gitmodules"))
+    if not os.path.exists("app/src/main/cpp/CMakeLists.txt"):
+        # No first-party native code (the cover-art embedder is pure Kotlin now); only
+        # the submodule inventory remains meaningful.
+        lines = ["## Native code", "", "None - metadata embedding is pure Kotlin", "(`utils/mp4/`, `utils/ogg/`); no NDK/CMake build.", "", "## Git submodules", ""]
+        lines += [f"| `{name}` | path `{path}` | {url} |" for name, path, url in subs]
+        if subs:
+            lines.insert(6, "| Submodule | Path | URL |")
+            lines.insert(7, "|---|---|---|")
+        return "\n".join(lines)
     cmake = _text("app/src/main/cpp/CMakeLists.txt")
     cmin = (re.search(r'cmake_minimum_required\(VERSION\s+([\d.]+)\)', cmake) or [None, "?"])[1]
     proj = (re.search(r'project\(([^)\s]+)', cmake) or [None, "?"])[1]

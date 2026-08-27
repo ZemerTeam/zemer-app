@@ -18,8 +18,8 @@
 | Workflow fact | Value |
 | --- | --- |
 | Triggers | `workflow_dispatch`, `push`, `pull_request` |
-| Path filters (`paths-ignore`) | `docs/**`, `tests/**`, `**/src/test/**`, `**.md`, `scripts/**`, `.github/**`, `.idea/**`, `.vscode/**`, `.gitignore`, `.gitattributes`, `.editorconfig`, `LICENSE`, `cipher` |
-| Environment | `USE_PREBUILT_NATIVE: true` |
+| Path filters (`paths-ignore`) | `docs/**`, `tests/**`, `**.md`, `scripts/**`, `.github/**`, `.idea/**`, `.vscode/**`, `.gitignore`, `.gitattributes`, `.editorconfig`, `LICENSE`, `cipher` |
+| Environment | none |
 | Job | `assemble-release` on `ubuntu-latest` |
 | Permissions | `contents: write` |
 
@@ -29,8 +29,6 @@
 | Set up JDK 21 | `actions/setup-java@v4` (distribution=`temurin`, java-version=`21`) |
 | Setup Gradle | `gradle/actions/setup-gradle@v4` |
 | Set up Android SDK | `android-actions/setup-android@v3` |
-| Cache native libs | `actions/cache@v4` (path=`app/src/main/jniLibs`, key=`bento4-libs-v1.0.1`) |
-| Download prebuilt native libs | run: `gh release download v1.0.1 --repo ZemerTeam/zemer-bento4 --pattern 'bento4-libs.zip'` |
 | Configure Android SDK path | run: `echo "sdk.dir=$ANDROID_SDK_ROOT" > local.properties` |
 | Configure Firebase | run: `echo "${{ secrets.GOOGLE_SERVICES_JSON_BASE64 }}" \| base64 -d > app/google-services.json` |
 | Configure release keystore | run: `mkdir -p app/keystore` |
@@ -42,16 +40,31 @@
 
 ## Native code and submodules
 
-| Path | Hard facts |
-| --- | --- |
-| `.gitmodules` | submodule `app/src/main/cpp/bento4` → `https://github.com/ZemerTeam/zemer-bento4.git` (path `app/src/main/cpp/bento4`); submodule `cipher` → `https://github.com/ZemerTeam/zemer-cipher.git` (path `cipher`). |
-| `app/src/main/cpp/CMakeLists.txt` | cmake_minimum_required `3.18`; project `coverart-wrapper`; add_subdirectory `bento4`. |
-| `app/build.gradle.kts` (native) | CMake version `3.22.1`; NDK `27.0.12077973`; cppFlags `-std=c++17` (used when `USE_PREBUILT_NATIVE` != `true`). |
+## Native code
+
+None - metadata embedding is pure Kotlin
+(`utils/mp4/`, `utils/ogg/`); no NDK/CMake build.
+
+## Git submodules
+| Submodule | Path | URL |
+|---|---|---|
+
+| `cipher` | path `cipher` | https://github.com/ZemerTeam/zemer-cipher.git |
 
 ## Auxiliary JVM modules
 
 | Module | Package | Plugins | Dependencies (`libs.*`) | Kotlin files |
 | --- | --- | --- | --- | --- |
-| `:innertube` | `com.metrolist.innertube` | `kotlin.serialization`, `jvm`; jvmToolchain `21` | `ktor.client.core`, `ktor.client.okhttp`, `ktor.client.content.negotiation`, `ktor.serialization.json`, `ktor.client.encoding`, `okhttp.dnsoverhttps`, `junit` | 88 files (see `reference/kotlin-files.md`) |
+| `:innertube` | `com.metrolist.innertube` | `kotlin.serialization`, `jvm`; jvmToolchain `21` | `ktor.client.core`, `ktor.client.okhttp`, `ktor.client.content.negotiation`, `ktor.serialization.json`, `ktor.client.encoding`, `okhttp.dnsoverhttps`, `extractor`, `junit` | 86 files (see `reference/kotlin-files.md`) |
 | `:lrclib` | `com.metrolist.lrclib` | `kotlin.serialization`, `jvm`; jvmToolchain `21` | `ktor.client.core`, `ktor.client.cio`, `ktor.client.content.negotiation`, `ktor.serialization.json`, `junit` | `LrcLib.kt`, `models/Track.kt` |
-| `:simpmusic` | `com.metrolist.simpmusic` | `kotlin.serialization`, `jvm`; jvmToolchain `21` | `ktor.client.core`, `ktor.client.cio`, `ktor.client.content.negotiation`, `ktor.serialization.json`, `junit` | `../../../../../test/kotlin/com/zemer/simpmusic/SimpMusicLyricsTest.kt`, `SimpMusicLyrics.kt`, `models/LyricsResponse.kt` |
+| `:simpmusic` | `com.metrolist.simpmusic` | `kotlin.serialization`, `jvm`; jvmToolchain `21` | `ktor.client.core`, `ktor.client.cio`, `ktor.client.content.negotiation`, `ktor.serialization.json` | `SimpMusicLyrics.kt`, `models/LyricsResponse.kt` |
+
+## Solver assets
+
+Tracked solver assets under `app/src/main/assets/solver`:
+
+| File | Hard fact |
+| --- | --- |
+| `astring.js` | Tracked JavaScript asset under Android assets. |
+| `meriyah.js` | Tracked JavaScript asset under Android assets. |
+| `yt.solver.core.js` | Tracked JavaScript asset under Android assets. |

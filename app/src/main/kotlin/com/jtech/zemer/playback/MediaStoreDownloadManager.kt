@@ -21,6 +21,7 @@ import com.jtech.zemer.tracking.TrackingActionKind
 import com.jtech.zemer.db.entities.SongAlbumMap
 import com.jtech.zemer.db.entities.SongArtistMap
 import com.jtech.zemer.utils.CoverArtEmbedder
+import com.jtech.zemer.utils.mp4.AudioRemux
 import com.jtech.zemer.utils.dataStore
 import com.jtech.zemer.utils.getSuspend
 import com.jtech.zemer.utils.MediaStoreHelper
@@ -460,6 +461,10 @@ constructor(
                     null
                 },
                 forDownload = true,
+                // Audio downloads may keep Opus (itag 251, higher quality than AAC/m4a) when the
+                // device can rewrap WebM->Ogg + tag on-device (API 29+); the embedder saves it as
+                // .ogg. Video downloads keep their own container path.
+                downloadOpusOk = !videoDownload && AudioRemux.oggMuxSupported,
                 // The requested quality TARGET ("1080p"/"2160p") — resolves to the best remux-capable
                 // rung at or below it; null/AUTO keeps the automatic progressive pick. An adaptive
                 // (video-only) rung is downloaded as video+audio and remuxed on-device below.
@@ -528,7 +533,7 @@ constructor(
                 // .webm to video/webm, inconsistent with an audio entry -> insert returns null -> "Failed
                 // to save file to MediaStore"). Sniff the real container and label WebM as .opus / MP4 as
                 // .m4a — both MediaStore-accepted, and in-app playback sniffs the real container regardless.
-                val saveExtension = if (relayMode) sniffAudioExtension(tempFile) else extension
+                var saveExtension = if (relayMode) sniffAudioExtension(tempFile) else extension
 
                 // Get metadata for embedding and file naming
                 val title = song.song.title
@@ -567,7 +572,10 @@ constructor(
                         title = title,
                         artist = artist,
                         album = album,
-                        year = year
+                        year = year,
+                        // An Opus/WebM download is rewrapped to Ogg in place; the MediaStore entry
+                        // must then be .ogg (audio/ogg), not the rejected .webm.
+                        onContainerChanged = { newExt -> saveExtension = newExt },
                     )
                 }
 

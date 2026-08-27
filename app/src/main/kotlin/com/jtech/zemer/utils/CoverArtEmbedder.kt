@@ -3,6 +3,9 @@ package com.jtech.zemer.utils
 import android.content.Context
 import android.util.Log
 import com.jtech.zemer.ui.utils.resize
+import com.jtech.zemer.utils.mp4.AudioRemux
+import com.jtech.zemer.utils.mp4.Mp4MetadataWriter
+import com.jtech.zemer.utils.ogg.OggOpusTagger
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
@@ -11,10 +14,16 @@ import okhttp3.Request
 import java.io.File
 
 /**
- * Utility class for embedding metadata into downloaded M4A audio files.
- * Uses native Bento4 library for reliable DASH/fragmented file support.
- * Supports embedding: cover art, title, artist, album, year.
- * All text is stored as UTF-8 (supports Hebrew, Arabic, and all Unicode).
+ * Embeds metadata (cover art + title/artist/album/year, all UTF-8) into a downloaded
+ * audio file. Container-routed through pure-Kotlin writers - no native dependency:
+ *
+ * - MP4/M4A -> flatten fragmented input via [AudioRemux.flattenMp4], then
+ *   [Mp4MetadataWriter].
+ * - WebM/Ogg Opus -> rewrap WebM to Ogg via [AudioRemux.webmOpusToOgg] (API 29+), then
+ *   [OggOpusTagger]. An already-Ogg file is tagged directly.
+ *
+ * Fully fail-soft: any failure leaves the ORIGINAL file untouched (a download without
+ * embedded art still plays). Text supports Hebrew/Arabic/all Unicode.
  */
 object CoverArtEmbedder {
 
@@ -22,16 +31,19 @@ object CoverArtEmbedder {
     private const val ARTWORK_SIZE = 500
     private const val ARTWORK_DOWNLOAD_TIMEOUT_MS = 10_000L
 
-    // Only M4A/MP4 supported
-    private val SUPPORTED_EXTENSIONS = setOf("m4a", "mp4")
+    private val MP4_EXTENSIONS = setOf("m4a", "mp4")
+    private val OPUS_EXTENSIONS = setOf("opus", "ogg", "webm")
 
+    /** True when we can embed metadata into a file of this extension on this device. */
     fun supportsEmbedding(extension: String): Boolean {
-        return extension.lowercase() in SUPPORTED_EXTENSIONS
+        val ext = extension.lowercase()
+        return ext in MP4_EXTENSIONS || (ext in OPUS_EXTENSIONS && AudioRemux.oggMuxSupported)
     }
 
     /**
-     * Embed metadata (cover art, title, artist, album, year) into an M4A/MP4 file.
-     * All text fields support UTF-8 including Hebrew, Arabic, etc.
+     * Embed metadata into [audioFile] in place. Returns true on success. For a WebM/Opus
+     * input the on-disk file is REPLACED with a tagged `.ogg`; [onContainerChanged] is
+     * invoked with the new extension so the caller can update the MediaStore entry.
      */
     suspend fun embedMetadataIntoFile(
         context: Context,
@@ -41,129 +53,126 @@ object CoverArtEmbedder {
         title: String? = null,
         artist: String? = null,
         album: String? = null,
-        year: Int? = null
+        year: Int? = null,
+        onContainerChanged: ((newExtension: String) -> Unit)? = null,
     ): Boolean = withContext(Dispatchers.IO) {
-        var tempFile: File? = null
-        var outputFile: File? = null
+        val scratch = mutableListOf<File>()
         try {
-            Log.d(TAG, "Starting metadata embedding for ${audioFile.name}")
-            Log.d(TAG, "Title: $title, Artist: $artist, Album: $album, Year: $year")
-
-            // Download artwork if URL provided
-            var artworkData: ByteArray? = null
-            if (!thumbnailUrl.isNullOrBlank()) {
-                Log.d(TAG, "Thumbnail URL: $thumbnailUrl")
-                val artworkUrl = getOptimizedUrl(thumbnailUrl)
-                Log.d(TAG, "Optimized URL: $artworkUrl")
-
-                artworkData = withTimeoutOrNull(ARTWORK_DOWNLOAD_TIMEOUT_MS) {
-                    downloadArtwork(artworkUrl, httpClient)
-                }
-
-                if (artworkData != null && artworkData.size >= 1000) {
-                    Log.d(TAG, "Artwork downloaded: ${artworkData.size} bytes")
-                } else {
-                    Log.w(TAG, "Artwork download failed or too small")
-                    artworkData = null
-                }
-            }
-
-            // Try to defragment first (for DASH files)
-            tempFile = File(context.cacheDir, "defrag_${System.currentTimeMillis()}.m4a")
-            val defragmented = try {
-                CoverArtNative.defragmentFile(audioFile.absolutePath, tempFile.absolutePath)
-            } catch (e: UnsatisfiedLinkError) {
-                Log.e(TAG, "Native library not loaded: ${e.message}")
-                false
-            }
-
-            val workingFile = if (defragmented && tempFile.exists() && tempFile.length() > 0) {
-                Log.d(TAG, "Using defragmented file")
-                tempFile
-            } else {
-                Log.d(TAG, "Using original file (defragment not needed or failed)")
-                tempFile.delete()
-                tempFile = null
-                audioFile
-            }
-
-            // Embed metadata using native library
-            outputFile = File(context.cacheDir, "output_${System.currentTimeMillis()}.m4a")
-            val success = try {
-                CoverArtNative.embedMetadata(
-                    inputPath = workingFile.absolutePath,
-                    outputPath = outputFile.absolutePath,
-                    artworkData = artworkData,
-                    title = title,
-                    artist = artist,
-                    album = album,
-                    year = year?.toString()
-                )
-            } catch (e: UnsatisfiedLinkError) {
-                Log.e(TAG, "Native library not loaded: ${e.message}")
-                false
-            }
-
-            // Verify output is valid - must be at least 90% of original size
-            // (metadata addition shouldn't significantly reduce file size)
-            val originalSize = workingFile.length()
-            val outputSize = outputFile?.length() ?: 0
-            val sizeRatio = if (originalSize > 0) outputSize.toDouble() / originalSize else 0.0
-
-            if (success && outputFile != null && outputFile.exists() && outputSize > 0 && sizeRatio > 0.9) {
-                // Replace original with processed file
-                audioFile.delete()
-                outputFile.renameTo(audioFile)
-                tempFile?.delete()
-                Log.d(TAG, "Successfully embedded metadata (size ratio: $sizeRatio)")
-                true
-            } else {
-                Log.w(TAG, "Metadata embedding failed or output invalid (success=$success, size=$outputSize, ratio=$sizeRatio)")
-                outputFile?.delete()
-                tempFile?.delete()
-                // Original file is preserved - download still works without metadata
-                false
+            val artwork = downloadArtworkOrNull(thumbnailUrl, httpClient)
+            val ext = audioFile.extension.lowercase()
+            when {
+                ext in MP4_EXTENSIONS ->
+                    embedMp4(context, audioFile, artwork, title, artist, album, year, scratch)
+                ext in OPUS_EXTENSIONS ->
+                    embedOpus(context, audioFile, artwork, title, artist, album, year, scratch, onContainerChanged)
+                else -> false
             }
         } catch (e: Exception) {
             Log.e(TAG, "Failed to embed metadata: ${e.message}", e)
-            tempFile?.delete()
-            outputFile?.delete()
             false
+        } finally {
+            scratch.forEach { it.delete() }
         }
     }
 
-    private fun getOptimizedUrl(url: String): String {
-        return url.resize(ARTWORK_SIZE, ARTWORK_SIZE).let { resized ->
+    private fun embedMp4(
+        context: Context,
+        audioFile: File,
+        artwork: ByteArray?,
+        title: String?, artist: String?, album: String?, year: Int?,
+        scratch: MutableList<File>,
+    ): Boolean {
+        // Flatten a fragmented/DASH m4a first (the writer only tags a flat moov+mdat file).
+        val flat = if (Mp4MetadataWriter.isFragmented(audioFile)) {
+            File(context.cacheDir, "flat_${System.currentTimeMillis()}.m4a").also { scratch.add(it) }
+                .takeIf { AudioRemux.flattenMp4(audioFile, it) } ?: run {
+                Log.w(TAG, "MP4 flatten failed; leaving original untagged")
+                return false
+            }
+        } else {
+            audioFile
+        }
+        val out = File(context.cacheDir, "tagged_${System.currentTimeMillis()}.m4a").also { scratch.add(it) }
+        val tags = Mp4MetadataWriter.Tags(artwork, title, artist, album, year?.toString())
+        if (!Mp4MetadataWriter.write(flat, out, tags)) return false
+        return replaceValidated(audioFile, out, flat.length())
+    }
+
+    private fun embedOpus(
+        context: Context,
+        audioFile: File,
+        artwork: ByteArray?,
+        title: String?, artist: String?, album: String?, year: Int?,
+        scratch: MutableList<File>,
+        onContainerChanged: ((String) -> Unit)?,
+    ): Boolean {
+        if (!AudioRemux.oggMuxSupported) return false
+        val ext = audioFile.extension.lowercase()
+        // A real Ogg is tagged directly; WebM/Opus is rewrapped to Ogg first.
+        val ogg = if (ext == "ogg") audioFile else
+            File(context.cacheDir, "ogg_${System.currentTimeMillis()}.ogg").also { scratch.add(it) }
+                .takeIf { AudioRemux.webmOpusToOgg(audioFile, it) } ?: run {
+                Log.w(TAG, "WebM->Ogg remux failed; leaving original untagged")
+                return false
+            }
+        val out = File(context.cacheDir, "taggedogg_${System.currentTimeMillis()}.ogg").also { scratch.add(it) }
+        val tags = OggOpusTagger.Tags(artwork, sniffMime(artwork), title, artist, album, year?.toString())
+        if (!OggOpusTagger.write(ogg, out, tags)) return false
+        // The tagged Ogg bytes overwrite the temp file IN PLACE (its path is unchanged), so the
+        // caller's MediaStore save still reads the right file; only the entry's extension/MIME
+        // changes to .ogg, signalled here.
+        if (!replaceValidated(audioFile, out, ogg.length())) return false
+        if (ext != "ogg") onContainerChanged?.invoke("ogg")
+        return true
+    }
+
+    /** Adopt [processed] as [audioFile] only when it is a plausible result (>= 90% of ref size). */
+    private fun replaceValidated(audioFile: File, processed: File, referenceSize: Long): Boolean {
+        val ratio = if (referenceSize > 0) processed.length().toDouble() / referenceSize else 0.0
+        if (!processed.exists() || processed.length() == 0L || ratio <= 0.9) {
+            Log.w(TAG, "Embed output invalid (size=${processed.length()}, ratio=$ratio)")
+            return false
+        }
+        audioFile.delete()
+        return processed.renameTo(audioFile).also {
+            if (!it) Log.w(TAG, "Failed to move tagged file over the original")
+        }
+    }
+
+    private suspend fun downloadArtworkOrNull(thumbnailUrl: String?, httpClient: OkHttpClient): ByteArray? {
+        if (thumbnailUrl.isNullOrBlank()) return null
+        val artwork = withTimeoutOrNull(ARTWORK_DOWNLOAD_TIMEOUT_MS) {
+            downloadArtwork(getOptimizedUrl(thumbnailUrl), httpClient)
+        }
+        return artwork?.takeIf { it.size >= 1000 }
+    }
+
+    private fun sniffMime(image: ByteArray?): String =
+        if (image != null && image.size >= 2 && image[0] == 0x89.toByte() && image[1] == 'P'.code.toByte())
+            "image/png" else "image/jpeg"
+
+    private fun getOptimizedUrl(url: String): String =
+        url.resize(ARTWORK_SIZE, ARTWORK_SIZE).let { resized ->
             if (resized == url && url.contains("i.ytimg.com")) {
                 url.replace(Regex("/(default|mqdefault|hqdefault|sddefault)\\.jpg"), "/maxresdefault.jpg")
             } else {
                 resized
             }
         }
-    }
 
     private suspend fun downloadArtwork(url: String, httpClient: OkHttpClient): ByteArray? =
         withContext(Dispatchers.IO) {
             try {
-                Log.d(TAG, "Downloading artwork from: $url")
                 val request = Request.Builder()
                     .url(url)
-                    .get()
                     .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
                     .build()
-
-                val response = httpClient.newCall(request).execute()
-                if (!response.isSuccessful) {
-                    Log.w(TAG, "Download failed: ${response.code}")
-                    response.close()
-                    return@withContext null
+                httpClient.newCall(request).execute().use { response ->
+                    if (!response.isSuccessful) return@withContext null
+                    response.body?.bytes()
                 }
-
-                val bytes = response.body?.bytes()
-                Log.d(TAG, "Downloaded ${bytes?.size ?: 0} bytes")
-                bytes
             } catch (e: Exception) {
-                Log.e(TAG, "Download error: ${e.message}", e)
+                Log.e(TAG, "Artwork download error: ${e.message}", e)
                 null
             }
         }

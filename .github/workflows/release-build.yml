@@ -40,9 +40,6 @@ on:
       - 'LICENSE'
       - 'cipher'
 
-env:
-  USE_PREBUILT_NATIVE: true
-
 jobs:
   assemble-release:
     runs-on: ubuntu-latest
@@ -69,20 +66,6 @@ jobs:
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
 
-      - name: Cache native libs
-        id: cache-native
-        uses: actions/cache@v4
-        with:
-          path: app/src/main/jniLibs
-          key: bento4-libs-v1.0.1
-
-      - name: Download prebuilt native libs
-        if: steps.cache-native.outputs.cache-hit != 'true'
-        run: |
-          gh release download v1.0.1 --repo ZemerTeam/zemer-bento4 --pattern 'bento4-libs.zip'
-          unzip bento4-libs.zip -d app/src/main
-        env:
-          GH_TOKEN: ${{ github.token }}
 
       - name: Configure Android SDK path
         run: echo "sdk.dir=$ANDROID_SDK_ROOT" > local.properties
