@@ -1718,6 +1718,10 @@ interface DatabaseDao {
     @Query("SELECT albumId FROM album_artist_map WHERE artistId = :artistId")
     suspend fun getAlbumIdsByArtist(artistId: String): List<String>
 
+    /** 0-based album position of a song, for the downloads' TRACKNUMBER tag. */
+    @Query("SELECT `index` FROM song_album_map WHERE songId = :songId AND albumId = :albumId")
+    suspend fun songAlbumIndex(songId: String, albumId: String): Int?
+
     @Query("SELECT COUNT(*) FROM song_album_map WHERE albumId = :albumId")
     suspend fun getAlbumSongCount(albumId: String): Int
 

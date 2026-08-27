@@ -55,6 +55,8 @@ object CoverArtEmbedder {
         album: String? = null,
         year: Int? = null,
         lyrics: String? = null,
+        albumArtist: String? = null,
+        trackNumber: Int? = null,
         onContainerChanged: ((newExtension: String) -> Unit)? = null,
     ): Boolean = withContext(Dispatchers.IO) {
         val scratch = mutableListOf<File>()
@@ -63,9 +65,9 @@ object CoverArtEmbedder {
             val ext = audioFile.extension.lowercase()
             when {
                 ext in MP4_EXTENSIONS ->
-                    embedMp4(context, audioFile, artwork, title, artist, album, year, lyrics, scratch)
+                    embedMp4(context, audioFile, artwork, title, artist, album, year, lyrics, albumArtist, trackNumber, scratch)
                 ext in OPUS_EXTENSIONS ->
-                    embedOpus(context, audioFile, artwork, title, artist, album, year, lyrics, scratch, onContainerChanged)
+                    embedOpus(context, audioFile, artwork, title, artist, album, year, lyrics, albumArtist, trackNumber, scratch, onContainerChanged)
                 else -> false
             }
         } catch (e: Exception) {
@@ -81,6 +83,7 @@ object CoverArtEmbedder {
         audioFile: File,
         artwork: ByteArray?,
         title: String?, artist: String?, album: String?, year: Int?, lyrics: String?,
+        albumArtist: String?, trackNumber: Int?,
         scratch: MutableList<File>,
     ): Boolean {
         // Flatten a fragmented/DASH m4a first (the writer only tags a flat moov+mdat file).
@@ -94,7 +97,7 @@ object CoverArtEmbedder {
             audioFile
         }
         val out = File(context.cacheDir, "tagged_${System.currentTimeMillis()}.m4a").also { scratch.add(it) }
-        val tags = Mp4MetadataWriter.Tags(artwork, title, artist, album, year?.toString(), lyrics)
+        val tags = Mp4MetadataWriter.Tags(artwork, title, artist, album, year?.toString(), lyrics, albumArtist, trackNumber)
         if (!Mp4MetadataWriter.write(flat, out, tags)) return false
         return replaceValidated(audioFile, out, flat.length())
     }
@@ -104,6 +107,7 @@ object CoverArtEmbedder {
         audioFile: File,
         artwork: ByteArray?,
         title: String?, artist: String?, album: String?, year: Int?, lyrics: String?,
+        albumArtist: String?, trackNumber: Int?,
         scratch: MutableList<File>,
         onContainerChanged: ((String) -> Unit)?,
     ): Boolean {
@@ -117,7 +121,7 @@ object CoverArtEmbedder {
                 return false
             }
         val out = File(context.cacheDir, "taggedogg_${System.currentTimeMillis()}.ogg").also { scratch.add(it) }
-        val tags = OggOpusTagger.Tags(artwork, sniffMime(artwork), title, artist, album, year?.toString(), lyrics)
+        val tags = OggOpusTagger.Tags(artwork, sniffMime(artwork), title, artist, album, year?.toString(), lyrics, albumArtist, trackNumber)
         if (!OggOpusTagger.write(ogg, out, tags)) return false
         // The tagged Ogg bytes overwrite the temp file IN PLACE (its path is unchanged), so the
         // caller's MediaStore save still reads the right file; only the entry's extension/MIME

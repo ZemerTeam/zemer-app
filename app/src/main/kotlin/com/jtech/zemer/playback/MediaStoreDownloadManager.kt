@@ -549,14 +549,16 @@ constructor(
 
                 // For folder structure: use album artist if available, otherwise song artist
                 // This ensures all songs from an album go into the same folder
-                val artist = if (song.album != null) {
-                    val albumWithArtists = database.albumUnfiltered(song.album.id).first()
-                    albumWithArtists?.artists?.firstOrNull()?.name
-                        ?: song.artists.firstOrNull()?.name
-                        ?: "Unknown Artist"
-                } else {
-                    song.artists.firstOrNull()?.name ?: "Unknown Artist"
+                val albumArtistName = song.album?.let { alb ->
+                    database.albumUnfiltered(alb.id).first()?.artists?.firstOrNull()?.name
                 }
+                val artist = albumArtistName
+                    ?: song.artists.firstOrNull()?.name
+                    ?: "Unknown Artist"
+                // 1-based album track position for the TRACKNUMBER/trkn tag (unknown = omitted).
+                val trackNumber = song.album?.let { alb ->
+                    runCatching { database.songAlbumIndex(song.id, alb.id) }.getOrNull()
+                }?.plus(1)
                 // Songs reached via an album/playlist page often carry no duration (0), which shows as
                 // "0:00" in the Downloaded list — backfill it from the playback response so the saved
                 // file's metadata AND the DB row get a real length. In relay mode there is no playback
@@ -587,6 +589,8 @@ constructor(
                         album = album,
                         year = year,
                         lyrics = exactLyrics,
+                        albumArtist = albumArtistName,
+                        trackNumber = trackNumber,
                         // An Opus/WebM download is rewrapped to Ogg in place; the MediaStore entry
                         // must then be .ogg (audio/ogg), not the rejected .webm.
                         onContainerChanged = { newExt -> saveExtension = newExt },

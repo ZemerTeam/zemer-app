@@ -27,10 +27,12 @@ object Mp4MetadataWriter {
         val album: String? = null,
         val year: String? = null,
         val lyrics: String? = null,
+        val albumArtist: String? = null,
+        val trackNumber: Int? = null,
     ) {
         val isEmpty: Boolean
             get() = artworkData == null && title == null && artist == null && album == null &&
-                year == null && lyrics == null
+                year == null && lyrics == null && albumArtist == null && trackNumber == null
     }
 
     /** Containers descended into when patching chunk offsets. */
@@ -215,6 +217,8 @@ object Mp4MetadataWriter {
             tags.album?.let { add(textAtom("©alb", it)) }
             tags.year?.let { add(textAtom("©day", it)) }
             tags.lyrics?.let { add(textAtom("©lyr", it)) }
+            tags.albumArtist?.let { add(textAtom("aART", it)) }
+            tags.trackNumber?.let { add(trknAtom(it)) }
             tags.artworkData?.let { add(coverAtom(it)) }
         }
         val hdlr = ByteBuffer.allocate(33).apply {
@@ -261,6 +265,13 @@ object Mp4MetadataWriter {
 
     private fun textAtom(name: String, value: String) =
         dataAtom(name, 1, value.toByteArray(Charsets.UTF_8))
+
+    /** iTunes trkn: type 0 (binary), payload 0 0 / track(2 BE) / total(2, 0=unknown) / 0 0. */
+    private fun trknAtom(track: Int): ByteArray {
+        val payload = ByteArray(8)
+        payload[2] = (track ushr 8).toByte(); payload[3] = track.toByte()
+        return dataAtom("trkn", 0, payload)
+    }
 
     private fun coverAtom(image: ByteArray): ByteArray {
         val isPng = image.size >= 8 &&

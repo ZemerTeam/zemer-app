@@ -64,7 +64,7 @@ class OpusDevicePipelineTest {
         val taggedM4a = File(outDir, "parity.m4a")
         assertTrue(com.jtech.zemer.utils.mp4.Mp4MetadataWriter.write(
             m4a, taggedM4a,
-            com.jtech.zemer.utils.mp4.Mp4MetadataWriter.Tags(art, "PTitle", "PArtist", "PAlbum", "2026")))
+            com.jtech.zemer.utils.mp4.Mp4MetadataWriter.Tags(art, "PTitle", "PArtist", "PAlbum", "2026", null, "PAlbumArtist", 7)))
         assertFieldParity(taggedM4a, expectPicture = true)
 
         // Ogg path (from the remux the first test produced, or rebuild)
@@ -76,7 +76,7 @@ class OpusDevicePipelineTest {
         }
         val taggedOgg = File(outDir, "parity.ogg")
         assertTrue(OggOpusTagger.write(ogg, taggedOgg,
-            OggOpusTagger.Tags(art, "image/jpeg", "PTitle", "PArtist", "PAlbum", "2026")))
+            OggOpusTagger.Tags(art, "image/jpeg", "PTitle", "PArtist", "PAlbum", "2026", null, "PAlbumArtist", 7)))
         // Retriever reads Vorbis comments; embedded METADATA_BLOCK_PICTURE support varies by
         // Android version, so the picture is asserted from the file bytes instead.
         assertFieldParity(taggedOgg, expectPicture = false)
@@ -92,9 +92,13 @@ class OpusDevicePipelineTest {
         val album = r.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_ALBUM)
         val year = r.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_YEAR)
             ?: r.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_DATE)
+        val albumArtist = r.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_ALBUMARTIST)
+        val track = r.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_CD_TRACK_NUMBER)
         val pic = r.embeddedPicture
         r.release()
-        Log.i("OpusPipeline", "parity ${file.name}: title=$title artist=$artist album=$album year=$year pic=${pic?.size}")
+        Log.i("OpusPipeline", "parity ${file.name}: title=$title artist=$artist album=$album year=$year albumArtist=$albumArtist track=$track pic=${pic?.size}")
+        org.junit.Assert.assertEquals("PAlbumArtist", albumArtist)
+        assertTrue("track must read back", track?.contains("7") == true)
         org.junit.Assert.assertEquals("PTitle", title)
         org.junit.Assert.assertEquals("PArtist", artist)
         org.junit.Assert.assertEquals("PAlbum", album)
