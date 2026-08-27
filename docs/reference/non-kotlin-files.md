@@ -1,6 +1,6 @@
 # Non-Kotlin file reference
 
-Every tracked non-Kotlin path outside `docs/` is listed. Text files report line counts; binary files report byte counts; gitlinks are recorded as non-file tracked paths. Total paths: `396`.
+Every tracked non-Kotlin path outside `docs/` is listed. Text files report line counts; binary files report byte counts; gitlinks are recorded as non-file tracked paths. Total paths: `399`.
 
 | Path | Size/status | Type metadata |
 | --- | ---: | --- |
@@ -55,6 +55,9 @@ Every tracked non-Kotlin path outside `docs/` is listed. Text files report line 
 | `app/schemas/com.jtech.zemer.db.InternalDatabase/7.json` | 718 lines | text `.json`; JSON keys `formatVersion, database` |
 | `app/schemas/com.jtech.zemer.db.InternalDatabase/8.json` | 766 lines | text `.json`; JSON keys `formatVersion, database` |
 | `app/schemas/com.jtech.zemer.db.InternalDatabase/9.json` | 840 lines | text `.json`; JSON keys `formatVersion, database` |
+| `app/src/androidTest/assets/cover.jpg` | 12035 bytes | binary `.jpg` |
+| `app/src/androidTest/assets/sample-flat.m4a` | 5341038 bytes | binary `.m4a` |
+| `app/src/androidTest/assets/sample-opus.webm` | 5878798 bytes | binary `.webm` |
 | `app/src/debug/res/values/app_name.xml` | 4 lines | text `.xml`; XML root `resources` |
 | `app/src/debug/res/xml-v25/shortcuts.xml` | 23 lines | text `.xml`; XML root `shortcuts` |
 | `app/src/main/AndroidManifest.xml` | 300 lines | text `.xml`; XML root `manifest` |
@@ -260,7 +263,7 @@ Every tracked non-Kotlin path outside `docs/` is listed. Text files report line 
 | `app/src/main/res/values/app_name.xml` | 4 lines | text `.xml`; XML root `resources` |
 | `app/src/main/res/values/colors.xml` | 9 lines | text `.xml`; XML root `resources` |
 | `app/src/main/res/values/metrolist_strings.xml` | 696 lines | text `.xml`; XML root `resources` |
-| `app/src/main/res/values/strings.xml` | 418 lines | text `.xml`; XML root `resources` |
+| `app/src/main/res/values/strings.xml` | 421 lines | text `.xml`; XML root `resources` |
 | `app/src/main/res/values/styles.xml` | 26 lines | text `.xml`; XML root `resources` |
 | `app/src/main/res/values/values.xml` | 8 lines | text `.xml`; XML root `resources` |
 | `app/src/main/res/xml-v25/shortcuts.xml` | 23 lines | text `.xml`; XML root `shortcuts` |

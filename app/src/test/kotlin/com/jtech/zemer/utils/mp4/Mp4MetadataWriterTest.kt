@@ -138,7 +138,7 @@ class Mp4MetadataWriterTest {
         val moov = moovWith(stco(120, 200)) // both point past moov end (real files always do)
         val input = fileOf(ftyp, moov, mdat())
         val out = tmp.newFile()
-        assertTrue(Mp4MetadataWriter.write(input, out, Mp4MetadataWriter.Tags(title = "T", artist = "A")))
+        assertTrue(Mp4MetadataWriter.write(input, out, Mp4MetadataWriter.Tags(title = "T", artist = "A", lyrics = "line one\nline two")))
 
         val boxes = topBoxes(out)
         assertEquals(listOf("ftyp", "moov", "mdat"), boxes.map { it.first })
@@ -150,6 +150,7 @@ class Mp4MetadataWriterTest {
         assertArrayEquals(mdatPayload, out.readBytes().copyOfRange(mdatOff + 8, mdatOff + 8 + mdatPayload.size))
         assertTrue(containsAtom(out, "©nam"))
         assertTrue(containsAtom(out, "©ART"))
+        assertTrue(containsAtom(out, "©lyr"))
     }
 
     @Test

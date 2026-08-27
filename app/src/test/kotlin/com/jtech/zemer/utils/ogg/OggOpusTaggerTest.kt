@@ -123,13 +123,15 @@ class OggOpusTaggerTest {
     @Test
     fun `writes tags and keeps every page CRC valid`() {
         val out = tmp.newFile("out.ogg")
-        assertTrue(OggOpusTagger.write(syntheticOpus(), out, OggOpusTagger.Tags(title = "T", artist = "A", album = "Al", year = "2026")))
+        assertTrue(OggOpusTagger.write(syntheticOpus(), out, OggOpusTagger.Tags(title = "T", artist = "A", album = "Al", year = "2026", lyrics = "some words")))
         val b = out.readBytes()
         assertTrue("all page CRCs must recompute", allCrcsValid(b))
         val c = comments(b)
         assertTrue(c.any { it == "TITLE=T" })
         assertTrue(c.any { it == "ARTIST=A" })
         assertTrue(c.any { it == "DATE=2026" })
+        assertTrue(c.any { it == "YEAR=2026" })
+        assertTrue(c.any { it == "LYRICS=some words" })
     }
 
     @Test

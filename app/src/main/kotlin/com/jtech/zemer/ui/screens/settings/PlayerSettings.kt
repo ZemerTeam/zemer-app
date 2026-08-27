@@ -32,6 +32,8 @@ import com.jtech.zemer.constants.AudioNormalizationKey
 import com.jtech.zemer.constants.AudioOffload
 import com.jtech.zemer.constants.AudioQuality
 import com.jtech.zemer.constants.AudioQualityKey
+import com.jtech.zemer.constants.DownloadAudioFormat
+import com.jtech.zemer.constants.DownloadAudioFormatKey
 import com.jtech.zemer.constants.BlockVideosKey
 import com.jtech.zemer.constants.VideoQualityKey
 import com.jtech.zemer.playback.VideoQualityLogic
@@ -68,6 +70,10 @@ fun PlayerSettings(
     val (audioQuality, onAudioQualityChange) = rememberEnumPreference(
         AudioQualityKey,
         defaultValue = AudioQuality.AUTO
+    )
+    val (downloadAudioFormat, onDownloadAudioFormatChange) = rememberEnumPreference(
+        DownloadAudioFormatKey,
+        defaultValue = DownloadAudioFormat.BEST
     )
     val (videoQuality, onVideoQualityChange) = rememberPreference(
         VideoQualityKey,
@@ -158,6 +164,26 @@ fun PlayerSettings(
                         },
                         modifier = Modifier.focusRequester(firstFocus),
                     )
+                }
+
+                // Audio download format: highest-quality Opus (tagged .ogg) vs max-compatibility
+                // AAC. Only meaningful where the Ogg rewrap exists (API 29+) - hidden below that,
+                // where downloads always use AAC.
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+                    add {
+                        EnumListPreference(
+                            title = { Text(stringResource(R.string.download_quality)) },
+                            icon = { Icon(painterResource(R.drawable.download), null) },
+                            selectedValue = downloadAudioFormat,
+                            onValueSelected = onDownloadAudioFormatChange,
+                            valueText = {
+                                when (it) {
+                                    DownloadAudioFormat.BEST -> stringResource(R.string.download_quality_best)
+                                    DownloadAudioFormat.COMPATIBLE -> stringResource(R.string.download_quality_compatible)
+                                }
+                            },
+                        )
+                    }
                 }
 
                 // Default video-mode quality target (the in-player switcher overrides it per play). Values

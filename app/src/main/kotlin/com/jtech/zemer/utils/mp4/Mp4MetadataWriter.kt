@@ -26,9 +26,11 @@ object Mp4MetadataWriter {
         val artist: String? = null,
         val album: String? = null,
         val year: String? = null,
+        val lyrics: String? = null,
     ) {
         val isEmpty: Boolean
-            get() = artworkData == null && title == null && artist == null && album == null && year == null
+            get() = artworkData == null && title == null && artist == null && album == null &&
+                year == null && lyrics == null
     }
 
     /** Containers descended into when patching chunk offsets. */
@@ -212,6 +214,7 @@ object Mp4MetadataWriter {
             tags.artist?.let { add(textAtom("©ART", it)) }
             tags.album?.let { add(textAtom("©alb", it)) }
             tags.year?.let { add(textAtom("©day", it)) }
+            tags.lyrics?.let { add(textAtom("©lyr", it)) }
             tags.artworkData?.let { add(coverAtom(it)) }
         }
         val hdlr = ByteBuffer.allocate(33).apply {

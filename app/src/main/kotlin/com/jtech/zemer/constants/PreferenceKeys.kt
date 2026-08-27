@@ -116,6 +116,9 @@ val LastPodcastWhitelistVersionKey = longPreferencesKey("lastPodcastWhitelistVer
 
 val AudioQualityKey = stringPreferencesKey("audioQuality")
 
+/** Audio DOWNLOAD format/quality: best-available Opus vs maximum-compatibility AAC. */
+val DownloadAudioFormatKey = stringPreferencesKey("downloadAudioFormat")
+
 // Default video-mode quality: VideoQualityLogic.AUTO ("auto" — the automatic progressive pick, the
 // pre-quality-switcher behavior) or a target rung label ("1080p", "720p", ...). The in-player
 // switcher overrides this per play; see VideoModeController.
@@ -127,6 +130,19 @@ val StreamSourceTVHTML5Key    = booleanPreferencesKey("streamSourceTVHTML5")
 val StreamSourceWebCreatorKey = booleanPreferencesKey("streamSourceWebCreator")
 val StreamSourceVisionOSKey   = booleanPreferencesKey("streamSourceVisionOS")
 val StreamSourceMWEBKey       = booleanPreferencesKey("streamSourceMWEB")
+
+/**
+ * The audio download format choice. BEST selects the highest-quality stream YouTube
+ * serves (Opus itag 251, saved as a fully tagged .ogg; needs API 29+ for the Ogg
+ * rewrap - older devices silently use AAC). COMPATIBLE forces AAC/m4a for maximum
+ * player/device compatibility. Audio downloads always resolve at the highest bitrate
+ * within the chosen format - a download is a deliberate act, never bitrate-reduced
+ * by the streaming quality preference.
+ */
+enum class DownloadAudioFormat {
+    BEST,
+    COMPATIBLE,
+}
 
 enum class AudioQuality {
     AUTO,

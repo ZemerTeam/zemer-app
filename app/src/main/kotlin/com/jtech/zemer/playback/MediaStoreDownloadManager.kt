@@ -8,6 +8,8 @@ import com.jtech.zemer.BuildConfig
 import com.jtech.zemer.R
 import com.jtech.zemer.constants.AudioQuality
 import com.jtech.zemer.constants.AudioQualityKey
+import com.jtech.zemer.constants.DownloadAudioFormat
+import com.jtech.zemer.constants.DownloadAudioFormatKey
 import com.jtech.zemer.constants.PlaybackMode
 import com.jtech.zemer.constants.PlaybackModeKey
 import com.jtech.zemer.extensions.toEnum
@@ -55,6 +57,7 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import com.metrolist.innertube.utils.ResilientDns
 import com.metrolist.innertube.YouTube
+import com.metrolist.simpmusic.SimpMusicLyrics
 import timber.log.Timber
 
 /**
@@ -83,6 +86,7 @@ constructor(
     private val connectivityManager = context.getSystemService<ConnectivityManager>()
         ?: throw IllegalStateException("ConnectivityManager not available on this device")
     private val audioQuality by enumPreference(context, AudioQualityKey, AudioQuality.AUTO)
+    private val downloadAudioFormat by enumPreference(context, DownloadAudioFormatKey, DownloadAudioFormat.BEST)
     private val httpClient = OkHttpClient.Builder()
         .dns(ResilientDns())
         .build()
@@ -448,7 +452,9 @@ constructor(
             Timber.d("Starting download for ${if (videoDownload) "video" else "song"} ${song.id}: ${song.song.title}, relay=$relayMode")
             val playbackData = if (relayMode) null else YTPlayerUtils.playerResponseForPlayback(
                 videoId = song.id,
-                audioQuality = audioQuality,
+                // An audio download always resolves at the HIGHEST bitrate in its format - a
+                // download is a deliberate act, never reduced by the streaming quality pref.
+                audioQuality = if (videoDownload) audioQuality else AudioQuality.HIGH,
                 connectivityManager = connectivityManager,
                 preferVideo = videoDownload,
                 // An explicit per-download cap survives retries (requestedVideoBitrate); without one,
@@ -464,7 +470,8 @@ constructor(
                 // Audio downloads may keep Opus (itag 251, higher quality than AAC/m4a) when the
                 // device can rewrap WebM->Ogg + tag on-device (API 29+); the embedder saves it as
                 // .ogg. Video downloads keep their own container path.
-                downloadOpusOk = !videoDownload && AudioRemux.oggMuxSupported,
+                downloadOpusOk = !videoDownload && AudioRemux.oggMuxSupported &&
+                    downloadAudioFormat == DownloadAudioFormat.BEST,
                 // The requested quality TARGET ("1080p"/"2160p") — resolves to the best remux-capable
                 // rung at or below it; null/AUTO keeps the automatic progressive pick. An adaptive
                 // (video-only) rung is downloaded as video+audio and remuxed on-device below.
@@ -564,6 +571,12 @@ constructor(
                 // not the pre-download `extension` (which is the hardcoded "webm" in relay mode) — else a
                 // relay m4a audio download would never get its title/artist/cover art embedded.
                 if (!videoDownload && CoverArtEmbedder.supportsEmbedding(saveExtension)) {
+                    // Lyrics are embedded ONLY when identity-exact: the SimpMusic lookup is keyed by
+                    // this videoId (plus its duration sanity check), so the text is the song's by
+                    // construction. The fuzzy metadata-search providers never qualify.
+                    val exactLyrics = runCatching {
+                        SimpMusicLyrics.getLyrics(song.id, effectiveDurationSec).getOrNull()
+                    }.getOrNull()
                     CoverArtEmbedder.embedMetadataIntoFile(
                         context = context,
                         audioFile = tempFile,
@@ -573,6 +586,7 @@ constructor(
                         artist = artist,
                         album = album,
                         year = year,
+                        lyrics = exactLyrics,
                         // An Opus/WebM download is rewrapped to Ogg in place; the MediaStore entry
                         // must then be .ogg (audio/ogg), not the rejected .webm.
                         onContainerChanged = { newExt -> saveExtension = newExt },

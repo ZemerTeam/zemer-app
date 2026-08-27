@@ -25,9 +25,11 @@ object OggOpusTagger {
         val artist: String? = null,
         val album: String? = null,
         val year: String? = null,
+        val lyrics: String? = null,
     ) {
         val isEmpty: Boolean
-            get() = artworkData == null && title == null && artist == null && album == null && year == null
+            get() = artworkData == null && title == null && artist == null && album == null &&
+                year == null && lyrics == null
     }
 
     private const val CAPTURE = 0x4F676753 // "OggS"
@@ -135,7 +137,7 @@ object OggOpusTagger {
         val count = u32le(original, p); p += 4
 
         // Preserve existing comments EXCEPT the keys we set (case-insensitive) + old pictures.
-        val replaced = setOf("title", "artist", "album", "date", "year", "metadata_block_picture")
+        val replaced = setOf("title", "artist", "album", "date", "year", "lyrics", "unsyncedlyrics", "metadata_block_picture")
         val kept = ArrayList<ByteArray>()
         repeat(count) {
             if (p + 4 > original.size) return@repeat
@@ -150,7 +152,11 @@ object OggOpusTagger {
         tags.title?.let { added.add("TITLE=$it".toByteArray(Charsets.UTF_8)) }
         tags.artist?.let { added.add("ARTIST=$it".toByteArray(Charsets.UTF_8)) }
         tags.album?.let { added.add("ALBUM=$it".toByteArray(Charsets.UTF_8)) }
-        tags.year?.let { added.add("DATE=$it".toByteArray(Charsets.UTF_8)) }
+        tags.year?.let {
+            added.add("DATE=$it".toByteArray(Charsets.UTF_8))
+            added.add("YEAR=$it".toByteArray(Charsets.UTF_8)) // some players read only YEAR
+        }
+        tags.lyrics?.let { added.add("LYRICS=$it".toByteArray(Charsets.UTF_8)) }
         tags.artworkData?.let {
             val block = flacPictureBlock(it, tags.artworkMime ?: sniffMime(it))
             val b64 = Base64.getEncoder().encodeToString(block)
