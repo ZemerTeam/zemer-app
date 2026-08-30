@@ -36,6 +36,11 @@ data class AlbumEntity(
     @ColumnInfo(name = "isUploaded", defaultValue = false.toString())
     val isUploaded: Boolean = false
 ) {
+    val shareLink: String?
+        get() = if (playlistId != null)
+            "https://music.zemer.io/playlist?list=$playlistId"
+        else null
+
     fun localToggleLike() = copy(
         bookmarkedAt = if (bookmarkedAt != null) null else LocalDateTime.now()
     )

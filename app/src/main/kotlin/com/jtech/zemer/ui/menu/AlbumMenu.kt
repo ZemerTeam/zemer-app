@@ -264,7 +264,7 @@ fun AlbumMenu(
                         onClick = {
                             onDismiss()
                             Tracker.action(TrackingActionKind.SHARE, album.id)
-                            context.shareText("https://music.zemer.io/playlist?list=${album.album.playlistId}")
+                            album.album.shareLink?.let { context.shareText(it) }
                         }
                     )
                 ),
