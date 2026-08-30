@@ -29,6 +29,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.toMutableStateList
 import androidx.compose.ui.Alignment
@@ -112,8 +113,10 @@ fun CachePlaylistScreen(
     }.toMutableStateList()
 
     var selection by remember { mutableStateOf(false) }
-    var isSearching by remember { mutableStateOf(false) }
-    var query by remember { mutableStateOf(TextFieldValue()) }
+    var isSearching by rememberSaveable { mutableStateOf(false) }
+    var query by rememberSaveable(stateSaver = TextFieldValue.Saver) {
+        mutableStateOf(TextFieldValue())
+    }
     val focusRequester = remember { FocusRequester() }
     val lazyListState = rememberLazyListState()
 
