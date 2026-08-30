@@ -81,7 +81,7 @@ object SimpMusicLyrics {
             tracks.firstOrNull()
         }
 
-        val lyrics = bestMatch?.syncedLyrics ?: bestMatch?.plainLyrics
+        val lyrics = firstNonBlankLyrics(bestMatch?.syncedLyrics, bestMatch?.plainLyrics)
             ?: throw IllegalStateException("Lyrics unavailable")
 
         lyrics
@@ -104,16 +104,27 @@ object SimpMusicLyrics {
 
         sortedTracks.forEach { track ->
             if (count <= 4) {
-                if (track.syncedLyrics != null && abs((track.duration ?: 0) - duration) <= 5) {
+                val synced = track.syncedLyrics
+                if (!synced.isNullOrBlank() && abs((track.duration ?: 0) - duration) <= 5) {
                     count++
-                    callback(track.syncedLyrics)
+                    callback(synced)
                 }
-                if (track.plainLyrics != null && abs((track.duration ?: 0) - duration) <= 5 && plain == 0) {
+                val plainLyrics = track.plainLyrics
+                if (!plainLyrics.isNullOrBlank() && abs((track.duration ?: 0) - duration) <= 5 && plain == 0) {
                     count++
                     plain++
-                    callback(track.plainLyrics)
+                    callback(plainLyrics)
                 }
             }
         }
     }
 }
+
+/**
+ * The first non-blank lyrics body, preferring synced over plain. SimpMusic returns syncedLyrics = ""
+ * (empty, not null) for plain-only tracks, so a plain elvis on syncedLyrics took the empty string and
+ * left the pane permanently blank. Blank entries are skipped so plain is used, or null if neither has
+ * content.
+ */
+internal fun firstNonBlankLyrics(synced: String?, plain: String?): String? =
+    synced?.takeIf { it.isNotBlank() } ?: plain?.takeIf { it.isNotBlank() }

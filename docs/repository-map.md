@@ -77,9 +77,9 @@ The following inventory is generated from repository files outside `.git`, `.gra
 
 ### Counts
 
-- Files counted: `1218`
+- Files counted: `1219`
 - By extension:
-  - `.kt`: `778`
+  - `.kt`: `779`
   - `.xml`: `192`
   - `.mjs`: `77`
   - `.md`: `71`
@@ -1107,7 +1107,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `docs/recognize_music/05-widget.md` | 72 lines | `.md` |
 | `docs/recognize_music/06-testing-and-maintenance.md` | 54 lines | `.md` |
 | `docs/recognize_music/README.md` | 71 lines | `.md` |
-| `docs/reference/kotlin-files.md` | 801 lines | `.md` |
+| `docs/reference/kotlin-files.md` | 802 lines | `.md` |
 | `docs/reference/non-kotlin-files.md` | 383 lines | `.md` |
 | `docs/reference/resource-index.md` | 255 lines | `.md` |
 | `docs/remote_cipher_config/01-why-it-exists.md` | 88 lines | `.md` |
@@ -1118,7 +1118,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `docs/remote_cipher_config/06-harness-and-monitor.md` | 101 lines | `.md` |
 | `docs/remote_cipher_config/07-runbook.md` | 101 lines | `.md` |
 | `docs/remote_cipher_config/README.md` | 112 lines | `.md` |
-| `docs/repository-map.md` | 1328 lines | `.md` |
+| `docs/repository-map.md` | 1329 lines | `.md` |
 | `docs/stations/README.md` | 69 lines | `.md` |
 | `docs/status/README.md` | 122 lines | `.md` |
 | `docs/status/jewishstatus-api.md` | 162 lines | `.md` |
@@ -1238,9 +1238,10 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `scripts/ui-audit.sh` | 248 lines | `.sh` |
 | `scripts/ui-strings-scan.py` | 96 lines | `.py` |
 | `settings.gradle.kts` | 56 lines | `.kts` |
-| `simpmusic/build.gradle.kts` | 15 lines | `.kts` |
-| `simpmusic/src/main/kotlin/com/metrolist/simpmusic/SimpMusicLyrics.kt` | 119 lines | `.kt` |
+| `simpmusic/build.gradle.kts` | 16 lines | `.kts` |
+| `simpmusic/src/main/kotlin/com/metrolist/simpmusic/SimpMusicLyrics.kt` | 130 lines | `.kt` |
 | `simpmusic/src/main/kotlin/com/metrolist/simpmusic/models/LyricsResponse.kt` | 32 lines | `.kt` |
+| `simpmusic/src/test/kotlin/com/metrolist/simpmusic/SimpMusicLyricsTest.kt` | 39 lines | `.kt` |
 | `tests/INVESTIGATION.md` | 279 lines | `.md` |
 | `tests/MWEB-INVESTIGATION.md` | 83 lines | `.md` |
 | `tests/README.md` | 175 lines | `.md` |

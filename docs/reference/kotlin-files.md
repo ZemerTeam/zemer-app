@@ -793,9 +793,10 @@ Every tracked Kotlin file is listed with hard metadata extracted from the file t
 | `lrclib/src/main/kotlin/com/metrolist/lrclib/LrcLib.kt` | 286 | `com.metrolist.lrclib` | no | 15 | 41 | io.ktor, kotlin.math, kotlinx.coroutines, kotlinx.serialization |
 | `lrclib/src/main/kotlin/com/metrolist/lrclib/models/Track.kt` | 137 | `com.metrolist.lrclib.models` | no | 2 | 29 | kotlin.math, kotlinx.serialization |
 
-## `simpmusic` Kotlin files (2)
+## `simpmusic` Kotlin files (3)
 
 | File | Lines | Package | Compose | Imports | Decls | External import roots |
 | --- | ---: | --- | --- | ---: | ---: | --- |
-| `simpmusic/src/main/kotlin/com/metrolist/simpmusic/SimpMusicLyrics.kt` | 119 | `com.metrolist.simpmusic` | no | 15 | 15 | io.ktor, kotlin.math, kotlinx.serialization |
+| `simpmusic/src/main/kotlin/com/metrolist/simpmusic/SimpMusicLyrics.kt` | 130 | `com.metrolist.simpmusic` | no | 15 | 18 | io.ktor, kotlin.math, kotlinx.serialization |
 | `simpmusic/src/main/kotlin/com/metrolist/simpmusic/models/LyricsResponse.kt` | 32 | `com.metrolist.simpmusic.models` | no | 2 | 15 | kotlinx.serialization |
+| `simpmusic/src/test/kotlin/com/metrolist/simpmusic/SimpMusicLyricsTest.kt` | 39 | `com.metrolist.simpmusic` | no | 3 | 1 | org.junit |

@@ -72,8 +72,8 @@ jobs:
         run: echo "sdk.dir=$ANDROID_SDK_ROOT" > local.properties
       - name: Configure Firebase
         run: echo "${{ secrets.GOOGLE_SERVICES_JSON_BASE64 }}" | base64 -d > app/google-services.json
-      - name: JVM unit tests (app + innertube)
-        run: ./gradlew :app:testDebugUnitTest :innertube:test
+      - name: JVM unit tests (app + innertube + simpmusic)
+        run: ./gradlew :app:testDebugUnitTest :innertube:test :simpmusic:test
       - name: Cipher library unit tests
         run: ./gradlew -p cipher :library:testDebugUnitTest
       - name: Upload test reports on failure

@@ -295,7 +295,7 @@ Every tracked non-Kotlin path outside `docs/` is listed. Text files report line 
 | `scripts/ui-audit.sh` | 248 lines | text `.sh` |
 | `scripts/ui-strings-scan.py` | 96 lines | text `.py` |
 | `settings.gradle.kts` | 56 lines | text `.kts`; plugins `org.gradle.toolchains.foojay-resolver-convention` |
-| `simpmusic/build.gradle.kts` | 15 lines | text `.kts`; plugins `kotlin.serialization, jvm` |
+| `simpmusic/build.gradle.kts` | 16 lines | text `.kts`; plugins `kotlin.serialization, jvm` |
 | `tests/INVESTIGATION.md` | 279 lines | text `.md` |
 | `tests/MWEB-INVESTIGATION.md` | 83 lines | text `.md` |
 | `tests/README.md` | 175 lines | text `.md` |
