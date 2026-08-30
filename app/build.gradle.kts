@@ -251,7 +251,7 @@ dependencies {
     implementation(project(":lrclib"))
     implementation(project(":simpmusic"))
 
-    // No external dependencies for cover art - using native Bento4 library
+    // Cover-art and metadata embedding is pure Kotlin (utils/mp4 + utils/ogg) - no native/external deps
 
     implementation(libs.ktor.client.core)
     implementation(libs.ktor.serialization.json)

@@ -1,25 +1,24 @@
 # Non-Kotlin file reference
 
-Every tracked non-Kotlin path outside `docs/` is listed. Text files report line counts; binary files report byte counts; gitlinks are recorded as non-file tracked paths. Total paths: `399`.
+Every tracked non-Kotlin path outside `docs/` is listed. Text files report line counts; binary files report byte counts; gitlinks are recorded as non-file tracked paths. Total paths: `377`.
 
 | Path | Size/status | Type metadata |
 | --- | ---: | --- |
 | `.github/workflows/debug-build.yml` | 64 lines | text `.yml` |
-| `.github/workflows/docs-regenerate.yml` | 79 lines | text `.yml` |
-| `.github/workflows/gpl-audit.yml` | 74 lines | text `.yml` |
+| `.github/workflows/docs-regenerate.yml` | 74 lines | text `.yml` |
 | `.github/workflows/player-monitor.yml` | 195 lines | text `.yml` |
-| `.github/workflows/regression.yml` | 122 lines | text `.yml` |
-| `.github/workflows/release-build.yml` | 159 lines | text `.yml` |
-| `.github/workflows/ui-audit.yml` | 50 lines | text `.yml` |
+| `.github/workflows/regression.yml` | 82 lines | text `.yml` |
+| `.github/workflows/release-build.yml` | 161 lines | text `.yml` |
+| `.github/workflows/ui-audit.yml` | 56 lines | text `.yml` |
 | `.gitignore` | 117 lines | text `[none]` |
 | `.gitmodules` | 3 lines | text `[none]` |
-| `AGENTS.md` | 1621 lines | text `.md` |
+| `AGENTS.md` | 1649 lines | text `.md` |
 | `LICENSE` | 674 lines | text `[none]` |
 | `README.md` | 19 lines | text `.md` |
 | `app/.gitignore` | 1 lines | text `[none]` |
 | `app/build.gradle.kts` | 291 lines | text `.kts`; plugins `com.android.application, android, kotlin.serialization, hilt, kotlin.ksp, compose.compiler, google.gms.google.services, firebase.crashlytics, rikka.tools.refine` |
 | `app/lint.xml` | 12 lines | text `.xml`; XML root `lint` |
-| `app/proguard-rules.pro` | 269 lines | text `.pro` |
+| `app/proguard-rules.pro` | 255 lines | text `.pro` |
 | `app/schemas/com.jtech.zemer.db.InternalDatabase/1.json` | 297 lines | text `.json`; JSON keys `formatVersion, database` |
 | `app/schemas/com.jtech.zemer.db.InternalDatabase/10.json` | 814 lines | text `.json`; JSON keys `formatVersion, database` |
 | `app/schemas/com.jtech.zemer.db.InternalDatabase/11.json` | 796 lines | text `.json`; JSON keys `formatVersion, database` |
@@ -61,9 +60,6 @@ Every tracked non-Kotlin path outside `docs/` is listed. Text files report line 
 | `app/src/debug/res/values/app_name.xml` | 4 lines | text `.xml`; XML root `resources` |
 | `app/src/debug/res/xml-v25/shortcuts.xml` | 23 lines | text `.xml`; XML root `shortcuts` |
 | `app/src/main/AndroidManifest.xml` | 300 lines | text `.xml`; XML root `manifest` |
-| `app/src/main/assets/solver/astring.js` | 3 lines | text `.js` |
-| `app/src/main/assets/solver/meriyah.js` | 9210 lines | text `.js` |
-| `app/src/main/assets/solver/yt.solver.core.js` | 603 lines | text `.js` |
 | `app/src/main/ic_launcher-playstore.png` | 23742 bytes | binary `.png` |
 | `app/src/main/res/drawable-night/widget_background.xml` | 6 lines | text `.xml`; XML root `shape` |
 | `app/src/main/res/drawable/account.xml` | 9 lines | text `.xml`; XML root `vector` |
@@ -278,32 +274,14 @@ Every tracked non-Kotlin path outside `docs/` is listed. Text files report line 
 | `app/universal/release/baselineProfiles/1/app-universal-release.dm` | 9981 bytes | binary `.dm` |
 | `build.gradle.kts` | 37 lines | text `.kts`; plugins `hilt, kotlin.ksp, google.gms.google.services, firebase.crashlytics, rikka.tools.refine` |
 | `cipher` | gitlink/non-file | tracked path is not a regular file in this checkout |
-| `gpl-discard/01-innertube/CLAUDE.md` | 71 lines | text `.md` |
-| `gpl-discard/02-newpipe-removal/CLAUDE.md` | 21 lines | text `.md` |
-| `gpl-discard/03-bento4/CLAUDE.md` | 60 lines | text `.md` |
-| `gpl-discard/04-db/CLAUDE.md` | 40 lines | text `.md` |
-| `gpl-discard/05-ui-components/CLAUDE.md` | 49 lines | text `.md` |
-| `gpl-discard/06-ui-menus/CLAUDE.md` | 35 lines | text `.md` |
-| `gpl-discard/07-ui-player/CLAUDE.md` | 27 lines | text `.md` |
-| `gpl-discard/08-ui-screens/CLAUDE.md` | 59 lines | text `.md` |
-| `gpl-discard/09-playback-core/CLAUDE.md` | 30 lines | text `.md` |
-| `gpl-discard/10-misc/CLAUDE.md` | 58 lines | text `.md` |
-| `gpl-discard/11-resources/CLAUDE.md` | 134 lines | text `.md` |
-| `gpl-discard/12-consents/CLAUDE.md` | 28 lines | text `.md` |
-| `gpl-discard/13-post-fork-imports/CLAUDE.md` | 54 lines | text `.md` |
-| `gpl-discard/CLAUDE.md` | 297 lines | text `.md` |
-| `gpl-discard/audit-derived.tsv` | 778 lines | text `.tsv` |
-| `gpl-discard/audit.py` | 100 lines | text `.py` |
-| `gpl-discard/progress.tsv` | 8 lines | text `.tsv` |
-| `gpl-discard/surviving-lines.tsv` | 211 lines | text `.tsv` |
 | `gradle.properties` | 40 lines | text `.properties` |
-| `gradle/libs.versions.toml` | 153 lines | text `.toml` |
+| `gradle/libs.versions.toml` | 150 lines | text `.toml` |
 | `gradle/wrapper/gradle-wrapper.jar` | 45457 bytes | binary `.jar` |
 | `gradle/wrapper/gradle-wrapper.properties` | 8 lines | text `.properties` |
 | `gradlew` | 248 lines | text `[none]` |
 | `gradlew.bat` | 93 lines | text `.bat` |
 | `innertube/.gitignore` | 1 lines | text `[none]` |
-| `innertube/build.gradle.kts` | 21 lines | text `.kts`; plugins `kotlin.serialization, jvm` |
+| `innertube/build.gradle.kts` | 18 lines | text `.kts`; plugins `kotlin.serialization, jvm` |
 | `lint.xml` | 6 lines | text `.xml`; XML root `lint` |
 | `lrclib/.gitignore` | 1 lines | text `[none]` |
 | `lrclib/build.gradle.kts` | 16 lines | text `.kts`; plugins `kotlin.serialization, jvm` |
@@ -316,7 +294,7 @@ Every tracked non-Kotlin path outside `docs/` is listed. Text files report line 
 | `scripts/ui-audit.sh` | 248 lines | text `.sh` |
 | `scripts/ui-strings-scan.py` | 96 lines | text `.py` |
 | `settings.gradle.kts` | 56 lines | text `.kts`; plugins `org.gradle.toolchains.foojay-resolver-convention` |
-| `simpmusic/build.gradle.kts` | 15 lines | text `.kts`; plugins `kotlin.serialization, jvm` |
+| `simpmusic/build.gradle.kts` | 16 lines | text `.kts`; plugins `kotlin.serialization, jvm` |
 | `tests/INVESTIGATION.md` | 279 lines | text `.md` |
 | `tests/MWEB-INVESTIGATION.md` | 83 lines | text `.md` |
 | `tests/README.md` | 175 lines | text `.md` |

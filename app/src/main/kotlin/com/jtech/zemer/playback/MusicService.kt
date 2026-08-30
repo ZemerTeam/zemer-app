@@ -62,6 +62,7 @@ import androidx.media3.extractor.ExtractorsFactory
 import androidx.media3.extractor.mkv.MatroskaExtractor
 import androidx.media3.extractor.mp4.FragmentedMp4Extractor
 import androidx.media3.extractor.mp4.Mp4Extractor
+import androidx.media3.extractor.ogg.OggExtractor
 import timber.log.Timber
 import androidx.media3.session.CommandButton
 import androidx.media3.session.DefaultMediaNotificationProvider
@@ -2502,7 +2503,9 @@ class MusicService :
                 // fragmented/mkv extractors can't parse); purely additive (sniffing tries in order), and
                 // it also lets a downloaded muxed video file play inside the music queue.
                 // MatroskaExtractor also decodes the relay's webm/opus (itag 251) audio.
-                arrayOf(MatroskaExtractor(), FragmentedMp4Extractor(), Mp4Extractor())
+                // OggExtractor plays a downloaded Ogg/Opus file (the best-quality audio-download path);
+                // without it an .ogg/.opus download fails with "Source error" into a re-download loop.
+                arrayOf(MatroskaExtractor(), FragmentedMp4Extractor(), Mp4Extractor(), OggExtractor())
             },
         )
         // An adaptive (video-only) quality rung has no audio of its own: its MediaSource MERGES the

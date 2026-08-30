@@ -26,7 +26,7 @@ Zemer is a "Kosher" YouTube Music client for Android (Kotlin, Jetpack Compose, M
 
 ## Build & run
 
-- **JDK 21**, `compileSdk`/`targetSdk` 36, `minSdk` 26. Native code targets `arm64-v8a` + `armeabi-v7a` only (NDK 27). There are no product flavors.
+- **JDK 21**, `compileSdk`/`targetSdk` 36, `minSdk` 26. The app ships `arm64-v8a` + `armeabi-v7a` ABIs (for bundled dependency native libs only - the app has no NDK build or C/C++ of its own since the bento4 removal). There are no product flavors.
 - `./gradlew :app:assembleDebug` - debug APK at `app/build/outputs/apk/debug/app-debug.apk`.
 - `./gradlew :app:assembleRelease` - release APK. **Build BOTH after any change**: release runs R8 (`isMinifyEnabled = true`) and catches shrink/keep-rule breakage that debug never will.
 - Submodules are required: `git submodule update --init --recursive` (`cipher/`). There is NO native code: metadata embedding is pure Kotlin (`utils/mp4/Mp4MetadataWriter`, `utils/ogg/OggOpusTagger`, with framework `AudioRemux` for defragment/rewrap) - the old bento4 NDK build is gone, and audio downloads may keep Opus (itag 251, saved as tagged `.ogg` on API 29+) instead of being forced to AAC/m4a.
@@ -1580,6 +1580,34 @@ Every download/progress affordance reads ONE path; do not re-implement per surfa
   phone disagree about which songs are in the list again. The opt-out switch lives on
   `DownloadedVideosScreen` ("Show in downloaded music"), which stays reachable even when videos are
   blocked (same reasoning as the Home Featured Videos shelf above - it never renders watchable video).
+
+**Audio format + metadata embedding (pure Kotlin - the bento4 native layer is GONE).** The app no longer
+bundles `libcoverart.so` / the bento4 NDK submodule; all download metadata is written in pure Kotlin, and
+an audio download can now keep **Opus** instead of being forced to AAC. Rules that must not regress:
+- **Container routing lives in `utils/CoverArtEmbedder`** (`supportsEmbedding` + embed), dispatching by
+  extension: **MP4/M4A** -> flatten a fragmented input via `utils/mp4/AudioRemux.flattenMp4`, then tag with
+  `utils/mp4/Mp4MetadataWriter` (iTunes-style `moov/udta/meta/ilst` atoms: title/artist/album/year, `covr`
+  cover art, `aART`/`trkn` album-artist/track-number, and identity-exact lyrics). **WebM/Ogg Opus** ->
+  rewrap WebM to Ogg via `AudioRemux.webmOpusToOgg`, then tag with `utils/ogg/OggOpusTagger` (an OpusTags
+  Vorbis-comment packet + `METADATA_BLOCK_PICTURE` cover). An already-Ogg file is tagged directly. All
+  three are framework/pure-Kotlin - **no native dependency, no NDK.** Guarded by JVM tests
+  (`Mp4MetadataWriterTest` / `OggOpusTaggerTest`) plus the on-device `OpusDevicePipelineTest` (real
+  itag-251 WebM->Ogg remux + tag, then `MediaMetadataRetriever` reads every field + cover back from BOTH
+  containers).
+- **Opus is API 29+ only, and gated - `minSdk` is 26.** `AudioRemux.oggMuxSupported` is `SDK_INT >= Q`
+  (needs `MediaMuxer` OGG output). `MediaStoreDownloadManager` sets `downloadOpusOk = !videoDownload &&
+  oggMuxSupported && DownloadAudioFormat == BEST`, and `YTPlayerUtils` only allows WebM/Opus (itag 251) for
+  a download when `downloadOpusOk`. So **26-28 fall back to best AAC/m4a** - exactly the m4a-only job bento4
+  did (it had no Opus path on ANY version), so this is never a regression - and 29+ gain Opus. A raw
+  `.webm` is never saved (MediaStore.Audio rejects it); the rewrap-to-`.ogg` is what makes Opus storable.
+- **`OggExtractor` MUST stay registered** in `MusicService.createMediaSourceFactory` - a downloaded
+  `.ogg`/`.opus` file otherwise fails with "Source error" into a self-repair re-download loop.
+- **`DownloadAudioFormatKey` ("downloadAudioFormat") is a permanent preference** (Player settings, shown
+  API 29+ only): `DownloadAudioFormat.BEST` (default - Opus where available) or `COMPATIBLE` (always
+  AAC/m4a). Renaming the key strands updating users; record its default in the preference-defaults baseline.
+- **A download is a deliberate act - never reduced by the streaming quality preference or metering.**
+  `YTPlayerUtils` forces the download's audio to HIGH (`if (videoDownload) audioQuality else HIGH`), fixing
+  the old negated-multiplier bug where `maxByOrNull` picked the WORST format on a metered/LOW connection.
 
 Enforcement (so this can't regress): `scripts/check-download-unification.sh` (whole-app, wired into
 the UI-audit workflow) + `scripts/ui-audit.sh` rule **R13** fail CI on any `downloadUtil.downloads` /
