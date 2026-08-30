@@ -695,12 +695,12 @@ Every tracked Kotlin file is listed with hard metadata extracted from the file t
 | `app/src/test/kotlin/com/jtech/zemer/viewmodels/StaleAlbumDeleteTest.kt` | 29 | `com.jtech.zemer.viewmodels` | no | 3 | 1 | org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/widget/WidgetLayoutTest.kt` | 26 | `com.jtech.zemer.widget` | no | 3 | 1 | org.junit |
 
-## `innertube` Kotlin files (87)
+## `innertube` Kotlin files (88)
 
 | File | Lines | Package | Compose | Imports | Decls | External import roots |
 | --- | ---: | --- | --- | ---: | ---: | --- |
 | `innertube/src/main/kotlin/com/metrolist/innertube/InnerTube.kt` | 728 | `com.metrolist.innertube` | no | 47 | 48 | io.ktor, java.util, kotlinx.serialization, okhttp3.ConnectionPool, okhttp3.Dispatcher |
-| `innertube/src/main/kotlin/com/metrolist/innertube/YouTube.kt` | 979 | `com.metrolist.innertube` | no | 55 | 151 | io.ktor, kotlin.random, kotlinx.coroutines, kotlinx.serialization |
+| `innertube/src/main/kotlin/com/metrolist/innertube/YouTube.kt` | 989 | `com.metrolist.innertube` | no | 56 | 154 | io.ktor, kotlin.random, kotlinx.coroutines, kotlinx.serialization |
 | `innertube/src/main/kotlin/com/metrolist/innertube/models/AccountInfo.kt` | 8 | `com.metrolist.innertube.models` | no | 0 | 5 |  |
 | `innertube/src/main/kotlin/com/metrolist/innertube/models/AutomixPreviewVideoRenderer.kt` | 18 | `com.metrolist.innertube.models` | no | 1 | 6 | kotlinx.serialization |
 | `innertube/src/main/kotlin/com/metrolist/innertube/models/Badges.kt` | 13 | `com.metrolist.innertube.models` | no | 1 | 4 | kotlinx.serialization |
@@ -708,7 +708,7 @@ Every tracked Kotlin file is listed with hard metadata extracted from the file t
 | `innertube/src/main/kotlin/com/metrolist/innertube/models/Context.kt` | 60 | `com.metrolist.innertube.models` | no | 1 | 27 | kotlinx.serialization |
 | `innertube/src/main/kotlin/com/metrolist/innertube/models/Continuation.kt` | 20 | `com.metrolist.innertube.models` | no | 3 | 5 | kotlinx.serialization |
 | `innertube/src/main/kotlin/com/metrolist/innertube/models/ContinuationItemRenderer.kt` | 18 | `com.metrolist.innertube.models` | no | 1 | 6 | kotlinx.serialization |
-| `innertube/src/main/kotlin/com/metrolist/innertube/models/Endpoint.kt` | 120 | `com.metrolist.innertube.models` | no | 5 | 57 | kotlinx.serialization |
+| `innertube/src/main/kotlin/com/metrolist/innertube/models/Endpoint.kt` | 126 | `com.metrolist.innertube.models` | no | 7 | 59 | kotlinx.serialization |
 | `innertube/src/main/kotlin/com/metrolist/innertube/models/GridRenderer.kt` | 26 | `com.metrolist.innertube.models` | no | 1 | 11 | kotlinx.serialization |
 | `innertube/src/main/kotlin/com/metrolist/innertube/models/Icon.kt` | 8 | `com.metrolist.innertube.models` | no | 1 | 2 | kotlinx.serialization |
 | `innertube/src/main/kotlin/com/metrolist/innertube/models/MediaInfo.kt` | 15 | `com.metrolist.innertube.models` | no | 0 | 12 |  |
@@ -735,7 +735,7 @@ Every tracked Kotlin file is listed with hard metadata extracted from the file t
 | `innertube/src/main/kotlin/com/metrolist/innertube/models/SearchSuggestions.kt` | 6 | `com.metrolist.innertube.models` | no | 0 | 3 |  |
 | `innertube/src/main/kotlin/com/metrolist/innertube/models/SectionListRenderer.kt` | 73 | `com.metrolist.innertube.models` | no | 3 | 35 | kotlinx.serialization |
 | `innertube/src/main/kotlin/com/metrolist/innertube/models/SubscriptionButton.kt` | 14 | `com.metrolist.innertube.models` | no | 1 | 5 | kotlinx.serialization |
-| `innertube/src/main/kotlin/com/metrolist/innertube/models/Tabs.kt` | 26 | `com.metrolist.innertube.models` | no | 1 | 11 | kotlinx.serialization |
+| `innertube/src/main/kotlin/com/metrolist/innertube/models/Tabs.kt` | 34 | `com.metrolist.innertube.models` | no | 1 | 12 | kotlinx.serialization |
 | `innertube/src/main/kotlin/com/metrolist/innertube/models/ThumbnailRenderer.kt` | 29 | `com.metrolist.innertube.models` | no | 3 | 12 | kotlinx.serialization |
 | `innertube/src/main/kotlin/com/metrolist/innertube/models/Thumbnails.kt` | 15 | `com.metrolist.innertube.models` | no | 1 | 6 | kotlinx.serialization |
 | `innertube/src/main/kotlin/com/metrolist/innertube/models/TwoColumnBrowseResultsRenderer.kt` | 26 | `com.metrolist.innertube.models` | no | 1 | 11 | kotlinx.serialization |
@@ -785,6 +785,7 @@ Every tracked Kotlin file is listed with hard metadata extracted from the file t
 | `innertube/src/main/kotlin/com/metrolist/innertube/utils/Utils.kt` | 91 | `com.metrolist.innertube.utils` | no | 4 | 22 | java.security |
 | `innertube/src/test/kotlin/com/metrolist/innertube/pages/NextCounterpartTest.kt` | 127 | `com.metrolist.innertube.pages` | no | 6 | 9 | kotlinx.serialization, org.junit |
 | `innertube/src/test/kotlin/com/zemer/innertube/models/MusicCarouselShelfHeaderTest.kt` | 34 | `com.zemer.innertube.models` | no | 5 | 5 | kotlinx.serialization, org.junit |
+| `innertube/src/test/kotlin/com/zemer/innertube/models/WatchNextTabResolutionTest.kt` | 50 | `com.zemer.innertube.models` | no | 5 | 3 | kotlinx.serialization, org.junit |
 | `innertube/src/test/kotlin/com/zemer/innertube/models/response/MusicHeaderThumbnailTest.kt` | 51 | `com.zemer.innertube.models.response` | no | 5 | 5 | kotlinx.serialization, org.junit |
 
 ## `lrclib` Kotlin files (2)

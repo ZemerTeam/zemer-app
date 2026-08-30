@@ -2,6 +2,7 @@ package com.metrolist.innertube
 
 import com.metrolist.innertube.models.AccountInfo
 import com.metrolist.innertube.models.AlbumItem
+import com.metrolist.innertube.models.browseEndpointMatching
 import com.metrolist.innertube.models.Artist
 import com.metrolist.innertube.models.ArtistItem
 import com.metrolist.innertube.models.BrowseEndpoint
@@ -686,14 +687,23 @@ object YouTube {
         // Authoritative song→video counterpart mapping (empty for the common wrapper-less response).
         val counterparts = NextPage.counterpartsFrom(playlistPanelRenderer.contents)
 
+        // Watch-next tabs, resolved by page type so an inserted tab (e.g. a Comments tab at index 2)
+        // can no longer shift the Related tab off its slot and null relatedEndpoint for every track.
+        // A positional index-1 lyrics fallback keeps the port non-regressive.
+        val watchNextTabs = response.contents.singleColumnMusicWatchNextResultsRenderer
+            ?.tabbedRenderer?.watchNextTabbedResultsRenderer?.tabs
+        val lyricsEndpoint = watchNextTabs?.browseEndpointMatching { it.isTrackLyricsEndpoint }
+            ?: watchNextTabs?.getOrNull(1)?.tabRenderer?.endpoint?.browseEndpoint
+        val relatedEndpoint = watchNextTabs?.browseEndpointMatching { it.isTrackRelatedEndpoint }
+
         // load automix items
         playlistPanelRenderer.contents.lastOrNull()?.automixPreviewVideoRenderer?.content?.automixPlaylistVideoRenderer?.navigationEndpoint?.watchPlaylistEndpoint?.let { watchPlaylistEndpoint ->
             return@runCatching next(watchPlaylistEndpoint).getOrThrow().let { result ->
                 result.copy(
                     title = title,
                     items = songs + result.items,
-                    lyricsEndpoint = response.contents.singleColumnMusicWatchNextResultsRenderer?.tabbedRenderer?.watchNextTabbedResultsRenderer?.tabs?.getOrNull(1)?.tabRenderer?.endpoint?.browseEndpoint,
-                    relatedEndpoint = response.contents.singleColumnMusicWatchNextResultsRenderer?.tabbedRenderer?.watchNextTabbedResultsRenderer?.tabs?.getOrNull(2)?.tabRenderer?.endpoint?.browseEndpoint,
+                    lyricsEndpoint = lyricsEndpoint,
+                    relatedEndpoint = relatedEndpoint,
                     currentIndex = currentIndex,
                     endpoint = watchPlaylistEndpoint,
                     counterparts = counterparts + result.counterparts,
@@ -704,8 +714,8 @@ object YouTube {
             title = title,
             items = songs,
             currentIndex = currentIndex,
-            lyricsEndpoint = response.contents.singleColumnMusicWatchNextResultsRenderer?.tabbedRenderer?.watchNextTabbedResultsRenderer?.tabs?.getOrNull(1)?.tabRenderer?.endpoint?.browseEndpoint,
-            relatedEndpoint = response.contents.singleColumnMusicWatchNextResultsRenderer?.tabbedRenderer?.watchNextTabbedResultsRenderer?.tabs?.getOrNull(2)?.tabRenderer?.endpoint?.browseEndpoint,
+            lyricsEndpoint = lyricsEndpoint,
+            relatedEndpoint = relatedEndpoint,
             continuation = playlistPanelRenderer.continuations?.getContinuation(),
             endpoint = endpoint,
             counterparts = counterparts,

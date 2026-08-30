@@ -77,9 +77,9 @@ The following inventory is generated from repository files outside `.git`, `.gra
 
 ### Counts
 
-- Files counted: `1220`
+- Files counted: `1221`
 - By extension:
-  - `.kt`: `780`
+  - `.kt`: `781`
   - `.xml`: `192`
   - `.mjs`: `77`
   - `.md`: `71`
@@ -1107,7 +1107,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `docs/recognize_music/05-widget.md` | 72 lines | `.md` |
 | `docs/recognize_music/06-testing-and-maintenance.md` | 54 lines | `.md` |
 | `docs/recognize_music/README.md` | 71 lines | `.md` |
-| `docs/reference/kotlin-files.md` | 803 lines | `.md` |
+| `docs/reference/kotlin-files.md` | 804 lines | `.md` |
 | `docs/reference/non-kotlin-files.md` | 383 lines | `.md` |
 | `docs/reference/resource-index.md` | 255 lines | `.md` |
 | `docs/remote_cipher_config/01-why-it-exists.md` | 88 lines | `.md` |
@@ -1118,7 +1118,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `docs/remote_cipher_config/06-harness-and-monitor.md` | 101 lines | `.md` |
 | `docs/remote_cipher_config/07-runbook.md` | 101 lines | `.md` |
 | `docs/remote_cipher_config/README.md` | 112 lines | `.md` |
-| `docs/repository-map.md` | 1330 lines | `.md` |
+| `docs/repository-map.md` | 1331 lines | `.md` |
 | `docs/stations/README.md` | 69 lines | `.md` |
 | `docs/status/README.md` | 122 lines | `.md` |
 | `docs/status/jewishstatus-api.md` | 162 lines | `.md` |
@@ -1139,7 +1139,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `innertube/.gitignore` | 1 lines | `[none]` |
 | `innertube/build.gradle.kts` | 18 lines | `.kts` |
 | `innertube/src/main/kotlin/com/metrolist/innertube/InnerTube.kt` | 728 lines | `.kt` |
-| `innertube/src/main/kotlin/com/metrolist/innertube/YouTube.kt` | 979 lines | `.kt` |
+| `innertube/src/main/kotlin/com/metrolist/innertube/YouTube.kt` | 989 lines | `.kt` |
 | `innertube/src/main/kotlin/com/metrolist/innertube/models/AccountInfo.kt` | 8 lines | `.kt` |
 | `innertube/src/main/kotlin/com/metrolist/innertube/models/AutomixPreviewVideoRenderer.kt` | 18 lines | `.kt` |
 | `innertube/src/main/kotlin/com/metrolist/innertube/models/Badges.kt` | 13 lines | `.kt` |
@@ -1147,7 +1147,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `innertube/src/main/kotlin/com/metrolist/innertube/models/Context.kt` | 60 lines | `.kt` |
 | `innertube/src/main/kotlin/com/metrolist/innertube/models/Continuation.kt` | 20 lines | `.kt` |
 | `innertube/src/main/kotlin/com/metrolist/innertube/models/ContinuationItemRenderer.kt` | 18 lines | `.kt` |
-| `innertube/src/main/kotlin/com/metrolist/innertube/models/Endpoint.kt` | 120 lines | `.kt` |
+| `innertube/src/main/kotlin/com/metrolist/innertube/models/Endpoint.kt` | 126 lines | `.kt` |
 | `innertube/src/main/kotlin/com/metrolist/innertube/models/GridRenderer.kt` | 26 lines | `.kt` |
 | `innertube/src/main/kotlin/com/metrolist/innertube/models/Icon.kt` | 8 lines | `.kt` |
 | `innertube/src/main/kotlin/com/metrolist/innertube/models/MediaInfo.kt` | 15 lines | `.kt` |
@@ -1174,7 +1174,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `innertube/src/main/kotlin/com/metrolist/innertube/models/SearchSuggestions.kt` | 6 lines | `.kt` |
 | `innertube/src/main/kotlin/com/metrolist/innertube/models/SectionListRenderer.kt` | 73 lines | `.kt` |
 | `innertube/src/main/kotlin/com/metrolist/innertube/models/SubscriptionButton.kt` | 14 lines | `.kt` |
-| `innertube/src/main/kotlin/com/metrolist/innertube/models/Tabs.kt` | 26 lines | `.kt` |
+| `innertube/src/main/kotlin/com/metrolist/innertube/models/Tabs.kt` | 34 lines | `.kt` |
 | `innertube/src/main/kotlin/com/metrolist/innertube/models/ThumbnailRenderer.kt` | 29 lines | `.kt` |
 | `innertube/src/main/kotlin/com/metrolist/innertube/models/Thumbnails.kt` | 15 lines | `.kt` |
 | `innertube/src/main/kotlin/com/metrolist/innertube/models/TwoColumnBrowseResultsRenderer.kt` | 26 lines | `.kt` |
@@ -1224,6 +1224,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `innertube/src/main/kotlin/com/metrolist/innertube/utils/Utils.kt` | 91 lines | `.kt` |
 | `innertube/src/test/kotlin/com/metrolist/innertube/pages/NextCounterpartTest.kt` | 127 lines | `.kt` |
 | `innertube/src/test/kotlin/com/zemer/innertube/models/MusicCarouselShelfHeaderTest.kt` | 34 lines | `.kt` |
+| `innertube/src/test/kotlin/com/zemer/innertube/models/WatchNextTabResolutionTest.kt` | 50 lines | `.kt` |
 | `innertube/src/test/kotlin/com/zemer/innertube/models/response/MusicHeaderThumbnailTest.kt` | 51 lines | `.kt` |
 | `lint.xml` | 6 lines | `.xml` |
 | `lrclib/.gitignore` | 1 lines | `[none]` |
