@@ -55,13 +55,3 @@
 | `:innertube` | `com.metrolist.innertube` | `kotlin.serialization`, `jvm`; jvmToolchain `21` | `ktor.client.core`, `ktor.client.okhttp`, `ktor.client.content.negotiation`, `ktor.serialization.json`, `ktor.client.encoding`, `okhttp.dnsoverhttps`, `junit` | 85 files (see `reference/kotlin-files.md`) |
 | `:lrclib` | `com.metrolist.lrclib` | `kotlin.serialization`, `jvm`; jvmToolchain `21` | `ktor.client.core`, `ktor.client.cio`, `ktor.client.content.negotiation`, `ktor.serialization.json`, `junit` | `LrcLib.kt`, `models/Track.kt` |
 | `:simpmusic` | `com.metrolist.simpmusic` | `kotlin.serialization`, `jvm`; jvmToolchain `21` | `ktor.client.core`, `ktor.client.cio`, `ktor.client.content.negotiation`, `ktor.serialization.json` | `SimpMusicLyrics.kt`, `models/LyricsResponse.kt` |
-
-## Solver assets
-
-Tracked solver assets under `app/src/main/assets/solver`:
-
-| File | Hard fact |
-| --- | --- |
-| `astring.js` | Tracked JavaScript asset under Android assets. |
-| `meriyah.js` | Tracked JavaScript asset under Android assets. |
-| `yt.solver.core.js` | Tracked JavaScript asset under Android assets. |

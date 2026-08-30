@@ -70,7 +70,6 @@
 | `com.jtech.zemer.ui.theme` | 4 |
 | `com.jtech.zemer.ui.utils` | 11 |
 | `com.jtech.zemer.utils` | 33 |
-| `com.jtech.zemer.utils.sabr` | 2 |
 | `com.jtech.zemer.viewmodels` | 34 |
 | `com.jtech.zemer.widget` | 1 |
 
@@ -110,7 +109,6 @@
 | `com/jtech/zemer/ui/theme` | 4 |
 | `com/jtech/zemer/ui/utils` | 11 |
 | `com/jtech/zemer/utils` | 33 |
-| `com/jtech/zemer/utils/sabr` | 2 |
 | `com/jtech/zemer/viewmodels` | 34 |
 | `com/jtech/zemer/widget` | 1 |
 
@@ -127,6 +125,6 @@
 | Preferences and sync | `constants/PreferenceKeys.kt`, `utils/DataStore.kt`, `sync/*.kt`, `sync/models/*.kt`, `utils/SyncUtils.kt` |
 | Auth | `auth/*.kt`, auth-related settings/onboarding screens |
 | Lyrics | `lyrics/*.kt`, `lyrics/model/*.kt`, `lrclib`, `simpmusic` modules |
-| Native/assets | `src/main/cpp/CMakeLists.txt`, `src/main/assets/solver/*.js`, app resources |
+| Native/assets | `src/main/cpp/CMakeLists.txt`, app resources |
 
 See the `reference/` docs for per-file metadata.

@@ -16,7 +16,6 @@ import com.metrolist.innertube.YouTube
 import com.zemer.cipher.CipherDeobfuscator
 import com.zemer.cipher.potoken.PoTokenGenerator
 import com.zemer.cipher.potoken.PoTokenResult
-import com.jtech.zemer.utils.sabr.EjsNTransformSolver
 import com.metrolist.innertube.models.YouTubeClient
 import com.metrolist.innertube.models.YouTubeClient.Companion.VISIONOS
 import com.metrolist.innertube.models.YouTubeClient.Companion.VISIONOS_0_1
@@ -569,11 +568,8 @@ object YTPlayerUtils {
         client: YouTubeClient,
         poTokenResult: PoTokenResult?,
     ): String {
+        // The cipher is the single n-transform source (it self-heals on rotation).
         var result = CipherDeobfuscator.transformNParamInUrl(url)
-        if (result == url) {
-            // CipherDeobfuscator didn't transform; try EjsNTransformSolver as fallback.
-            result = EjsNTransformSolver.transformNParamInUrl(url)
-        }
         if (client.useWebPoTokens && poTokenResult?.streamingDataPoToken != null) {
             val separator = if ("?" in result) "&" else "?"
             result = "$result${separator}pot=${android.net.Uri.encode(poTokenResult.streamingDataPoToken)}"

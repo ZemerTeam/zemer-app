@@ -1,6 +1,6 @@
 # Non-Kotlin file reference
 
-Every tracked non-Kotlin path outside `docs/` is listed. Text files report line counts; binary files report byte counts; gitlinks are recorded as non-file tracked paths. Total paths: `379`.
+Every tracked non-Kotlin path outside `docs/` is listed. Text files report line counts; binary files report byte counts; gitlinks are recorded as non-file tracked paths. Total paths: `376`.
 
 | Path | Size/status | Type metadata |
 | --- | ---: | --- |
@@ -17,7 +17,7 @@ Every tracked non-Kotlin path outside `docs/` is listed. Text files report line 
 | `app/.gitignore` | 1 lines | text `[none]` |
 | `app/build.gradle.kts` | 307 lines | text `.kts`; plugins `com.android.application, android, kotlin.serialization, hilt, kotlin.ksp, compose.compiler, google.gms.google.services, firebase.crashlytics, rikka.tools.refine` |
 | `app/lint.xml` | 12 lines | text `.xml`; XML root `lint` |
-| `app/proguard-rules.pro` | 269 lines | text `.pro` |
+| `app/proguard-rules.pro` | 255 lines | text `.pro` |
 | `app/schemas/com.jtech.zemer.db.InternalDatabase/1.json` | 297 lines | text `.json`; JSON keys `formatVersion, database` |
 | `app/schemas/com.jtech.zemer.db.InternalDatabase/10.json` | 814 lines | text `.json`; JSON keys `formatVersion, database` |
 | `app/schemas/com.jtech.zemer.db.InternalDatabase/11.json` | 796 lines | text `.json`; JSON keys `formatVersion, database` |
@@ -56,9 +56,6 @@ Every tracked non-Kotlin path outside `docs/` is listed. Text files report line 
 | `app/src/debug/res/values/app_name.xml` | 4 lines | text `.xml`; XML root `resources` |
 | `app/src/debug/res/xml-v25/shortcuts.xml` | 23 lines | text `.xml`; XML root `shortcuts` |
 | `app/src/main/AndroidManifest.xml` | 300 lines | text `.xml`; XML root `manifest` |
-| `app/src/main/assets/solver/astring.js` | 3 lines | text `.js` |
-| `app/src/main/assets/solver/meriyah.js` | 9210 lines | text `.js` |
-| `app/src/main/assets/solver/yt.solver.core.js` | 603 lines | text `.js` |
 | `app/src/main/cpp/CMakeLists.txt` | 5 lines | text `.txt` |
 | `app/src/main/cpp/bento4` | gitlink/non-file | tracked path is not a regular file in this checkout |
 | `app/src/main/ic_launcher-playstore.png` | 23742 bytes | binary `.png` |

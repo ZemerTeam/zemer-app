@@ -77,9 +77,9 @@ The following inventory is generated from repository files outside `.git`, `.gra
 
 ### Counts
 
-- Files counted: `1218`
+- Files counted: `1213`
 - By extension:
-  - `.kt`: `776`
+  - `.kt`: `774`
   - `.xml`: `192`
   - `.mjs`: `77`
   - `.md`: `71`
@@ -89,7 +89,6 @@ The following inventory is generated from repository files outside `.git`, `.gra
   - `.kts`: `6`
   - `.sh`: `5`
   - `.yml`: `5`
-  - `.js`: `3`
   - `.properties`: `3`
   - `.dm`: `2`
   - `.lottie`: `2`
@@ -122,7 +121,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/.gitignore` | 1 lines | `[none]` |
 | `app/build.gradle.kts` | 307 lines | `.kts` |
 | `app/lint.xml` | 12 lines | `.xml` |
-| `app/proguard-rules.pro` | 269 lines | `.pro` |
+| `app/proguard-rules.pro` | 255 lines | `.pro` |
 | `app/schemas/com.jtech.zemer.db.InternalDatabase/1.json` | 297 lines | `.json` |
 | `app/schemas/com.jtech.zemer.db.InternalDatabase/10.json` | 814 lines | `.json` |
 | `app/schemas/com.jtech.zemer.db.InternalDatabase/11.json` | 796 lines | `.json` |
@@ -161,9 +160,6 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/debug/res/values/app_name.xml` | 4 lines | `.xml` |
 | `app/src/debug/res/xml-v25/shortcuts.xml` | 23 lines | `.xml` |
 | `app/src/main/AndroidManifest.xml` | 300 lines | `.xml` |
-| `app/src/main/assets/solver/astring.js` | 3 lines | `.js` |
-| `app/src/main/assets/solver/meriyah.js` | 9210 lines | `.js` |
-| `app/src/main/assets/solver/yt.solver.core.js` | 603 lines | `.js` |
 | `app/src/main/cpp/CMakeLists.txt` | 5 lines | `.txt` |
 | `app/src/main/ic_launcher-playstore.png` | 23742 bytes | `.png` |
 | `app/src/main/jniLibs/arm64-v8a/libcoverart.so` | 644248 bytes | `.so` |
@@ -659,10 +655,8 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/main/kotlin/com/jtech/zemer/utils/WhitelistCache.kt` | 40 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/utils/WhitelistFetcher.kt` | 230 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/utils/WhitelistFilter.kt` | 331 lines | `.kt` |
-| `app/src/main/kotlin/com/jtech/zemer/utils/YTPlayerUtils.kt` | 800 lines | `.kt` |
+| `app/src/main/kotlin/com/jtech/zemer/utils/YTPlayerUtils.kt` | 796 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/utils/ZemerContentClient.kt` | 257 lines | `.kt` |
-| `app/src/main/kotlin/com/jtech/zemer/utils/sabr/EjsNTransformSolver.kt` | 307 lines | `.kt` |
-| `app/src/main/kotlin/com/jtech/zemer/utils/sabr/SabrException.kt` | 3 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/utils/updater/ApkInstallController.kt` | 102 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/utils/updater/AppInstaller.kt` | 267 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/utils/updater/AppRestarter.kt` | 30 lines | `.kt` |
@@ -1068,12 +1062,12 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/universal/release/baselineProfiles/1/app-universal-release.dm` | 9981 bytes | `.dm` |
 | `build.gradle.kts` | 37 lines | `.kts` |
 | `docs/README.md` | 32 lines | `.md` |
-| `docs/app/README.md` | 132 lines | `.md` |
+| `docs/app/README.md` | 130 lines | `.md` |
 | `docs/app/database.md` | 566 lines | `.md` |
 | `docs/app/playback.md` | 36 lines | `.md` |
 | `docs/app/preferences-sync-auth.md` | 152 lines | `.md` |
 | `docs/app/viewmodels.md` | 30 lines | `.md` |
-| `docs/build-release.md` | 67 lines | `.md` |
+| `docs/build-release.md` | 57 lines | `.md` |
 | `docs/fcast/01-architecture.md` | 116 lines | `.md` |
 | `docs/fcast/02-on-demand-native-lib.md` | 134 lines | `.md` |
 | `docs/fcast/03-discovery-and-connection.md` | 253 lines | `.md` |
@@ -1082,7 +1076,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `docs/fcast/06-ui.md` | 131 lines | `.md` |
 | `docs/fcast/07-testing-and-troubleshooting.md` | 176 lines | `.md` |
 | `docs/fcast/README.md` | 79 lines | `.md` |
-| `docs/generate.py` | 486 lines | `.py` |
+| `docs/generate.py` | 474 lines | `.py` |
 | `docs/genres/README.md` | 120 lines | `.md` |
 | `docs/home_rows/README.md` | 101 lines | `.md` |
 | `docs/innertube/README.md` | 170 lines | `.md` |
@@ -1109,8 +1103,8 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `docs/recognize_music/05-widget.md` | 72 lines | `.md` |
 | `docs/recognize_music/06-testing-and-maintenance.md` | 54 lines | `.md` |
 | `docs/recognize_music/README.md` | 71 lines | `.md` |
-| `docs/reference/kotlin-files.md` | 799 lines | `.md` |
-| `docs/reference/non-kotlin-files.md` | 385 lines | `.md` |
+| `docs/reference/kotlin-files.md` | 797 lines | `.md` |
+| `docs/reference/non-kotlin-files.md` | 382 lines | `.md` |
 | `docs/reference/resource-index.md` | 255 lines | `.md` |
 | `docs/remote_cipher_config/01-why-it-exists.md` | 88 lines | `.md` |
 | `docs/remote_cipher_config/02-file-format.md` | 116 lines | `.md` |
@@ -1120,7 +1114,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `docs/remote_cipher_config/06-harness-and-monitor.md` | 101 lines | `.md` |
 | `docs/remote_cipher_config/07-runbook.md` | 101 lines | `.md` |
 | `docs/remote_cipher_config/README.md` | 112 lines | `.md` |
-| `docs/repository-map.md` | 1329 lines | `.md` |
+| `docs/repository-map.md` | 1323 lines | `.md` |
 | `docs/stations/README.md` | 69 lines | `.md` |
 | `docs/status/README.md` | 122 lines | `.md` |
 | `docs/status/jewishstatus-api.md` | 162 lines | `.md` |

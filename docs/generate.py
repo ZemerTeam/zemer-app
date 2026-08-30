@@ -403,15 +403,6 @@ def _modules_section():
     return "\n".join(rows)
 
 
-def _solver_section():
-    regular, _ = tracked()
-    solver = [p for p in regular if p.startswith("app/src/main/assets/solver/")]
-    rows = ["| File | Hard fact |", "| --- | --- |"]
-    for p in solver:
-        rows.append(f"| `{os.path.basename(p)}` | Tracked JavaScript asset under Android assets. |")
-    return "\n".join(rows)
-
-
 def gen_build_release_md():
     parts = [
         "# Build, CI, native, and auxiliary modules documentation", "",
@@ -427,10 +418,7 @@ def gen_build_release_md():
         "## Native code and submodules", "",
         _native_section(), "",
         "## Auxiliary JVM modules", "",
-        _modules_section(), "",
-        "## Solver assets", "",
-        "Tracked solver assets under `app/src/main/assets/solver`:", "",
-        _solver_section(),
+        _modules_section(),
     ]
     return "\n".join(parts).rstrip("\n") + "\n"
 
