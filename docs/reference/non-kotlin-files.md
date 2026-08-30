@@ -59,7 +59,7 @@ Every tracked non-Kotlin path outside `docs/` is listed. Text files report line 
 | `app/src/androidTest/assets/sample-opus.webm` | 5878798 bytes | binary `.webm` |
 | `app/src/debug/res/values/app_name.xml` | 4 lines | text `.xml`; XML root `resources` |
 | `app/src/debug/res/xml-v25/shortcuts.xml` | 23 lines | text `.xml`; XML root `shortcuts` |
-| `app/src/main/AndroidManifest.xml` | 300 lines | text `.xml`; XML root `manifest` |
+| `app/src/main/AndroidManifest.xml` | 289 lines | text `.xml`; XML root `manifest` |
 | `app/src/main/ic_launcher-playstore.png` | 23742 bytes | binary `.png` |
 | `app/src/main/res/drawable-night/widget_background.xml` | 6 lines | text `.xml`; XML root `shape` |
 | `app/src/main/res/drawable/account.xml` | 9 lines | text `.xml`; XML root `vector` |

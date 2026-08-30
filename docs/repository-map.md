@@ -77,9 +77,9 @@ The following inventory is generated from repository files outside `.git`, `.gra
 
 ### Counts
 
-- Files counted: `1225`
+- Files counted: `1224`
 - By extension:
-  - `.kt`: `784`
+  - `.kt`: `783`
   - `.xml`: `192`
   - `.mjs`: `78`
   - `.md`: `71`
@@ -166,7 +166,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/androidTest/kotlin/com/jtech/zemer/OpusDevicePipelineTest.kt` | 108 lines | `.kt` |
 | `app/src/debug/res/values/app_name.xml` | 4 lines | `.xml` |
 | `app/src/debug/res/xml-v25/shortcuts.xml` | 23 lines | `.xml` |
-| `app/src/main/AndroidManifest.xml` | 300 lines | `.xml` |
+| `app/src/main/AndroidManifest.xml` | 289 lines | `.xml` |
 | `app/src/main/ic_launcher-playstore.png` | 23742 bytes | `.png` |
 | `app/src/main/kotlin/com/dpi/ActivityLifecycleManager.kt` | 127 lines | `.kt` |
 | `app/src/main/kotlin/com/dpi/BaseLifecycleContentProvider.kt` | 36 lines | `.kt` |
@@ -294,10 +294,9 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/main/kotlin/com/jtech/zemer/playback/DeferredStatsRecord.kt` | 53 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/playback/DownloadMenuLogic.kt` | 68 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/playback/DownloadStateResolver.kt` | 106 lines | `.kt` |
-| `app/src/main/kotlin/com/jtech/zemer/playback/DownloadUtil.kt` | 325 lines | `.kt` |
+| `app/src/main/kotlin/com/jtech/zemer/playback/DownloadUtil.kt` | 165 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/playback/EpisodePositionTracker.kt` | 157 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/playback/EpisodeResume.kt` | 39 lines | `.kt` |
-| `app/src/main/kotlin/com/jtech/zemer/playback/ExoDownloadService.kt` | 81 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/playback/FCastDiscoveryHandler.kt` | 390 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/playback/ListenAccumulator.kt` | 69 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/playback/MediaLibrarySessionCallback.kt` | 810 lines | `.kt` |
@@ -1112,7 +1111,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `docs/recognize_music/05-widget.md` | 72 lines | `.md` |
 | `docs/recognize_music/06-testing-and-maintenance.md` | 54 lines | `.md` |
 | `docs/recognize_music/README.md` | 71 lines | `.md` |
-| `docs/reference/kotlin-files.md` | 807 lines | `.md` |
+| `docs/reference/kotlin-files.md` | 806 lines | `.md` |
 | `docs/reference/non-kotlin-files.md` | 383 lines | `.md` |
 | `docs/reference/resource-index.md` | 255 lines | `.md` |
 | `docs/remote_cipher_config/01-why-it-exists.md` | 88 lines | `.md` |
@@ -1123,7 +1122,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `docs/remote_cipher_config/06-harness-and-monitor.md` | 101 lines | `.md` |
 | `docs/remote_cipher_config/07-runbook.md` | 101 lines | `.md` |
 | `docs/remote_cipher_config/README.md` | 112 lines | `.md` |
-| `docs/repository-map.md` | 1337 lines | `.md` |
+| `docs/repository-map.md` | 1336 lines | `.md` |
 | `docs/stations/README.md` | 69 lines | `.md` |
 | `docs/status/README.md` | 122 lines | `.md` |
 | `docs/status/jewishstatus-api.md` | 162 lines | `.md` |
