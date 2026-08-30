@@ -108,15 +108,16 @@ fun LibraryPlaylistsScreen(
     val autoPlaylistsState by autoPlaylistsViewModel.autoPlaylists.collectAsState()
 
     val likedPlaylist =
-        Playlist(
-            playlist = PlaylistEntity(
-                id = PlaylistEntity.LIKED_PLAYLIST_ID,
-                name = stringResource(R.string.liked),
-                isEditable = false,
-            ),
-            songCount = 0,
-            songThumbnails = emptyList(),
-        )
+        autoPlaylistsState.liked
+            ?: Playlist(
+                playlist = PlaylistEntity(
+                    id = PlaylistEntity.LIKED_PLAYLIST_ID,
+                    name = stringResource(R.string.liked),
+                    isEditable = false,
+                ),
+                songCount = 0,
+                songThumbnails = emptyList(),
+            )
 
     val offlineName = stringResource(R.string.offline)
     val downloadPlaylist =
