@@ -1,5 +1,6 @@
-package com.metrolist.innertube.models
+package com.zemer.innertube.models
 
+import com.metrolist.innertube.models.MusicCarouselShelfRenderer
 import kotlinx.serialization.json.Json
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull

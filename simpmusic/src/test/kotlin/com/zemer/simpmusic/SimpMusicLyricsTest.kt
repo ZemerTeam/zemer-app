@@ -1,5 +1,6 @@
-package com.metrolist.simpmusic
+package com.zemer.simpmusic
 
+import com.metrolist.simpmusic.firstNonBlankLyrics
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
