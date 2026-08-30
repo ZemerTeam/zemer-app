@@ -97,7 +97,6 @@ fun YouTubePlaylistMenu(
     val dbPlaylist by database.playlistByBrowseId(playlist.id).collectAsState(initial = null)
 
     var showChoosePlaylistDialog by rememberSaveable { mutableStateOf(false) }
-    var showImportPlaylistDialog by rememberSaveable { mutableStateOf(false) }
     var showErrorPlaylistAddDialog by rememberSaveable { mutableStateOf(false) }
 
     val notAddedList by remember {
@@ -243,23 +242,6 @@ fun YouTubePlaylistMenu(
         )
     }
 
-    ImportPlaylistDialog(
-        isVisible = showImportPlaylistDialog,
-        onGetSong = {
-            val allSongs = songs
-                .ifEmpty {
-                    fetchWhitelistedPlaylistSongs(playlist.id, database)
-                }.map {
-                    it.toMediaMetadata()
-                }
-            database.transaction {
-                allSongs.forEach(::insert)
-            }
-            allSongs.map { it.id }
-        },
-        playlistTitle = playlist.title,
-        onDismiss = { showImportPlaylistDialog = false }
-    )
 
     if (showErrorPlaylistAddDialog) {
         AlreadyInPlaylistDialog(onDismiss = { showErrorPlaylistAddDialog = false }) {

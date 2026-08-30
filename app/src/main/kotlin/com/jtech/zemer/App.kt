@@ -27,7 +27,6 @@ import com.metrolist.innertube.YouTube
 import com.metrolist.innertube.models.YouTubeLocale
 import com.jtech.zemer.constants.*
 import com.jtech.zemer.di.ApplicationScope
-import com.jtech.zemer.extensions.isValidVisitorData
 import com.jtech.zemer.extensions.toast
 import com.google.firebase.crashlytics.FirebaseCrashlytics
 import com.jtech.zemer.utils.ContentFilterConfig
@@ -38,7 +37,6 @@ import com.jtech.zemer.statuses.parseStatusSourcesConfig
 import com.jtech.zemer.utils.ContentFilterState
 import com.jtech.zemer.utils.IsraeliArtistRegistry
 import com.jtech.zemer.utils.LogBufferTree
-import com.jtech.zemer.utils.SyncUtils
 import com.zemer.cipher.ZemerCipher
 import timber.log.Timber
 import com.jtech.zemer.utils.UpdateChecker
@@ -58,15 +56,8 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
-import kotlinx.serialization.json.JsonElement
-import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
 import okhttp3.Dispatcher
 import okhttp3.OkHttpClient
-import io.ktor.client.*
-import io.ktor.client.call.*
-import io.ktor.client.request.*
-import io.ktor.client.statement.bodyAsText
 import java.util.Locale
 import javax.inject.Inject
 
@@ -76,9 +67,6 @@ class App : Application(), SingletonImageLoader.Factory {
     @Inject
     @ApplicationScope
     lateinit var applicationScope: CoroutineScope
-
-    @Inject
-    lateinit var syncUtils: SyncUtils
 
     @Inject
     lateinit var offlineSubsetSyncer: com.jtech.zemer.offline.OfflineSubsetSyncer
@@ -215,82 +203,6 @@ class App : Application(), SingletonImageLoader.Factory {
                     PendingUpdate(result.latestVersion, result.notes, result.isNightly)
             }
             else -> { /* No action needed */ }
-        }
-    }
-
-    private suspend fun fetchAnonymousTokenOnStartup() {
-        fun sanitizeCookie(raw: String?): String? {
-            val trimmed = raw?.trim() ?: return null
-            return if ((trimmed.startsWith("\"") && trimmed.endsWith("\"")) ||
-                (trimmed.startsWith("'") && trimmed.endsWith("'"))
-            ) {
-                trimmed.drop(1).dropLast(1)
-            } else {
-                trimmed
-            }
-        }
-
-        try {
-            val httpClient = HttpClient()
-            val responseText = httpClient.get(
-                "https://mc.alltech.dev/credentials"
-            ).bodyAsText()
-
-            val json = kotlinx.serialization.json.Json.parseToJsonElement(responseText)
-            val visitorData = json.jsonObject["visitorData"]?.jsonPrimitive?.content
-                ?.let { android.net.Uri.decode(it) }
-            val clientVersion = json.jsonObject["clientVersion"]?.jsonPrimitive?.content
-            val timestamp = json.jsonObject["timestamp"]?.jsonPrimitive?.content?.toLongOrNull()
-            val expiresAt = json.jsonObject["expiresAt"]?.jsonPrimitive?.content?.toLongOrNull()
-            val cookie = sanitizeCookie(
-                json.jsonObject["cookie"]?.jsonPrimitive?.content
-                    ?: json.jsonObject["innerTubeCookie"]?.jsonPrimitive?.content
-            )
-            val dataSyncId = json.jsonObject["dataSyncId"]?.jsonPrimitive?.content
-            val accountName = json.jsonObject["accountName"]?.jsonPrimitive?.content
-            val accountEmail = json.jsonObject["accountEmail"]?.jsonPrimitive?.content
-            val accountChannelHandle = json.jsonObject["accountChannelHandle"]?.jsonPrimitive?.content
-
-            if (!visitorData.isNullOrEmpty()) {
-                // Validate token format
-                val isValidToken = isValidVisitorData(visitorData)
-
-                if (isValidToken) {
-                    dataStore.edit { prefs ->
-                        prefs[VisitorDataKey] = visitorData
-                        cookie
-                            ?.takeIf { parseCookieString(it).containsKey("SAPISID") }
-                            ?.let { prefs[InnerTubeCookieKey] = it }
-                        // Anonymous login must not set dataSyncId (onBehalfOfUser breaks playback).
-                        prefs[DataSyncIdKey] = ""
-                        accountName?.let { prefs[AccountNameKey] = it }
-                        accountEmail?.let { prefs[AccountEmailKey] = it }
-                        accountChannelHandle?.let { prefs[AccountChannelHandleKey] = it }
-                    }
-                    cookie
-                        ?.takeIf { parseCookieString(it).containsKey("SAPISID") }
-                        ?.let { YouTube.cookie = it }
-                    YouTube.dataSyncId = null
-                    YouTube.visitorData = visitorData
-                    val expiresIn = if (expiresAt != null) {
-                        val minutesLeft = (expiresAt - (timestamp ?: System.currentTimeMillis())) / 60000
-                        "$minutesLeft minutes"
-                    } else {
-                        "~24 hours"
-                    }
-                    android.util.Log.i("AnonymousToken", "✓ Token fetched successfully")
-                    android.util.Log.i("AnonymousToken", "  Data: ${visitorData.take(20)}...")
-                    android.util.Log.i("AnonymousToken", "  Version: $clientVersion")
-                    android.util.Log.i("AnonymousToken", "  Expires in: $expiresIn")
-                } else {
-                    android.util.Log.w("AnonymousToken", "✗ Invalid token format: $visitorData")
-                }
-            } else {
-                android.util.Log.w("AnonymousToken", "✗ No visitorData in response")
-            }
-            httpClient.close()
-        } catch (e: Exception) {
-            android.util.Log.w("AnonymousToken", "✗ Failed to fetch token: ${e.message}", e)
         }
     }
 
