@@ -44,6 +44,14 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.layout.positionInParent
 import kotlinx.coroutines.launch
 
+/**
+ * The standard breathing room above/below a chips strip sitting directly under a top bar - Home's
+ * content-selector geometry. Every chips-below-the-top-bar screen (Home, KidZone, the Library
+ * filter rows) shares these two values so the gap can't drift per screen.
+ */
+val ChipsRowTopPadding = 12.dp
+val ChipsRowBottomPadding = 4.dp
+
 @Composable
 fun <E> ChipsRow(
     chips: List<Pair<E, String>>,
@@ -146,7 +154,7 @@ fun <E> ContentTabChipsRow(
         Modifier
             .fillMaxWidth()
             .background(MaterialTheme.colorScheme.surface)
-            .padding(top = 12.dp, bottom = 4.dp),
+            .padding(top = ChipsRowTopPadding, bottom = ChipsRowBottomPadding),
     ) {
         ChipsRow(
             chips = chips,

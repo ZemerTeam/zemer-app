@@ -54,6 +54,8 @@ import com.jtech.zemer.constants.GridThumbnailHeight
 import com.jtech.zemer.constants.LibraryViewType
 import com.jtech.zemer.constants.YtmSyncKey
 import com.jtech.zemer.ui.component.ChipsRow
+import com.jtech.zemer.ui.component.ChipsRowTopPadding
+import com.jtech.zemer.ui.component.ChipsRowBottomPadding
 import com.jtech.zemer.ui.component.LibraryFilterChip
 import com.jtech.zemer.ui.component.EmptyPlaceholder
 import com.jtech.zemer.ui.component.LibraryArtistGridItem
@@ -88,7 +90,7 @@ fun LibraryArtistsScreen(
     val (ytmSync) = rememberPreference(YtmSyncKey, true)
 
     val filterContent = @Composable {
-        Row {
+        Row(modifier = Modifier.padding(top = ChipsRowTopPadding, bottom = ChipsRowBottomPadding)) {
             Spacer(Modifier.width(12.dp))
             LibraryFilterChip(
                 label = stringResource(R.string.artists),

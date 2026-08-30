@@ -68,6 +68,8 @@ import com.jtech.zemer.extensions.togglePlayPause
 import com.jtech.zemer.playback.queues.ListQueue
 import com.jtech.zemer.tracking.PlaySource
 import com.jtech.zemer.ui.component.ChipsRow
+import com.jtech.zemer.ui.component.ChipsRowTopPadding
+import com.jtech.zemer.ui.component.ChipsRowBottomPadding
 import com.jtech.zemer.ui.component.LibraryFilterChip
 import com.jtech.zemer.ui.component.EmptyPlaceholder
 import com.jtech.zemer.ui.component.HideOnScrollFAB
@@ -135,7 +137,7 @@ fun LibraryPodcastsScreen(
     val lazyListState = rememberLazyListState()
 
     val chipsHeader = @Composable {
-        Row {
+        Row(modifier = Modifier.padding(top = ChipsRowTopPadding, bottom = ChipsRowBottomPadding)) {
             Spacer(Modifier.width(12.dp))
             LibraryFilterChip(
                 label = stringResource(R.string.filter_podcasts),
