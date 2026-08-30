@@ -557,7 +557,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/playlist/CachePlaylistScreen.kt` | 357 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/playlist/DownloadedContentScreen.kt` | 129 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/playlist/DownloadedVideosScreen.kt` | 320 lines | `.kt` |
-| `app/src/main/kotlin/com/jtech/zemer/ui/screens/playlist/LocalPlaylistScreen.kt` | 1306 lines | `.kt` |
+| `app/src/main/kotlin/com/jtech/zemer/ui/screens/playlist/LocalPlaylistScreen.kt` | 1284 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/playlist/OnlinePlaylistScreen.kt` | 555 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/playlist/PlaylistDetailShared.kt` | 220 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/playlist/PlaylistHeaderCover.kt` | 16 lines | `.kt` |
@@ -646,7 +646,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/main/kotlin/com/jtech/zemer/utils/RankedContentGate.kt` | 32 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/utils/RefreshRateSelection.kt` | 72 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/utils/StringUtils.kt` | 23 lines | `.kt` |
-| `app/src/main/kotlin/com/jtech/zemer/utils/SyncUtils.kt` | 1188 lines | `.kt` |
+| `app/src/main/kotlin/com/jtech/zemer/utils/SyncUtils.kt` | 1233 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/utils/UpdateChecker.kt` | 243 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/utils/Updater.kt` | 55 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/utils/UrlValidator.kt` | 82 lines | `.kt` |

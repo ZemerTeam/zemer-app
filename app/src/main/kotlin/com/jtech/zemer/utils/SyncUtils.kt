@@ -754,6 +754,51 @@ class SyncUtils @Inject constructor(
         }
     }
 
+    /**
+     * On-demand reconcile of ONE synced playlist (the playlist screen's sync button) through the SAME
+     * #130-safe rules as [syncSavedPlaylists], so the two sync affordances can never disagree: a song
+     * is kept if a whitelisted artist is resolvable from the playlist renderer OR the local DB row
+     * ([filterWhitelistedWithLocalArtists]); no reconcile runs without a loaded whitelist; and a
+     * failed/empty remote read never wipes local songs. The screen previously inlined a strict
+     * [filterWhitelisted] + clearPlaylist rebuild, which dropped whitelisted songs whose YTM renderer
+     * carried sparse/topic-channel artist ids - the exact pathology the #130 fix removed elsewhere.
+     */
+    suspend fun syncPlaylistNow(browseId: String, playlistId: String) {
+        // 100% whitelisted: with no allow-set no song can be verified, and filtering against it would
+        // wipe the playlist - skip and leave the local copy intact.
+        val allowedArtistIds = WhitelistCache.allowedEntries(database, ContentFilterState.current)
+            .map { it.artistId }.toHashSet()
+        if (allowedArtistIds.isEmpty()) {
+            android.util.Log.d("SyncUtils", "syncPlaylistNow skipped - whitelist not loaded")
+            return
+        }
+        try {
+            YouTube.playlist(browseId).completed().onSuccess { page ->
+                // A failed or empty remote read must never restructure the playlist (issue #130).
+                if (page.songs.isEmpty()) {
+                    android.util.Log.d("SyncUtils", "syncPlaylistNow: $browseId read empty - kept, not clobbered")
+                    return@onSuccess
+                }
+                val allowedSongs = page.songs.filterWhitelistedWithLocalArtists(database, allowedArtistIds)
+                // Keep the playlist metadata in step with the reconciled songs (the same fields the
+                // library sync refreshes) so the two paths produce identical DB state.
+                database.playlist(playlistId).firstOrNull()?.playlist?.let { entity ->
+                    database.update(
+                        entity.copy(
+                            thumbnailUrl = allowedSongs.firstOrNull()?.thumbnail,
+                            remoteSongCount = allowedSongs.size,
+                            isEditable = page.playlist.isEditable,
+                        )
+                    )
+                }
+                syncPlaylist(browseId, playlistId, allowedSongs.map { it.id }.toSet())
+                android.util.Log.d("SyncUtils", "syncPlaylistNow: $browseId reconciled with ${allowedSongs.size} allowed songs")
+            }
+        } catch (e: Exception) {
+            android.util.Log.w("SyncUtils", "syncPlaylistNow failed for $browseId: ${e.message}")
+        }
+    }
+
     private suspend fun syncPlaylist(browseId: String, playlistId: String, allowedSongIds: Set<String>) {
         // Only sync if we have pre-filtered allowed songs
         if (allowedSongIds.isEmpty()) {

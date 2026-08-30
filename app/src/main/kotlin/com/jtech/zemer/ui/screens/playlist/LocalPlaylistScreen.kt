@@ -104,11 +104,9 @@ import com.jtech.zemer.constants.SwipeToRemoveSongKey
 import com.jtech.zemer.constants.ThumbnailCornerRadius
 import com.jtech.zemer.db.entities.Playlist
 import com.jtech.zemer.db.entities.PlaylistSong
-import com.jtech.zemer.db.entities.PlaylistSongMap
 import com.jtech.zemer.extensions.isPersonalAccountSignedIn
 import com.jtech.zemer.extensions.move
 import com.jtech.zemer.extensions.toMediaItem
-import com.jtech.zemer.models.toMediaMetadata
 import com.jtech.zemer.playback.queues.ListQueue
 import com.jtech.zemer.ui.component.ActionPromptDialog
 import com.jtech.zemer.ui.component.AggregateDownloadButton
@@ -141,7 +139,6 @@ import com.jtech.zemer.utils.remotePlaylistRemovalArgs
 import com.jtech.zemer.utils.reportException
 import com.jtech.zemer.viewmodels.LocalPlaylistViewModel
 import com.metrolist.innertube.YouTube
-import com.metrolist.innertube.models.SongItem
 import com.metrolist.innertube.utils.completed
 import com.yalantis.ucrop.UCrop
 import io.ktor.client.plugins.ClientRequestException
@@ -811,7 +808,7 @@ fun LocalPlaylistHeader(
     val context = LocalContext.current
     val database = LocalDatabase.current
     val menuState = LocalMenuState.current
-    LocalSyncUtils.current
+    val syncUtils = LocalSyncUtils.current
     val scope = rememberCoroutineScope()
 
     val playlistLength =
@@ -1204,35 +1201,16 @@ fun LocalPlaylistHeader(
                     if (playlist.playlist.browseId != null) {
                         IconButton(
                             onClick = {
+                                // ONE playlist-reconcile implementation (SyncUtils.syncPlaylistNow),
+                                // the same #130-safe path as the library sync - never an inline strict
+                                // filterWhitelisted + clearPlaylist rebuild, which dropped whitelisted
+                                // songs whose YTM renderer carried sparse/topic-channel artist ids and
+                                // physically deleted them on every press.
                                 scope.launch(Dispatchers.IO) {
-                                    val playlistPage = YouTube.playlist(playlist.playlist.browseId)
-                                        .completed()
-                                        .getOrNull() ?: return@launch
-
-                                    // Apply whitelist filtering to songs before inserting
-                                    val allowedSongs = playlistPage.songs.filterWhitelisted(database)
-
-                                    database.transaction {
-                                        clearPlaylist(playlist.id)
-                                        val songItems = allowedSongs.filterIsInstance<SongItem>()
-                                        songItems.forEach { songItem ->
-                                            val mediaMetadata = songItem.toMediaMetadata()
-                                            insert(mediaMetadata)
-                                        }
-                                        songItems.forEachIndexed { position, songItem ->
-                                            insert(
-                                                PlaylistSongMap(
-                                                    songId = songItem.id,
-                                                    playlistId = playlist.id,
-                                                    position = position,
-                                                    setVideoId = songItem.setVideoId
-                                                )
-                                            )
-                                        }
+                                    syncUtils.syncPlaylistNow(playlist.playlist.browseId!!, playlist.id)
+                                    withContext(Dispatchers.Main) {
+                                        snackbarHostState.showSnackbar(context.getString(R.string.playlist_synced))
                                     }
-                                }
-                                scope.launch(Dispatchers.Main) {
-                                    snackbarHostState.showSnackbar(context.getString(R.string.playlist_synced))
                                 }
                             },
                             modifier = Modifier.size(40.dp)
