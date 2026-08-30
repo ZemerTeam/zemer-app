@@ -14,9 +14,6 @@ import com.jtech.zemer.constants.AlbumSortType
 import com.jtech.zemer.constants.AlbumSortTypeKey
 import com.jtech.zemer.constants.ArtistFilter
 import com.jtech.zemer.constants.ArtistFilterKey
-import com.jtech.zemer.constants.ArtistSongSortDescendingKey
-import com.jtech.zemer.constants.ArtistSongSortType
-import com.jtech.zemer.constants.ArtistSongSortTypeKey
 import com.jtech.zemer.constants.ArtistSortDescendingKey
 import com.jtech.zemer.constants.ArtistSortType
 import com.jtech.zemer.constants.ArtistSortTypeKey
@@ -257,32 +254,6 @@ constructor(
             .distinctUntilChanged()
 }
 
-@HiltViewModel
-class ArtistSongsViewModel
-@Inject
-constructor(
-    @ApplicationContext context: Context,
-    database: MusicDatabase,
-    savedStateHandle: SavedStateHandle,
-) : ViewModel() {
-    val artistId = requireNotNull(savedStateHandle.get<String>("artistId")) {
-        "artistId is required but was not provided in navigation arguments"
-    }
-    val artist =
-        database
-            .artist(artistId)
-            .stateIn(viewModelScope, SharingStarted.Lazily, null)
-
-    val songs =
-        context.dataStore.data
-            .map {
-                it[ArtistSongSortTypeKey].toEnum(ArtistSongSortType.CREATE_DATE) to (it[ArtistSongSortDescendingKey]
-                    ?: true)
-            }.distinctUntilChanged()
-            .flatMapLatest { (sortType, descending) ->
-                database.artistSongs(artistId, sortType, descending)
-            }.stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
-}
 
 @HiltViewModel
 class LibraryMixViewModel

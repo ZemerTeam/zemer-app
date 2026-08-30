@@ -13,10 +13,8 @@ import androidx.navigation.NavType
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
 import com.jtech.zemer.BuildConfig
-import com.jtech.zemer.ui.screens.artist.ArtistAlbumsScreen
 import com.jtech.zemer.ui.screens.artist.ArtistScreen
 import com.jtech.zemer.ui.screens.artist.ArtistSectionScreen
-import com.jtech.zemer.ui.screens.artist.ArtistSongsScreen
 import com.jtech.zemer.ui.screens.library.LibraryScreen
 import com.jtech.zemer.ui.screens.statuses.SavedStatusScreen
 import com.jtech.zemer.ui.screens.statuses.StatusDownloadsScreen
@@ -305,27 +303,6 @@ fun NavGraphBuilder.navigationBuilder(
             return@composable
         }
         ArtistScreen(navController, scrollBehavior)
-    }
-    composable(
-        route = "artist/{artistId}/songs",
-        arguments =
-        listOf(
-            navArgument("artistId") {
-                type = NavType.StringType
-            },
-        ),
-    ) {
-        ArtistSongsScreen(navController, scrollBehavior)
-    }
-    composable(
-        route = "artist/{artistId}/albums",
-        arguments = listOf(
-            navArgument("artistId") {
-                type = NavType.StringType
-            }
-        )
-    ) {
-        ArtistAlbumsScreen(navController, scrollBehavior)
     }
     // The full-screen JewishStatus story viewer, opened from the Home "Music Status" row by the tapped
     // creator's STABLE id (the creators list comes from the shared session cache; the viewer resolves
