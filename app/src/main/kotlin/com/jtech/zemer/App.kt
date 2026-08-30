@@ -420,7 +420,7 @@ class App : Application(), SingletonImageLoader.Factory {
     }
 
     override fun newImageLoader(context: PlatformContext): ImageLoader {
-        val cacheSize = dataStore.get(MaxImageCacheSizeKey, 256).coerceIn(0, 512)
+        val cacheSize = dataStore.get(MaxImageCacheSizeKey, 256).coerceIn(0, 8192)
         val okHttpClient = OkHttpClient.Builder()
             // Coil shares one host for many thumbnails (yt3.googleusercontent.com etc.). OkHttp's default
             // is 5 concurrent per host, so a screenful of same-host avatars loads in staggered waves.

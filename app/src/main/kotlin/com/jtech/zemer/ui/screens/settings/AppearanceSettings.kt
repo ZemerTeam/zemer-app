@@ -229,7 +229,7 @@ fun AppearanceSettings(
     )
     val (gridItemSize, onGridItemSizeChange) = rememberEnumPreference(
         GridItemsSizeKey,
-        defaultValue = GridItemSize.SMALL
+        defaultValue = GridItemSize.BIG
     )
 
     // Check SharedPreferences first for onboarding bottom nav value, then fallback to DataStore
