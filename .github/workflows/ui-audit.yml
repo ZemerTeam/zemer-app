@@ -9,16 +9,34 @@ name: UI audit
 #  - check-dead-resources.sh: dead-resource ratchet — every string/drawable/raw resource must be
 #    referenced; known-dead strings.xml entries are grandfathered in
 #    scripts/dead-resources-baseline.txt (shrink-only).
-# Runs on every push/PR to main. check-download-unification.sh and check-dead-resources.sh
-# scan the whole app (utils/, viewmodels/, db/, MusicService, all modules), so a banned
-# pattern introduced outside ui/ or playback/ must still be caught. The checks are grep-only
-# (seconds, no JDK), so running them unconditionally is cheap.
+# check-download-unification.sh and check-dead-resources.sh scan the WHOLE app (utils/,
+# viewmodels/, db/, MusicService, every module) - not just ui/ - so this filter covers all
+# module source, widening the old ui/-playback/-res/-only set. It still skips docs, workflow
+# and meta changes: a grep over source can only find something when source actually changes.
 
 on:
   push:
     branches: [ main ]
+    paths:
+      - 'app/src/**'
+      - 'innertube/src/**'
+      - 'lrclib/src/**'
+      - 'simpmusic/src/**'
+      - 'scripts/ui-audit*'
+      - 'scripts/check-download-unification.sh'
+      - 'scripts/check-dead-resources.sh'
+      - 'scripts/dead-resources-baseline.txt'
   pull_request:
     branches: [ main ]
+    paths:
+      - 'app/src/**'
+      - 'innertube/src/**'
+      - 'lrclib/src/**'
+      - 'simpmusic/src/**'
+      - 'scripts/ui-audit*'
+      - 'scripts/check-download-unification.sh'
+      - 'scripts/check-dead-resources.sh'
+      - 'scripts/dead-resources-baseline.txt'
   workflow_dispatch:
 
 jobs:

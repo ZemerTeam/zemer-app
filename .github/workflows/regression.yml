@@ -11,6 +11,8 @@ on:
     paths-ignore:
       - 'docs/**'
       - '**.md'
+      - '.github/**'
+      - 'scripts/**'
       - '.idea/**'
       - '.vscode/**'
       - 'LICENSE'
@@ -20,6 +22,8 @@ on:
     paths-ignore:
       - 'docs/**'
       - '**.md'
+      - '.github/**'
+      - 'scripts/**'
       - '.idea/**'
       - '.vscode/**'
       - 'LICENSE'
