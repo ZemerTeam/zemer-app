@@ -162,7 +162,6 @@ fun AutoPlaylistScreen(
         if (ytmSync) {
             withContext(Dispatchers.IO) {
                 if (playlistType == PlaylistType.LIKE) viewModel.syncLikedSongs()
-                if (playlistType == PlaylistType.UPLOADED) viewModel.syncUploadedSongs()
             }
         }
     }

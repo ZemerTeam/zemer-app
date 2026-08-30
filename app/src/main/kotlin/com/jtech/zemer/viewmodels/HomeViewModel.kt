@@ -950,9 +950,7 @@ class HomeViewModel @Inject constructor(
                 viewModelScope.launch(Dispatchers.IO) {
                     syncUtils.syncLikedSongs()
                     syncUtils.syncLibrarySongs()
-                    syncUtils.syncUploadedSongs()
                     syncUtils.syncLikedAlbums()
-                    syncUtils.syncUploadedAlbums()
                     syncUtils.syncArtistsSubscriptions()
                     syncUtils.syncSavedPlaylists()
                 }

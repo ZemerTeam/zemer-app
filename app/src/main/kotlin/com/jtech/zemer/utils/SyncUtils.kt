@@ -68,9 +68,7 @@ class SyncUtils @Inject constructor(
 
     private val isSyncingLikedSongs = MutableStateFlow(false)
     private val isSyncingLibrarySongs = MutableStateFlow(false)
-    private val isSyncingUploadedSongs = MutableStateFlow(false)
     private val isSyncingLikedAlbums = MutableStateFlow(false)
-    private val isSyncingUploadedAlbums = MutableStateFlow(false)
     private val isSyncingArtists = MutableStateFlow(false)
     private val isSyncingPlaylists = MutableStateFlow(false)
     private val isSyncingWhitelist = MutableStateFlow(false)
@@ -503,39 +501,6 @@ class SyncUtils @Inject constructor(
         }
     }
 
-    suspend fun syncUploadedSongs() {
-        if (!isPersonalAccountSignedIn) return
-        if (isSyncingUploadedSongs.value) return
-        isSyncingUploadedSongs.value = true
-        try {
-            YouTube.library("FEmusic_library_privately_owned_tracks", tabIndex = 1).completed().onSuccess { page ->
-                val remoteSongs = page.items
-                    .filterIsInstance<SongItem>()
-                    .filterWhitelisted(database)
-                    .filterIsInstance<SongItem>()
-                    .reversed()
-                val remoteIds = remoteSongs.map { it.id }.toSet()
-                val localSongs = database.uploadedSongsByNameAsc().first()
-
-                localSongs.filterNot { it.id in remoteIds }.forEach { database.update(it.song.toggleUploaded()) }
-
-                remoteSongs.forEach { song ->
-                    val dbSong = database.song(song.id).firstOrNull()
-                    database.transaction {
-                        if (dbSong == null) {
-                            insert(song.toMediaMetadata()) { it.toggleUploaded() }
-                        } else if (!dbSong.song.isUploaded) {
-                            update(dbSong.song.toggleUploaded())
-                        }
-                    }
-                }
-            }
-        } catch (e: Exception) {
-        } finally {
-            isSyncingUploadedSongs.value = false
-        }
-    }
-
     suspend fun syncLikedAlbums() {
         if (!isPersonalAccountSignedIn) return
         if (isSyncingLikedAlbums.value) return
@@ -569,42 +534,6 @@ class SyncUtils @Inject constructor(
         } catch (e: Exception) {
         } finally {
             isSyncingLikedAlbums.value = false
-        }
-    }
-
-    suspend fun syncUploadedAlbums() {
-        if (!isPersonalAccountSignedIn) return
-        if (isSyncingUploadedAlbums.value) return
-        isSyncingUploadedAlbums.value = true
-        try {
-            YouTube.library("FEmusic_library_privately_owned_releases", tabIndex = 1).completed().onSuccess { page ->
-                val remoteAlbums = page.items
-                    .filterIsInstance<AlbumItem>()
-                    .filterWhitelisted(database)
-                    .filterIsInstance<AlbumItem>()
-                    .reversed()
-                val remoteIds = remoteAlbums.map { it.id }.toSet()
-                val localAlbums = database.albumsUploadedByNameAsc().first()
-
-                localAlbums.filterNot { it.id in remoteIds }.forEach { database.update(it.album.toggleUploaded()) }
-
-                remoteAlbums.forEach { album ->
-                    val dbAlbum = database.album(album.id).firstOrNull()
-                    YouTube.album(album.browseId).onSuccess { albumPage ->
-                        if (dbAlbum == null) {
-                            database.insert(albumPage)
-                            database.album(album.id).firstOrNull()?.let { newDbAlbum ->
-                                database.update(newDbAlbum.album.toggleUploaded())
-                            }
-                        } else if (!dbAlbum.album.isUploaded) {
-                            database.update(dbAlbum.album.toggleUploaded())
-                        }
-                    }.onFailure { reportException(it) }
-                }
-            }
-        } catch (e: Exception) {
-        } finally {
-            isSyncingUploadedAlbums.value = false
         }
     }
 
