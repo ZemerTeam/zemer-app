@@ -268,7 +268,7 @@ object YouTube {
                     ?: response.header?.musicHeaderRenderer?.secondSubtitle)
                     ?.runs?.firstOrNull()?.text,
                 thumbnail = header?.thumbnail?.musicThumbnailRenderer?.thumbnail?.thumbnails?.lastOrNull()?.url
-                    ?: response.header?.musicHeaderRenderer?.thumbnail?.musicThumbnailRenderer?.thumbnails?.lastOrNull()?.url,
+                    ?: response.header?.musicHeaderRenderer?.thumbnail?.musicThumbnailRenderer?.thumbnail?.thumbnails?.lastOrNull()?.url,
                 playEndpoint = null,
                 shuffleEndpoint = header?.buttons?.lastOrNull()
                     ?.menuRenderer?.items?.firstOrNull()

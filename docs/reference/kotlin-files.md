@@ -695,7 +695,7 @@ Every tracked Kotlin file is listed with hard metadata extracted from the file t
 | `app/src/test/kotlin/com/jtech/zemer/viewmodels/StaleAlbumDeleteTest.kt` | 29 | `com.jtech.zemer.viewmodels` | no | 3 | 1 | org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/widget/WidgetLayoutTest.kt` | 26 | `com.jtech.zemer.widget` | no | 3 | 1 | org.junit |
 
-## `innertube` Kotlin files (86)
+## `innertube` Kotlin files (87)
 
 | File | Lines | Package | Compose | Imports | Decls | External import roots |
 | --- | ---: | --- | --- | ---: | ---: | --- |
@@ -756,7 +756,7 @@ Every tracked Kotlin file is listed with hard metadata extracted from the file t
 | `innertube/src/main/kotlin/com/metrolist/innertube/models/body/SearchBody.kt` | 11 | `com.metrolist.innertube.models.body` | no | 2 | 4 | kotlinx.serialization |
 | `innertube/src/main/kotlin/com/metrolist/innertube/models/body/SubscribeBody.kt` | 11 | `com.metrolist.innertube.models.body` | no | 2 | 4 | kotlinx.serialization |
 | `innertube/src/main/kotlin/com/metrolist/innertube/models/response/AccountMenuResponse.kt` | 53 | `com.metrolist.innertube.models.response` | no | 5 | 18 | kotlinx.serialization |
-| `innertube/src/main/kotlin/com/metrolist/innertube/models/response/BrowseResponse.kt` | 142 | `com.metrolist.innertube.models.response` | no | 14 | 72 | kotlinx.serialization |
+| `innertube/src/main/kotlin/com/metrolist/innertube/models/response/BrowseResponse.kt` | 133 | `com.metrolist.innertube.models.response` | no | 14 | 67 | kotlinx.serialization |
 | `innertube/src/main/kotlin/com/metrolist/innertube/models/response/CreatePlaylistResponse.kt` | 8 | `com.metrolist.innertube.models.response` | no | 1 | 2 | kotlinx.serialization |
 | `innertube/src/main/kotlin/com/metrolist/innertube/models/response/EditPlaylistResponse.kt` | 8 | `com.metrolist.innertube.models.response` | no | 1 | 2 | kotlinx.serialization |
 | `innertube/src/main/kotlin/com/metrolist/innertube/models/response/FeedbackResponse.kt` | 13 | `com.metrolist.innertube.models.response` | no | 1 | 4 | kotlinx.serialization |
@@ -783,8 +783,9 @@ Every tracked Kotlin file is listed with hard metadata extracted from the file t
 | `innertube/src/main/kotlin/com/metrolist/innertube/pages/SearchSummaryPage.kt` | 12 | `com.metrolist.innertube.pages` | no | 1 | 5 |  |
 | `innertube/src/main/kotlin/com/metrolist/innertube/utils/ResilientDns.kt` | 84 | `com.metrolist.innertube.utils` | no | 5 | 10 | java.net, okhttp3.Dns, okhttp3.HttpUrl, okhttp3.OkHttpClient, okhttp3.dnsoverhttps |
 | `innertube/src/main/kotlin/com/metrolist/innertube/utils/Utils.kt` | 91 | `com.metrolist.innertube.utils` | no | 4 | 22 | java.security |
-| `innertube/src/test/kotlin/com/metrolist/innertube/models/MusicCarouselShelfHeaderTest.kt` | 33 | `com.metrolist.innertube.models` | no | 4 | 5 | kotlinx.serialization, org.junit |
 | `innertube/src/test/kotlin/com/metrolist/innertube/pages/NextCounterpartTest.kt` | 127 | `com.metrolist.innertube.pages` | no | 6 | 9 | kotlinx.serialization, org.junit |
+| `innertube/src/test/kotlin/com/zemer/innertube/models/MusicCarouselShelfHeaderTest.kt` | 34 | `com.zemer.innertube.models` | no | 5 | 5 | kotlinx.serialization, org.junit |
+| `innertube/src/test/kotlin/com/zemer/innertube/models/response/MusicHeaderThumbnailTest.kt` | 51 | `com.zemer.innertube.models.response` | no | 5 | 5 | kotlinx.serialization, org.junit |
 
 ## `lrclib` Kotlin files (2)
 
@@ -799,4 +800,4 @@ Every tracked Kotlin file is listed with hard metadata extracted from the file t
 | --- | ---: | --- | --- | ---: | ---: | --- |
 | `simpmusic/src/main/kotlin/com/metrolist/simpmusic/SimpMusicLyrics.kt` | 130 | `com.metrolist.simpmusic` | no | 15 | 18 | io.ktor, kotlin.math, kotlinx.serialization |
 | `simpmusic/src/main/kotlin/com/metrolist/simpmusic/models/LyricsResponse.kt` | 32 | `com.metrolist.simpmusic.models` | no | 2 | 15 | kotlinx.serialization |
-| `simpmusic/src/test/kotlin/com/metrolist/simpmusic/SimpMusicLyricsTest.kt` | 39 | `com.metrolist.simpmusic` | no | 3 | 1 | org.junit |
+| `simpmusic/src/test/kotlin/com/zemer/simpmusic/SimpMusicLyricsTest.kt` | 40 | `com.zemer.simpmusic` | no | 4 | 1 | org.junit |

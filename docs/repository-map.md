@@ -77,9 +77,9 @@ The following inventory is generated from repository files outside `.git`, `.gra
 
 ### Counts
 
-- Files counted: `1219`
+- Files counted: `1220`
 - By extension:
-  - `.kt`: `779`
+  - `.kt`: `780`
   - `.xml`: `192`
   - `.mjs`: `77`
   - `.md`: `71`
@@ -1107,7 +1107,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `docs/recognize_music/05-widget.md` | 72 lines | `.md` |
 | `docs/recognize_music/06-testing-and-maintenance.md` | 54 lines | `.md` |
 | `docs/recognize_music/README.md` | 71 lines | `.md` |
-| `docs/reference/kotlin-files.md` | 802 lines | `.md` |
+| `docs/reference/kotlin-files.md` | 803 lines | `.md` |
 | `docs/reference/non-kotlin-files.md` | 383 lines | `.md` |
 | `docs/reference/resource-index.md` | 255 lines | `.md` |
 | `docs/remote_cipher_config/01-why-it-exists.md` | 88 lines | `.md` |
@@ -1118,7 +1118,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `docs/remote_cipher_config/06-harness-and-monitor.md` | 101 lines | `.md` |
 | `docs/remote_cipher_config/07-runbook.md` | 101 lines | `.md` |
 | `docs/remote_cipher_config/README.md` | 112 lines | `.md` |
-| `docs/repository-map.md` | 1329 lines | `.md` |
+| `docs/repository-map.md` | 1330 lines | `.md` |
 | `docs/stations/README.md` | 69 lines | `.md` |
 | `docs/status/README.md` | 122 lines | `.md` |
 | `docs/status/jewishstatus-api.md` | 162 lines | `.md` |
@@ -1195,7 +1195,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `innertube/src/main/kotlin/com/metrolist/innertube/models/body/SearchBody.kt` | 11 lines | `.kt` |
 | `innertube/src/main/kotlin/com/metrolist/innertube/models/body/SubscribeBody.kt` | 11 lines | `.kt` |
 | `innertube/src/main/kotlin/com/metrolist/innertube/models/response/AccountMenuResponse.kt` | 53 lines | `.kt` |
-| `innertube/src/main/kotlin/com/metrolist/innertube/models/response/BrowseResponse.kt` | 142 lines | `.kt` |
+| `innertube/src/main/kotlin/com/metrolist/innertube/models/response/BrowseResponse.kt` | 133 lines | `.kt` |
 | `innertube/src/main/kotlin/com/metrolist/innertube/models/response/CreatePlaylistResponse.kt` | 8 lines | `.kt` |
 | `innertube/src/main/kotlin/com/metrolist/innertube/models/response/EditPlaylistResponse.kt` | 8 lines | `.kt` |
 | `innertube/src/main/kotlin/com/metrolist/innertube/models/response/FeedbackResponse.kt` | 13 lines | `.kt` |
@@ -1222,8 +1222,9 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `innertube/src/main/kotlin/com/metrolist/innertube/pages/SearchSummaryPage.kt` | 12 lines | `.kt` |
 | `innertube/src/main/kotlin/com/metrolist/innertube/utils/ResilientDns.kt` | 84 lines | `.kt` |
 | `innertube/src/main/kotlin/com/metrolist/innertube/utils/Utils.kt` | 91 lines | `.kt` |
-| `innertube/src/test/kotlin/com/metrolist/innertube/models/MusicCarouselShelfHeaderTest.kt` | 33 lines | `.kt` |
 | `innertube/src/test/kotlin/com/metrolist/innertube/pages/NextCounterpartTest.kt` | 127 lines | `.kt` |
+| `innertube/src/test/kotlin/com/zemer/innertube/models/MusicCarouselShelfHeaderTest.kt` | 34 lines | `.kt` |
+| `innertube/src/test/kotlin/com/zemer/innertube/models/response/MusicHeaderThumbnailTest.kt` | 51 lines | `.kt` |
 | `lint.xml` | 6 lines | `.xml` |
 | `lrclib/.gitignore` | 1 lines | `[none]` |
 | `lrclib/build.gradle.kts` | 16 lines | `.kts` |
@@ -1241,7 +1242,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `simpmusic/build.gradle.kts` | 16 lines | `.kts` |
 | `simpmusic/src/main/kotlin/com/metrolist/simpmusic/SimpMusicLyrics.kt` | 130 lines | `.kt` |
 | `simpmusic/src/main/kotlin/com/metrolist/simpmusic/models/LyricsResponse.kt` | 32 lines | `.kt` |
-| `simpmusic/src/test/kotlin/com/metrolist/simpmusic/SimpMusicLyricsTest.kt` | 39 lines | `.kt` |
+| `simpmusic/src/test/kotlin/com/zemer/simpmusic/SimpMusicLyricsTest.kt` | 40 lines | `.kt` |
 | `tests/INVESTIGATION.md` | 279 lines | `.md` |
 | `tests/MWEB-INVESTIGATION.md` | 83 lines | `.md` |
 | `tests/README.md` | 175 lines | `.md` |

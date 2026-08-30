@@ -113,20 +113,11 @@ data class BrowseResponse(
         data class MusicHeaderRenderer(
             val buttons: List<Buttons>?,
             val title: Runs?,
-            val thumbnail: MusicThumbnailRenderer?,
+            val thumbnail: ThumbnailRenderer?,
             val subtitle: Runs?,
             val secondSubtitle: Runs?,
             val straplineTextOne: Runs?,
-            val straplineThumbnail: MusicThumbnailRenderer?,
-        )
-        @Serializable
-        data class MusicThumbnail(
-            val url: String?,
-        )
-        @Serializable
-        data class MusicThumbnailRenderer(
-            val musicThumbnailRenderer: MusicThumbnailRenderer,
-            val thumbnails: List<MusicThumbnail>?,
+            val straplineThumbnail: ThumbnailRenderer?,
         )
     }
 
