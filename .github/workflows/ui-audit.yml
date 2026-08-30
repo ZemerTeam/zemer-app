@@ -9,29 +9,17 @@ name: UI audit
 #  - check-dead-resources.sh: dead-resource ratchet — every string/drawable/raw resource must be
 #    referenced; known-dead strings.xml entries are grandfathered in
 #    scripts/dead-resources-baseline.txt (shrink-only).
-# Runs when UI/playback code, resources, or the checks themselves change.
+# Runs on every push/PR to main. check-download-unification.sh and check-dead-resources.sh
+# scan the whole app (utils/, viewmodels/, db/, MusicService, all modules), so a banned
+# pattern introduced outside ui/ or playback/ must still be caught. The checks are grep-only
+# (seconds, no JDK), so running them unconditionally is cheap.
 
 on:
   push:
     branches: [ main ]
-    paths:
-      - 'app/src/main/kotlin/com/jtech/zemer/ui/**'
-      - 'app/src/main/kotlin/com/jtech/zemer/playback/**'
-      - 'app/src/main/res/**'
-      - 'scripts/ui-audit*'
-      - 'scripts/check-download-unification.sh'
-      - 'scripts/check-dead-resources.sh'
-      - 'scripts/dead-resources-baseline.txt'
   pull_request:
     branches: [ main ]
-    paths:
-      - 'app/src/main/kotlin/com/jtech/zemer/ui/**'
-      - 'app/src/main/kotlin/com/jtech/zemer/playback/**'
-      - 'app/src/main/res/**'
-      - 'scripts/ui-audit*'
-      - 'scripts/check-download-unification.sh'
-      - 'scripts/check-dead-resources.sh'
-      - 'scripts/dead-resources-baseline.txt'
+  workflow_dispatch:
 
 jobs:
   ui-audit:
