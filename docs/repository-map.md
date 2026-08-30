@@ -77,9 +77,9 @@ The following inventory is generated from repository files outside `.git`, `.gra
 
 ### Counts
 
-- Files counted: `1228`
+- Files counted: `1229`
 - By extension:
-  - `.kt`: `787`
+  - `.kt`: `788`
   - `.xml`: `192`
   - `.mjs`: `78`
   - `.md`: `71`
@@ -111,7 +111,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | Path | Lines/bytes | Kind |
 | --- | ---: | --- |
 | `.github/workflows/debug-build.yml` | 64 lines | `.yml` |
-| `.github/workflows/docs-regenerate.yml` | 74 lines | `.yml` |
+| `.github/workflows/docs-regenerate.yml` | 81 lines | `.yml` |
 | `.github/workflows/player-monitor.yml` | 195 lines | `.yml` |
 | `.github/workflows/regression.yml` | 82 lines | `.yml` |
 | `.github/workflows/release-build.yml` | 161 lines | `.yml` |
@@ -938,6 +938,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/test/kotlin/com/jtech/zemer/latestreleases/LatestReleasePlaybackTest.kt` | 120 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/latestreleases/LatestReleasesStoreTest.kt` | 120 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/models/MediaMetadataNavResolutionTest.kt` | 82 lines | `.kt` |
+| `app/src/test/kotlin/com/jtech/zemer/models/PersistPlayerStateCompatTest.kt` | 87 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/models/PersistQueueCompatTest.kt` | 77 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/offline/SubsetDecoderTest.kt` | 153 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/offline/SubsetFemaleSynonymsTest.kt` | 57 lines | `.kt` |
@@ -1115,7 +1116,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `docs/recognize_music/05-widget.md` | 72 lines | `.md` |
 | `docs/recognize_music/06-testing-and-maintenance.md` | 54 lines | `.md` |
 | `docs/recognize_music/README.md` | 71 lines | `.md` |
-| `docs/reference/kotlin-files.md` | 810 lines | `.md` |
+| `docs/reference/kotlin-files.md` | 811 lines | `.md` |
 | `docs/reference/non-kotlin-files.md` | 383 lines | `.md` |
 | `docs/reference/resource-index.md` | 255 lines | `.md` |
 | `docs/remote_cipher_config/01-why-it-exists.md` | 88 lines | `.md` |
@@ -1126,7 +1127,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `docs/remote_cipher_config/06-harness-and-monitor.md` | 101 lines | `.md` |
 | `docs/remote_cipher_config/07-runbook.md` | 101 lines | `.md` |
 | `docs/remote_cipher_config/README.md` | 112 lines | `.md` |
-| `docs/repository-map.md` | 1340 lines | `.md` |
+| `docs/repository-map.md` | 1341 lines | `.md` |
 | `docs/stations/README.md` | 69 lines | `.md` |
 | `docs/status/README.md` | 122 lines | `.md` |
 | `docs/status/jewishstatus-api.md` | 162 lines | `.md` |
