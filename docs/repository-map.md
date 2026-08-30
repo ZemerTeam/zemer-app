@@ -77,7 +77,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 
 ### Counts
 
-- Files counted: `1213`
+- Files counted: `1214`
 - By extension:
   - `.kt`: `774`
   - `.xml`: `192`
@@ -87,8 +87,8 @@ The following inventory is generated from repository files outside `.git`, `.gra
   - `.webp`: `15`
   - `[none]`: `7`
   - `.kts`: `6`
+  - `.yml`: `6`
   - `.sh`: `5`
-  - `.yml`: `5`
   - `.properties`: `3`
   - `.dm`: `2`
   - `.lottie`: `2`
@@ -111,8 +111,9 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `.github/workflows/debug-build.yml` | 81 lines | `.yml` |
 | `.github/workflows/docs-regenerate.yml` | 74 lines | `.yml` |
 | `.github/workflows/player-monitor.yml` | 195 lines | `.yml` |
+| `.github/workflows/regression.yml` | 81 lines | `.yml` |
 | `.github/workflows/release-build.yml` | 176 lines | `.yml` |
-| `.github/workflows/ui-audit.yml` | 50 lines | `.yml` |
+| `.github/workflows/ui-audit.yml` | 38 lines | `.yml` |
 | `.gitignore` | 117 lines | `[none]` |
 | `.gitmodules` | 6 lines | `[none]` |
 | `AGENTS.md` | 1621 lines | `.md` |
@@ -1104,7 +1105,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `docs/recognize_music/06-testing-and-maintenance.md` | 54 lines | `.md` |
 | `docs/recognize_music/README.md` | 71 lines | `.md` |
 | `docs/reference/kotlin-files.md` | 797 lines | `.md` |
-| `docs/reference/non-kotlin-files.md` | 382 lines | `.md` |
+| `docs/reference/non-kotlin-files.md` | 383 lines | `.md` |
 | `docs/reference/resource-index.md` | 255 lines | `.md` |
 | `docs/remote_cipher_config/01-why-it-exists.md` | 88 lines | `.md` |
 | `docs/remote_cipher_config/02-file-format.md` | 116 lines | `.md` |
@@ -1114,7 +1115,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `docs/remote_cipher_config/06-harness-and-monitor.md` | 101 lines | `.md` |
 | `docs/remote_cipher_config/07-runbook.md` | 101 lines | `.md` |
 | `docs/remote_cipher_config/README.md` | 112 lines | `.md` |
-| `docs/repository-map.md` | 1323 lines | `.md` |
+| `docs/repository-map.md` | 1324 lines | `.md` |
 | `docs/stations/README.md` | 69 lines | `.md` |
 | `docs/status/README.md` | 122 lines | `.md` |
 | `docs/status/jewishstatus-api.md` | 162 lines | `.md` |
