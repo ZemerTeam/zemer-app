@@ -911,12 +911,14 @@ class MusicService :
     }
 
     private fun abandonAudioFocus() {
-        if (hasAudioFocus) {
-            audioFocusRequest?.let { request ->
-                audioManager.abandonAudioFocusRequest(request)
-                hasAudioFocus = false
-            }
+        // Abandon the request regardless of hasAudioFocus. The AUDIOFOCUS_LOSS branch (and onDestroy)
+        // clear the flag before calling this, so a guard on hasAudioFocus would skip the actual
+        // abandon and leak the request + listener for the service's life. Abandoning a request we do
+        // not hold is a harmless no-op on the framework side.
+        audioFocusRequest?.let { request ->
+            audioManager.abandonAudioFocusRequest(request)
         }
+        hasAudioFocus = false
     }
 
     private fun waitOnNetworkError() {
