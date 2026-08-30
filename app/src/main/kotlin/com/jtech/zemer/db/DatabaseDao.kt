@@ -1057,6 +1057,15 @@ interface DatabaseDao {
     @Query("UPDATE song SET isDownloaded = :downloaded, dateDownload = :date WHERE id = :songId")
     fun updateDownloadedInfo(songId: String, downloaded: Boolean, date: LocalDateTime?)
 
+    /**
+     * Stamp ONLY the cache-completion date, once. Targeted single-column write so the cached-songs
+     * scan can never roll back a concurrently-completed real download's isDownloaded/mediaStoreUri
+     * (or clobber liked/inLibrary) by re-persisting a stale full Song row. The `dateDownload IS NULL`
+     * guard makes it idempotent under the periodic re-scan.
+     */
+    @Query("UPDATE song SET dateDownload = :date WHERE id = :songId AND dateDownload IS NULL")
+    fun stampCacheDownloadDate(songId: String, date: LocalDateTime)
+
     @Query("UPDATE song SET isVideo = :isVideo WHERE id = :songId")
     fun setIsVideo(songId: String, isVideo: Boolean)
 

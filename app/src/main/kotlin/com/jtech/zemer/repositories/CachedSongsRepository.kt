@@ -71,10 +71,16 @@ class CachedSongsRepository @Inject constructor(
         }
 
         if (completeSongs.isNotEmpty()) {
+            val now = LocalDateTime.now()
             database.query {
                 completeSongs.forEach {
                     if (it.song.dateDownload == null) {
-                        update(it.song.copy(dateDownload = LocalDateTime.now()))
+                        // Targeted single-column write - NOT a full-row copy of the (possibly stale)
+                        // `song`. A full-row update here re-persists whatever isDownloaded /
+                        // mediaStoreUri / liked / inLibrary this scan read up to 30s ago, so a real
+                        // download that completed in the meantime silently rolls back to
+                        // isDownloaded=0. Stamping only dateDownload can never clobber those.
+                        stampCacheDownloadDate(it.song.id, now)
                     }
                 }
             }
