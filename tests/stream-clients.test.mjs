@@ -11,7 +11,9 @@ import assert from "node:assert/strict";
 import { readFileSync, readdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
-import { loadStreamClients, parseStreamClients, fileVerdictRejects, sabrRoster } from "./stream-clients.mjs";
+import { loadStreamClients, loadStreamClientsIncludingBenched, parseStreamClients, fileVerdictRejects, sabrRoster } from "./stream-clients.mjs";
+import { writeFileSync, mkdtempSync } from "node:fs";
+import { tmpdir } from "node:os";
 
 const FIXTURES = join(
   dirname(fileURLToPath(import.meta.url)),
@@ -71,6 +73,25 @@ test("sabr: absent/null = not SABR-usable, object = usable, anything else is mal
   for (const bad of [true, "yes", [], { osName: 1 }, { osVersion: "bad version!" }]) {
     assert.throws(() => one({ sabr: bad }), `sabr=${JSON.stringify(bad)} must be malformed`);
   }
+});
+
+test("loadStreamClientsIncludingBenched surfaces benched entries parsed with the live rules", () => {
+  const base = {
+    key: "MAIN", clientName: "MAIN", clientVersion: "1.0", clientId: "1",
+    userAgent: "Mozilla/5.0 (test)", protocol: "web_cipher_pot", family: "MAIN",
+  };
+  const dir = mkdtempSync(join(tmpdir(), "sc-"));
+  const file = join(dir, "t.json");
+  writeFileSync(file, JSON.stringify({ schemaVersion: 1, clients: [
+    base, { ...base, key: "B", family: "B", enabled: false }, { ...base, key: "C", family: "C" },
+  ] }));
+  const t = loadStreamClientsIncludingBenched(file);
+  assert.deepEqual(t.clients.map((c) => c.key), ["MAIN", "C"]);
+  assert.deepEqual(t.benched.map((c) => c.key), ["B"]);
+  assert.equal(t.benched[0].benched, true);
+  assert.equal(t.benched[0].useWebPoTokens, true);
+  // The bundled table today has no benched entry.
+  assert.deepEqual(loadStreamClientsIncludingBenched().benched, []);
 });
 
 test("benched and unknown-protocol entries skip; malformed entries throw", () => {

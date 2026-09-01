@@ -12,7 +12,7 @@ Every tracked non-Kotlin path outside `docs/` is listed. Text files report line 
 | `.github/workflows/ui-audit.yml` | 56 lines | text `.yml` |
 | `.gitignore` | 117 lines | text `[none]` |
 | `.gitmodules` | 3 lines | text `[none]` |
-| `AGENTS.md` | 1883 lines | text `.md` |
+| `AGENTS.md` | 1893 lines | text `.md` |
 | `LICENSE` | 674 lines | text `[none]` |
 | `README.md` | 9 lines | text `.md` |
 | `app/.gitignore` | 1 lines | text `[none]` |
@@ -285,7 +285,7 @@ Every tracked non-Kotlin path outside `docs/` is listed. Text files report line 
 | `lint.xml` | 6 lines | text `.xml`; XML root `lint` |
 | `lrclib/.gitignore` | 1 lines | text `[none]` |
 | `lrclib/build.gradle.kts` | 16 lines | text `.kts`; plugins `kotlin.serialization, jvm` |
-| `remote-stream-clients-plan.md` | 376 lines | text `.md` |
+| `remote-stream-clients-plan.md` | 378 lines | text `.md` |
 | `scripts/check-16kb-alignment.sh` | 67 lines | text `.sh` |
 | `scripts/check-dead-resources.sh` | 94 lines | text `.sh` |
 | `scripts/check-download-unification.sh` | 58 lines | text `.sh` |
@@ -304,8 +304,8 @@ Every tracked non-Kotlin path outside `docs/` is listed. Text files report line 
 | `tests/check-live-player.mjs` | 81 lines | text `.mjs` |
 | `tests/cipher-check.mjs` | 86 lines | text `.mjs` |
 | `tests/cipher.mjs` | 205 lines | text `.mjs` |
-| `tests/client-fulldownload.mjs` | 119 lines | text `.mjs` |
-| `tests/clients-retired.mjs` | 76 lines | text `.mjs` |
+| `tests/client-fulldownload.mjs` | 166 lines | text `.mjs` |
+| `tests/clients-retired.mjs` | 82 lines | text `.mjs` |
 | `tests/clients.mjs` | 31 lines | text `.mjs` |
 | `tests/config-covers.mjs` | 24 lines | text `.mjs` |
 | `tests/cred.mjs` | 82 lines | text `.mjs` |
@@ -385,8 +385,8 @@ Every tracked non-Kotlin path outside `docs/` is listed. Text files report line 
 | `tests/search/self-test.mjs` | 103 lines | text `.mjs` |
 | `tests/search/verify-album-fix.mjs` | 61 lines | text `.mjs` |
 | `tests/search/whitelist-findable.mjs` | 114 lines | text `.mjs` |
-| `tests/stream-clients.mjs` | 240 lines | text `.mjs` |
-| `tests/stream-clients.test.mjs` | 117 lines | text `.mjs` |
+| `tests/stream-clients.mjs` | 259 lines | text `.mjs` |
+| `tests/stream-clients.test.mjs` | 138 lines | text `.mjs` |
 | `tests/sts-mismatch.mjs` | 125 lines | text `.mjs` |
 | `tests/test-mweb-cipher.mjs` | 142 lines | text `.mjs` |
 | `tests/validate-player-config.mjs` | 202 lines | text `.mjs` |

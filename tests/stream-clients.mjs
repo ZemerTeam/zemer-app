@@ -194,6 +194,25 @@ export function parseStreamClients(text) {
 }
 
 /**
+ * The table INCLUDING its benched entries (`enabled: false`), each parsed with the same rules:
+ * { clients (live, as loadStreamClients), benched: [...defs], families, skipped }. The monitor
+ * scans benched entries too, so a client that comes back is noticed (and un-benched) — the
+ * loader itself never returns them as live, exactly like the app.
+ */
+export function loadStreamClientsIncludingBenched(path = STREAM_CLIENTS_PATH) {
+  const live = loadStreamClients(path);
+  const raw = JSON.parse(readFileSync(path, "utf8"));
+  const benchedKeys = (raw.clients || []).filter((c) => c && c.enabled === false).map((c) => c.key);
+  if (benchedKeys.length === 0) return { ...live, benched: [] };
+  // Re-parse with the kill switch lifted: a benched entry must still be a VALID entry (the
+  // monitor would otherwise probe a shape the app could never run).
+  const lifted = { ...raw, clients: raw.clients.map((c) => (c && c.enabled === false ? { ...c, enabled: true } : c)) };
+  const all = parseStreamClients(JSON.stringify(lifted));
+  const benched = all.clients.filter((c) => benchedKeys.includes(c.key)).map((c) => ({ ...c, benched: true }));
+  return { ...live, benched };
+}
+
+/**
  * The SABR roster: the sabr-capable entries in table order — what the app's SabrRoster runs.
  * Scripts probing SABR against "the app's clients" must take this, not a hand-kept list.
  */

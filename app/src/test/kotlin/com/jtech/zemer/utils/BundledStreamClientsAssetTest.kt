@@ -37,7 +37,16 @@ class BundledStreamClientsAssetTest {
         val fromAsset = StreamClientTable.fromConfig(config)
         val compiled = StreamClientTable.COMPILED_TABLE
         // Field-for-field (data-class equality) over every client AND the family ids, in order.
+        // The asset may carry FEWER entries than the floor - a BENCHED entry (`enabled: false`,
+        // committed unattended by the cipher client-monitor when a fallback dies) drops out of the
+        // parsed chain - but never a different, reordered or extra one, and never a benched main.
         assertEquals(compiled.main, fromAsset.main)
-        assertEquals(compiled.fallbacks, fromAsset.fallbacks)
+        val floor = compiled.fallbacks
+        val live = fromAsset.fallbacks
+        assertEquals(
+            "asset fallbacks must be the compiled floor in order, minus benched entries: $live",
+            floor.filter { f -> live.any { it.key == f.key } },
+            live,
+        )
     }
 }
