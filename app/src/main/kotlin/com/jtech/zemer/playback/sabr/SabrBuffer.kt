@@ -55,14 +55,19 @@ internal class SabrBuffer private constructor(
 
     /** Write [len] bytes from [src] at absolute [offset] in the reassembled stream. */
     fun writeAt(offset: Long, src: ByteArray, from: Int, len: Int) {
-        if (len <= 0 || offset < 0) return
+        if (len <= 0 || offset < 0 || offset >= expectedLength) return
         synchronized(lock) {
             if (closed || error != null) return
-            val end = offset + len
-            if (end > expectedLength) return // guard: never write past the declared contentLength
+            // Clamp to the declared contentLength instead of dropping: a final segment that overshoots
+            // (padding / muxer slack / a contentLength a few bytes under the true segment sum) writes
+            // its in-range prefix — the real file tail — so coverage reaches contentLength and the drain
+            // completes. Dropping the whole segment left the tail permanently uncovered.
+            val writeLen = minOf(len.toLong(), expectedLength - offset).toInt()
+            if (writeLen <= 0) return
+            val end = offset + writeLen
             try {
                 raf.seek(offset)
-                raf.write(src, from, len)
+                raf.write(src, from, writeLen)
             } catch (e: IOException) {
                 error = "spool write failed: ${e.message}"
                 lock.notifyAll()

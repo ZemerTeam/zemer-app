@@ -1,6 +1,6 @@
 # Non-Kotlin file reference
 
-Every tracked non-Kotlin path outside `docs/` is listed. Text files report line counts; binary files report byte counts; gitlinks are recorded as non-file tracked paths. Total paths: `383`.
+Every tracked non-Kotlin path outside `docs/` is listed. Text files report line counts; binary files report byte counts; gitlinks are recorded as non-file tracked paths. Total paths: `386`.
 
 | Path | Size/status | Type metadata |
 | --- | ---: | --- |
@@ -358,8 +358,11 @@ Every tracked non-Kotlin path outside `docs/` is listed. Text files report line 
 | `tests/results.json` | 222 lines | text `.json` |
 | `tests/retest-web.mjs` | 58 lines | text `.mjs` |
 | `tests/run.mjs` | 181 lines | text `.mjs` |
+| `tests/sabr-ab-probe.mjs` | 200 lines | text `.mjs` |
 | `tests/sabr-clients.mjs` | 153 lines | text `.mjs` |
+| `tests/sabr-quality-sweep.mjs` | 203 lines | text `.mjs` |
 | `tests/sabr-seek.mjs` | 197 lines | text `.mjs` |
+| `tests/sabr-select-compare.mjs` | 75 lines | text `.mjs` |
 | `tests/sabr-stream.mjs` | 167 lines | text `.mjs` |
 | `tests/sabr-video-clients.mjs` | 166 lines | text `.mjs` |
 | `tests/sabr-video.mjs` | 207 lines | text `.mjs` |

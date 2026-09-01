@@ -68,10 +68,37 @@ internal class SabrSession(
     private val paceAheadBytes: Long = 0,
     /** Fired on an incomplete drain (the stall-fallback bookkeeping — see SabrPlayerResolver.recordStall). */
     private val onIncomplete: (() -> Unit)? = null,
+    /**
+     * True when a STREAM owns this session's lifecycle and retries (playback — [SabrAudioStream]). A
+     * restartable session NEVER marks the shared buffer errored on its own failure: the buffer is reused
+     * by the replacement session a seek-restart starts, and a one-way markError from this dying session
+     * would poison it (writes refused forever) even though a valid session was launched. It only wakes
+     * the reader so the stream re-aims; the stream is the sole terminal-error authority (its
+     * MAX_SEEK_RESTARTS / destroy paths markError). A standalone (download) session keeps marking so the
+     * caller sees the failure.
+     */
+    private val restartable: Boolean = false,
 ) : Runnable {
 
     @Volatile private var cancelled = false
     fun cancel() { cancelled = true }
+
+    // POST-count ceiling — a backstop against a pathological progressing-but-never-completing loop
+    // (the dry counter below is the real stall guard). Derived from the track duration so a long
+    // podcast/audiobook whose drain legitimately needs many round-trips is never cut off mid-tail.
+    private val maxIter: Int = ((config.durationMs / 1000L) * 3L + 1000L).coerceIn(1000L, 200_000L).toInt()
+
+    /**
+     * Terminal failure of THIS session. A [restartable] (playback) session leaves the buffer unmarked so
+     * the stream can restart on the SAME buffer — it only wakes the parked reader to re-aim; a standalone
+     * (download) session marks the buffer so its caller sees the failure. [stall] records the client stall
+     * (roster-fallback bookkeeping); an HTTP failure passes false (usually an expired url, not this
+     * client's fault).
+     */
+    private fun failStream(message: String, stall: Boolean) {
+        if (stall) onIncomplete?.invoke()
+        if (restartable) buffer.notifyWaiters() else buffer.markError(message)
+    }
 
     /** Absolute byte offset of this session's FIRST media segment (-1 until known) — the seek anchor. */
     @Volatile var firstWrittenOffset: Long = -1L
@@ -97,7 +124,7 @@ internal class SabrSession(
             // A thread interrupt IS a cancellation (runInterruptible on a cancelled download Job), not
             // a stream failure — no error mark, no stall record; the caller discards the buffer.
             val interrupted = e is java.io.InterruptedIOException || e is InterruptedException || Thread.currentThread().isInterrupted
-            if (!cancelled && !interrupted) buffer.markError(e.message ?: e.javaClass.simpleName)
+            if (!cancelled && !interrupted) failStream(e.message ?: e.javaClass.simpleName, stall = false)
         }
     }
 
@@ -122,7 +149,7 @@ internal class SabrSession(
         var iter = 0
         var dry = 0
 
-        while (!cancelled && iter < 500 && dry < 6) {
+        while (!cancelled && iter < maxIter && dry < 6) {
             iter++
             if (paceAheadBytes > 0) buffer.awaitDemand(paceAheadBytes) { cancelled }
             if (cancelled) return
@@ -145,7 +172,7 @@ internal class SabrSession(
             // An HTTP failure is NOT recorded as a client stall — a 403 is usually an expired URL, not
             // this client's fault; the error mark surfaces it and the refresh path re-resolves fresh.
             val bytes = client.newCall(req).execute().use { resp ->
-                if (!resp.isSuccessful) { buffer.markError("HTTP ${resp.code}"); return }
+                if (!resp.isSuccessful) { failStream("HTTP ${resp.code}", stall = false); return }
                 resp.body?.bytes() ?: ByteArray(0)
             }
             if (cancelled) return
@@ -169,7 +196,7 @@ internal class SabrSession(
             }
             if (sabrError) {
                 Timber.tag(TAG).w("SABR_ERROR at iter=$iter (segs so far: $lastSeq/$endSeg) — server rejected the request")
-                buffer.markError("SABR_ERROR"); onIncomplete?.invoke(); return
+                failStream("SABR_ERROR", stall = true); return
             }
             if (iter == 1) Timber.tag(TAG).d("SABR first response: parts=${parts.size}, mediaHeaders=${headers.size}, endSeg=$endSeg, startTimeMs=$startTimeMs")
 
@@ -225,8 +252,7 @@ internal class SabrSession(
                 // playback reaches the stall point and then surfaces a real player error — the same
                 // shortfall the download path rejects.
                 Timber.tag(TAG).w("SABR incomplete: ${buffer.available()}/${config.format.contentLength} (seq $lastSeq/$endSeg, start=$startTimeMs)")
-                buffer.markError("incomplete drain: ${buffer.available()}/${config.format.contentLength}")
-                onIncomplete?.invoke()
+                failStream("incomplete drain: ${buffer.available()}/${config.format.contentLength}", stall = true)
             }
         }
     }

@@ -111,6 +111,9 @@ internal class SabrVideoStream(
             paceAheadVideoBytes = AHEAD_VIDEO_BYTES,
             paceAheadAudioBytes = AHEAD_AUDIO_BYTES,
             onIncomplete = { config.clientKey?.let { SabrPlayerResolver.recordStall(mediaId, it) } },
+            // Stream-owned lifecycle: a failing session must not poison the shared buffers the next
+            // seek-restart reuses — the stream's MAX_SEEK_RESTARTS path owns the terminal error.
+            restartable = true,
         )
         session = s
         sessionStartedAtMs = System.currentTimeMillis()

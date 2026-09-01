@@ -59,10 +59,30 @@ internal class SabrVideoSession(
     private val paceAheadAudioBytes: Long = 0,
     /** Fired on an incomplete drain (the stall-fallback bookkeeping). */
     private val onIncomplete: (() -> Unit)? = null,
+    /**
+     * True when [SabrVideoStream] owns this session's lifecycle and retries. A restartable session NEVER
+     * marks its shared buffers errored on failure — a seek-restart reuses the SAME buffers, and a
+     * one-way markError from this dying session would poison them for the valid replacement. It only
+     * wakes the readers so the stream re-aims; the stream owns the terminal error (MAX_SEEK_RESTARTS /
+     * destroy). A standalone (download) session keeps marking so its caller sees the failure.
+     */
+    private val restartable: Boolean = false,
 ) : Runnable {
 
     @Volatile private var cancelled = false
     fun cancel() { cancelled = true }
+
+    // POST-count ceiling — a backstop against a pathological progressing-but-never-completing loop
+    // (dry below is the real stall guard); derived from duration so a long video's legitimate drain
+    // is never cut off mid-tail.
+    private val maxIter: Int = ((config.durationMs / 1000L) * 3L + 1000L).coerceIn(1000L, 200_000L).toInt()
+
+    /** Terminal failure of THIS session — see [SabrSession.failStream]. Marks/wakes BOTH tracks. */
+    private fun failStream(message: String, stall: Boolean) {
+        if (stall) onIncomplete?.invoke()
+        if (restartable) { videoBuffer.notifyWaiters(); audioBuffer.notifyWaiters() }
+        else { videoBuffer.markError(message); audioBuffer.markError(message) }
+    }
 
     /** Absolute first-byte offsets of this session's tracks (-1 until known) — the seek anchors. */
     @Volatile var firstVideoOffset: Long = -1L
@@ -105,10 +125,7 @@ internal class SabrVideoSession(
             // A thread interrupt IS a cancellation (runInterruptible on a cancelled download Job), not
             // a stream failure — no error mark, no stall record; the caller discards the buffers.
             val interrupted = e is java.io.InterruptedIOException || e is InterruptedException || Thread.currentThread().isInterrupted
-            if (!cancelled && !interrupted) {
-                videoBuffer.markError(e.message ?: e.javaClass.simpleName)
-                audioBuffer.markError(e.message ?: e.javaClass.simpleName)
-            }
+            if (!cancelled && !interrupted) failStream(e.message ?: e.javaClass.simpleName, stall = false)
         }
     }
 
@@ -123,7 +140,7 @@ internal class SabrVideoSession(
         var iter = 0
         var dry = 0
 
-        while (!cancelled && iter < 800 && dry < 6) {
+        while (!cancelled && iter < maxIter && dry < 6) {
             iter++
             // Demand pacing: pause only while BOTH tracks are comfortably ahead of their readers.
             if (paceAheadVideoBytes > 0 || paceAheadAudioBytes > 0) awaitDualDemand()
@@ -150,7 +167,7 @@ internal class SabrVideoSession(
             // An HTTP failure is NOT recorded as a client stall — a 403 is usually an expired URL, not
             // this client's fault; the error mark surfaces it and the refresh path re-resolves fresh.
             val bytes = client.newCall(req).execute().use { resp ->
-                if (!resp.isSuccessful) { videoBuffer.markError("HTTP ${resp.code}"); audioBuffer.markError("HTTP ${resp.code}"); return }
+                if (!resp.isSuccessful) { failStream("HTTP ${resp.code}", stall = false); return }
                 resp.body?.bytes() ?: ByteArray(0)
             }
             if (cancelled) return
@@ -173,7 +190,7 @@ internal class SabrVideoSession(
             }
             if (sabrError) {
                 Timber.tag(TAG).w("SABR_ERROR at iter=$iter (video ${video.lastSeq}, audio ${audio.lastSeq}) — server rejected the request")
-                videoBuffer.markError("SABR_ERROR"); audioBuffer.markError("SABR_ERROR"); onIncomplete?.invoke(); return
+                failStream("SABR_ERROR", stall = true); return
             }
 
             // Which headers are NEW per track (init once, each sequence once). Resends are skipped.
@@ -235,8 +252,7 @@ internal class SabrVideoSession(
                 // before ever reading.
                 Timber.tag(TAG).w("SABR video incomplete: video ${videoBuffer.available()}/${config.videoFormat.contentLength}, audio ${audioBuffer.available()}/${config.audioFormat.contentLength} (start=$startTimeMs)")
                 val msg = "incomplete drain: video ${videoBuffer.available()}/${config.videoFormat.contentLength}, audio ${audioBuffer.available()}/${config.audioFormat.contentLength}"
-                videoBuffer.markError(msg); audioBuffer.markError(msg)
-                onIncomplete?.invoke()
+                failStream(msg, stall = true)
             }
         }
     }

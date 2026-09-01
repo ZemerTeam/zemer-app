@@ -119,6 +119,9 @@ internal class SabrAudioStream private constructor(
             startTimeMs = startMs,
             paceAheadBytes = AHEAD_AUDIO_BYTES,
             onIncomplete = { cfg.clientKey?.let { SabrPlayerResolver.recordStall(mediaId, it) } },
+            // Stream-owned lifecycle: a failing session must not poison the shared buffer the next
+            // seek-restart reuses — the stream's MAX_SEEK_RESTARTS path owns the terminal error.
+            restartable = true,
         )
         session = s
         sessionStartedAtMs = System.currentTimeMillis()

@@ -52,4 +52,16 @@ class SabrProtoTest {
         assertEquals(300L, v)
         assertEquals(2, n)
     }
+
+    @Test
+    fun `read never throws on a length-delimited field whose length overflows Int`() {
+        // Regression: a wire-2 field whose length varint decodes to a value whose .toInt() is negative
+        // made end < p and copyOfRange(p, end) throw IllegalArgumentException, violating the
+        // "never throws on truncation" contract (and aborting a whole SABR response parse via a caught
+        // exception that then marked the stream errored instead of skipping the bad frame).
+        // field 2, wire 2 -> tag 0x12; length = a 5-byte varint for 0xFFFFFFFF (overflows Int to negative).
+        val msg = bytes(0x12, 0xFF, 0xFF, 0xFF, 0xFF, 0x0F, 0x01, 0x02)
+        val m = SabrProto.read(msg) // must return gracefully, not throw
+        assertEquals(0, m.size)      // the malformed frame is skipped, no field decoded
+    }
 }

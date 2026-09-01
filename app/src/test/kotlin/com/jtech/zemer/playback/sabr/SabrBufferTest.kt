@@ -65,6 +65,22 @@ class SabrBufferTest {
     }
 
     @Test
+    fun `a final segment overshooting contentLength writes its in-range prefix and completes`() {
+        // Regression: the old guard dropped the WHOLE segment when its end passed the declared
+        // contentLength, so a tail that overshoots (padding / muxer slack / a contentLength a few
+        // bytes under the true segment sum) left the buffer permanently short and the drain never
+        // completed. The clamp writes the in-range prefix so coverage reaches contentLength.
+        val buf = buf(4)
+        buf.writeAt(0, bytes(1, 2), 0, 2)             // [0,2)
+        buf.writeAt(2, bytes(3, 4, 5, 6), 0, 4)       // final segment overshoots: [2,6) past len 4
+        assertEquals(4L, buf.available())              // in-range prefix [2,4) written, not dropped
+        assertTrue(buf.completeFromZero())             // coverage reached contentLength -> completes
+        val out = ByteArray(4)
+        assertEquals(4, buf.read(0, out, 0, 4))
+        assertArrayEquals(bytes(1, 2, 3, 4), out)      // only the declared-length bytes, byte-exact
+    }
+
+    @Test
     fun `a content length above the old 64 MiB cap still buffers`() {
         // A long opus podcast passes 64 MiB after ~53 min; the old 64 MiB HEAP cap made the buffer
         // zero-length so every write was silently dropped. Disk-backed, the length is a sparse

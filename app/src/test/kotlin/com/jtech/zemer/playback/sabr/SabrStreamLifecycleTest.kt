@@ -191,6 +191,47 @@ class SabrStreamLifecycleTest {
         assertNotNull("the survivor's complete drain must promote", SabrSpool.lookup("vid00000030"))
     }
 
+    /** A SabrConfig whose SABR url points at [url] (a local test server). */
+    private fun audioConfigAt(url: String, len: Long = 64) = SabrConfig(
+        sabrUrl = url,
+        ustreamerConfig = ByteArray(2),
+        format = SabrMessages.Format(itag = 251, lastModified = 0L, contentLength = len),
+        poToken = ByteArray(2),
+        clientInfo = SabrMessages.ClientInfo(clientName = 101, clientVersion = "1.0"),
+        userAgent = "test",
+        nTransform = { it },
+        durationMs = 1000,
+    )
+
+    @Test
+    fun `a restartable session's failure does NOT poison the shared buffer while a download session's does`() {
+        // Finding 1: the shared buffer is reused by the session a seek-restart starts. A dying playback
+        // session must leave error decisions to the stream (MAX_SEEK_RESTARTS), or its one-way markError
+        // poisons the fresh session's writes forever. A standalone download session, having no stream to
+        // retry it, must still mark so its caller sees the failure.
+        // A one-shot server that accepts then immediately closes — the SABR POST fails (the session's
+        // failure path), no protocol replay needed.
+        val server = java.net.ServerSocket(0, 8, java.net.InetAddress.getByName("127.0.0.1"))
+        val acceptor = Thread { try { while (!server.isClosed) server.accept().close() } catch (_: Exception) {} }
+        acceptor.isDaemon = true
+        acceptor.start()
+        try {
+            val url = "http://127.0.0.1:${server.localPort}/sabr"
+
+            // Restartable (playback) session hitting the failure: no buffer poison.
+            val playbackBuffer = SabrBuffer(64, tmp.newFile("restartable.spool"))
+            SabrSession(audioConfigAt(url), client, playbackBuffer, restartable = true).run()
+            assertFalse("a restartable session must not mark the shared buffer errored", playbackBuffer.failed())
+
+            // Standalone (download) session hitting the same failure: buffer marked so the caller sees it.
+            val downloadBuffer = SabrBuffer(64, tmp.newFile("download.spool"))
+            SabrSession(audioConfigAt(url), client, downloadBuffer, restartable = false).run()
+            assertTrue("a download session must mark its buffer errored", downloadBuffer.failed())
+        } finally {
+            server.close()
+        }
+    }
+
     @Test
     fun `spool lookup validates the file length and evict removes the entry`() {
         val config = audioConfig(len = 8)

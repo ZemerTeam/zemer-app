@@ -62,7 +62,7 @@ internal object SabrProto {
             val wire = (tag and 7L).toInt()
             val value: Value = when (wire) {
                 0 -> { val (v, vs) = readVarint(buf, p); p += vs; Value(v, null) }
-                2 -> { val (len, ls) = readVarint(buf, p); p += ls; val end = (p + len.toInt()).coerceAtMost(to); val slice = buf.copyOfRange(p, end); p = end; Value(0, slice) }
+                2 -> { val (len, ls) = readVarint(buf, p); p += ls; val lenInt = len.toInt(); if (lenInt < 0) break; val end = (p + lenInt).coerceAtMost(to); val slice = buf.copyOfRange(p, end); p = end; Value(0, slice) }
                 5 -> { val v = le32(buf, p); p += 4; Value(v, null) }
                 1 -> { p += 8; Value(0, null) }
                 else -> break
