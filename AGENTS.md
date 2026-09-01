@@ -129,7 +129,8 @@ byte-for-byte unchanged. The engine is a faithful Kotlin port of the proven Node
   echo anchors at its own first segment, never (0,1)), `SabrSession` (the continuation state machine -
   seek start + demand pacing; a PLAYBACK session is `restartable` so it NEVER marks the shared buffer on
   its own failure - the stream owns the terminal error, else a dying session poisons the buffer the next
-  seek-restart reuses), `SabrSeekLogic` (the PURE, shared audio+video seek-restart decision), `SabrBuffer` (DISK-backed positional reassembly - spool file, never a
+  seek-restart reuses), `SabrSeekLogic` (the PURE, shared audio+video seek-restart decision), `SabrProtection` (the PURE
+  attestation-cap detector), `SabrBuffer` (DISK-backed positional reassembly - spool file, never a
   heap array, so a multi-hour episode or a 2160p track can't OOM; serves any COVERED region, not just
   a prefix; REFUSES an out-of-range contentLength at construction), `SabrSpool` (the spool dir + the
   persistent replay cache), `SabrAudioStream` (registry-owned lifetime + the session ORCHESTRATION:
@@ -142,7 +143,7 @@ byte-for-byte unchanged. The engine is a faithful Kotlin port of the proven Node
   MARKS its buffers so a parked reader is always woken (never an infinite buffering hang). Regression
   tests: `SabrProtoTest` / `SabrUmpTest` / `SabrMessagesTest` / `SabrBufferTest` /
   `SabrStreamLifecycleTest` / `SabrVideoRungPickTest` / `SabrSeekLogicTest` / `SabrSpoolTest` /
-  `SabrAudioPickTest`.
+  `SabrAudioPickTest` / `SabrProtectionTest`.
 - **Reassembly is by ABSOLUTE byte offset, never sequential append** (`SabrSession` writes each segment at
   its `startRange`, `SabrBuffer` tracks a contiguous-from-0 watermark). Sequential append corrupted the
   container, which made the extractor report a garbage duration -> `getBufferedPercentage` overflow ->
@@ -173,7 +174,11 @@ byte-for-byte unchanged. The engine is a faithful Kotlin port of the proven Node
   DOWNLOAD restricts to AAC (DIRECT's `downloadOpusOk` parity). On the playback path `resolve` rethrows a
   network-class failure (`classifyErrors=true`) so `MusicService` maps it to a
   `NETWORK_CONNECTION_FAILED` `PlaybackException` and `waitOnNetworkError` fires instead of the queue
-  skipping on a flaky network.
+  skipping on a flaky network. A client whose pot can't satisfy stream protection (MWEB/IOS-class)
+  is served a free window then only `STREAM_PROTECTION_STATUS>=2` with no media; `SabrProtection`
+  detects the sustained cap and the session bails FAST with an `attestation-capped` reason so the stall
+  fallback moves to a client that can attest (MWEB stays a conditional last-resort — it drains ungated
+  videos whole but is walled on gated content on BOTH transports; see `tests/MWEB-INVESTIGATION.md`).
 - **Web clients cipher the SABR url, direct clients don't:** WEB_REMIX/TVHTML5_SIMPLY/MWEB have a CIPHERED
   `serverAbrStreamingUrl` - its `n` is n-transformed (the key unlock that made the web family usable) and
   the videoId-bound pot is appended as `&pot=`; VISIONOS is a direct client (identity transform, no

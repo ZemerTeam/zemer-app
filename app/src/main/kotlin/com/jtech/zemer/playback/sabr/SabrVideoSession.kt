@@ -139,6 +139,7 @@ internal class SabrVideoSession(
         val ctxByType = LinkedHashMap<Long, ByteArray>()
         var iter = 0
         var dry = 0
+        var attestationStalls = 0
 
         while (!cancelled && iter < maxIter && dry < 6) {
             iter++
@@ -177,6 +178,7 @@ internal class SabrVideoSession(
             var redirect: String? = null
             var sabrError = false
             var gotContext = false
+            var protStatus = 0L
             for (p in parts) when (p.type) {
                 SabrUmp.MEDIA_HEADER -> { val h = SabrMessages.parseMediaHeader(p.payload); headers[h.headerId] = h }
                 SabrUmp.NEXT_REQUEST_POLICY -> SabrMessages.parsePlaybackCookie(p.payload)?.let { cookie = it }
@@ -184,8 +186,8 @@ internal class SabrVideoSession(
                 SabrUmp.SABR_REDIRECT -> redirect = SabrMessages.parseRedirectUrl(p.payload)
                 SabrUmp.SABR_ERROR -> sabrError = true
                 SabrUmp.STREAM_PROTECTION_STATUS -> {
-                    val status = SabrProto.read(p.payload).longAt(1)
-                    Timber.tag(TAG).d("STREAM_PROTECTION_STATUS=$status (1=OK,2=pending,3=attestation-required)")
+                    protStatus = SabrProto.read(p.payload).longAt(1)
+                    Timber.tag(TAG).d("STREAM_PROTECTION_STATUS=$protStatus (1=OK,2=pending,3=attestation-required)")
                 }
             }
             if (sabrError) {
@@ -235,6 +237,13 @@ internal class SabrVideoSession(
 
             if (redirect != null && !newSeg) { url = prepared(redirect); continue }
             dry = if (newSeg || gotContext) 0 else dry + 1
+            // Attestation cap (see SabrSession): a client that can't satisfy stream protection is served a
+            // free window then only STREAM_PROTECTION_STATUS>=2 — bail fast so the fallback moves on.
+            attestationStalls = SabrProtection.nextStalls(protStatus, madeProgress = newSeg, prev = attestationStalls)
+            if (SabrProtection.capped(attestationStalls)) {
+                Timber.tag(TAG).w("SABR video attestation cap (STREAM_PROTECTION_STATUS=$protStatus) — this client cannot satisfy attestation")
+                failStream("attestation-capped (protection=$protStatus)", stall = true); return
+            }
             if (video.tailDone() && audio.tailDone()) break
         }
 
@@ -275,5 +284,7 @@ internal class SabrVideoSession(
 
     private fun Long.orStartIfEmpty(t: Track): Long = if (t.lastSeq > 0) this else startTimeMs
 
-    companion object { private const val TAG = "SabrVideoSession" }
+    companion object {
+        private const val TAG = "SabrVideoSession"
+    }
 }

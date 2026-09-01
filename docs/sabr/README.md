@@ -146,6 +146,7 @@ Pure, isolated, JVM-tested where possible:
 | `SabrBuffer.kt` | DISK-backed positional reassembly, region coverage, demand pacing | `SabrBufferTest` |
 | `SabrSpool.kt` | the spool dir + the persistent replay cache (LRU, meta sidecars) | `SabrStreamLifecycleTest`, `SabrSpoolTest` |
 | `SabrSeekLogic.kt` | PURE seek-restart decision shared by audio + video streams | `SabrSeekLogicTest` |
+| `SabrProtection.kt` | PURE attestation-cap detector (STREAM_PROTECTION_STATUS) | `SabrProtectionTest` |
 | `SabrSession.kt` | the continuation state machine (seek start, pacing) -> fills the buffer; a playback session is `restartable` (stream owns terminal errors) | `SabrStreamLifecycleTest` (network otherwise) |
 | `SabrDataSource.kt` | the ExoPlayer `DataSource` + `SabrAudioStream` + the `sabr://<mediaId>` registry | `SabrStreamLifecycleTest` |
 | `SabrStreamResolver.kt` | builds a `SabrConfig`; the SABR OkHttp client; the audio download | - |

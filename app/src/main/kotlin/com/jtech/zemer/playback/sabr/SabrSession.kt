@@ -148,6 +148,7 @@ internal class SabrSession(
         val ctxByType = LinkedHashMap<Long, ByteArray>()
         var iter = 0
         var dry = 0
+        var attestationStalls = 0
 
         while (!cancelled && iter < maxIter && dry < 6) {
             iter++
@@ -182,6 +183,7 @@ internal class SabrSession(
             var redirect: String? = null
             var sabrError = false
             var gotContext = false
+            var protStatus = 0L
             for (p in parts) when (p.type) {
                 SabrUmp.MEDIA_HEADER -> { val h = SabrMessages.parseMediaHeader(p.payload); headers[h.headerId] = h }
                 SabrUmp.FORMAT_INITIALIZATION_METADATA -> SabrMessages.parseEndSegment(p.payload).let { if (it > 0) endSeg = it }
@@ -190,8 +192,8 @@ internal class SabrSession(
                 SabrUmp.SABR_REDIRECT -> redirect = SabrMessages.parseRedirectUrl(p.payload)
                 SabrUmp.SABR_ERROR -> sabrError = true
                 SabrUmp.STREAM_PROTECTION_STATUS -> {
-                    val status = SabrProto.read(p.payload).longAt(1)
-                    Timber.tag(TAG).d("STREAM_PROTECTION_STATUS=$status (1=OK,2=pending,3=attestation-required)")
+                    protStatus = SabrProto.read(p.payload).longAt(1)
+                    Timber.tag(TAG).d("STREAM_PROTECTION_STATUS=$protStatus (1=OK,2=pending,3=attestation-required)")
                 }
             }
             if (sabrError) {
@@ -234,6 +236,15 @@ internal class SabrSession(
 
             if (redirect != null && !newSeg) { url = prepared(redirect); continue }
             dry = if (newSeg || gotContext) 0 else dry + 1
+            // Attestation cap: a client whose pot can't satisfy stream protection (MWEB/IOS-class) gets a
+            // small free window, then the server serves ONLY STREAM_PROTECTION_STATUS>=2 with no media
+            // (proven live: tests/probe-mweb-sabr.mjs). Bail FAST with a clear reason instead of grinding
+            // to the dry cap — the roster/stall fallback then moves to a client that can attest.
+            attestationStalls = SabrProtection.nextStalls(protStatus, madeProgress = newSeg, prev = attestationStalls)
+            if (SabrProtection.capped(attestationStalls)) {
+                Timber.tag(TAG).w("SABR attestation cap (STREAM_PROTECTION_STATUS=$protStatus): ${buffer.available()}/${config.format.contentLength} at seq $lastSeq/$endSeg — this client cannot satisfy attestation")
+                failStream("attestation-capped (protection=$protStatus): ${buffer.available()}/${config.format.contentLength}", stall = true); return
+            }
             // Completion: end_segment_number when the server sent one, else BYTE coverage reaching
             // contentLength (a seeked session gets no endSeg — proven live).
             if (endSeg > 0 && lastSeq >= endSeg) break
@@ -257,5 +268,7 @@ internal class SabrSession(
         }
     }
 
-    companion object { private const val TAG = "SabrSession" }
+    companion object {
+        private const val TAG = "SabrSession"
+    }
 }
