@@ -926,7 +926,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/main/res/values/app_name.xml` | 4 lines | `.xml` |
 | `app/src/main/res/values/colors.xml` | 9 lines | `.xml` |
 | `app/src/main/res/values/metrolist_strings.xml` | 704 lines | `.xml` |
-| `app/src/main/res/values/strings.xml` | 420 lines | `.xml` |
+| `app/src/main/res/values/strings.xml` | 419 lines | `.xml` |
 | `app/src/main/res/values/styles.xml` | 26 lines | `.xml` |
 | `app/src/main/res/values/values.xml` | 8 lines | `.xml` |
 | `app/src/main/res/xml-v25/shortcuts.xml` | 23 lines | `.xml` |

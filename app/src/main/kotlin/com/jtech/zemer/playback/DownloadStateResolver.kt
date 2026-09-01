@@ -22,7 +22,7 @@ enum class DownloadStatus { NOT_DOWNLOADED, DOWNLOADING, DOWNLOADED }
  *
  * The legacy ExoPlayer download map (the old `DownloadUtil.downloads` + media3 `DownloadManager`
  * engine) is GONE - removed entirely; MediaStore is the only download path. `scripts/ui-audit.sh`
- * still bans reads of `downloadUtil.downloads` so it can't be reintroduced.
+ * still bans reads of the `DownloadUtil.downloads` map so it can't be reintroduced.
  */
 object DownloadStateResolver {
 
