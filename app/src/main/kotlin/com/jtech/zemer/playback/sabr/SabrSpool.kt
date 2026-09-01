@@ -69,6 +69,11 @@ internal object SabrSpool {
             val done = File(requireDir(), "$mediaId.${config.format.itag}.done")
             val meta = File(requireDir(), "$mediaId.meta")
             if (!part.renameTo(done)) return
+            // Drop any stale `.done` from an earlier itag for this id: the meta below now points at
+            // THIS itag, so an older-itag sibling is unreachable dead weight — and prune() aging it out
+            // would otherwise delete this id's LIVE meta and strand the newer file (finding).
+            requireDir().listFiles { file -> file.name.startsWith("$mediaId.") && file.name.endsWith(".done") && file != done }
+                ?.forEach { runCatching { it.delete() } }
             val p = Properties()
             p["itag"] = config.format.itag.toString()
             p["contentLength"] = config.format.contentLength.toString()
@@ -126,9 +131,15 @@ internal object SabrSpool {
         for (f in done) {
             if (total <= MAX_CACHE_BYTES) break
             total -= f.length()
-            val id = f.name.substringBefore('.')
+            val base = f.name.removeSuffix(".done") // "<id>.<itag>"
+            val id = base.substringBeforeLast('.')
+            val itag = base.substringAfterLast('.')
             runCatching { f.delete() }
-            runCatching { File(d, "$id.meta").delete() }
+            // Delete the meta ONLY when it still references THIS file's itag; if it points at a newer
+            // itag's live .done, evicting this orphan must not orphan the live replay entry.
+            val meta = File(d, "$id.meta")
+            val metaItag = runCatching { Properties().apply { meta.inputStream().use { load(it) } }.getProperty("itag") }.getOrNull()
+            if (metaItag == itag) runCatching { meta.delete() }
         }
     }
 }

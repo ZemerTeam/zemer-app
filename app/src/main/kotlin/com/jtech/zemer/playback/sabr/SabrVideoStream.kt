@@ -44,7 +44,7 @@ internal class SabrVideoStream(
     private var destroyed = false
     private var sessionStartedAtMs = 0L
     private var restartAttempts = 0
-    private var seekMarginMs = SEEK_MARGIN_MS
+    private var seekMarginMs = SabrSeekLogic.SEEK_MARGIN_MS
 
     @Synchronized fun usable(): Boolean = !destroyed && !videoBuffer.failed() && !audioBuffer.failed()
 
@@ -59,7 +59,7 @@ internal class SabrVideoStream(
         while (true) {
             val n = buffer.readCovered(position, into, offset, length)
             if (n > 0) {
-                if (restartAttempts != 0) synchronized(this) { restartAttempts = 0; seekMarginMs = SEEK_MARGIN_MS }
+                if (restartAttempts != 0) synchronized(this) { restartAttempts = 0; seekMarginMs = SabrSeekLogic.SEEK_MARGIN_MS }
                 return n
             }
             if (position >= buffer.expectedLength) return -1
@@ -76,31 +76,28 @@ internal class SabrVideoStream(
         val format = if (video) config.videoFormat else config.audioFormat
         if (destroyed || buffer.failed() || buffer.coveredAt(position)) return
         val s = session
-        if (s != null && thread?.isAlive == true) {
-            val anchor = if (video) s.firstVideoOffset else s.firstAudioOffset
-            when {
-                anchor < 0 -> if (System.currentTimeMillis() - sessionStartedAtMs < LAND_GRACE_MS) return
-                anchor <= position -> {
-                    val frontier = buffer.coverageEndFrom(anchor)
-                    if (position - frontier <= if (video) CATCHUP_VIDEO_BYTES else CATCHUP_AUDIO_BYTES) return
-                }
-                else -> seekMarginMs = (seekMarginMs * 2).coerceAtMost(60_000L)
+        val alive = s != null && thread?.isAlive == true
+        val anchor = if (alive) (if (video) s!!.firstVideoOffset else s!!.firstAudioOffset) else -1L
+        when (val action = SabrSeekLogic.decide(
+            sessionAlive = alive, anchor = anchor, position = position,
+            sinceStartMs = System.currentTimeMillis() - sessionStartedAtMs,
+            restartAttempts = restartAttempts, durationMs = config.durationMs,
+            contentLength = format.contentLength, marginMs = seekMarginMs,
+        )) {
+            SabrSeekLogic.Grace, SabrSeekLogic.LetDrain -> return
+            SabrSeekLogic.GiveUp -> {
+                val msg = "SABR video seek could not be served at $position after $restartAttempts attempts"
+                videoBuffer.markError(msg); audioBuffer.markError(msg)
+            }
+            is SabrSeekLogic.Restart -> {
+                seekMarginMs = action.marginMs
+                restartAttempts++
+                // Pace the seeked track from the reader's real target, not the stale pre-seek watermark.
+                buffer.resetDemandFrom(position)
+                Timber.tag(TAG).d("SABR video seek-restart %s (%s) pos=%d -> t=%dms (attempt %d)", mediaId, if (video) "v" else "a", position, action.startMs, restartAttempts)
+                startSessionAt(action.startMs)
             }
         }
-        if (restartAttempts >= MAX_SEEK_RESTARTS) {
-            val msg = "SABR video seek could not be served at $position after $restartAttempts attempts"
-            videoBuffer.markError(msg); audioBuffer.markError(msg)
-            return
-        }
-        restartAttempts++
-        val startMs = estimateTimeMs(format, position)
-        Timber.tag(TAG).d("SABR video seek-restart %s (%s) pos=%d -> t=%dms (attempt %d)", mediaId, if (video) "v" else "a", position, startMs, restartAttempts)
-        startSessionAt(startMs)
-    }
-
-    private fun estimateTimeMs(format: SabrMessages.Format, position: Long): Long {
-        if (config.durationMs <= 0 || format.contentLength <= 0 || position <= 0) return 0
-        return (position * config.durationMs / format.contentLength - seekMarginMs).coerceAtLeast(0)
     }
 
     private fun startSessionAt(startMs: Long) {
@@ -147,11 +144,6 @@ internal class SabrVideoStream(
         const val AHEAD_VIDEO_BYTES = 32L * 1024 * 1024
         const val AHEAD_AUDIO_BYTES = 8L * 1024 * 1024
         // Forward gaps the sequential drain is allowed to close instead of a seek-restart.
-        const val CATCHUP_VIDEO_BYTES = 8L * 1024 * 1024
-        const val CATCHUP_AUDIO_BYTES = 3L * 1024 * 1024
-        const val LAND_GRACE_MS = 4_000L
-        const val SEEK_MARGIN_MS = 5_000L
-        const val MAX_SEEK_RESTARTS = 6
     }
 }
 

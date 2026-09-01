@@ -85,6 +85,19 @@ internal class SabrBuffer private constructor(
     /** Wake waiters WITHOUT changing state — a seek-session finished its tail; readers re-evaluate. */
     fun notifyWaiters() = synchronized(lock) { lock.notifyAll() }
 
+    /**
+     * Re-anchor the demand watermark to [position] when a seek-restart is issued. The watermark
+     * ([lastReadEnd]) otherwise only advances on a served read, so a fresh session started at a NEW seek
+     * target would pace against the STALE pre-seek position: the old covered region ahead of it exceeds
+     * the ahead-window, so the new session blocks before its first POST and the seek dies after the
+     * restart budget. Anchoring to the reader's real target makes the gate measure the right gap
+     * (0 at an uncovered target), so the new session drains immediately.
+     */
+    fun resetDemandFrom(position: Long) = synchronized(lock) {
+        lastReadEnd = position.coerceAtLeast(0)
+        lock.notifyAll()
+    }
+
     /** Contiguous bytes available from 0. */
     fun available(): Long = synchronized(lock) { contiguous }
 

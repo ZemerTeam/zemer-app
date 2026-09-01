@@ -180,6 +180,24 @@ class SabrBufferTest {
     }
 
     @Test
+    fun `resetDemandFrom re-anchors pacing to a seek target so a fresh session is not blocked by stale coverage`() {
+        // Finding: awaitDemand paced against the monotonic watermark. A seek-restart to an uncovered
+        // target must re-anchor, or the OLD covered region ahead of the stale watermark blocks the new
+        // session before its first POST and the seek dies after the restart budget.
+        val buf = buf(100)
+        buf.writeAt(0, ByteArray(50), 0, 50)        // covered [0,50); reader has read nothing (watermark 0)
+        assertEquals(50L, buf.demandGap())          // stale watermark: 50 buffered ahead -> would pace/block
+        buf.resetDemandFrom(60)                      // a seek-restart targets an uncovered byte
+        assertEquals(0L, buf.demandGap())            // measured from the target: 60 uncovered -> gap 0
+        // awaitDemand must return immediately now (the new session drains instead of blocking).
+        val released = java.util.concurrent.CompletableFuture<Boolean>()
+        val t = Thread { buf.awaitDemand(8L * 1024 * 1024) { false }; released.complete(true) }
+        t.start()
+        assertTrue(released.get(3, java.util.concurrent.TimeUnit.SECONDS))
+        t.join(3000)
+    }
+
+    @Test
     fun `completeFrom serves an existing spool file read-only (the replay cache)`() {
         val f = java.io.File.createTempFile("sabr-test", ".done").apply { deleteOnExit() }
         f.writeBytes(bytes(9, 8, 7, 6))

@@ -144,8 +144,9 @@ Pure, isolated, JVM-tested where possible:
 | `SabrUmp.kt` | UMP frame parser (the custom leading-bits varint + part types) | `SabrUmpTest` |
 | `SabrMessages.kt` | request builder + response part parsers; field numbers | `SabrMessagesTest` |
 | `SabrBuffer.kt` | DISK-backed positional reassembly, region coverage, demand pacing | `SabrBufferTest` |
-| `SabrSpool.kt` | the spool dir + the persistent replay cache (LRU, meta sidecars) | `SabrStreamLifecycleTest` |
-| `SabrSession.kt` | the continuation state machine (seek start, pacing) -> fills the buffer | (network; proven by the harness) |
+| `SabrSpool.kt` | the spool dir + the persistent replay cache (LRU, meta sidecars) | `SabrStreamLifecycleTest`, `SabrSpoolTest` |
+| `SabrSeekLogic.kt` | PURE seek-restart decision shared by audio + video streams | `SabrSeekLogicTest` |
+| `SabrSession.kt` | the continuation state machine (seek start, pacing) -> fills the buffer; a playback session is `restartable` (stream owns terminal errors) | `SabrStreamLifecycleTest` (network otherwise) |
 | `SabrDataSource.kt` | the ExoPlayer `DataSource` + `SabrAudioStream` + the `sabr://<mediaId>` registry | `SabrStreamLifecycleTest` |
 | `SabrStreamResolver.kt` | builds a `SabrConfig`; the SABR OkHttp client; the audio download | - |
 | `SabrPlayerResolver.kt` | roster resolve (`/player` + pot + cipher), resolve cache, stall fallback | (network) |
@@ -167,8 +168,13 @@ shared mechanism): a covered read serves from the spool; a read just past the dr
 the catch-up; a far/backward read **seek-restarts** the session at the estimated `playerTimeMs` for
 that byte — proven live (`tests/sabr-seek.mjs`, dual-track via `sabr-video.mjs START_S`): the server
 serves the segment containing T with absolute offsets, the range echo anchors at OUR first segment,
-and a seeked session gets NO `end_segment_number` (completion is judged by byte coverage). The
-estimate converges with a growing back-margin when it lands past the target. Playback sessions are
+and a seeked session gets NO `end_segment_number` (completion is judged by byte coverage). A restart is decided by the pure `SabrSeekLogic`: a session that landed AT OR BEFORE the target is left
+to DRAIN FORWARD (never restarted — re-issuing the same estimate only cancels the one session making
+progress); only a landing PAST the target widens the back-margin and re-aims; and an unknown duration
+estimates 0 (a from-0 drain), never an endless restart-at-0. Each restart re-anchors the demand watermark
+to the seek target (`SabrBuffer.resetDemandFrom`) — it otherwise paces against the stale pre-seek position,
+so on a track larger than the ~8 MiB ahead-window the fresh session blocked before its first POST and the
+seek died. Playback sessions are
 **demand-paced** (`SabrBuffer.awaitDemand`): the drain follows consumption — a skipped track stops the
 spend — and the server session survives the idle gaps (proven live with 90-second pauses); downloads
 drain at full speed.
@@ -179,7 +185,14 @@ only below 128, so it mis-routed/mis-sized past that), an **incomplete drain mar
 complete** — the buffer still serves everything it reassembled first, so playback reaches the stall
 point and then surfaces a real player error instead of a silent truncation — and `SabrBuffer` refuses
 an out-of-range contentLength at construction (`lengthValid`) — the old degenerate zero-length buffer
-silently dropped every write while the session drained the whole stream anyway.
+silently dropped every write while the session drained the whole stream anyway. `SabrBuffer.writeAt`
+CLAMPS a final segment that overshoots contentLength to the declared length (the in-range prefix is the
+real tail) instead of dropping it whole, and a `restartable` playback session never marks the shared
+buffer on its own failure — the stream owns the terminal error via `MAX_SEEK_RESTARTS`, so a dying
+session cannot poison the buffer the next seek-restart reuses (`SabrProto.read` also treats an
+overflowing length varint as truncation rather than throwing). The `SabrSpool` replay cache evicts a
+stale-itag `.done` sibling when an id is re-drained at a new itag, and prune only deletes a `.meta` that
+still points at the file it evicts, so a live replay is never stranded (`SabrSpoolTest`).
 
 ---
 
@@ -197,6 +210,13 @@ Per client:
   web pot; the SABR url is **n-transformed** and the **videoId pot appended**.
 - **direct** (VISIONOS): `/player` with no pot/sts; the SABR url is used **as-is** (identity transform, no
   url-pot).
+- **Failure classification (playback):** with `classifyErrors=true` a resolve whose clients all failed with
+  a network-class exception (host/connect/timeout/SSL) rethrows it, so `MusicService` maps it to a
+  `NETWORK_CONNECTION_FAILED` `PlaybackException` and `onPlayerError` calls `waitOnNetworkError` — matching
+  DIRECT, instead of skipping the queue on a flaky network. Downloads keep the plain null-on-failure contract.
+- **Download format parity:** the audio pick takes `opusAllowed` — false for a COMPATIBLE / pre-API-29
+  download restricts the pick to AAC (`audio/mp4`) and drops the opus/webm bonus, mirroring DIRECT's
+  `downloadOpusOk`; downloads also resolve at HIGH bitrate. `SabrAudioPickTest` pins both.
 - The `streamerContext.poToken` is the **session (visitorData-bound)** token for all of them
   (`PoTokenResult.playerRequestPoToken`); the url-pot is the **videoId-bound** token
   (`streamingDataPoToken`).
@@ -215,7 +235,14 @@ song are in the roster - the ~60s-capped ones are deliberately absent.
 
 - A per-open `sabrDataSourceFactory` - a `ResolvingDataSource` whose callback `runBlocking`s
   `SabrPlayerResolver.resolve` and returns a `sabr://<id>` uri - is selected in the dispatcher **only when
-  `StreamSabrKey` is on**. Otherwise the DIRECT factory is used verbatim. A downloaded file still plays
+  `StreamSabrKey` is on**. Otherwise the DIRECT factory is used verbatim. The choice is made by a
+  **`RoutingDataSource`** at `open()` (where the dataSpec key is known, unlike a bare factory lambda): a
+  DIRECT `video:`/`videoaudio:` rendition key ALWAYS routes to the DIRECT factory even under SABR (SABR
+  video mode uses `sabrvideo://`/`sabraudio://` URIs, never these keys, so the audio resolver must never
+  be handed a composite video key), and the SABR flag comes from the `sabrModeNow` mirror instead of a
+  per-open blocking DataStore read. A fresh SABR resolve also launches **`recoverSong`** (DIRECT parity) so
+  a SABR play of a song not yet in the DB inserts its `SongEntity` — otherwise the listen-end `Event`
+  insert fails its foreign key and the play is silently dropped from history / stats / related-songs. A downloaded file still plays
   from disk (same as DIRECT/RELAY) — the SABR upstream is wrapped in a **`DefaultDataSource.Factory`**
   (the RELAY pattern) so the resolved `content://`/`file://` uri routes to the platform sources;
   `SabrDataSource` itself accepts nothing but `sabr://`, so an unwrapped factory made every downloaded
@@ -306,7 +333,8 @@ could never save a track. `MediaStoreDownloadManager.performDownload` mirrors th
   (`StreamSabrKey` + the four client toggles), split into `sabrAudioMode` (one track) and
   `sabrVideoMode` (dual-track + on-device remux — sec 9.4).
 - When SABR, `playbackData` is **null** (no `/player`-for-download round-trip, same as relay); the audio
-  download runs through **`SabrStreamResolver.download(id, enabled, file, onProgress)`**,
+  download runs through **`SabrStreamResolver.download(id, enabled, file, onProgress, audioQuality, opusAllowed)`**
+  (HIGH bitrate; Opus only when the device can rewrap Ogg AND the user chose BEST — else AAC/m4a, DIRECT parity),
   which resolves over the roster (**without registering** — a download of the currently-playing id must
   never clobber its live playback stream), runs a `SabrSession` to completion, and writes the
   **byte-exact reassembled** audio. It returns null (-> the attempt throws and retries) on an **incomplete**

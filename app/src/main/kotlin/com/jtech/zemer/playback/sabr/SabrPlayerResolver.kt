@@ -110,6 +110,14 @@ object SabrPlayerResolver {
         meteredNetwork: Boolean = false,
         cpn: () -> String? = { null },
         register: Boolean = true,
+        opusAllowed: Boolean = true,
+        /**
+         * Playback passes true: if every client fails and the failures were network-class
+         * (host/connect/timeout), the original exception is rethrown so MusicService can classify it as
+         * a connection error (waitOnNetworkError) instead of skipping the queue on a flaky network.
+         * Downloads keep false — they fall back on a plain null.
+         */
+        classifyErrors: Boolean = false,
     ): SabrAudioResult? = withContext(Dispatchers.IO) {
         if (register) {
             resolveCache[videoId]?.takeIf { android.os.SystemClock.elapsedRealtime() - it.atMs < CACHE_TTL_MS }?.let {
@@ -133,8 +141,11 @@ object SabrPlayerResolver {
         // Two passes: prefer non-stalled clients; a fully-stalled roster still retries them (last hope).
         val order = ROSTER.filter { it.key in enabled && it.key !in stalled } +
             ROSTER.filter { it.key in enabled && it.key in stalled }
+        var networkError: Throwable? = null
         for (spec in order) {
-            val result = tryClient(spec, videoId, pot, sts, audioQuality, meteredNetwork, cpn)
+            val result = tryClient(spec, videoId, pot, sts, audioQuality, meteredNetwork, cpn, opusAllowed) { e ->
+                if (networkError == null && e.isNetworkClass()) networkError = e
+            }
             if (result != null) {
                 if (register) {
                     SabrStreamRegistry.put(videoId, result.config)
@@ -144,12 +155,29 @@ object SabrPlayerResolver {
                 return@withContext result
             }
         }
+        // Every enabled client failed. On the playback path, a network-class failure is rethrown so the
+        // player classifies it (waitOnNetworkError) rather than skipping the queue; otherwise null.
+        networkError?.takeIf { classifyErrors }?.let { throw it }
         null
+    }
+
+    /** A host/connect/timeout failure (or one wrapping one) — the "wait for the network" class. */
+    private fun Throwable.isNetworkClass(): Boolean {
+        var c: Throwable? = this
+        while (c != null) {
+            if (c is java.net.UnknownHostException || c is java.net.ConnectException ||
+                c is java.net.SocketTimeoutException || c is javax.net.ssl.SSLException
+            ) return true
+            c = c.cause
+        }
+        return false
     }
 
     /**
      * The DIRECT resolver's audio pick, mirrored exactly (YTPlayerUtils): bitrate weighted by the quality
-     * preference (AUTO follows the metered state), with the same opus/webm streaming bonus.
+     * preference (AUTO follows the metered state), with the same opus/webm streaming bonus. [opusAllowed]
+     * is false for a COMPATIBLE / pre-API-29 DOWNLOAD (no on-device Ogg rewrap), which then restricts the
+     * pick to AAC (audio/mp4) and drops the opus preference — DIRECT's downloadOpusOk parity.
      */
     internal fun <T> pickAudio(
         formats: List<T>,
@@ -157,12 +185,16 @@ object SabrPlayerResolver {
         mimeType: (T) -> String,
         audioQuality: com.jtech.zemer.constants.AudioQuality,
         meteredNetwork: Boolean,
-    ): T? = formats.maxByOrNull {
-        bitrate(it) * when (audioQuality) {
-            com.jtech.zemer.constants.AudioQuality.AUTO -> if (meteredNetwork) -1 else 1
-            com.jtech.zemer.constants.AudioQuality.HIGH -> 1
-            com.jtech.zemer.constants.AudioQuality.LOW -> -1
-        } + (if (mimeType(it).startsWith("audio/webm")) 10240 else 0)
+        opusAllowed: Boolean = true,
+    ): T? {
+        val pool = if (opusAllowed) formats else formats.filter { mimeType(it).startsWith("audio/mp4") }.ifEmpty { formats }
+        return pool.maxByOrNull {
+            bitrate(it) * when (audioQuality) {
+                com.jtech.zemer.constants.AudioQuality.AUTO -> if (meteredNetwork) -1 else 1
+                com.jtech.zemer.constants.AudioQuality.HIGH -> 1
+                com.jtech.zemer.constants.AudioQuality.LOW -> -1
+            } + (if (opusAllowed && mimeType(it).startsWith("audio/webm")) 10240 else 0)
+        }
     }
 
     private suspend fun tryClient(
@@ -173,6 +205,8 @@ object SabrPlayerResolver {
         audioQuality: com.jtech.zemer.constants.AudioQuality,
         meteredNetwork: Boolean,
         cpn: () -> String?,
+        opusAllowed: Boolean,
+        onError: (Throwable) -> Unit = {},
     ): SabrAudioResult? {
         return try {
             val response = YouTube.player(
@@ -192,6 +226,7 @@ object SabrPlayerResolver {
                 mimeType = { it.mimeType },
                 audioQuality = audioQuality,
                 meteredNetwork = meteredNetwork,
+                opusAllowed = opusAllowed,
             ) ?: return null
             val contentLength = fmt.contentLength ?: return null
             // Refuse a contentLength the reassembly buffer cannot hold (SabrBuffer would otherwise
@@ -242,6 +277,7 @@ object SabrPlayerResolver {
             )
         } catch (e: Exception) {
             Timber.tag(TAG).w(e, "SABR resolve via ${spec.label} failed for $videoId: ${e.message}")
+            onError(e)
             null
         }
     }

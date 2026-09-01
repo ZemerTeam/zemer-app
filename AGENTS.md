@@ -127,7 +127,9 @@ byte-for-byte unchanged. The engine is a faithful Kotlin port of the proven Node
   read, the encodings agree only below 128), `SabrMessages`
   (request builder + response parsers; field numbers pinned to the reference; a SEEKED session's range
   echo anchors at its own first segment, never (0,1)), `SabrSession` (the continuation state machine -
-  seek start + demand pacing), `SabrBuffer` (DISK-backed positional reassembly - spool file, never a
+  seek start + demand pacing; a PLAYBACK session is `restartable` so it NEVER marks the shared buffer on
+  its own failure - the stream owns the terminal error, else a dying session poisons the buffer the next
+  seek-restart reuses), `SabrSeekLogic` (the PURE, shared audio+video seek-restart decision), `SabrBuffer` (DISK-backed positional reassembly - spool file, never a
   heap array, so a multi-hour episode or a 2160p track can't OOM; serves any COVERED region, not just
   a prefix; REFUSES an out-of-range contentLength at construction), `SabrSpool` (the spool dir + the
   persistent replay cache), `SabrAudioStream` (registry-owned lifetime + the session ORCHESTRATION:
@@ -139,11 +141,23 @@ byte-for-byte unchanged. The engine is a faithful Kotlin port of the proven Node
   player error at the gap (markComplete silently truncated the track); and every stream-destroy path
   MARKS its buffers so a parked reader is always woken (never an infinite buffering hang). Regression
   tests: `SabrProtoTest` / `SabrUmpTest` / `SabrMessagesTest` / `SabrBufferTest` /
-  `SabrStreamLifecycleTest` / `SabrVideoRungPickTest`.
+  `SabrStreamLifecycleTest` / `SabrVideoRungPickTest` / `SabrSeekLogicTest` / `SabrSpoolTest` /
+  `SabrAudioPickTest`.
 - **Reassembly is by ABSOLUTE byte offset, never sequential append** (`SabrSession` writes each segment at
   its `startRange`, `SabrBuffer` tracks a contiguous-from-0 watermark). Sequential append corrupted the
   container, which made the extractor report a garbage duration -> `getBufferedPercentage` overflow ->
   crash. Keep the positional write (`SabrBufferTest` pins out-of-order writes reassembling byte-exact).
+- **Seek-restart + pacing correctness (`SabrSeekLogic`, `SabrBuffer.resetDemandFrom`):** a seek to an
+  uncovered byte cancels the session and cold-starts one at the estimated `playerTimeMs`. Rules that must
+  not regress (all in `SabrSeekLogicTest`): a session that landed AT OR BEFORE the target is left to DRAIN
+  FORWARD, never restarted (re-issuing the same linear estimate only cancels the one session making
+  progress -> the old restart-loop-to-error); only a session that landed PAST the target widens the margin
+  and re-aims; an unknown `durationMs` estimates 0 (a from-0 drain that then drains forward), never an
+  endless restart-at-0. And the demand-pacing gate is re-anchored to the seek target on every restart
+  (`resetDemandFrom`) - it otherwise paces against the stale pre-seek watermark, so on a track larger than
+  the ~8 MiB ahead-window the fresh session blocked before its first POST and the seek died after the
+  restart budget. `SabrBuffer.writeAt` CLAMPS a final segment that overshoots contentLength to the declared
+  length (writes the in-range prefix) instead of dropping it whole (which left the tail forever uncovered).
 - **`CastAwarePlayer.getBufferedPercentage` is crash-safe** (double math, clamped 0..100, guards
   TIME_UNSET/zero/NaN). media3's default throws `IllegalArgumentException: Out of range` on a pathological
   duration/position, and the session polls it on every info change INCLUDING restore - one bad value would
@@ -154,7 +168,12 @@ byte-for-byte unchanged. The engine is a faithful Kotlin port of the proven Node
   tried in that order, first-working wins. Only clients validated to deliver a WHOLE song over SABR with
   the app's pot (`tests/sabr-clients.mjs`) are offered; ANDROID_VR/IOS/IPADOS/WEB_CREATOR are throttled to
   ~60s on most content and are NOT in the roster. Reuses the app's `/player`, the `PoTokenGenerator`
-  WebView pot, and the `CipherDeobfuscator` n-transform.
+  WebView pot, and the `CipherDeobfuscator` n-transform. The pick mirrors DIRECT: bitrate weighted by the
+  quality preference with the opus/webm bonus, and `opusAllowed=false` for a COMPATIBLE / pre-API-29
+  DOWNLOAD restricts to AAC (DIRECT's `downloadOpusOk` parity). On the playback path `resolve` rethrows a
+  network-class failure (`classifyErrors=true`) so `MusicService` maps it to a
+  `NETWORK_CONNECTION_FAILED` `PlaybackException` and `waitOnNetworkError` fires instead of the queue
+  skipping on a flaky network.
 - **Web clients cipher the SABR url, direct clients don't:** WEB_REMIX/TVHTML5_SIMPLY/MWEB have a CIPHERED
   `serverAbrStreamingUrl` - its `n` is n-transformed (the key unlock that made the web family usable) and
   the videoId-bound pot is appended as `&pot=`; VISIONOS is a direct client (identity transform, no
@@ -167,7 +186,13 @@ byte-for-byte unchanged. The engine is a faithful Kotlin port of the proven Node
   sheet shows the SABR client + format (`ShowMediaInfo` strips the ` (SABR)` suffix so a web SABR client
   still resolves its player hash; VISIONOS SABR stays N/A - no cipher). A downloaded file still plays from
   disk - the SABR upstream is wrapped in `DefaultDataSource.Factory` (RELAY pattern) so the local
-  `content://` uri routes to the platform sources (`SabrDataSource` accepts nothing but `sabr://`).
+  `content://` uri routes to the platform sources (`SabrDataSource` accepts nothing but `sabr://`). The
+  factory is chosen by a `RoutingDataSource` that decides at `open()` (where the dataSpec key is known):
+  a DIRECT `video:`/`videoaudio:` rendition key ALWAYS routes to the DIRECT factory even under SABR (SABR
+  video mode uses `sabrvideo://`/`sabraudio://` URIs, never these keys, so the audio resolver must never
+  receive one), and the SABR flag is read from the `sabrModeNow` mirror, not a per-open blocking read. A
+  fresh SABR resolve also runs `recoverSong` (DIRECT parity) so a SABR play of a not-yet-in-DB song
+  records history/stats instead of the listen-end Event insert silently failing its foreign key.
   **Audio stream lifetime is registry-owned, NEVER per DataSource open** (the video lesson applied to
   audio): `SabrStreamRegistry` holds the id's live `SabrAudioStream`; a seek's close→reopen (and a
   repeat-one replay) reuses it - no second /player + poToken, no re-drain from byte 0, no duplicate
@@ -176,7 +201,9 @@ byte-for-byte unchanged. The engine is a faithful Kotlin port of the proven Node
   / remove / the `MusicService.onDestroy` clear (both registries). Replays ride TWO caches (DIRECT
   parity): the persistent `SabrSpool` REPLAY cache (a complete drain is promoted on destroy; a later
   play - hours/sessions later - serves entirely from disk, zero network; a failed spool replay evicts
-  its entry) and the `SabrPlayerResolver` 45 min resolve cache (songUrlCache parity, playback-only; a
+  its entry; a re-drain at a DIFFERENT itag evicts the stale-itag `.done` sibling on promote, and prune
+  only deletes a `.meta` that still points at the file it is evicting, so an id's live replay is never
+  stranded) and the `SabrPlayerResolver` 45 min resolve cache (songUrlCache parity, playback-only; a
   failed stream invalidates). Stats hold on EVERY path: a fresh resolve seeds the reporter live, a
   spool replay rides the reporter's metadata-fetch fallback (DIRECT cached-play behavior), an OFFLINE
   replay is captured by the reporter's offline branch -> the deferred stats queue (the reporter gates

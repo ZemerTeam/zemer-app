@@ -727,9 +727,12 @@ class VideoModeController(
     private fun resolveAndSwapSabr(renditionId: String, audioItem: MediaItem, index: Int, targetLabel: String, entry: Boolean) {
         scope.launch {
             val result = try {
+                // The four per-client toggle reads are blocking DataStore reads — do them off the main
+                // thread (scope is the service Main scope) before handing them to the IO resolve.
+                val enabledClients = withContext(Dispatchers.IO) { service.sabrEnabledClients() }
                 com.jtech.zemer.playback.sabr.SabrVideoResolver.resolve(
                     renditionId,
-                    service.sabrEnabledClients(),
+                    enabledClients,
                     targetLabel,
                     // DIRECT parity: only the AUTO pick is metered-capped; an explicit label is honoured
                     // on every connection.

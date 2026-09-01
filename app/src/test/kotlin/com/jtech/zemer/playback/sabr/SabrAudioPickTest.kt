@@ -19,8 +19,8 @@ class SabrAudioPickTest {
         Fmt(249, 50_000, "audio/webm; codecs=\"opus\""),       // opus 50k
     )
 
-    private fun pick(q: AudioQuality, metered: Boolean) =
-        SabrPlayerResolver.pickAudio(formats, { it.bitrate }, { it.mime }, q, metered)?.itag
+    private fun pick(q: AudioQuality, metered: Boolean, opusAllowed: Boolean = true) =
+        SabrPlayerResolver.pickAudio(formats, { it.bitrate }, { it.mime }, q, metered, opusAllowed)?.itag
 
     @Test
     fun `HIGH picks the highest-bitrate original, opus bonus favours webm`() {
@@ -42,5 +42,20 @@ class SabrAudioPickTest {
     @Test
     fun `LOW picks the lowest bitrate`() {
         assertEquals(249, pick(AudioQuality.LOW, metered = false))
+    }
+
+    @Test
+    fun `a COMPATIBLE download (opus not allowed) picks AAC, never Opus`() {
+        // downloadOpusOk=false (COMPATIBLE / pre-API-29): restrict to audio/mp4 and drop the opus bonus,
+        // so the AAC track wins even at HIGH — DIRECT's download-format parity.
+        assertEquals(140, pick(AudioQuality.HIGH, metered = false, opusAllowed = false))
+        assertEquals(140, pick(AudioQuality.AUTO, metered = false, opusAllowed = false))
+    }
+
+    @Test
+    fun `opus-not-allowed with no AAC in the pool falls back to whatever exists`() {
+        val webmOnly = listOf(Fmt(251, 160_000, "audio/webm; codecs=\"opus\""), Fmt(249, 50_000, "audio/webm; codecs=\"opus\""))
+        val itag = SabrPlayerResolver.pickAudio(webmOnly, { it.bitrate }, { it.mime }, AudioQuality.HIGH, false, opusAllowed = false)?.itag
+        assertEquals(251, itag) // no mp4 -> the filter would empty the pool, so it falls back to all
     }
 }

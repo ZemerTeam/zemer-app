@@ -49,7 +49,7 @@ internal class SabrAudioStream private constructor(
     private var destroyed = false
     private var sessionStartedAtMs = 0L
     private var restartAttempts = 0
-    private var seekMarginMs = SEEK_MARGIN_MS
+    private var seekMarginMs = SabrSeekLogic.SEEK_MARGIN_MS
 
     @Synchronized fun usable(): Boolean = !destroyed && !buffer.failed()
 
@@ -66,7 +66,7 @@ internal class SabrAudioStream private constructor(
         while (true) {
             val n = buffer.readCovered(position, into, offset, length)
             if (n > 0) {
-                if (restartAttempts != 0) synchronized(this) { restartAttempts = 0; seekMarginMs = SEEK_MARGIN_MS }
+                if (restartAttempts != 0) synchronized(this) { restartAttempts = 0; seekMarginMs = SabrSeekLogic.SEEK_MARGIN_MS }
                 return n
             }
             if (position >= buffer.expectedLength) return -1
@@ -82,34 +82,26 @@ internal class SabrAudioStream private constructor(
         if (destroyed || buffer.failed() || buffer.coveredAt(position)) return
         val cfg = config ?: return // a replay stream is fully covered; an uncovered read here is EOF math
         val s = session
-        if (s != null && thread?.isAlive == true) {
-            val anchor = s.firstWrittenOffset
-            when {
-                // Landing: the session hasn't received its first segment yet — give it grace.
-                anchor < 0 -> if (System.currentTimeMillis() - sessionStartedAtMs < LAND_GRACE_MS) return
-                // Anchored at/below the target: let the sequential drain catch up when it's close.
-                anchor <= position -> {
-                    val frontier = buffer.coverageEndFrom(anchor)
-                    if (position - frontier <= CATCHUP_BYTES) return
-                }
-                // Landed PAST the target (the estimate was late): widen the back-margin and re-aim.
-                else -> seekMarginMs = (seekMarginMs * 2).coerceAtMost(60_000L)
+        val alive = s != null && thread?.isAlive == true
+        val anchor = if (alive) s!!.firstWrittenOffset else -1L
+        when (val action = SabrSeekLogic.decide(
+            sessionAlive = alive, anchor = anchor, position = position,
+            sinceStartMs = System.currentTimeMillis() - sessionStartedAtMs,
+            restartAttempts = restartAttempts, durationMs = cfg.durationMs,
+            contentLength = cfg.format.contentLength, marginMs = seekMarginMs,
+        )) {
+            SabrSeekLogic.Grace, SabrSeekLogic.LetDrain -> return
+            SabrSeekLogic.GiveUp ->
+                buffer.markError("SABR seek could not be served at $position after $restartAttempts attempts")
+            is SabrSeekLogic.Restart -> {
+                seekMarginMs = action.marginMs
+                restartAttempts++
+                // Pace the new session from the reader's real target, not the stale pre-seek watermark.
+                buffer.resetDemandFrom(position)
+                Timber.tag(TAG).d("SABR seek-restart %s at pos=%d -> t=%dms (attempt %d)", mediaId, position, action.startMs, restartAttempts)
+                startSessionAt(cfg, action.startMs)
             }
         }
-        if (restartAttempts >= MAX_SEEK_RESTARTS) {
-            buffer.markError("SABR seek could not be served at $position after $restartAttempts attempts")
-            return
-        }
-        restartAttempts++
-        val startMs = estimateTimeMs(cfg, position)
-        Timber.tag(TAG).d("SABR seek-restart %s at pos=%d -> t=%dms (attempt %d)", mediaId, position, startMs, restartAttempts)
-        startSessionAt(cfg, startMs)
-    }
-
-    /** Byte -> time estimate (linear over the format), pulled back by the convergence margin. */
-    private fun estimateTimeMs(cfg: SabrConfig, position: Long): Long {
-        if (cfg.durationMs <= 0 || cfg.format.contentLength <= 0 || position <= 0) return 0
-        return (position * cfg.durationMs / cfg.format.contentLength - seekMarginMs).coerceAtLeast(0)
     }
 
     private fun startSessionAt(cfg: SabrConfig, startMs: Long) {
@@ -150,11 +142,6 @@ internal class SabrAudioStream private constructor(
         private const val TAG = "SabrAudioStream"
         // Pacing window (~7 min of opus): the drain stays this far ahead of the reader, no further.
         private const val AHEAD_AUDIO_BYTES = 8L * 1024 * 1024
-        // A forward gap the sequential drain is allowed to close instead of a seek-restart.
-        private const val CATCHUP_BYTES = 3L * 1024 * 1024
-        private const val LAND_GRACE_MS = 4_000L
-        private const val SEEK_MARGIN_MS = 5_000L
-        private const val MAX_SEEK_RESTARTS = 6
 
         /** A stream over a COMPLETE persistent spool entry — serves reads with zero network. */
         fun fromSpool(mediaId: String, entry: SabrSpool.Entry): SabrAudioStream =

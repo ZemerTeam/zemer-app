@@ -2382,8 +2382,8 @@ class MusicService :
     fun isRelayPlaybackMode(): Boolean = relayModeNow == true
 
     /** SABR playback mode (opt-in, off by default), mirrored synchronously for VideoModeController. */
-    @Volatile private var sabrModeNow: Boolean = false
-    fun isSabrPlaybackMode(): Boolean = sabrModeNow
+    @Volatile private var sabrModeNow: Boolean? = null
+    fun isSabrPlaybackMode(): Boolean = sabrModeNow == true
 
     /** Metered-network state for the SABR AUTO quality pick (DIRECT's automatic pick uses the same cap). */
     fun isMeteredNetwork(): Boolean = connectivityManager.isActiveNetworkMetered
@@ -2578,16 +2578,29 @@ class MusicService :
                 Timber.tag(TAG).d("SABR spool replay for %s (itag=%d)", mediaId, entry.itag)
                 return@Factory dataSpec.withUri(com.jtech.zemer.playback.sabr.SabrStreamRegistry.uri(mediaId))
             }
-            val result = kotlinx.coroutines.runBlocking {
-                com.jtech.zemer.playback.sabr.SabrPlayerResolver.resolve(
-                    mediaId,
-                    sabrEnabledClients(),
-                    // DIRECT parity: the same AudioQuality preference (AUTO follows the metered state).
-                    audioQuality = audioQuality,
-                    meteredNetwork = connectivityManager.isActiveNetworkMetered,
-                    // DIRECT stampCpn parity: the media POST carries the listen's watch-time cpn.
-                    cpn = { sabrCpnFor(mediaId) },
-                )
+            val result = runCatching {
+                kotlinx.coroutines.runBlocking {
+                    com.jtech.zemer.playback.sabr.SabrPlayerResolver.resolve(
+                        mediaId,
+                        sabrEnabledClients(),
+                        // DIRECT parity: the same AudioQuality preference (AUTO follows the metered state).
+                        audioQuality = audioQuality,
+                        meteredNetwork = connectivityManager.isActiveNetworkMetered,
+                        // DIRECT stampCpn parity: the media POST carries the listen's watch-time cpn.
+                        cpn = { sabrCpnFor(mediaId) },
+                        // Rethrow a network-class failure so the classifier below maps it (DIRECT parity).
+                        classifyErrors = true,
+                    )
+                }
+            }.getOrElse { t ->
+                // DIRECT parity: a host/connect/timeout/SSL failure becomes a NETWORK_CONNECTION_FAILED
+                // PlaybackException so onPlayerError calls waitOnNetworkError instead of skipping the queue.
+                when (t) {
+                    is java.net.UnknownHostException, is java.net.ConnectException,
+                    is java.net.SocketTimeoutException, is javax.net.ssl.SSLException ->
+                        throw PlaybackException(getString(R.string.error_no_internet), t, PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED)
+                    else -> throw t
+                }
             } ?: throw java.io.IOException("SABR resolve failed for $mediaId")
             // DIRECT parity: seed the watch-time reporter from THIS /player response (no second
             // round-trip, truthful fmt) and attribute the stream client (+ player hash for web SABR
@@ -2598,6 +2611,10 @@ class MusicService :
                 result.streamClient,
                 playerHash = if (result.web) CipherDeobfuscator.lastUsedPlayerHash else null,
             )
+            // DIRECT parity: insert the SongEntity (+ run the related-songs pipeline) so a SABR listen of
+            // a song not yet in the DB records play history / stats — otherwise the listen-end Event
+            // insert fails its foreign key to SongEntity and is silently swallowed.
+            scope.launch(Dispatchers.IO) { recoverSong(mediaId) }
             // Persist a FormatEntity (overwriting any stale DIRECT one) so the song-details sheet shows the
             // SABR client + format for this play, exactly like the DIRECT resolver above. loudnessDb rides
             // the SAME /player response (DIRECT parity) — audio normalization works under SABR, and a SABR
@@ -2624,21 +2641,48 @@ class MusicService :
         }
     }
 
-    // Per-open selector: RELAY -> the isolated relay factory; else SABR (opt-in) -> the isolated SABR
-    // factory; else the DIRECT factory verbatim. Reading the flags per open gives "takes effect next track".
-    private val playbackDataSourceFactory = DataSource.Factory {
-        // Resolve null (mirror not yet emitted) with a one-time synchronous read so a relay user's first
-        // open is never mis-routed to DIRECT. createDataSource() runs on ExoPlayer's loading thread, so the
-        // blocking read is off the main thread (same as the DIRECT resolver's runBlocking).
-        val relay = relayModeNow ?: run {
-            (dataStore.get(PlaybackModeKey, PlaybackMode.DIRECT.name) == PlaybackMode.RELAY.name)
-                .also { relayModeNow = it }
+    // Per-open selector: RELAY -> the isolated relay factory; a DIRECT video-rendition key -> the DIRECT
+    // factory even under SABR (SABR video mode uses sabrvideo:// URIs, never these keys, so the SABR audio
+    // resolver must never receive one); else SABR (opt-in) -> the isolated SABR factory; else DIRECT
+    // verbatim. The route is chosen at open(), where the dataSpec key is known — a plain factory lambda
+    // only sees createDataSource(). The SABR flag uses the sabrModeNow mirror (a one-time blocking read
+    // only until the collector's first emission), matching the relay mirror; both reads land on the
+    // ExoPlayer loading thread, never Main. "Takes effect next track" is preserved by the mirror.
+    private val playbackDataSourceFactory = DataSource.Factory { RoutingDataSource() }
+
+    @androidx.media3.common.util.UnstableApi
+    private inner class RoutingDataSource : androidx.media3.datasource.DataSource {
+        private val listeners = ArrayList<androidx.media3.datasource.TransferListener>()
+        private var delegate: DataSource? = null
+
+        override fun addTransferListener(transferListener: androidx.media3.datasource.TransferListener) {
+            listeners.add(transferListener)
+            delegate?.addTransferListener(transferListener)
         }
-        when {
-            relay -> relayDataSourceFactory.createDataSource()
-            dataStore.get(StreamSabrKey, false) -> sabrDataSourceFactory.createDataSource()
-            else -> dataSourceFactory.createDataSource()
+
+        override fun open(dataSpec: androidx.media3.datasource.DataSpec): Long {
+            val key = dataSpec.key ?: dataSpec.uri.toString()
+            val relay = relayModeNow ?: run {
+                (dataStore.get(PlaybackModeKey, PlaybackMode.DIRECT.name) == PlaybackMode.RELAY.name).also { relayModeNow = it }
+            }
+            val factory = when {
+                relay -> relayDataSourceFactory
+                VideoRendition.isVideoKey(key) || VideoRendition.isMergeAudioKey(key) -> dataSourceFactory
+                sabrModeNow ?: run { dataStore.get(StreamSabrKey, false).also { sabrModeNow = it } } -> sabrDataSourceFactory
+                else -> dataSourceFactory
+            }
+            val d = factory.createDataSource()
+            listeners.forEach { d.addTransferListener(it) }
+            delegate = d
+            return d.open(dataSpec)
         }
+
+        override fun read(buffer: ByteArray, offset: Int, length: Int): Int =
+            (delegate ?: throw java.io.IOException("RoutingDataSource read before open")).read(buffer, offset, length)
+
+        override fun getUri(): android.net.Uri? = delegate?.uri
+        override fun getResponseHeaders(): Map<String, List<String>> = delegate?.responseHeaders ?: emptyMap()
+        override fun close() { delegate?.close(); delegate = null }
     }
 
     private fun createMediaSourceFactory(): MediaSource.Factory {

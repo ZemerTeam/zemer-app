@@ -54,9 +54,15 @@ object SabrStreamResolver {
         enabled: Set<String>,
         file: File,
         onProgress: ((bytesDownloaded: Long, totalBytes: Long) -> Unit)? = null,
+        /** Downloads resolve at the highest bitrate in the chosen format — DIRECT forces HIGH. */
+        audioQuality: com.jtech.zemer.constants.AudioQuality = com.jtech.zemer.constants.AudioQuality.HIGH,
+        /** False for a COMPATIBLE / pre-API-29 download -> AAC only (no on-device Ogg rewrap). */
+        opusAllowed: Boolean = true,
     ): DownloadInfo? =
         withContext(Dispatchers.IO) {
-            val cfg = SabrPlayerResolver.resolve(videoId, enabled, register = false)?.config
+            val cfg = SabrPlayerResolver.resolve(
+                videoId, enabled, register = false, audioQuality = audioQuality, opusAllowed = opusAllowed,
+            )?.config
                 ?: return@withContext null
             if (!SabrBuffer.lengthValid(cfg.format.contentLength)) {
                 Timber.tag("SabrDownload").w("SABR download contentLength out of range for $videoId: ${cfg.format.contentLength}")

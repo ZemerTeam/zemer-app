@@ -574,6 +574,10 @@ constructor(
                     SabrStreamResolver.download(
                         song.id, enabledSabrClients, tempFile,
                         onProgress = sabrProgressReporter(song.id),
+                        // DIRECT's download parity: highest bitrate (HIGH), and Opus only when the device
+                        // can rewrap Ogg AND the user chose BEST — else AAC/m4a for COMPATIBLE / pre-29.
+                        audioQuality = AudioQuality.HIGH,
+                        opusAllowed = AudioRemux.oggMuxSupported && downloadAudioFormat == DownloadAudioFormat.BEST,
                     ) ?: throw Exception("SABR download failed for ${song.id}")
                 } else {
                     downloadFile(downloadUrl, tempFile, song.id)
