@@ -94,6 +94,21 @@ test("loadStreamClientsIncludingBenched surfaces benched entries parsed with the
   assert.deepEqual(loadStreamClientsIncludingBenched().benched, []);
 });
 
+test("mirrors: the yt-dlp key an entry follows is optional harness metadata; pinned entries have none", () => {
+  const { clients } = loadStreamClients();
+  const byKey = Object.fromEntries(clients.map((c) => [c.key, c]));
+  assert.equal(byKey.WEB_REMIX.mirrors, "web_music");
+  assert.equal(byKey.VISIONOS.mirrors, "visionos");
+  assert.equal(byKey.VISIONOS_0_1.mirrors, undefined, "the second-chance old config is pinned");
+  const base = {
+    key: "MAIN", clientName: "MAIN", clientVersion: "1.0", clientId: "1",
+    userAgent: "Mozilla/5.0 (test)", protocol: "web_cipher_pot", family: "MAIN",
+  };
+  const one = (extra) => parseStreamClients(JSON.stringify({ schemaVersion: 1, clients: [{ ...base, ...extra }] })).clients[0];
+  assert.equal(one({ mirrors: null }).mirrors, undefined);
+  assert.throws(() => one({ mirrors: "Bad Key" }));
+});
+
 test("benched and unknown-protocol entries skip; malformed entries throw", () => {
   const base = {
     key: "MAIN", clientName: "MAIN", clientVersion: "1.0", clientId: "1",

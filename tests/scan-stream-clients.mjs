@@ -10,6 +10,7 @@
 //            is a "YouTube revived it, consider re-adding" alert, never an automatic change
 //
 //   VALIDATION_VIDEO_IDS="id1,id2" node tests/scan-stream-clients.mjs [videoId ...]
+//   ONLY_KEYS=WEB_REMIX,VISIONOS   restrict the roster (candidate-table verification of one entry)
 //   YT_COOKIE / YT_VISITOR_DATA / YT_DATASYNC_ID (env) or innertube_cookie.txt supply the session.
 //
 // stdout: JSON { table, videos, cookie, conclusive, clients:[{key, family, main, loginRequired,
@@ -21,6 +22,7 @@
 // least one video. A datacenter IP that is bot-gated, a dead cookie, or a broken cipher makes EVERY
 // client fail — that must read as "scan broken", never as "every client is dead".
 
+import "./egress.mjs"; // FIRST: routes every fetch through SCAN_PROXY when set
 import { STREAM_CLIENTS_PATH, loadStreamClientsIncludingBenched } from "./stream-clients.mjs";
 import { RETIRED } from "./clients-retired.mjs";
 import { createDrainContext, drainClient, formatRow } from "./client-fulldownload.mjs";
@@ -39,8 +41,10 @@ const roster = [
   ...RETIRED.filter((c) => ![...table.clients, ...table.benched].some((t) => t.key === c.key))
     .map((c) => ({ def: c, role: "retired", main: false })),
 ];
+const only = (process.env.ONLY_KEYS || "").split(/[\s,]+/).filter(Boolean);
+const scanned = only.length ? roster.filter((r) => only.includes(r.def.key)) : roster;
 const ctx = await createDrainContext();
-const clients = roster.map(({ def, role, main }) => ({
+const clients = scanned.map(({ def, role, main }) => ({
   key: def.key, family: def.family ?? def.clientName, role, main, loginRequired: Boolean(def.loginRequired), results: [],
 }));
 
@@ -48,7 +52,7 @@ for (const videoId of [...new Set(videos)]) {
   const video = await ctx.forVideo(videoId);
   console.error(`video=${videoId}`);
   for (const [i, entry] of clients.entries()) {
-    const r = await drainClient(ctx, roster[i].def, video);
+    const r = await drainClient(ctx, scanned[i].def, video);
     console.error(`${formatRow(r)}${entry.role === "live" ? "" : "   [" + entry.role + "]"}`);
     entry.results.push({ video: videoId, kind: r.kind, http: r.http, status: r.status, itag: r.itag, clen: r.clen, read: r.read, reason: r.reason });
   }
@@ -60,6 +64,7 @@ const main = clients.find((c) => c.main);
 const conclusive = Boolean(main && main.results.some((r) => r.kind === "whole"));
 process.stdout.write(JSON.stringify({
   table: STREAM_CLIENTS_PATH, videos: [...new Set(videos)], cookie: ctx.hasCookie, conclusive, clients,
-  roles: { live: table.clients.length, benched: table.benched.length, retired: clients.filter((c) => c.role === "retired").length },
+  roles: { live: table.clients.length, benched: table.benched.length, retired: roster.filter((c) => c.role === "retired").length },
+  only,
 }, null, 2) + "\n");
 process.exit(0);

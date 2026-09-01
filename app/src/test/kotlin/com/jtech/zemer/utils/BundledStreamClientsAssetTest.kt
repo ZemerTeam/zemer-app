@@ -36,17 +36,27 @@ class BundledStreamClientsAssetTest {
 
         val fromAsset = StreamClientTable.fromConfig(config)
         val compiled = StreamClientTable.COMPILED_TABLE
-        // Field-for-field (data-class equality) over every client AND the family ids, in order.
-        // The asset may carry FEWER entries than the floor - a BENCHED entry (`enabled: false`,
-        // committed unattended by the cipher client-monitor when a fallback dies) drops out of the
-        // parsed chain - but never a different, reordered or extra one, and never a benched main.
-        assertEquals(compiled.main, fromAsset.main)
+        // Structural equality over every client AND the family ids, in order — minus what the
+        // cipher client-monitor is allowed to change unattended: a BENCHED entry (`enabled: false`)
+        // drops out of the parsed chain, and an entry's mirrored IDENTITY (clientVersion, userAgent,
+        // os/device fields) follows yt-dlp master once a candidate drained whole songs. Everything
+        // else - key, clientName, clientId, protocol, family, flags, sabr - must match the floor;
+        // never a different, reordered or extra entry, never a benched main.
+        assertEquals(compiled.main.structural(), fromAsset.main.structural())
         val floor = compiled.fallbacks
         val live = fromAsset.fallbacks
         assertEquals(
             "asset fallbacks must be the compiled floor in order, minus benched entries: $live",
-            floor.filter { f -> live.any { it.key == f.key } },
-            live,
+            floor.filter { f -> live.any { it.key == f.key } }.map { it.structural() },
+            live.map { it.structural() },
         )
     }
+
+    /** The entry with its bumpable identity blanked - what a version/UA bump may NOT change. */
+    private fun StreamClient.structural() = copy(
+        client = client.copy(
+            clientVersion = "", userAgent = "", osName = null, osVersion = null,
+            deviceMake = null, deviceModel = null, androidSdkVersion = null,
+        ),
+    )
 }

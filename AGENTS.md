@@ -96,10 +96,17 @@ regress:
   drain as a module, one verdict per client per validation video) and `tests/scan-client-versions.mjs`
   (yt-dlp version drift, alert only). A live entry that fails everywhere on two consecutive runs is
   BENCHED (`enabled: false`) and deployed; a benched one that drains again is un-benched; a retired
-  client that works again only opens an issue. The rules live in cipher `tools/clients/decide.mjs`
-  (never the main, `MIN_LIVE_FALLBACKS` live fallbacks kept); `apply-bench.mjs` is the only writer
-  (one-line edit, re-parsed). Both bundled-asset tests accept a benched entry but refuse a reorder,
-  an addition or a benched main, so an auto-bench passes the parity gates.
+  client that works again only opens an issue. An entry whose identity (clientVersion, userAgent,
+  os/device fields) is behind the yt-dlp key it `mirrors` is BUMPED once a candidate table with
+  yt-dlp's values drains a whole song on every validation video (`apply-bump.mjs`); VISIONOS_0_1
+  carries no `mirrors` and is pinned. "Sign in to confirm you're not a bot" on an anonymous request
+  is `bot-gated` = inconclusive (GitHub runner IPs get it on every login-less client) — the
+  `SCAN_PROXY` secret routes the harness through a residential egress so the scan sees what the app
+  sees. The rules live in cipher `tools/clients/decide.mjs` (never the main, `MIN_LIVE_FALLBACKS`
+  live fallbacks kept); `apply-bench.mjs` / `apply-bump.mjs` are the only writers (one entry,
+  re-parsed). Both bundled-asset tests accept a benched entry and a bumped identity but refuse a
+  reorder, an addition, a changed protocol/flag or a benched main, so the auto changes pass the
+  parity gates while the compiled `YouTubeClient` constants stay the floor only.
 - **The deploy gate:** `node tests/validate-stream-clients.mjs [file]` = schema validation + a
   whole-song CDN drain per client (`client-fulldownload.mjs` against the CANDIDATE file via
   `STREAM_CLIENTS_JSON`) - push to zemer-cipher `master` ONLY after it passes, then bump the

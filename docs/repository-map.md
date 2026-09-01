@@ -77,11 +77,11 @@ The following inventory is generated from repository files outside `.git`, `.gra
 
 ### Counts
 
-- Files counted: `1276`
+- Files counted: `1278`
 - By extension:
   - `.kt`: `819`
   - `.xml`: `192`
-  - `.mjs`: `92`
+  - `.mjs`: `94`
   - `.md`: `73`
   - `.json`: `38`
   - `.webp`: `15`
@@ -118,7 +118,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `.github/workflows/ui-audit.yml` | 56 lines | `.yml` |
 | `.gitignore` | 117 lines | `[none]` |
 | `.gitmodules` | 3 lines | `[none]` |
-| `AGENTS.md` | 1893 lines | `.md` |
+| `AGENTS.md` | 1900 lines | `.md` |
 | `LICENSE` | 674 lines | `[none]` |
 | `README.md` | 9 lines | `.md` |
 | `app/.gitignore` | 1 lines | `[none]` |
@@ -1077,7 +1077,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/test/kotlin/com/jtech/zemer/utils/ArtistThumbResolverTest.kt` | 140 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/utils/BlockedIdsCacheTest.kt` | 62 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/utils/BottomNavItemsTest.kt` | 46 lines | `.kt` |
-| `app/src/test/kotlin/com/jtech/zemer/utils/BundledStreamClientsAssetTest.kt` | 52 lines | `.kt` |
+| `app/src/test/kotlin/com/jtech/zemer/utils/BundledStreamClientsAssetTest.kt` | 62 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/utils/CrashReportingTreeTest.kt` | 64 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/utils/LogBufferTreeTest.kt` | 77 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/utils/LogExportTest.kt` | 100 lines | `.kt` |
@@ -1148,7 +1148,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `docs/recognize_music/06-testing-and-maintenance.md` | 54 lines | `.md` |
 | `docs/recognize_music/README.md` | 71 lines | `.md` |
 | `docs/reference/kotlin-files.md` | 842 lines | `.md` |
-| `docs/reference/non-kotlin-files.md` | 398 lines | `.md` |
+| `docs/reference/non-kotlin-files.md` | 400 lines | `.md` |
 | `docs/reference/resource-index.md` | 255 lines | `.md` |
 | `docs/remote_cipher_config/01-why-it-exists.md` | 88 lines | `.md` |
 | `docs/remote_cipher_config/02-file-format.md` | 116 lines | `.md` |
@@ -1158,7 +1158,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `docs/remote_cipher_config/06-harness-and-monitor.md` | 101 lines | `.md` |
 | `docs/remote_cipher_config/07-runbook.md` | 101 lines | `.md` |
 | `docs/remote_cipher_config/README.md` | 112 lines | `.md` |
-| `docs/repository-map.md` | 1388 lines | `.md` |
+| `docs/repository-map.md` | 1390 lines | `.md` |
 | `docs/sabr/README.md` | 543 lines | `.md` |
 | `docs/stations/README.md` | 69 lines | `.md` |
 | `docs/status/README.md` | 122 lines | `.md` |
@@ -1294,7 +1294,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `tests/check-live-player.mjs` | 81 lines | `.mjs` |
 | `tests/cipher-check.mjs` | 86 lines | `.mjs` |
 | `tests/cipher.mjs` | 205 lines | `.mjs` |
-| `tests/client-fulldownload.mjs` | 166 lines | `.mjs` |
+| `tests/client-fulldownload.mjs` | 175 lines | `.mjs` |
 | `tests/clients-retired.mjs` | 82 lines | `.mjs` |
 | `tests/clients.mjs` | 31 lines | `.mjs` |
 | `tests/config-covers.mjs` | 24 lines | `.mjs` |
@@ -1306,8 +1306,8 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `tests/gen-player-dates.mjs` | 41 lines | `.mjs` |
 | `tests/inspect-player.mjs` | 48 lines | `.mjs` |
 | `tests/next-counterpart-auth.mjs` | 92 lines | `.mjs` |
-| `tests/package-lock.json` | 554 lines | `.json` |
-| `tests/package.json` | 7 lines | `.json` |
+| `tests/package-lock.json` | 564 lines | `.json` |
+| `tests/package.json` | 8 lines | `.json` |
 | `tests/player-configs.mjs` | 96 lines | `.mjs` |
 | `tests/player-configs.test.mjs` | 120 lines | `.mjs` |
 | `tests/pot-probe.mjs` | 139 lines | `.mjs` |
@@ -1360,8 +1360,10 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `tests/sabr-video-clients.mjs` | 166 lines | `.mjs` |
 | `tests/sabr-video.mjs` | 207 lines | `.mjs` |
 | `tests/sabr-watchtime.mjs` | 157 lines | `.mjs` |
+| `tests/scan-client-versions.mjs` | 98 lines | `.mjs` |
 | `tests/scan-live-players.mjs` | 124 lines | `.mjs` |
 | `tests/scan-live-players.test.mjs` | 44 lines | `.mjs` |
+| `tests/scan-stream-clients.mjs` | 70 lines | `.mjs` |
 | `tests/search/README.md` | 113 lines | `.md` |
 | `tests/search/album-facet-probe.mjs` | 42 lines | `.mjs` |
 | `tests/search/coverage.mjs` | 155 lines | `.mjs` |
@@ -1375,8 +1377,8 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `tests/search/self-test.mjs` | 103 lines | `.mjs` |
 | `tests/search/verify-album-fix.mjs` | 61 lines | `.mjs` |
 | `tests/search/whitelist-findable.mjs` | 114 lines | `.mjs` |
-| `tests/stream-clients.mjs` | 259 lines | `.mjs` |
-| `tests/stream-clients.test.mjs` | 138 lines | `.mjs` |
+| `tests/stream-clients.mjs` | 265 lines | `.mjs` |
+| `tests/stream-clients.test.mjs` | 153 lines | `.mjs` |
 | `tests/sts-mismatch.mjs` | 125 lines | `.mjs` |
 | `tests/test-mweb-cipher.mjs` | 142 lines | `.mjs` |
 | `tests/validate-player-config.mjs` | 202 lines | `.mjs` |

@@ -110,6 +110,11 @@ function parseEntry(obj, label) {
     sabr = Object.fromEntries(Object.entries(s).filter(([, v]) => v !== undefined));
   }
 
+  // `mirrors`: the yt-dlp INNERTUBE_CLIENTS key this entry mirrors (harness-only metadata — the
+  // app's parser ignores it): the identity-drift scan compares/bumps ONLY entries that carry it.
+  // Absent = a deliberately pinned entry (the VISIONOS_0_1 second chance) that is never bumped.
+  const mirrors = optional("mirrors", (v) => /^[a-z0-9_]{1,32}$/.test(v));
+
   const isWeb = protocol === "web_cipher_pot";
   return {
     key, clientName, clientVersion, clientId, userAgent, protocol, family,
@@ -123,6 +128,7 @@ function parseEntry(obj, label) {
     isEmbedded: bool("isEmbedded"),
     skipHeadValidation: bool("skipHeadValidation"),
     ...(sabr && { sabr }),
+    ...(mirrors && { mirrors }),
     // Derived exactly like YouTubeClient (the protocol is the single source of truth).
     useSignatureTimestamp: isWeb,
     useWebPoTokens: isWeb,

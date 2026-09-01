@@ -1,6 +1,6 @@
 # Non-Kotlin file reference
 
-Every tracked non-Kotlin path outside `docs/` is listed. Text files report line counts; binary files report byte counts; gitlinks are recorded as non-file tracked paths. Total paths: `392`.
+Every tracked non-Kotlin path outside `docs/` is listed. Text files report line counts; binary files report byte counts; gitlinks are recorded as non-file tracked paths. Total paths: `394`.
 
 | Path | Size/status | Type metadata |
 | --- | ---: | --- |
@@ -12,7 +12,7 @@ Every tracked non-Kotlin path outside `docs/` is listed. Text files report line 
 | `.github/workflows/ui-audit.yml` | 56 lines | text `.yml` |
 | `.gitignore` | 117 lines | text `[none]` |
 | `.gitmodules` | 3 lines | text `[none]` |
-| `AGENTS.md` | 1893 lines | text `.md` |
+| `AGENTS.md` | 1900 lines | text `.md` |
 | `LICENSE` | 674 lines | text `[none]` |
 | `README.md` | 9 lines | text `.md` |
 | `app/.gitignore` | 1 lines | text `[none]` |
@@ -304,7 +304,7 @@ Every tracked non-Kotlin path outside `docs/` is listed. Text files report line 
 | `tests/check-live-player.mjs` | 81 lines | text `.mjs` |
 | `tests/cipher-check.mjs` | 86 lines | text `.mjs` |
 | `tests/cipher.mjs` | 205 lines | text `.mjs` |
-| `tests/client-fulldownload.mjs` | 166 lines | text `.mjs` |
+| `tests/client-fulldownload.mjs` | 175 lines | text `.mjs` |
 | `tests/clients-retired.mjs` | 82 lines | text `.mjs` |
 | `tests/clients.mjs` | 31 lines | text `.mjs` |
 | `tests/config-covers.mjs` | 24 lines | text `.mjs` |
@@ -316,8 +316,8 @@ Every tracked non-Kotlin path outside `docs/` is listed. Text files report line 
 | `tests/gen-player-dates.mjs` | 41 lines | text `.mjs` |
 | `tests/inspect-player.mjs` | 48 lines | text `.mjs` |
 | `tests/next-counterpart-auth.mjs` | 92 lines | text `.mjs` |
-| `tests/package-lock.json` | 554 lines | text `.json`; JSON keys `name, lockfileVersion, requires, packages` |
-| `tests/package.json` | 7 lines | text `.json`; JSON keys `dependencies` |
+| `tests/package-lock.json` | 564 lines | text `.json`; JSON keys `name, lockfileVersion, requires, packages` |
+| `tests/package.json` | 8 lines | text `.json`; JSON keys `dependencies` |
 | `tests/player-configs.mjs` | 96 lines | text `.mjs` |
 | `tests/player-configs.test.mjs` | 120 lines | text `.mjs` |
 | `tests/pot-probe.mjs` | 139 lines | text `.mjs` |
@@ -370,8 +370,10 @@ Every tracked non-Kotlin path outside `docs/` is listed. Text files report line 
 | `tests/sabr-video-clients.mjs` | 166 lines | text `.mjs` |
 | `tests/sabr-video.mjs` | 207 lines | text `.mjs` |
 | `tests/sabr-watchtime.mjs` | 157 lines | text `.mjs` |
+| `tests/scan-client-versions.mjs` | 98 lines | text `.mjs` |
 | `tests/scan-live-players.mjs` | 124 lines | text `.mjs` |
 | `tests/scan-live-players.test.mjs` | 44 lines | text `.mjs` |
+| `tests/scan-stream-clients.mjs` | 70 lines | text `.mjs` |
 | `tests/search/README.md` | 113 lines | text `.md` |
 | `tests/search/album-facet-probe.mjs` | 42 lines | text `.mjs` |
 | `tests/search/coverage.mjs` | 155 lines | text `.mjs` |
@@ -385,8 +387,8 @@ Every tracked non-Kotlin path outside `docs/` is listed. Text files report line 
 | `tests/search/self-test.mjs` | 103 lines | text `.mjs` |
 | `tests/search/verify-album-fix.mjs` | 61 lines | text `.mjs` |
 | `tests/search/whitelist-findable.mjs` | 114 lines | text `.mjs` |
-| `tests/stream-clients.mjs` | 259 lines | text `.mjs` |
-| `tests/stream-clients.test.mjs` | 138 lines | text `.mjs` |
+| `tests/stream-clients.mjs` | 265 lines | text `.mjs` |
+| `tests/stream-clients.test.mjs` | 153 lines | text `.mjs` |
 | `tests/sts-mismatch.mjs` | 125 lines | text `.mjs` |
 | `tests/test-mweb-cipher.mjs` | 142 lines | text `.mjs` |
 | `tests/validate-player-config.mjs` | 202 lines | text `.mjs` |

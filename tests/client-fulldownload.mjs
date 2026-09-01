@@ -6,6 +6,7 @@
 //   node tests/client-fulldownload.mjs            # JTF9fLJvniI
 //   node tests/client-fulldownload.mjs <videoId>
 
+import "./egress.mjs"; // FIRST: routes every fetch through SCAN_PROXY when set
 import crypto from "node:crypto";
 import { pathToFileURL } from "node:url";
 import { CLIENTS, STREAM_CLIENTS, ORIGIN, PLAYER_URL } from "./clients.mjs";
@@ -94,8 +95,11 @@ export async function createDrainContext() {
  * Resolve [c]'s best audio the app's way and drain the whole file. Returns a verdict row:
  *   kind: "whole" | "partial" | "sabr-only" | "no-format" | "not-ok" | "http-error" | "error"
  *         | "skipped-login" (login-required client, no cookie: INCONCLUSIVE, never a kill signal)
+ *         | "bot-gated"     ("Sign in to confirm you're not a bot" on an anonymous request: the
+ *                            RUNNER's IP is gated, not the client — datacenter IPs get this on
+ *                            every login-less client; INCONCLUSIVE, never a kill signal)
  * Only "whole" is success; "partial"/"sabr-only"/"no-format"/"not-ok"/"http-error" are definitive
- * failures the app would also see; "error" (transport) and "skipped-login" are inconclusive.
+ * failures the app would also see; "error", "skipped-login" and "bot-gated" are inconclusive.
  */
 export async function drainClient(ctx, c, { videoId, potVideo }) {
   const row = { key: c.key, video: videoId, http: null, status: "-", itag: null, clen: null, read: 0, secs: null, kind: "error", reason: "" };
@@ -112,7 +116,11 @@ export async function drainClient(ctx, c, { videoId, potVideo }) {
     row.http = http;
     row.status = j?.playabilityStatus?.status || "-";
     if (http !== 200) return { ...row, kind: "http-error", reason: `player HTTP ${http}` };
-    if (row.status !== "OK") return { ...row, kind: "not-ok", reason: `${row.status}${j?.playabilityStatus?.reason ? ": " + j.playabilityStatus.reason : ""}` };
+    if (row.status !== "OK") {
+      const reason = `${row.status}${j?.playabilityStatus?.reason ? ": " + j.playabilityStatus.reason : ""}`;
+      const botGate = /confirm you.re not a bot/i.test(j?.playabilityStatus?.reason || "");
+      return { ...row, kind: botGate ? "bot-gated" : "not-ok", reason };
+    }
     const fmt = findFormat(j);
     if (!fmt) return { ...row, kind: "no-format", reason: "no original audio format" };
     row.itag = fmt.itag;
@@ -141,6 +149,7 @@ export async function drainClient(ctx, c, { videoId, potVideo }) {
 export function formatRow(r) {
   const result = r.kind === "whole" ? "✓ WHOLE SONG"
     : r.kind === "skipped-login" ? "skipped (login required, no cookie)"
+    : r.kind === "bot-gated" ? `? bot-gated (${r.reason}) — runner IP, not the client`
     : r.kind === "no-format" ? `no format${r.reason ? " (" + r.reason + ")" : ""}`
     : `✗ ${r.reason}`;
   return [
