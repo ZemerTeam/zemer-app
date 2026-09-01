@@ -1,6 +1,6 @@
 # Non-Kotlin file reference
 
-Every tracked non-Kotlin path outside `docs/` is listed. Text files report line counts; binary files report byte counts; gitlinks are recorded as non-file tracked paths. Total paths: `377`.
+Every tracked non-Kotlin path outside `docs/` is listed. Text files report line counts; binary files report byte counts; gitlinks are recorded as non-file tracked paths. Total paths: `388`.
 
 | Path | Size/status | Type metadata |
 | --- | ---: | --- |
@@ -12,7 +12,7 @@ Every tracked non-Kotlin path outside `docs/` is listed. Text files report line 
 | `.github/workflows/ui-audit.yml` | 56 lines | text `.yml` |
 | `.gitignore` | 117 lines | text `[none]` |
 | `.gitmodules` | 3 lines | text `[none]` |
-| `AGENTS.md` | 1649 lines | text `.md` |
+| `AGENTS.md` | 1824 lines | text `.md` |
 | `LICENSE` | 674 lines | text `[none]` |
 | `README.md` | 9 lines | text `.md` |
 | `app/.gitignore` | 1 lines | text `[none]` |
@@ -258,8 +258,8 @@ Every tracked non-Kotlin path outside `docs/` is listed. Text files report line 
 | `app/src/main/res/values-v31/styles.xml` | 22 lines | text `.xml`; XML root `resources` |
 | `app/src/main/res/values/app_name.xml` | 4 lines | text `.xml`; XML root `resources` |
 | `app/src/main/res/values/colors.xml` | 9 lines | text `.xml`; XML root `resources` |
-| `app/src/main/res/values/metrolist_strings.xml` | 696 lines | text `.xml`; XML root `resources` |
-| `app/src/main/res/values/strings.xml` | 420 lines | text `.xml`; XML root `resources` |
+| `app/src/main/res/values/metrolist_strings.xml` | 701 lines | text `.xml`; XML root `resources` |
+| `app/src/main/res/values/strings.xml` | 419 lines | text `.xml`; XML root `resources` |
 | `app/src/main/res/values/styles.xml` | 26 lines | text `.xml`; XML root `resources` |
 | `app/src/main/res/values/values.xml` | 8 lines | text `.xml`; XML root `resources` |
 | `app/src/main/res/xml-v25/shortcuts.xml` | 23 lines | text `.xml`; XML root `shortcuts` |
@@ -296,7 +296,7 @@ Every tracked non-Kotlin path outside `docs/` is listed. Text files report line 
 | `settings.gradle.kts` | 56 lines | text `.kts`; plugins `org.gradle.toolchains.foojay-resolver-convention` |
 | `simpmusic/build.gradle.kts` | 16 lines | text `.kts`; plugins `kotlin.serialization, jvm` |
 | `tests/INVESTIGATION.md` | 279 lines | text `.md` |
-| `tests/MWEB-INVESTIGATION.md` | 83 lines | text `.md` |
+| `tests/MWEB-INVESTIGATION.md` | 114 lines | text `.md` |
 | `tests/README.md` | 175 lines | text `.md` |
 | `tests/analyze-player.mjs` | 53 lines | text `.mjs` |
 | `tests/broken-clients.mjs` | 143 lines | text `.mjs` |
@@ -336,7 +336,9 @@ Every tracked non-Kotlin path outside `docs/` is listed. Text files report line 
 | `tests/probe-mweb-nopot.mjs` | 105 lines | text `.mjs` |
 | `tests/probe-mweb-pervideo.mjs` | 129 lines | text `.mjs` |
 | `tests/probe-mweb-playerjs.mjs` | 46 lines | text `.mjs` |
+| `tests/probe-mweb-pot.mjs` | 59 lines | text `.mjs` |
 | `tests/probe-mweb-reqpot.mjs` | 108 lines | text `.mjs` |
+| `tests/probe-mweb-sabr.mjs` | 105 lines | text `.mjs` |
 | `tests/probe-mweb-stream.mjs` | 111 lines | text `.mjs` |
 | `tests/probe-mweb-verdict.mjs` | 156 lines | text `.mjs` |
 | `tests/probe-mweb-wall-absolute.mjs` | 95 lines | text `.mjs` |
@@ -358,6 +360,15 @@ Every tracked non-Kotlin path outside `docs/` is listed. Text files report line 
 | `tests/results.json` | 222 lines | text `.json` |
 | `tests/retest-web.mjs` | 58 lines | text `.mjs` |
 | `tests/run.mjs` | 181 lines | text `.mjs` |
+| `tests/sabr-ab-probe.mjs` | 200 lines | text `.mjs` |
+| `tests/sabr-clients.mjs` | 153 lines | text `.mjs` |
+| `tests/sabr-quality-sweep.mjs` | 203 lines | text `.mjs` |
+| `tests/sabr-seek.mjs` | 197 lines | text `.mjs` |
+| `tests/sabr-select-compare.mjs` | 75 lines | text `.mjs` |
+| `tests/sabr-stream.mjs` | 167 lines | text `.mjs` |
+| `tests/sabr-video-clients.mjs` | 166 lines | text `.mjs` |
+| `tests/sabr-video.mjs` | 207 lines | text `.mjs` |
+| `tests/sabr-watchtime.mjs` | 157 lines | text `.mjs` |
 | `tests/scan-live-players.mjs` | 124 lines | text `.mjs` |
 | `tests/scan-live-players.test.mjs` | 44 lines | text `.mjs` |
 | `tests/search/README.md` | 113 lines | text `.md` |

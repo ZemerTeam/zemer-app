@@ -103,9 +103,12 @@ fun ShowMediaInfo(videoId: String, isEpisodeHint: Boolean = false) {
         val unknown = stringResource(R.string.unknown)
         val notApplicable = stringResource(R.string.not_applicable)
         // Player hash + cipher date apply only to deciphered web clients; direct-URL clients
-        // (VISIONOS, plus retired ones like ANDROID_VR/IOS still recorded in old FormatEntity
-        // rows) never ran the cipher, so show "N/A", not "Unknown".
-        val isWebStream = currentFormat?.streamClient in setOf("WEB_REMIX", "WEB_CREATOR", "TVHTML5", "TVHTML5_SIMPLY", "MWEB", "WEB")
+        // (VISIONOS, plus retired ones like ANDROID_VR/IOS still recorded in old FormatEntity rows)
+        // never ran the cipher, so show "N/A", not "Unknown". A SABR stream labels its client
+        // "WEB_REMIX (SABR)" etc. - strip the suffix so a web SABR client (which DOES run the
+        // n-transform cipher) still resolves its player hash, while VISIONOS (SABR) stays N/A.
+        val baseStreamClient = currentFormat?.streamClient?.substringBefore(" (")
+        val isWebStream = baseStreamClient in setOf("WEB_REMIX", "WEB_CREATOR", "TVHTML5", "TVHTML5_SIMPLY", "MWEB", "WEB")
         val playerHash = if (isWebStream) CipherDeobfuscator.lastUsedPlayerHash else notApplicable
         val cipherSupportAdded =
             if (isWebStream) PlayerDatesStore.get(CipherDeobfuscator.lastUsedPlayerHash) else notApplicable

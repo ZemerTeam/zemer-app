@@ -81,6 +81,10 @@ import com.jtech.zemer.constants.AndroidAutoTargetPlaylistKey
 import com.jtech.zemer.constants.AudioNormalizationKey
 import com.jtech.zemer.constants.PlaybackMode
 import com.jtech.zemer.constants.PlaybackModeKey
+import com.jtech.zemer.constants.StreamSabrKey
+import com.jtech.zemer.constants.StreamSabrWebRemixKey
+import com.jtech.zemer.constants.StreamSabrVisionOSKey
+import com.jtech.zemer.constants.StreamSabrTVHTML5Key
 import com.jtech.zemer.playback.relay.RelayDataSourceFactory
 import com.jtech.zemer.playback.relay.RelayDeviceId
 import com.jtech.zemer.constants.AudioOffload
@@ -513,6 +517,8 @@ class MusicService :
 
     override fun onCreate() {
         super.onCreate()
+        // The SABR spool dir (disk-backed reassembly buffers + the persistent replay cache) — idempotent.
+        com.jtech.zemer.playback.sabr.SabrSpool.init(cacheDir)
         // Cast discovery is started lazily by startDiscovery() the first time the user opens the cast
         // picker — not here — so we don't run NSD discovery on every launch.
         // Media3's MediaLibraryService handles foreground notification automatically
@@ -620,6 +626,13 @@ class MusicService :
                 if (relayModeNow == true) persistRelaySongIfNeeded(currentMediaMetadata.value)
             }
         }
+        // Mirror StreamSabrKey the same way, so VideoModeController can read "SABR mode?" synchronously
+        // on the main thread (a user's video toggle) without a blocking DataStore read. Default off.
+        scope.launch {
+            dataStore.data.map { it[StreamSabrKey] ?: false }.distinctUntilChanged().collect {
+                sabrModeNow = it
+            }
+        }
         scope.launch {
             dataStore.data.map { it[AutoSkipNextOnErrorKey] ?: false }.distinctUntilChanged().collect {
                 autoSkipOnErrorNow = it
@@ -634,7 +647,6 @@ class MusicService :
                 if (prefs[com.jtech.zemer.constants.StreamSourceTVHTML5Key]   == false) disabled += setOf("TVHTML5", "TVHTML5_SIMPLY")
                 if (prefs[com.jtech.zemer.constants.StreamSourceVisionOSKey]  == false) disabled += "VISIONOS"
                 if (prefs[com.jtech.zemer.constants.StreamSourceWebCreatorKey] == false) disabled += "WEB_CREATOR"
-                if (prefs[com.jtech.zemer.constants.StreamSourceMWEBKey]      == false) disabled += "MWEB"
                 YTPlayerUtils.disabledStreamClients = disabled
             }
         }
@@ -2367,6 +2379,28 @@ class MusicService :
     /** Whether playback is currently routed through the RELAY source (fixed server-side rendition). */
     fun isRelayPlaybackMode(): Boolean = relayModeNow == true
 
+    /** SABR playback mode (opt-in, off by default), mirrored synchronously for VideoModeController. */
+    @Volatile private var sabrModeNow: Boolean? = null
+    fun isSabrPlaybackMode(): Boolean = sabrModeNow == true
+
+    /** Metered-network state for the SABR AUTO quality pick (DIRECT's automatic pick uses the same cap). */
+    fun isMeteredNetwork(): Boolean = connectivityManager.isActiveNetworkMetered
+
+    /**
+     * The watch-time cpn for [videoId]'s listen (DIRECT stampCpn parity): the SABR media POST is stamped
+     * with the SAME cpn the stats-beacon session uses, keyed by the base video id so audio/video/merge
+     * renditions of one listen share it. The reporter mints per listen and releases on finish.
+     */
+    fun sabrCpnFor(videoId: String): String =
+        watchTimeReporter.mediaCpnFor(VideoRendition.baseVideoId(videoId))
+
+    /** The enabled SABR clients from settings (read off the main thread, e.g. a resolver coroutine). */
+    fun sabrEnabledClients(): Set<String> = buildSet {
+        if (dataStore.get(StreamSabrWebRemixKey, true)) add(com.jtech.zemer.playback.sabr.SabrPlayerResolver.KEY_WEB_REMIX)
+        if (dataStore.get(StreamSabrVisionOSKey, true)) add(com.jtech.zemer.playback.sabr.SabrPlayerResolver.KEY_VISIONOS)
+        if (dataStore.get(StreamSabrTVHTML5Key, true)) add(com.jtech.zemer.playback.sabr.SabrPlayerResolver.KEY_TVHTML5_SIMPLY)
+    }
+
     // The last-resolved audio itag per `videoaudio:<id>` merge key, and the last-resolved video itag
     // per PLAIN `video:<id>` key — both drive the container-drift purge in their resolver branches
     // (the itag-suffixed rung keys can't drift; these two keys can, so they are guarded).
@@ -2430,11 +2464,28 @@ class MusicService :
      */
     fun prefetchVideoRendition(videoId: String) {
         // Never prefetch what won't stream: RELAY (fixed rendition), a DOWNLOADED muxed video (LOCAL
-        // rendition plays from disk — a resolution would be pure waste, and offline it just fails),
-        // or when offline. Mirrors requestVideoAvailability's own network guard.
+        // rendition plays from disk — a resolution would be pure waste, and offline it just fails), or
+        // when offline. Mirrors requestVideoAvailability's own network guard.
         if (isRelayPlaybackMode()) return
         if (!isNetworkConnected.value) return
         if (playbackSourceIsLocalFile(videoId)) return
+        // SABR prefetch (DIRECT parity): warm the SABR resolve cache (ladder + per-itag formats) while
+        // the pill shows, so the Video tap is served with no network round-trip. Never the DIRECT
+        // /player prefetch (it fails "all stream sources disabled" when the DIRECT clients are off),
+        // and no stream is registered — nothing moves until the tap.
+        if (isSabrPlaybackMode()) {
+            if (!videoPrefetchInFlight.add(videoId)) return
+            scope.launch(Dispatchers.IO) {
+                try {
+                    com.jtech.zemer.playback.sabr.SabrVideoResolver.prefetch(videoId, sabrEnabledClients())
+                } catch (e: Exception) {
+                    Timber.tag(TAG).d(e, "SABR video prefetch failed for $videoId")
+                } finally {
+                    videoPrefetchInFlight.remove(videoId)
+                }
+            }
+            return
+        }
         val plainKey = VideoRendition.key(videoId)
         if (songUrlCache[plainKey]?.let { it.second > System.currentTimeMillis() } == true) return
         if (!videoPrefetchInFlight.add(videoId)) return
@@ -2482,17 +2533,153 @@ class MusicService :
         }
     }
 
-    // Per-open selector: RELAY -> the isolated relay factory, everyone else -> the DIRECT factory verbatim.
-    // Reading the flag per open gives the "takes effect on the next track" toggle behavior.
-    private val playbackDataSourceFactory = DataSource.Factory {
-        // Resolve null (mirror not yet emitted) with a one-time synchronous read so a relay user's first
-        // open is never mis-routed to DIRECT. createDataSource() runs on ExoPlayer's loading thread, so the
-        // blocking read is off the main thread (same as the DIRECT resolver's runBlocking).
-        val relay = relayModeNow ?: run {
-            (dataStore.get(PlaybackModeKey, PlaybackMode.DIRECT.name) == PlaybackMode.RELAY.name)
-                .also { relayModeNow = it }
+    // ---- EXPERIMENTAL SABR playback (opt-in via StreamSabrKey, OFF by default). Isolated exactly like
+    // RELAY: a downloaded file still plays from disk; otherwise each open resolves WEB_REMIX's SABR/UMP
+    // stream (playback/sabr/) instead of a progressive URL. Never runs when the flag is off, so the DIRECT
+    // path is untouched. The SABR engine is JVM-tested and validated whole-song against the live CDN by
+    // tests/sabr-stream.mjs; the on-device gate is the remaining verification before this is user-facing.
+    private val sabrDataSourceFactory: DataSource.Factory by lazy {
+        ResolvingDataSource.Factory(
+            // RELAY parity: DefaultDataSource routes file/content URIs (a downloaded song's local file)
+            // to the platform sources and hands only unknown schemes (sabr://) to the SABR source —
+            // SabrDataSource itself accepts NOTHING but sabr://, so an unwrapped factory made every
+            // downloaded track a player error while SABR mode was on.
+            DefaultDataSource.Factory(this, com.jtech.zemer.playback.sabr.SabrStreamResolver.dataSourceFactory())
+        ) { dataSpec ->
+            val mediaId = dataSpec.key ?: dataSpec.uri.toString()
+            resolveDownloadedFileUri(mediaId, dataSpec.position)?.let {
+                return@Factory dataSpec.withUri(it.toUri())
+            }
+            // A LIVE registry stream (a seek's close→reopen, a repeat-one replay) is reused as-is:
+            // no second /player + poToken round-trip, no watch-time/telemetry re-seed, no duplicate
+            // FormatEntity upsert — the reopen just re-reads the accumulating buffer (SabrAudioStream).
+            // A FAILED stream is torn down here (plus the resolve cache) so the fresh resolve below
+            // never replays the dead config — DIRECT's error-refresh discipline.
+            com.jtech.zemer.playback.sabr.SabrStreamRegistry.stream(mediaId)?.let { live ->
+                if (live.usable()) {
+                    return@Factory dataSpec.withUri(com.jtech.zemer.playback.sabr.SabrStreamRegistry.uri(mediaId))
+                }
+                // A failed SPOOL-backed replay means the cached file itself is bad — evict it so the
+                // lookup below can't hand back the same corrupt entry in a loop.
+                if (live.fromSpool) com.jtech.zemer.playback.sabr.SabrSpool.evict(mediaId)
+                com.jtech.zemer.playback.sabr.SabrStreamRegistry.remove(mediaId)
+                com.jtech.zemer.playback.sabr.SabrPlayerResolver.invalidate(mediaId)
+            }
+            // The persistent spool replay cache (DIRECT's playerCache parity): a COMPLETE previous drain
+            // of this id serves the whole play from disk — zero network. The watch-time reporter falls
+            // back to its one metadata fetch exactly like a DIRECT cached play (and its offline branch
+            // captures a no-network replay for the deferred stats queue).
+            com.jtech.zemer.playback.sabr.SabrSpool.lookup(mediaId)?.let { entry ->
+                val stream = com.jtech.zemer.playback.sabr.SabrAudioStream.fromSpool(mediaId, entry)
+                com.jtech.zemer.playback.sabr.SabrStreamRegistry.installStream(mediaId, stream)
+                Timber.tag(TAG).d("SABR spool replay for %s (itag=%d)", mediaId, entry.itag)
+                return@Factory dataSpec.withUri(com.jtech.zemer.playback.sabr.SabrStreamRegistry.uri(mediaId))
+            }
+            val result = runCatching {
+                kotlinx.coroutines.runBlocking {
+                    com.jtech.zemer.playback.sabr.SabrPlayerResolver.resolve(
+                        mediaId,
+                        sabrEnabledClients(),
+                        // DIRECT parity: the same AudioQuality preference (AUTO follows the metered state).
+                        audioQuality = audioQuality,
+                        meteredNetwork = connectivityManager.isActiveNetworkMetered,
+                        // DIRECT stampCpn parity: the media POST carries the listen's watch-time cpn.
+                        cpn = { sabrCpnFor(mediaId) },
+                        // Rethrow a network-class failure so the classifier below maps it (DIRECT parity).
+                        classifyErrors = true,
+                    )
+                }
+            }.getOrElse { t ->
+                // DIRECT parity: a host/connect/timeout/SSL failure becomes a NETWORK_CONNECTION_FAILED
+                // PlaybackException so onPlayerError calls waitOnNetworkError instead of skipping the queue.
+                when (t) {
+                    is java.net.UnknownHostException, is java.net.ConnectException,
+                    is java.net.SocketTimeoutException, is javax.net.ssl.SSLException ->
+                        throw PlaybackException(getString(R.string.error_no_internet), t, PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED)
+                    else -> throw t
+                }
+            } ?: throw java.io.IOException("SABR resolve failed for $mediaId")
+            // DIRECT parity: seed the watch-time reporter from THIS /player response (no second
+            // round-trip, truthful fmt) and attribute the stream client (+ player hash for web SABR
+            // clients, whose n-transform ran the cipher) to the listen's telemetry.
+            watchTimeReporter.onTrackingResolved(mediaId, result.playbackTracking, result.itag)
+            Tracker.onStreamResolved(
+                mediaId,
+                result.streamClient,
+                playerHash = if (result.web) CipherDeobfuscator.lastUsedPlayerHash else null,
+            )
+            // DIRECT parity: insert the SongEntity (+ run the related-songs pipeline) so a SABR listen of
+            // a song not yet in the DB records play history / stats — otherwise the listen-end Event
+            // insert fails its foreign key to SongEntity and is silently swallowed.
+            scope.launch(Dispatchers.IO) { recoverSong(mediaId) }
+            // Persist a FormatEntity (overwriting any stale DIRECT one) so the song-details sheet shows the
+            // SABR client + format for this play, exactly like the DIRECT resolver above. loudnessDb rides
+            // the SAME /player response (DIRECT parity) — audio normalization works under SABR, and a SABR
+            // play never clobbers the loudness a DIRECT play stored.
+            result.config.let { cfg ->
+                database.query {
+                    upsert(
+                        FormatEntity(
+                            id = mediaId,
+                            itag = cfg.format.itag,
+                            mimeType = cfg.mimeType.substringBefore(";").ifBlank { "audio" },
+                            codecs = cfg.mimeType.substringAfter("codecs=\"", "").substringBefore("\"").ifBlank { "opus" },
+                            bitrate = cfg.bitrate,
+                            sampleRate = cfg.audioSampleRate,
+                            contentLength = cfg.format.contentLength,
+                            loudnessDb = result.loudnessDb,
+                            playbackUrl = result.playbackTracking?.videostatsPlaybackUrl?.baseUrl,
+                            streamClient = cfg.streamClientLabel,
+                        )
+                    )
+                }
+            }
+            dataSpec.withUri(result.uri)
         }
-        if (relay) relayDataSourceFactory.createDataSource() else dataSourceFactory.createDataSource()
+    }
+
+    // Per-open selector: RELAY -> the isolated relay factory; a DIRECT video-rendition key -> the DIRECT
+    // factory even under SABR (SABR video mode uses sabrvideo:// URIs, never these keys, so the SABR audio
+    // resolver must never receive one); else SABR (opt-in) -> the isolated SABR factory; else DIRECT
+    // verbatim. The route is chosen at open(), where the dataSpec key is known — a plain factory lambda
+    // only sees createDataSource(). The SABR flag uses the sabrModeNow mirror (a one-time blocking read
+    // only until the collector's first emission), matching the relay mirror; both reads land on the
+    // ExoPlayer loading thread, never Main. "Takes effect next track" is preserved by the mirror.
+    private val playbackDataSourceFactory = DataSource.Factory { RoutingDataSource() }
+
+    @androidx.media3.common.util.UnstableApi
+    private inner class RoutingDataSource : androidx.media3.datasource.DataSource {
+        private val listeners = ArrayList<androidx.media3.datasource.TransferListener>()
+        private var delegate: DataSource? = null
+
+        override fun addTransferListener(transferListener: androidx.media3.datasource.TransferListener) {
+            listeners.add(transferListener)
+            delegate?.addTransferListener(transferListener)
+        }
+
+        override fun open(dataSpec: androidx.media3.datasource.DataSpec): Long {
+            val key = dataSpec.key ?: dataSpec.uri.toString()
+            val relay = relayModeNow ?: run {
+                (dataStore.get(PlaybackModeKey, PlaybackMode.DIRECT.name) == PlaybackMode.RELAY.name).also { relayModeNow = it }
+            }
+            val factory = when {
+                relay -> relayDataSourceFactory
+                VideoRendition.isVideoKey(key) || VideoRendition.isMergeAudioKey(key) -> dataSourceFactory
+                sabrModeNow ?: run { dataStore.get(StreamSabrKey, false).also { sabrModeNow = it } } -> sabrDataSourceFactory
+                else -> dataSourceFactory
+            }
+            val d = factory.createDataSource()
+            listeners.forEach { d.addTransferListener(it) }
+            delegate = d
+            return d.open(dataSpec)
+        }
+
+        override fun read(buffer: ByteArray, offset: Int, length: Int): Int =
+            (delegate ?: throw java.io.IOException("RoutingDataSource read before open")).read(buffer, offset, length)
+
+        override fun getUri(): android.net.Uri? = delegate?.uri
+        override fun getResponseHeaders(): Map<String, List<String>> = delegate?.responseHeaders ?: emptyMap()
+        override fun close() { delegate?.close(); delegate = null }
     }
 
     private fun createMediaSourceFactory(): MediaSource.Factory {
@@ -2507,6 +2694,20 @@ class MusicService :
                 // without it an .ogg/.opus download fails with "Source error" into a re-download loop.
                 arrayOf(MatroskaExtractor(), FragmentedMp4Extractor(), Mp4Extractor(), OggExtractor())
             },
+        )
+        // SABR video mode: a `sabrvideo://<id>` item is a dual-track SABR session (video-only + audio,
+        // both cache-free, resolved by SabrVideoResolver). Its two children read the isolated SABR-video
+        // DataSources (never the DIRECT/relay factory), merged like an adaptive rung. Same extractors
+        // (mp4/webm). Gated by the URI scheme, which nothing but SabrVideoResolver produces, so DIRECT is
+        // untouched.
+        val sabrExtractors = ExtractorsFactory { arrayOf(MatroskaExtractor(), FragmentedMp4Extractor(), Mp4Extractor()) }
+        val sabrVideoChild = DefaultMediaSourceFactory(
+            com.jtech.zemer.playback.sabr.SabrVideoDataSourceFactory(com.jtech.zemer.playback.sabr.SabrStreamResolver.sharedClient(), video = true),
+            sabrExtractors,
+        )
+        val sabrAudioChild = DefaultMediaSourceFactory(
+            com.jtech.zemer.playback.sabr.SabrVideoDataSourceFactory(com.jtech.zemer.playback.sabr.SabrStreamResolver.sharedClient(), video = false),
+            sabrExtractors,
         )
         // An adaptive (video-only) quality rung has no audio of its own: its MediaSource MERGES the
         // video rendition with the item's audio stream (`videoaudio:<id>` — resolved by the same
@@ -2534,6 +2735,20 @@ class MusicService :
             }
 
             override fun createMediaSource(mediaItem: MediaItem): MediaSource {
+                val uri = mediaItem.localConfiguration?.uri
+                if (uri != null && uri.scheme == com.jtech.zemer.playback.sabr.SabrVideoRegistry.SCHEME_VIDEO) {
+                    val id = com.jtech.zemer.playback.sabr.SabrVideoRegistry.mediaId(uri)!!
+                    val audioItem = mediaItem.buildUpon()
+                        .setUri(com.jtech.zemer.playback.sabr.SabrVideoRegistry.audioUri(id))
+                        .setCustomCacheKey(null)
+                        .build()
+                    return MergingMediaSource(
+                        /* adjustPeriodTimeOffsets = */ true,
+                        /* clipDurations = */ true,
+                        sabrVideoChild.createMediaSource(mediaItem),
+                        sabrAudioChild.createMediaSource(audioItem),
+                    )
+                }
                 val key = mediaItem.localConfiguration?.customCacheKey
                 if (key != null && VideoRendition.isAdaptiveVideoKey(key)) {
                     val audioKey = VideoRendition.mergeAudioKey(VideoRendition.renditionId(key))
@@ -2834,6 +3049,11 @@ class MusicService :
         player.removeListener(this)
         player.removeListener(sleepTimer)
         player.release()
+        // After the player is gone: destroy any live SABR streams (kills their drain threads and frees
+        // the whole-track buffers). Without this, a service destroy with a stream still registered left
+        // a daemon thread POSTing to googlevideo with both buffers pinned for the life of the process.
+        com.jtech.zemer.playback.sabr.SabrStreamRegistry.clear()
+        com.jtech.zemer.playback.sabr.SabrVideoRegistry.clear()
         stopForeground(STOP_FOREGROUND_REMOVE)
         isRunning = false
         super.onDestroy()

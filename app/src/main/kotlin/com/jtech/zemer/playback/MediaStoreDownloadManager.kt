@@ -12,6 +12,12 @@ import com.jtech.zemer.constants.DownloadAudioFormat
 import com.jtech.zemer.constants.DownloadAudioFormatKey
 import com.jtech.zemer.constants.PlaybackMode
 import com.jtech.zemer.constants.PlaybackModeKey
+import com.jtech.zemer.constants.StreamSabrKey
+import com.jtech.zemer.constants.StreamSabrWebRemixKey
+import com.jtech.zemer.constants.StreamSabrVisionOSKey
+import com.jtech.zemer.constants.StreamSabrTVHTML5Key
+import com.jtech.zemer.playback.sabr.SabrPlayerResolver
+import com.jtech.zemer.playback.sabr.SabrStreamResolver
 import com.jtech.zemer.extensions.toEnum
 import com.jtech.zemer.playback.relay.RelayDeviceId
 import com.jtech.zemer.playback.relay.RelayDownload
@@ -82,6 +88,11 @@ constructor(
     private val database: MusicDatabase
         get() = databaseLazy.get()
     private val scope = CoroutineScope(Dispatchers.IO + Job())
+
+    init {
+        // SABR download drains spool to disk (idempotent; MusicService inits the same dir).
+        com.jtech.zemer.playback.sabr.SabrSpool.init(context.cacheDir)
+    }
     private val mediaStoreHelper = MediaStoreHelper(context)
     private val connectivityManager = context.getSystemService<ConnectivityManager>()
         ?: throw IllegalStateException("ConnectivityManager not available on this device")
@@ -448,9 +459,27 @@ constructor(
                 context.dataStore.getSuspend(PlaybackModeKey).toEnum(PlaybackMode.DIRECT) == PlaybackMode.RELAY
             val videoDownload = isVideoDownload && !relayMode
 
+            // SABR downloads mirror RELAY: there is no on-device stream URL, so run the SABR session to
+            // reassemble the whole byte-exact file(s). Active when SABR mode is on and not a relay download.
+            // AUDIO downloads pull one track; VIDEO downloads pull the dual-track session and remux on-device
+            // (SabrVideoResolver.download + VideoMuxer), exactly like a DIRECT adaptive video download.
+            val enabledSabrClients =
+                if (relayMode || context.dataStore.getSuspend(StreamSabrKey) != true) {
+                    emptySet()
+                } else buildSet {
+                    if (context.dataStore.getSuspend(StreamSabrWebRemixKey) != false) add(SabrPlayerResolver.KEY_WEB_REMIX)
+                    if (context.dataStore.getSuspend(StreamSabrVisionOSKey) != false) add(SabrPlayerResolver.KEY_VISIONOS)
+                    if (context.dataStore.getSuspend(StreamSabrTVHTML5Key) != false) add(SabrPlayerResolver.KEY_TVHTML5_SIMPLY)
+                }
+            val sabrAudioMode = enabledSabrClients.isNotEmpty() && !videoDownload
+            val sabrVideoMode = enabledSabrClients.isNotEmpty() && videoDownload
+            // Whether the SABR video mux produced a WebM container (vp9) vs MP4 (avc1) — set by the
+            // dual-track download below and used to pick the saved file's extension.
+            var sabrVideoWebm = false
+
             // Get playback URL. DIRECT: resolve via YTPlayerUtils (video stream when preferVideo=true).
             Timber.d("Starting download for ${if (videoDownload) "video" else "song"} ${song.id}: ${song.song.title}, relay=$relayMode")
-            val playbackData = if (relayMode) null else YTPlayerUtils.playerResponseForPlayback(
+            val playbackData = if (relayMode || sabrAudioMode || sabrVideoMode) null else YTPlayerUtils.playerResponseForPlayback(
                 videoId = song.id,
                 // An audio download always resolves at the HIGHEST bitrate in its format - a
                 // download is a deliberate act, never reduced by the streaming quality pref.
@@ -493,12 +522,18 @@ constructor(
             // Relay: the dedicated /download endpoint (NOT /stream) resolves + pulls the whole file
             // server-side and returns one clean response (accurate Content-Length, clean close), so a plain
             // one-shot GET -> save works reliably where a full pull of the range-based /stream did not.
-            val downloadUrl = if (relayMode) RelayStream.downloadUrl(song.id) else playbackData!!.streamUrl
-            Timber.d("Download URL length: ${downloadUrl.length}, relay=$relayMode")
+            val downloadUrl = when {
+                relayMode -> RelayStream.downloadUrl(song.id)
+                sabrAudioMode || sabrVideoMode -> "" // SABR has no single URL; the session below reassembles the file(s)
+                else -> playbackData!!.streamUrl
+            }
+            Timber.d("Download URL length: ${downloadUrl.length}, relay=$relayMode, sabrAudio=$sabrAudioMode, sabrVideo=$sabrVideoMode")
 
             // Create temporary file for download
-            val extension = if (relayMode) {
-                "webm" // relay audio is webm/opus (itag 251)
+            val extension = if (relayMode || sabrAudioMode) {
+                "webm" // relay/SABR audio is webm/opus (itag 251); the real container is sniffed on save
+            } else if (sabrVideoMode) {
+                "mp4" // SABR video temp container; the muxed container (mp4/webm) drives saveExtension below
             } else {
                 val mimeTypeRaw = playbackData!!.format.mimeType.substringBefore(";").trim()
                 if (videoDownload) {
@@ -527,6 +562,21 @@ constructor(
                 // Download to temp file (an adaptive video rung downloads video+audio and remuxes).
                 if (adaptiveVideoDownload) {
                     downloadAdaptiveVideoAndMux(song, playbackData!!, tempFile, extension)
+                } else if (sabrVideoMode) {
+                    // Dual-track SABR: drain video+audio to completion and remux on-device (like DIRECT
+                    // adaptive). Target = the requested quality mapped to a max height, else 720p.
+                    val targetLabel = requestedVideoQuality[song.id] ?: com.jtech.zemer.playback.VideoQualityLogic.AUTO
+                    sabrVideoWebm = downloadSabrVideoAndMux(song, enabledSabrClients, tempFile, targetLabel)
+                } else if (sabrAudioMode) {
+                    // Run the SABR session to reassemble the whole byte-exact audio into the temp file.
+                    SabrStreamResolver.download(
+                        song.id, enabledSabrClients, tempFile,
+                        onProgress = sabrProgressReporter(song.id),
+                        // DIRECT's download parity: highest bitrate (HIGH), and Opus only when the device
+                        // can rewrap Ogg AND the user chose BEST — else AAC/m4a for COMPATIBLE / pre-29.
+                        audioQuality = AudioQuality.HIGH,
+                        opusAllowed = AudioRemux.oggMuxSupported && downloadAudioFormat == DownloadAudioFormat.BEST,
+                    ) ?: throw Exception("SABR download failed for ${song.id}")
                 } else {
                     downloadFile(downloadUrl, tempFile, song.id)
                 }
@@ -540,7 +590,9 @@ constructor(
                 // .webm to video/webm, inconsistent with an audio entry -> insert returns null -> "Failed
                 // to save file to MediaStore"). Sniff the real container and label WebM as .opus / MP4 as
                 // .m4a — both MediaStore-accepted, and in-app playback sniffs the real container regardless.
-                var saveExtension = if (relayMode) sniffAudioExtension(tempFile) else extension
+                var saveExtension = if (relayMode || sabrAudioMode) sniffAudioExtension(tempFile)
+                    else if (sabrVideoMode) (if (sabrVideoWebm) "webm" else "mp4") // the muxed video container
+                    else extension
 
                 // Get metadata for embedding and file naming
                 val title = song.song.title
@@ -565,7 +617,7 @@ constructor(
                 // response (playbackData is null), so read the length straight off the downloaded file.
                 val effectiveDurationSec = song.song.duration.takeIf { it > 0 }
                     ?: playbackData?.videoDetails?.lengthSeconds?.toIntOrNull()
-                    ?: (if (relayMode) durationSecFromFile(tempFile) else null)
+                    ?: (if (relayMode || sabrAudioMode || sabrVideoMode) durationSecFromFile(tempFile) else null)
                     ?: 0
                 val duration = effectiveDurationSec.takeIf { it > 0 }?.times(1000L) // ms for MediaStore
 
@@ -656,7 +708,7 @@ constructor(
                             // video-song saves an audio-only file. Persist isVideo=false so the LOCAL video
                             // toggle is never offered over a file with no video track (black video) and the
                             // track is not hidden from the downloaded-music list.
-                            isVideo = if (relayMode) false else song.song.isVideo,
+                            isVideo = if (sabrVideoMode) true else if (relayMode || sabrAudioMode) false else song.song.isVideo,
                         ),
                     )
                     markSongAsDownloaded(songWithMeta, uri.toString())
@@ -862,6 +914,74 @@ constructor(
                     throw Exception("Remux failed (transient) for ${song.id}")
                 }
             }
+        } finally {
+            videoPart.delete()
+            audioPart.delete()
+        }
+    }
+
+    /**
+     * SABR video download: drain the dual-track session to two temp files, then remux to [outputFile].
+     * Returns whether the muxed container is WebM (vp9) vs MP4 (avc1), so the caller labels the saved
+     * file. Mirrors [downloadAdaptiveVideoAndMux]'s mux-result handling (INCOMPATIBLE clears the requested
+     * quality so a retry falls back; TRANSIENT preserves it). An incomplete SABR drain throws (retryable).
+     */
+    /**
+     * A throttled progress bridge for the SABR drains — the [downloadFile] cadence (every 250ms or a
+     * 2%+ move) fed by the sessions' per-response byte counts, so a SABR download renders a moving ring
+     * instead of a frozen, seemingly-stuck download.
+     */
+    private fun sabrProgressReporter(songId: String): (Long, Long) -> Unit {
+        var lastUpdate = 0L
+        var lastProgress = 0f
+        return { downloaded, total ->
+            val progress = if (total > 0) downloaded.toFloat() / total.toFloat() else 0f
+            val now = System.currentTimeMillis()
+            if (now - lastUpdate >= PROGRESS_UPDATE_INTERVAL_MS ||
+                (total > 0 && progress - lastProgress >= PROGRESS_UPDATE_THRESHOLD)
+            ) {
+                lastUpdate = now
+                lastProgress = progress
+                updateDownloadState(
+                    songId,
+                    DownloadState(
+                        songId = songId,
+                        status = DownloadState.Status.DOWNLOADING,
+                        progress = progress,
+                        bytesDownloaded = downloaded,
+                        totalBytes = if (total > 0) total else downloaded,
+                    )
+                )
+            }
+        }
+    }
+
+    private suspend fun downloadSabrVideoAndMux(
+        song: Song,
+        enabled: Set<String>,
+        outputFile: File,
+        targetLabel: String,
+    ): Boolean = withContext(Dispatchers.IO) {
+        val videoPart = File(context.cacheDir, "temp_${song.id}.sabrv.part")
+        val audioPart = File(context.cacheDir, "temp_${song.id}.sabra.part")
+        try {
+            val info = com.jtech.zemer.playback.sabr.SabrVideoResolver.download(
+                song.id, enabled, targetLabel,
+                // DIRECT parity: only the AUTO pick is metered-capped; an explicit label downloads as chosen.
+                maxAutoBitrateKbps = VideoRendition.defaultMaxBitrateKbps(connectivityManager.isActiveNetworkMetered),
+                videoFile = videoPart, audioFile = audioPart,
+                onProgress = sabrProgressReporter(song.id),
+            )
+                ?: throw Exception("SABR video download failed/incomplete for ${song.id}")
+            when (VideoMuxer.mux(videoPart, audioPart, outputFile, webm = info.webm)) {
+                VideoMuxer.Result.SUCCESS -> {}
+                VideoMuxer.Result.INCOMPATIBLE -> {
+                    requestedVideoQuality.remove(song.id)
+                    throw Exception("SABR remux incompatible for ${song.id}")
+                }
+                VideoMuxer.Result.TRANSIENT -> throw Exception("SABR remux failed (transient) for ${song.id}")
+            }
+            info.webm
         } finally {
             videoPart.delete()
             audioPart.delete()
