@@ -162,6 +162,10 @@ async function main() {
   if (!pairs.length) { console.error("no candidates extracted"); process.exit(1); }
 
   let winner = null;
+  // Every candidate that BOTH returned 206 AND ran a real n-transform. Bare 206 is not enough:
+  // a correct-sig / wrong-n pair still 206s inside googlevideo's first-1-MiB free window, so a
+  // pair is only "working" when nProbe.changed is also true.
+  const working = [];
   for (const { sigExpr, nClass } of pairs) {
     const cipher = buildCipher(js, sigExpr, nClass);
     let url, status = "n/a", nChanged = cipher.nProbe?.changed;
@@ -169,8 +173,20 @@ async function main() {
     cipher.close();
     const ok = status === 206 || status === 200;
     console.log(`  sig=${sigExpr.padEnd(20)} n=g.${(nClass + "").padEnd(4)} nProbe.changed=${String(nChanged).padEnd(5)} GET=${status}  ${ok ? "✓ WORKS" : ""}`);
-    if (ok && nChanged && !winner) winner = { sigExpr, nClass, sts, md5, urlHash: hash };
+    if (ok && nChanged) { working.push({ sigExpr, nClass }); if (!winner) winner = { sigExpr, nClass, sts, md5, urlHash: hash }; }
   }
+
+  // Structured, machine-readable verdict — the STABLE CONTRACT the automation consumes, so
+  // tools/propose-config.mjs never screen-scrapes this human log text. `ambiguous` = more than one
+  // candidate both deciphered AND ran a real n-transform; the pipeline refuses those rather than
+  // guess which one the server truly wants.
+  console.log("VALIDATOR_RESULT=" + JSON.stringify({
+    ok: working.length === 1,
+    hash,
+    workingCount: working.length,
+    ambiguous: working.length > 1,
+    entry: winner ? { sig: winner.sigExpr, nClass: winner.nClass, sts: winner.sts, aliases: [winner.md5] } : null,
+  }));
 
   console.log();
   if (winner) {

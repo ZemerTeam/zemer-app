@@ -9,6 +9,14 @@ interface Queue {
     val preloadItem: MediaMetadata?
 
     /**
+     * The id of the item the user just tapped to play, for the tap-to-play loading spinner
+     * (PlayerConnection.preparingMediaId + rememberIsPreparing). Defaults to [preloadItem]'s id; a queue
+     * whose target is NOT the preload (ListQueue plays its startIndex item, with no preload) overrides
+     * this so the tapped card shows the spinner. UI-feedback only - never affects playback.
+     */
+    val preparingItemId: String? get() = preloadItem?.id
+
+    /**
      * Tracking (docs/tracking/README.md): where plays of this queue's user-chosen items report as
      * starting. Surfaces with a spec taxonomy value (search, album:…, zemer:…) pass it at
      * construction; everything else defaults to "other".
@@ -41,19 +49,10 @@ interface Queue {
         val mediaItemIndex: Int,
         val position: Long = 0L,
     ) {
-        fun filterExplicit(enabled: Boolean = true) =
-            if (enabled) {
-                copy(
-                    items = items.filterExplicit(),
-                )
-            } else {
-                this
-            }
-
         /**
-         * Drops podcast episodes when Block Podcasts is on (the filterExplicit pattern). The start
-         * index is re-clamped because dropped episodes can shift or empty the list — a stale index
-         * would crash [androidx.media3.common.Player.setMediaItems].
+         * Drops podcast episodes when Block Podcasts is on. The start index is re-clamped because
+         * dropped episodes can shift or empty the list — a stale index would crash
+         * [androidx.media3.common.Player.setMediaItems].
          */
         fun filterBlockedPodcasts(blocked: Boolean) =
             if (blocked) {
@@ -67,15 +66,6 @@ interface Queue {
             }
     }
 }
-
-fun List<MediaItem>.filterExplicit(enabled: Boolean = true) =
-    if (enabled) {
-        filterNot {
-            it.metadata?.explicit == true
-        }
-    } else {
-        this
-    }
 
 /**
  * A queue start index re-clamped after filtering shrank the item list: media3's setMediaItems

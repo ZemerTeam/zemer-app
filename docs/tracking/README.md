@@ -72,8 +72,9 @@ batch rather than poison-pilling the queue. Losing events is fine. Breaking play
   seek-backs not double-counted; fires on skip/complete/queue-advance and on player release =
   app killed). Zero-play-time sessions are skipped — a restored persisted queue opens a stats
   session without the user pressing play, and those phantoms must not count as listens.
-  Downloaded/offline playback is tracked identically. NOT yet covered: the separate video-player
-  screen's own player (`VideoPlayerScreen`) — known follow-up.
+  Downloaded/offline playback is tracked identically. Video songs play as an in-player rendition
+  swap on the same session (there is no separate video screen anymore), so watching a video song is
+  tracked identically too.
 - **`impression`** — `TrackImpressionsByKey` on the instrumented rows; see the `impression` section
   below for the definition and the surface list (both are contracts).
 - **`action`** — central chokepoints: the four entity `toggleLike()`s (`favorite`/`unfavorite` —
@@ -93,7 +94,7 @@ Set when a queue is built, never per-surface guesswork:
 - `Queue.playSource` (default `"other"`) is passed at construction by the surfaces with a spec
   taxonomy value — all wired: search taps (`OnlineSearchResult` → `search`), Latest Releases
   (`LatestReleasePlayback` → `new`), artist pages (`ArtistScreen`/`ArtistSongsScreen`/
-  `ArtistItemsScreen` → `artist:UC…`), albums (`album:…` — intrinsic to
+  `ArtistSectionScreen` → `artist:UC…`), albums (`album:…` — intrinsic to
   `LocalAlbumRadio`, covers `AlbumScreen` and the album long-press menu), online playlists
   (`OnlinePlaylistScreen` + `YouTubePlaylistMenu` → `playlist:PL…`), curated playlists
   (`ZemerCuratedPlaylistScreen` → `zemer:<slug>`). The album radios now continue beyond the album on

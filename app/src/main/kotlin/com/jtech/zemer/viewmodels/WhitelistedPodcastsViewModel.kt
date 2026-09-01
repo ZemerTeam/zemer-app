@@ -32,8 +32,6 @@ constructor(
 ) : ViewModel() {
     val searchQuery = MutableStateFlow("")
 
-    // Expose sync progress from SyncUtils
-    val syncProgress = syncUtils.podcastWhitelistSyncProgress
     val isSyncing = syncUtils.isPodcastWhitelistSyncing
 
     // Subscribed podcasts (whitelist-filtered) - shared source so the filter can't drift between VMs.
@@ -45,7 +43,8 @@ constructor(
     val newEpisodes = newEpisodesFeed.episodes
     val isLoadingNewEpisodes = newEpisodesFeed.isLoading
 
-    val allPodcasts =
+    // Null until the first DB emission so the screen can shimmer instead of flashing "empty".
+    val allPodcasts: kotlinx.coroutines.flow.StateFlow<List<PodcastWhitelistEntity>?> =
         combine(
             database.allWhitelistedPodcastsByName(),
             searchQuery,
@@ -57,8 +56,12 @@ constructor(
                 // surfaces.) This browse grid reads the mirror whitelist directly, so it is the one podcast
                 // discovery surface with no server filter in front of it — the gate must run here.
                 .filter { !it.isFemale || filters.allowsFemale() }
+                // Kid gate: a wholly-kid channel lives in KidZone, not the normal browse - the
+                // exact mirror of the music artist browse's `WHERE isKidZone = 0` (issue: kid
+                // channels leaked here because this grid reads the mirror whitelist directly).
+                .filter { !it.isKidZone }
                 .filter { query.isBlank() || it.name.contains(query, ignoreCase = true) }
-        }.stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
+        }.stateIn(viewModelScope, SharingStarted.Lazily, null)
 
     init {
         // Fetch new episodes when screen is opened

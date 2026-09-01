@@ -72,6 +72,8 @@ import com.jtech.zemer.constants.ChipSortTypeKey
 import com.jtech.zemer.constants.CropAlbumArtKey
 import com.jtech.zemer.constants.CustomDensityScaleKey
 import com.jtech.zemer.constants.DarkModeKey
+import com.jtech.zemer.constants.RefreshRateMode
+import com.jtech.zemer.constants.RefreshRateModeKey
 import com.jtech.zemer.constants.DefaultOpenTabKey
 import com.jtech.zemer.constants.DensityScale
 import com.jtech.zemer.constants.DensityScaleKey
@@ -106,8 +108,6 @@ import com.jtech.zemer.constants.SwipeToSongKey
 import com.jtech.zemer.constants.BottomNavigationBarEnabledKey
 import com.jtech.zemer.constants.RecognizeMusicFabKey
 import com.jtech.zemer.constants.BottomNavigationItemsKey
-import com.jtech.zemer.constants.UseNewMiniPlayerDesignKey
-import com.jtech.zemer.constants.UseNewPlayerDesignKey
 import com.jtech.zemer.ui.component.AppBarTitle
 import com.jtech.zemer.ui.component.BackNavigationIcon
 import com.jtech.zemer.ui.component.DefaultDialog
@@ -151,13 +151,9 @@ fun AppearanceSettings(
             .roundToInt().coerceAtLeast(0)
         appearanceScrollState.animateScrollTo(target)
     }
-    val (useNewPlayerDesign, onUseNewPlayerDesignChange) = rememberPreference(
-        UseNewPlayerDesignKey,
-        defaultValue = true
-    )
-    val (useNewMiniPlayerDesign, onUseNewMiniPlayerDesignChange) = rememberPreference(
-        UseNewMiniPlayerDesignKey,
-        defaultValue = true
+    val (refreshRateMode, onRefreshRateModeChange) = rememberEnumPreference(
+        RefreshRateModeKey,
+        defaultValue = RefreshRateMode.SYSTEM,
     )
     val (floatingMiniPlayerEnabled, onFloatingMiniPlayerEnabledChange) = rememberPreference(
         FloatingMiniPlayerKey,
@@ -233,7 +229,7 @@ fun AppearanceSettings(
     )
     val (gridItemSize, onGridItemSizeChange) = rememberEnumPreference(
         GridItemsSizeKey,
-        defaultValue = GridItemSize.SMALL
+        defaultValue = GridItemSize.BIG
     )
 
     // Check SharedPreferences first for onboarding bottom nav value, then fallback to DataStore
@@ -477,6 +473,15 @@ fun AppearanceSettings(
             title = stringResource(R.string.theme),
             rows = listOfNotNull(
                 {
+                    EnumListPreference(
+                        title = { Text(stringResource(R.string.refresh_rate)) },
+                        icon = { Icon(painterResource(R.drawable.speed), null) },
+                        selectedValue = refreshRateMode,
+                        onValueSelected = onRefreshRateModeChange,
+                        valueText = { stringResource(it.labelRes) },
+                    )
+                },
+                {
                     // Dynamic (album-art) theme, theme mode (system/light/dark/pure-black) and the accent Color
                     // Palette all live on the dedicated Theme & Colors screen, so there is a single home for every
                     // color/mode control (the old standalone "dynamic theme" switch was redundant with it).
@@ -511,22 +516,6 @@ fun AppearanceSettings(
         SettingsCardGroup(
             title = stringResource(R.string.player),
             rows = listOfNotNull(
-                {
-                    SwitchPreference(
-                        title = { Text(stringResource(R.string.new_player_design)) },
-                        icon = { Icon(painterResource(R.drawable.palette), null) },
-                        checked = useNewPlayerDesign,
-                        onCheckedChange = onUseNewPlayerDesignChange,
-                    )
-                },
-                {
-                    SwitchPreference(
-                        title = { Text(stringResource(R.string.new_mini_player_design)) },
-                        icon = { Icon(painterResource(R.drawable.nav_bar), null) },
-                        checked = useNewMiniPlayerDesign,
-                        onCheckedChange = onUseNewMiniPlayerDesignChange,
-                    )
-                },
                 {
                     SwitchPreference(
                         title = { Text(stringResource(R.string.floating_mini_player)) },

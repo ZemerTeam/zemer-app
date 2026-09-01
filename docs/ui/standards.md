@@ -259,6 +259,20 @@ Use these; do not hand-roll equivalents.
   and can only shrink (run `--update` after fixing some). A few fixed values are genuinely required
   and stay baselined: AMOLED pure-black (`0xFF0A0A0A`), the lyric-image *export* (it renders a
   shareable bitmap, not themed UI), and color-picker swatches. Keep such cases minimal.
+- **Material 3 Expressive — prefer it when a fitting component exists.** The app stays on standard
+  `MaterialTheme` (never a global `MaterialExpressiveTheme` / `MotionScheme.expressive()` swap), but
+  adopts individual **Material 3 Expressive** components behind a per-site
+  `@OptIn(ExperimentalMaterial3ExpressiveApi::class)`. When adding or replacing a UI element and an
+  Expressive equivalent fits, prefer it — always through a SHARED wrapper so the experimental opt-in
+  lives in one place: `ZemerLoadingIndicator` (the CONTAINED content/section spinner — pull-to-refresh,
+  video buffering, section loads; ratcheted **R25**), `MediaLoadingSpinner` (the BARE over-media / card
+  tap-to-play spinner; ratcheted **R26**), `CarouselHeroFrame` + `HeroTitleOverlay` (full-bleed carousel
+  heroes), the filter-chip `TonalToggleButton`, `MaterialShapes`, and the `rememberPopScale` /
+  `rememberActivationPopScale` motion helpers (a per-tap press-bounce on the shared `GridItem` /
+  `ListItem` was tried and removed — it fired on scroll-start too; do not reintroduce it). Stays
+  standard on purpose: tiny in-button
+  and determinate spinners (`CircularProgressIndicator`), and springiness added per-interaction rather
+  than by a theme.
 
 ## 9. Icons
 

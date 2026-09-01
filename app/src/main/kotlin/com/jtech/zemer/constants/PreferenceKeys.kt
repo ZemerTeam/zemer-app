@@ -23,6 +23,12 @@ val PlaybackModeKey = stringPreferencesKey("playbackMode")
 val RelayDeviceIdKey = stringPreferencesKey("relayDeviceId")
 
 val DynamicThemeKey = booleanPreferencesKey("dynamicTheme")
+// Legacy boolean high-refresh toggle. Superseded by [RefreshRateModeKey]; kept declared only so the
+// one-time migration can read whether a user had explicitly turned it off. Do not read it elsewhere.
+val EnableHighRefreshRateKey = booleanPreferencesKey("enableHighRefreshRate")
+// Display refresh-rate policy: SYSTEM (no forced rate, adaptive - the default), STANDARD (~60Hz), or
+// HIGH (force the highest rate at the current resolution). Read via [RefreshRateMode].
+val RefreshRateModeKey = stringPreferencesKey("refreshRateMode")
 val SelectedThemeColorKey = intPreferencesKey("selectedThemeColor")
 val DarkModeKey = stringPreferencesKey("darkMode")
 val PureBlackKey = booleanPreferencesKey("pureBlack")
@@ -42,8 +48,6 @@ val GridItemsSizeKey = stringPreferencesKey("gridItemSize")
 val SliderStyleKey = stringPreferencesKey("sliderStyle")
 val SwipeToSongKey = booleanPreferencesKey("SwipeToSong")
 val SwipeToRemoveSongKey = booleanPreferencesKey("SwipeToRemoveSong")
-val UseNewPlayerDesignKey= booleanPreferencesKey("useNewPlayerDesign")
-val UseNewMiniPlayerDesignKey = booleanPreferencesKey("useNewMiniPlayerDesign")
 val FloatingMiniPlayerKey = booleanPreferencesKey("floatingMiniPlayerEnabled")
 val CastEnabledKey = booleanPreferencesKey("castEnabled")
 val HidePlayerThumbnailKey = booleanPreferencesKey("hidePlayerThumbnail")
@@ -73,17 +77,18 @@ enum class SliderStyle {
     SLIM,
 }
 
+// Display refresh-rate policy (see RefreshRateSelection). SYSTEM leaves the rate unforced so the OS
+// runs adaptive refresh (high while interacting, low when idle) and is the default; STANDARD pins
+// ~60Hz for battery; HIGH forces the highest rate at the current resolution.
+enum class RefreshRateMode(@StringRes val labelRes: Int) {
+    SYSTEM(R.string.refresh_rate_system),
+    STANDARD(R.string.refresh_rate_standard),
+    HIGH(R.string.refresh_rate_high),
+}
+
 const val SYSTEM_DEFAULT = "SYSTEM_DEFAULT"
 val AppLanguageKey = stringPreferencesKey("appLanguage")
-val ContentLanguageKey = stringPreferencesKey("contentLanguage")
-val ContentCountryKey = stringPreferencesKey("contentCountry")
 val EnableLrcLibKey = booleanPreferencesKey("enableLrclib")
-val HideExplicitKey = booleanPreferencesKey("hideExplicit")
-val ProxyEnabledKey = booleanPreferencesKey("proxyEnabled")
-val ProxyUrlKey = stringPreferencesKey("proxyUrl")
-val ProxyTypeKey = stringPreferencesKey("proxyType")
-val ProxyUsernameKey = stringPreferencesKey("proxyUsername")
-val ProxyPasswordKey = stringPreferencesKey("proxyPassword")
 val YtmSyncKey = booleanPreferencesKey("ytmSync")
 // Persisted snapshot of the server's blockedContentIds list (newline-joined), loaded at startup so the
 // blocklist is active before the first sync of the session and survives offline launches.
@@ -101,10 +106,18 @@ val LastNightlyAnnouncedKey = stringPreferencesKey("lastNightlyAnnounced")
 val UpdateNotificationsEnabledKey = booleanPreferencesKey("updateNotifications")
 val InstallerTypeKey = intPreferencesKey("installerType") // InstallerType ordinal
 val LastWhitelistVersionKey = longPreferencesKey("lastWhitelistVersion")
+// One-time gate: false until a full whitelist fetch has populated the v35 displayName/altName columns
+// (MIGRATION_34_35 adds them NULL). While false, the sync bypasses the version-gated fast path so an
+// already-synced install backfills the split names on its first sync after updating, without waiting
+// for a server whitelist-version bump.
+val DisplayNamesBackfilledKey = booleanPreferencesKey("displayNamesBackfilled")
 val LastPodcastWhitelistSyncTimeKey = longPreferencesKey("lastPodcastWhitelistSyncTime")
 val LastPodcastWhitelistVersionKey = longPreferencesKey("lastPodcastWhitelistVersion")
 
 val AudioQualityKey = stringPreferencesKey("audioQuality")
+
+/** Audio DOWNLOAD format/quality: best-available Opus vs maximum-compatibility AAC. */
+val DownloadAudioFormatKey = stringPreferencesKey("downloadAudioFormat")
 
 // Default video-mode quality: VideoQualityLogic.AUTO ("auto" — the automatic progressive pick, the
 // pre-quality-switcher behavior) or a target rung label ("1080p", "720p", ...). The in-player
@@ -119,10 +132,32 @@ val VideoQualityKey = stringPreferencesKey("videoQuality")
 // choices, not the current ones.
 val StreamSourceWebRemixKey   = booleanPreferencesKey("streamSourceWebRemix")
 val StreamSourceTVHTML5Key    = booleanPreferencesKey("streamSourceTVHTML5")
-val StreamSourceAndroidVRKey  = booleanPreferencesKey("streamSourceAndroidVR")
 val StreamSourceWebCreatorKey = booleanPreferencesKey("streamSourceWebCreator")
 val StreamSourceVisionOSKey   = booleanPreferencesKey("streamSourceVisionOS")
-val StreamSourceMWEBKey       = booleanPreferencesKey("streamSourceMWEB")
+
+// EXPERIMENTAL, off by default: route DIRECT playback through the SABR/UMP transport instead of a
+// progressive URL. Fully isolated (playback/sabr/) - the fallback for when progressive gets walled.
+val StreamSabrKey             = booleanPreferencesKey("streamSabr")
+
+// Which SABR clients the resolver may use, tried in this order until one yields a stream. Only the
+// clients validated to deliver a whole song over SABR with the app's pot (tests/sabr-clients.mjs) are
+// offered. Default on, like the DIRECT client list.
+val StreamSabrWebRemixKey     = booleanPreferencesKey("streamSabrWebRemix")
+val StreamSabrVisionOSKey     = booleanPreferencesKey("streamSabrVisionOS")
+val StreamSabrTVHTML5Key      = booleanPreferencesKey("streamSabrTVHTML5")
+
+/**
+ * The audio download format choice. BEST selects the highest-quality stream YouTube
+ * serves (Opus itag 251, saved as a fully tagged .ogg; needs API 29+ for the Ogg
+ * rewrap - older devices silently use AAC). COMPATIBLE forces AAC/m4a for maximum
+ * player/device compatibility. Audio downloads always resolve at the highest bitrate
+ * within the chosen format - a download is a deliberate act, never bitrate-reduced
+ * by the streaming quality preference.
+ */
+enum class DownloadAudioFormat {
+    BEST,
+    COMPATIBLE,
+}
 
 // One-time flag: the legacy toggles above have been copied onto the per-family keys.
 val StreamSourcePrefsMigratedKey = booleanPreferencesKey("streamSourcePrefsMigrated")
@@ -150,7 +185,6 @@ val MaxSongCacheSizeKey = intPreferencesKey("maxSongCacheSize")
 
 val PauseListenHistoryKey = booleanPreferencesKey("pauseListenHistory")
 val PauseSearchHistoryKey = booleanPreferencesKey("pauseSearchHistory")
-val DisableScreenshotKey = booleanPreferencesKey("disableScreenshot")
 
 val ChipSortTypeKey = stringPreferencesKey("chipSortType")
 val SongSortTypeKey = stringPreferencesKey("songSortType")
@@ -167,6 +201,8 @@ val AlbumSortTypeKey = stringPreferencesKey("albumSortType")
 val AlbumSortDescendingKey = booleanPreferencesKey("albumSortDescending")
 val PlaylistSortTypeKey = stringPreferencesKey("playlistSortType")
 val PlaylistSortDescendingKey = booleanPreferencesKey("playlistSortDescending")
+// Kept but no longer read: the per-artist songs/albums sub-screens were deleted (unreachable). These
+// map to persisted DataStore values, so do NOT reuse the string ids for a new preference.
 val ArtistSongSortTypeKey = stringPreferencesKey("artistSongSortType")
 val ArtistSongSortDescendingKey = booleanPreferencesKey("artistSongSortDescending")
 val MixSortTypeKey = stringPreferencesKey("mixSortType")
@@ -194,7 +230,6 @@ val QuickPicksKey = stringPreferencesKey("discover")
 val QueueEditLockKey = booleanPreferencesKey("queueEditLock")
 val AllowFemaleSingersKey = booleanPreferencesKey("allowFemaleSingers")
 val FemalePasscodeHashKey = stringPreferencesKey("femalePasscodeHash")
-val AllowChasidishKey = booleanPreferencesKey("allowChasidish")
 val BlockVideosKey = booleanPreferencesKey("blockVideos")
 val BlockPodcastsKey = booleanPreferencesKey("blockPodcasts")
 // One-time seed guard: on first run after podcast-blocking shipped, blockPodcasts is seeded from

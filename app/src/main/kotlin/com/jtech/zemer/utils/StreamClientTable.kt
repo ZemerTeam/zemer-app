@@ -2,8 +2,6 @@ package com.jtech.zemer.utils
 
 import com.metrolist.innertube.models.StreamProtocol
 import com.metrolist.innertube.models.YouTubeClient
-import com.metrolist.innertube.models.YouTubeClient.Companion.ANDROID_VR_1_65_10
-import com.metrolist.innertube.models.YouTubeClient.Companion.MWEB
 import com.metrolist.innertube.models.YouTubeClient.Companion.TVHTML5_SIMPLY
 import com.metrolist.innertube.models.YouTubeClient.Companion.VISIONOS
 import com.metrolist.innertube.models.YouTubeClient.Companion.VISIONOS_0_1
@@ -68,11 +66,12 @@ object StreamClientTable {
     }
 
     /**
-     * The compiled floor — the 2026-08-15 validated chain, kept in lockstep with the bundled
+     * The compiled floor — the validated chain (the 2026-08-15 pass, minus the ANDROID_VR 1.65.10
+     * and MWEB removals that followed it: see AGENTS.md), kept in lockstep with the bundled
      * `stream_clients.json` (StreamClientsBundledAssetTest pins the asset's order; the app-side
      * StreamClientTableTest pins this list against it conceptually). Order rationale lives in the
      * asset + git history: VISIONOS first (no `spc` gate — the most reliable fallback), the
-     * second-chance 0.1 config behind it, MWEB last (largest dependency surface).
+     * second-chance 0.1 config behind it, then the cipher clients.
      */
     internal val COMPILED_TABLE = Table(
         main = StreamClient(WEB_REMIX, "WEB_REMIX"),
@@ -80,9 +79,7 @@ object StreamClientTable {
             StreamClient(VISIONOS, "VISIONOS"),
             StreamClient(VISIONOS_0_1, "VISIONOS"),
             StreamClient(WEB_CREATOR, "WEB_CREATOR"),
-            StreamClient(ANDROID_VR_1_65_10, "ANDROID_VR"),
             StreamClient(TVHTML5_SIMPLY, "TVHTML5"),
-            StreamClient(MWEB, "MWEB"),
         ),
     )
 }

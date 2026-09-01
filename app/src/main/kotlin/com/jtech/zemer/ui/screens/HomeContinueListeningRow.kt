@@ -66,9 +66,8 @@ private fun ContinueListeningCard(
     modifier: Modifier = Modifier,
 ) {
     val durationMs = song.song.duration.takeIf { it > 0 }?.times(1000L)
-    val timeLeft = durationMs
-        ?.takeIf { EpisodeResume.shouldResume(song.song.lastPositionMs, it) }
-        ?.let { makeTimeString((it - song.song.lastPositionMs).coerceAtLeast(0)) }
+    val timeLeft = EpisodeResume.timeLeftMs(song.song.lastPositionMs, durationMs)
+        ?.let { makeTimeString(it) }
     Column(
         modifier = modifier
             .focusBorder(RoundedCornerShape(ThumbnailCornerRadius))

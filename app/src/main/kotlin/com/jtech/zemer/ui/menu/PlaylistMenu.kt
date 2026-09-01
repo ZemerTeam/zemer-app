@@ -181,7 +181,7 @@ fun PlaylistMenu(
                         text = stringResource(R.string.share),
                         onClick = {
                             dbPlaylist?.playlist?.let { Tracker.action(TrackingActionKind.SHARE, it.browseId ?: it.id) }
-                            context.shareText("https://music.zemer.io/playlist?list=${dbPlaylist?.playlist?.browseId}")
+                            dbPlaylist?.playlist?.shareLink?.let { context.shareText(it) }
                             onDismiss()
                         }
                     )

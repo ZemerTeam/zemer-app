@@ -7,7 +7,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
@@ -20,15 +19,9 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextField
-import androidx.compose.material3.TextFieldDefaults
-import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarScrollBehavior
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -36,6 +29,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.toMutableStateList
 import androidx.compose.ui.Alignment
@@ -43,16 +37,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalHapticFeedback
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -67,23 +57,20 @@ import com.jtech.zemer.constants.SongSortType
 import com.jtech.zemer.constants.SongSortTypeKey
 import com.jtech.zemer.constants.ThumbnailCornerRadius
 import com.jtech.zemer.extensions.toMediaItem
-import com.jtech.zemer.extensions.togglePlayPause
 import com.jtech.zemer.playback.queues.ListQueue
-import com.jtech.zemer.ui.component.AppBarTitle
 import com.jtech.zemer.ui.component.DraggableScrollbar
 import com.jtech.zemer.ui.component.EmptyPlaceholder
-import com.jtech.zemer.ui.component.IconButton
 import com.jtech.zemer.ui.component.LocalMenuState
 import com.jtech.zemer.ui.component.MoreVertMenuButton
+import com.jtech.zemer.ui.component.SearchableSelectableTopAppBar
 import com.jtech.zemer.ui.component.SongListItem
 import com.jtech.zemer.ui.component.SortHeader
+import com.jtech.zemer.ui.component.songSortTypeLabel
 import com.jtech.zemer.ui.component.SelectionActions
-import com.jtech.zemer.ui.component.zemerTopAppBarColors
 import com.jtech.zemer.ui.menu.SelectionSongMenu
 import com.jtech.zemer.ui.menu.SongMenu
 import com.jtech.zemer.ui.utils.activeRowTapTogglesPlayPause
 import com.jtech.zemer.ui.utils.ItemWrapper
-import com.jtech.zemer.ui.utils.backToMain
 import com.jtech.zemer.utils.rememberEnumPreference
 import com.jtech.zemer.utils.rememberPreference
 import com.jtech.zemer.viewmodels.CachePlaylistViewModel
@@ -101,7 +88,6 @@ fun CachePlaylistScreen(
     val playerConnection = LocalPlayerConnection.current ?: return
     val cacheSongsTitle = stringResource(R.string.queue_cache_songs)
     val haptic = LocalHapticFeedback.current
-    val focusManager = LocalFocusManager.current
 
     val isPlaying by playerConnection.isPlaying.collectAsState()
     val mediaMetadata by playerConnection.mediaMetadata.collectAsState()
@@ -127,8 +113,10 @@ fun CachePlaylistScreen(
     }.toMutableStateList()
 
     var selection by remember { mutableStateOf(false) }
-    var isSearching by remember { mutableStateOf(false) }
-    var query by remember { mutableStateOf(TextFieldValue()) }
+    var isSearching by rememberSaveable { mutableStateOf(false) }
+    var query by rememberSaveable(stateSaver = TextFieldValue.Saver) {
+        mutableStateOf(TextFieldValue())
+    }
     val focusRequester = remember { FocusRequester() }
     val lazyListState = rememberLazyListState()
 
@@ -266,14 +254,7 @@ fun CachePlaylistScreen(
                                 sortDescending = sortDescending,
                                 onSortTypeChange = onSortTypeChange,
                                 onSortDescendingChange = onSortDescendingChange,
-                                sortTypeText = { sortType ->
-                                    when (sortType) {
-                                        SongSortType.CREATE_DATE -> R.string.sort_by_create_date
-                                        SongSortType.NAME -> R.string.sort_by_name
-                                        SongSortType.ARTIST -> R.string.sort_by_artist
-                                        SongSortType.PLAY_TIME -> R.string.sort_by_play_time
-                                    }
-                                },
+                                sortTypeText = ::songSortTypeLabel,
                                 modifier = Modifier.weight(1f),
                             )
                         }
@@ -346,97 +327,31 @@ fun CachePlaylistScreen(
             headerItems = 2
         )
 
-        TopAppBar(
-            title = {
-                when {
-                    selection -> {
-                        val count = wrappedSongs.count { it.isSelected }
-                        AppBarTitle(
-                            text = pluralStringResource(R.plurals.n_song, count, count)
-                        )
-                    }
-                    isSearching -> {
-                        TextField(
-                            value = query,
-                            onValueChange = { query = it },
-                            placeholder = {
-                                Text(
-                                    text = stringResource(R.string.search),
-                                    style = MaterialTheme.typography.titleLarge
-                                )
-                            },
-                            singleLine = true,
-                            textStyle = MaterialTheme.typography.titleLarge,
-                            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-                            colors = TextFieldDefaults.colors(
-                                focusedContainerColor = Color.Transparent,
-                                unfocusedContainerColor = Color.Transparent,
-                                focusedIndicatorColor = Color.Transparent,
-                                unfocusedIndicatorColor = Color.Transparent,
-                                disabledIndicatorColor = Color.Transparent,
-                            ),
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .focusRequester(focusRequester)
-                        )
-                    }
-                    else -> {
-                        AppBarTitle(text = stringResource(R.string.cached_playlist))
-                    }
-                }
-            },
-            navigationIcon = {
-                IconButton(onClick = {
-                    when {
-                        isSearching -> {
-                            isSearching = false
-                            query = TextFieldValue()
-                            focusManager.clearFocus()
-                        }
-                        selection -> {
-                            selection = false
-                        }
-                        else -> {
-                            navController.navigateUp()
-                        }
-                    }
-                }, onLongClick = {
-                    if (!isSearching && !selection) {
-                        navController.backToMain()
-                    }
-                }) {
-                    Icon(
-                        painter = painterResource(
-                            if (selection) R.drawable.close else R.drawable.arrow_back
-                        ),
-                        contentDescription = null
-                    )
-                }
-            },
+        SearchableSelectableTopAppBar(
+            navController = navController,
+            idleTitle = stringResource(R.string.cached_playlist),
+            isSearching = isSearching,
+            onIsSearchingChange = { isSearching = it },
+            query = query,
+            onQueryChange = { query = it },
+            focusRequester = focusRequester,
+            selectionCount = { if (selection) wrappedSongs.count { it.isSelected } else null },
+            selectionCountPlural = R.plurals.n_song,
+            onExitSelection = { selection = false },
             actions = {
-                if (selection) {
-                    SelectionActions(
-                        wrapped = wrappedSongs,
-                        onMore = {
-                            menuState.show {
-                                SelectionSongMenu(
-                                    songSelection = wrappedSongs.filter { it.isSelected }.map { it.item },
-                                    onDismiss = menuState::dismiss,
-                                    clearAction = { selection = false }
-                                )
-                            }
-                        },
-                    )
-                } else if (!isSearching) {
-                    IconButton(onClick = { isSearching = true }) {
-                        Icon(
-                            painter = painterResource(R.drawable.search),
-                            contentDescription = null
-                        )
-                    }
-                }
+                SelectionActions(
+                    wrapped = wrappedSongs,
+                    onMore = {
+                        menuState.show {
+                            SelectionSongMenu(
+                                songSelection = wrappedSongs.filter { it.isSelected }.map { it.item },
+                                onDismiss = menuState::dismiss,
+                                clearAction = { selection = false }
+                            )
+                        }
+                    },
+                )
             },
-            colors = zemerTopAppBarColors(),
         )
     }
 }

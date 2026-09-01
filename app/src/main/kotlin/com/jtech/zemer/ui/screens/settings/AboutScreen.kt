@@ -1,6 +1,7 @@
 package com.jtech.zemer.ui.screens.settings
 
 import com.jtech.zemer.ui.component.RequestInitialDpadFocus
+import com.jtech.zemer.ui.component.expressiveAvatarShape
 import com.jtech.zemer.ui.component.AppNameTitle
 import androidx.annotation.StringRes
 import androidx.compose.foundation.Image
@@ -18,7 +19,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AssistChip
@@ -383,7 +383,7 @@ private fun ContributorCard(
                         contentDescription = stringResource(R.string.about_avatar_cd, contributor.name),
                         modifier = Modifier
                             .size(56.dp)
-                            .clip(CircleShape)
+                            .clip(expressiveAvatarShape(contributor.githubHandle))
                             .background(MaterialTheme.colorScheme.surfaceContainerHighest),
                     )
                     Spacer(Modifier.width(16.dp))

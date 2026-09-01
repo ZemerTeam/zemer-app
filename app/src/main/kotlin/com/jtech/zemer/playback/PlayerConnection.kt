@@ -10,6 +10,7 @@ import androidx.media3.common.Player.COMMAND_SEEK_TO_NEXT_MEDIA_ITEM
 import androidx.media3.common.Player.COMMAND_SEEK_TO_PREVIOUS_MEDIA_ITEM
 import androidx.media3.common.Player.REPEAT_MODE_OFF
 import androidx.media3.common.Player.STATE_ENDED
+import androidx.media3.common.Player.STATE_READY
 import androidx.media3.common.Timeline
 import com.jtech.zemer.db.MusicDatabase
 import com.jtech.zemer.extensions.currentMetadata
@@ -23,6 +24,7 @@ import com.jtech.zemer.utils.reportException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.*
@@ -102,6 +104,16 @@ class PlayerConnection(
     val waitingForNetworkConnection = service.waitingForNetworkConnection
 
     /**
+     * The media id the user just asked to play that has not started rendering yet - the resolve + buffer
+     * gap that otherwise looks like the play affordance hanging. Set to the queue's preload item on
+     * [playQueue] and cleared the moment the player reaches READY (or on error / a safety timeout), so a
+     * card's loading spinner can never spin forever. Covers songs, videos and episodes; albums resolve
+     * their own pre-fetch spinner inside AlbumPlayButton (their play id is a track, not the album).
+     */
+    val preparingMediaId = MutableStateFlow<String?>(null)
+    private var preparingTimeoutJob: Job? = null
+
+    /**
      * A Zemer Station broadcast is playing: play/stop only (handoff par. 5). Drives the in-app LIVE
      * treatment and the skip/scrub gating; the notification/Auto/Bluetooth side is masked at the
      * session player.
@@ -140,6 +152,10 @@ class PlayerConnection(
     }
 
     fun playQueue(queue: Queue) {
+        // The tapped item is "preparing" until the player renders it, so its card shows a loading spinner
+        // instead of a hanging play button. preparingItemId is the preload for most queues, and the
+        // startIndex item for a ListQueue (episodes/one-off plays, which carry no preload).
+        setPreparing(queue.preparingItemId)
         service.playQueue(queue)
         // While casting, hand the queue-start bookkeeping to the service-owned controller (pause local,
         // record the play intent, force the upcoming PLAYLIST_CHANGED to reload the receiver). current
@@ -151,6 +167,30 @@ class PlayerConnection(
 
     fun startRadioSeamlessly() {
         service.startRadioSeamlessly()
+    }
+
+    private fun setPreparing(id: String?) {
+        preparingTimeoutJob?.cancel()
+        // Re-tapping the item that is ALREADY loaded (playing or paused) is not "preparing": no re-buffer
+        // fires to clear it, so a spinner would hang until the timeout. Treat it as already-ready.
+        if (id != null && player.playbackState == STATE_READY && player.currentMetadata?.id == id) {
+            preparingMediaId.value = null
+            return
+        }
+        preparingMediaId.value = id
+        if (id != null) {
+            // Never spin forever: if the item never reaches READY (silent failure, aborted resolve),
+            // fall back to the plain play affordance after a bounded wait.
+            preparingTimeoutJob = scope.launch {
+                delay(30_000L)
+                if (preparingMediaId.value == id) preparingMediaId.value = null
+            }
+        }
+    }
+
+    private fun clearPreparing() {
+        preparingTimeoutJob?.cancel()
+        preparingMediaId.value = null
     }
 
     fun playNext(item: MediaItem) = playNext(listOf(item))
@@ -282,6 +322,8 @@ class PlayerConnection(
     override fun onPlaybackStateChanged(state: Int) {
         playbackState.value = state
         error.value = player.playerError
+        // Playback is rendering (or buffered enough to) - the preparing window is over.
+        if (state == STATE_READY) clearPreparing()
     }
 
     override fun onPlayWhenReadyChanged(
@@ -334,6 +376,7 @@ class PlayerConnection(
     override fun onPlayerErrorChanged(playbackError: PlaybackException?) {
         if (playbackError != null) {
             reportException(playbackError)
+            clearPreparing()
         }
         error.value = playbackError
     }

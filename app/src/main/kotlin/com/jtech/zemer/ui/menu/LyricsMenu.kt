@@ -21,7 +21,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -52,6 +51,8 @@ import com.jtech.zemer.R
 import com.jtech.zemer.db.entities.LyricsEntity
 import com.jtech.zemer.models.MediaMetadata
 import com.jtech.zemer.ui.component.DefaultDialog
+import com.jtech.zemer.ui.component.ZemerLoadingIndicator
+import com.jtech.zemer.ui.component.focusBorder
 import com.jtech.zemer.ui.component.ListDialog
 import com.jtech.zemer.ui.component.NewAction
 import com.jtech.zemer.ui.component.NewActionGrid
@@ -104,6 +105,13 @@ fun LyricsMenu(
     val searchMediaMetadata =
         remember(showSearchDialog) {
             mediaMetadataProvider()
+        }
+    // The save target must survive a configuration change. The dialogs are rememberSaveable, but a
+    // plain remember searchMediaMetadata recomputes to the CURRENT song on rotation / theme change, so
+    // picking a result would write the lyrics to the wrong song. Pin the id the search was opened for.
+    val searchMediaMetadataId =
+        rememberSaveable(showSearchDialog) {
+            mediaMetadataProvider().id
         }
     val (titleField, onTitleFieldChange) =
         rememberSaveable(showSearchDialog, stateSaver = TextFieldValue.Saver) {
@@ -223,13 +231,14 @@ fun LyricsMenu(
                     modifier =
                     Modifier
                         .fillMaxWidth()
+                        .focusBorder()
                         .clickable {
                             onDismiss()
                             viewModel.cancelSearch()
                             database.query {
                                 upsert(
                                     LyricsEntity(
-                                        id = searchMediaMetadata.id,
+                                        id = searchMediaMetadataId,
                                         lyrics = result.lyrics,
                                     ),
                                 )
@@ -291,7 +300,7 @@ fun LyricsMenu(
                         contentAlignment = Alignment.Center,
                         modifier = Modifier.fillMaxWidth(),
                     ) {
-                        CircularProgressIndicator()
+                        ZemerLoadingIndicator()
                     }
                 }
             }

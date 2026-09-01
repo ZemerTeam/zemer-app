@@ -19,7 +19,6 @@ data class MediaMetadata(
     val thumbnailUrl: String? = null,
     val album: Album? = null,
     val setVideoId: String? = null,
-    val explicit: Boolean = false,
     val liked: Boolean = false,
     val likedDate: LocalDateTime? = null,
     val inLibrary: LocalDateTime? = null,
@@ -31,12 +30,20 @@ data class MediaMetadata(
     data class Artist(
         val id: String?,
         val name: String,
-    ) : Serializable
+    ) : Serializable {
+        companion object {
+            private const val serialVersionUID = -355198349731679509L
+        }
+    }
 
     data class Album(
         val id: String,
         val title: String,
-    ) : Serializable
+    ) : Serializable {
+        companion object {
+            private const val serialVersionUID = -3879000833009517336L
+        }
+    }
 
     fun toSongEntity() =
         SongEntity(
@@ -46,7 +53,6 @@ data class MediaMetadata(
             thumbnailUrl = thumbnailUrl,
             albumId = album?.id,
             albumName = album?.title,
-            explicit = explicit,
             liked = liked,
             likedDate = likedDate,
             inLibrary = inLibrary,
@@ -55,6 +61,38 @@ data class MediaMetadata(
             isVideo = isVideo,
             isEpisode = isEpisode
         )
+
+    companion object {
+        // Pinned to the value computed for the v37 class (which still carried the removed
+        // `explicit` field) so a persisted queue written by an older build keeps deserializing;
+        // the stream's extra field is ignored. Java serialization derives this from the class
+        // shape when undeclared, so an undeclared value here breaks queue restore on any edit.
+        private const val serialVersionUID = 3273021534433957495L
+    }
+}
+
+/**
+ * Fill the NAVIGATION ids the wire item lacked from the played song's DB row, so the player's
+ * title/artist taps (and the player menu's View artist / View album rows) work on every surface.
+ * Several Zemer track payloads are name-only (curated playlists, community playlists, search rows) —
+ * their queue items carry no artist id / album ref, which left those taps as silent no-ops. Every
+ * play inserts the song resolving id-less credits via artistByName (whitelisted row preferred), so
+ * by the time the player is open [song] carries the resolved ids; take an artist id only from a
+ * name-matched row with a REAL channel id ([ArtistEntity.isYouTubeArtist]) — navigating a generated
+ * local id opens a dead "not available" page, worse than the no-op. Display fields are untouched.
+ */
+fun MediaMetadata.withResolvedNavIds(song: Song?): MediaMetadata {
+    song ?: return this
+    val resolvedArtists = artists.map { artist ->
+        if (!artist.id.isNullOrBlank()) artist
+        else song.artists.firstOrNull { it.name == artist.name && it.isYouTubeArtist }
+            ?.let { artist.copy(id = it.id) } ?: artist
+    }
+    val resolvedAlbum = album ?: song.song.albumId?.let {
+        MediaMetadata.Album(id = it, title = song.song.albumName.orEmpty())
+    }
+    return if (resolvedArtists == artists && resolvedAlbum == album) this
+    else copy(artists = resolvedArtists, album = resolvedAlbum)
 }
 
 fun Song.toMediaMetadata() =
@@ -110,7 +148,6 @@ fun SongItem.toMediaMetadata(): MediaMetadata {
                 title = it.name,
             )
         },
-        explicit = explicit,
         setVideoId = setVideoId,
         libraryAddToken = libraryAddToken,
         libraryRemoveToken = libraryRemoveToken,
@@ -136,7 +173,6 @@ fun EpisodeItem.toMediaMetadata() =
                 title = it.name,
             )
         },
-        explicit = explicit,
         libraryAddToken = libraryAddToken,
         libraryRemoveToken = libraryRemoveToken,
         isEpisode = true

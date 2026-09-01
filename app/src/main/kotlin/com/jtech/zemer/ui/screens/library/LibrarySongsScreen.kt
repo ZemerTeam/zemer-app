@@ -16,8 +16,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -45,7 +43,6 @@ import com.jtech.zemer.LocalPlayerConnection
 import com.jtech.zemer.R
 import com.jtech.zemer.constants.CONTENT_TYPE_HEADER
 import com.jtech.zemer.constants.CONTENT_TYPE_SONG
-import com.jtech.zemer.constants.HideExplicitKey
 import com.jtech.zemer.constants.SongFilter
 import com.jtech.zemer.constants.SongFilterKey
 import com.jtech.zemer.constants.SongSortDescendingKey
@@ -56,11 +53,15 @@ import com.jtech.zemer.extensions.toMediaItem
 import com.jtech.zemer.extensions.togglePlayPause
 import com.jtech.zemer.playback.queues.ListQueue
 import com.jtech.zemer.ui.component.ChipsRow
+import com.jtech.zemer.ui.component.ChipsRowTopPadding
+import com.jtech.zemer.ui.component.ChipsRowBottomPadding
+import com.jtech.zemer.ui.component.LibraryFilterChip
 import com.jtech.zemer.ui.component.HideOnScrollFAB
 import com.jtech.zemer.ui.component.LocalMenuState
 import com.jtech.zemer.ui.component.MoreVertMenuButton
 import com.jtech.zemer.ui.component.SongListItem
 import com.jtech.zemer.ui.component.SortHeader
+import com.jtech.zemer.ui.component.songSortTypeLabel
 import com.jtech.zemer.ui.component.SelectionTopActions
 import com.jtech.zemer.ui.menu.SelectionSongMenu
 import com.jtech.zemer.ui.menu.SongMenu
@@ -92,7 +93,6 @@ fun LibrarySongsScreen(
     val (sortDescending, onSortDescendingChange) = rememberPreference(SongSortDescendingKey, true)
 
     val (ytmSync) = rememberPreference(YtmSyncKey, true)
-    val hideExplicit by rememberPreference(key = HideExplicitKey, defaultValue = false)
 
     val songs by viewModel.allSongs.collectAsState()
 
@@ -153,20 +153,11 @@ fun LibrarySongsScreen(
                 key = "filter",
                 contentType = CONTENT_TYPE_HEADER,
             ) {
-                Row {
+                Row(modifier = Modifier.padding(top = ChipsRowTopPadding, bottom = ChipsRowBottomPadding)) {
                     Spacer(Modifier.width(12.dp))
-                    FilterChip(
-                        label = { Text(stringResource(R.string.songs)) },
-                        selected = true,
-                        colors = FilterChipDefaults.filterChipColors(containerColor = MaterialTheme.colorScheme.surface),
-                        onClick = onDeselect,
-                        shape = RoundedCornerShape(16.dp),
-                        leadingIcon = {
-                            Icon(
-                                painter = painterResource(R.drawable.close),
-                                contentDescription = stringResource(R.string.close)
-                            )
-                        },
+                    LibraryFilterChip(
+                        label = stringResource(R.string.songs),
+                        onDeselect = onDeselect,
                     )
                     ChipsRow(
                         chips =
@@ -217,14 +208,7 @@ fun LibrarySongsScreen(
                                 sortDescending = sortDescending,
                                 onSortTypeChange = onSortTypeChange,
                                 onSortDescendingChange = onSortDescendingChange,
-                                sortTypeText = { sortType ->
-                                    when (sortType) {
-                                        SongSortType.CREATE_DATE -> R.string.sort_by_create_date
-                                        SongSortType.NAME -> R.string.sort_by_name
-                                        SongSortType.ARTIST -> R.string.sort_by_artist
-                                        SongSortType.PLAY_TIME -> R.string.sort_by_play_time
-                                    }
-                                },
+                                sortTypeText = ::songSortTypeLabel,
                             )
 
                             Spacer(Modifier.weight(1f))
@@ -243,13 +227,8 @@ fun LibrarySongsScreen(
                 }
             }
 
-            val filteredSongs = if (hideExplicit) {
-                wrappedSongs.filter { !it.item.song.explicit }
-            } else {
-                wrappedSongs
-            }
             itemsIndexed(
-                items = filteredSongs,
+                items = wrappedSongs,
                 key = { _, item -> item.item.song.id },
                 contentType = { _, _ -> CONTENT_TYPE_SONG },
             ) { index, songWrapper ->

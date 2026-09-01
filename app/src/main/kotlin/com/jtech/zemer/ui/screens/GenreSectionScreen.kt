@@ -1,30 +1,21 @@
 package com.jtech.zemer.ui.screens
 
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarScrollBehavior
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.jtech.zemer.R
 import com.jtech.zemer.ui.component.AppBarTitle
 import com.jtech.zemer.ui.component.BackTopAppBar
 import com.jtech.zemer.ui.component.EmptyPlaceholder
+import com.jtech.zemer.ui.component.ErrorRetryState
 import com.jtech.zemer.ui.component.shimmer.ShimmerHost
 import com.jtech.zemer.ui.component.shimmer.GridItemPlaceHolder
 import com.jtech.zemer.viewmodels.ZemerGenreSectionViewModel
@@ -72,22 +63,7 @@ fun GenreSectionScreen(
 
         UiState.NotFound -> Unit
 
-        UiState.Error -> Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(32.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
-            Text(
-                text = stringResource(R.string.error_unknown),
-                style = MaterialTheme.typography.titleLarge,
-                color = MaterialTheme.colorScheme.error,
-            )
-            Spacer(modifier = Modifier.height(16.dp))
-            Button(onClick = viewModel::load) {
-                Text(stringResource(R.string.retry))
-            }
-        }
+        UiState.Error -> ErrorRetryState(onRetry = viewModel::load)
     }
 
     BackTopAppBar(

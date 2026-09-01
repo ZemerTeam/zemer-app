@@ -27,7 +27,7 @@ class SubsetDecoderTest {
     }
 
     @Test
-    fun `tracks decode positions, video and explicit bits, and nullable playCount and date`() {
+    fun `tracks decode positions, video bit, and nullable playCount and date`() {
         val t = SubsetDecoder.decodeTracks(
             """[["--CBg_MWYAI","Mi Ha'ish","UCPgvMW042hVrcLn73zGyeqg",0,239,7300,"2015-07-02T05:27:44-07:00"],
                 ["--sU8olZCYM","Nafshi Acapella","UCu6IT3jTOtAcNfjIQSIyCQQ",1,262,null,null],
@@ -35,13 +35,13 @@ class SubsetDecoderTest {
         )
         assertEquals("--CBg_MWYAI", t[0].videoId)
         assertEquals("UCPgvMW042hVrcLn73zGyeqg", t[0].artistId)
-        assertFalse(t[0].isVideo); assertFalse(t[0].explicit)
+        assertFalse(t[0].isVideo)
         assertEquals(239, t[0].durationSec); assertEquals(7300L, t[0].playCount)
         assertEquals("2015-07-02T05:27:44-07:00", t[0].uploadDate)
-        assertTrue(t[1].isVideo); assertFalse(t[1].explicit)
+        assertTrue(t[1].isVideo)
         assertNull(t[1].playCount); assertNull(t[1].uploadDate)
-        // flags = 2 → explicit, not video
-        assertFalse(t[2].isVideo); assertTrue(t[2].explicit)
+        // flags = 2 → the (unused) explicit bit only, so isVideo stays false
+        assertFalse(t[2].isVideo)
     }
 
     @Test
@@ -115,22 +115,27 @@ class SubsetDecoderTest {
 
     @Test
     fun `podcast shows decode with nullable author and channelId`() {
-        // Real rows sampled from live /subset/podcasts. Col 6 = comma-separated genre slugs (appended);
-        // a legacy 6-column row (row 3) must still decode, with genres empty.
+        // Real rows sampled from live /subset/podcasts. Col 6 = comma-separated genre slugs and
+        // col 7 = the per-show kid flag (both appended); legacy 6- and 7-column rows (rows 2-3)
+        // must still decode, with genres empty / kid false.
         val s = SubsetDecoder.decodePodcastShows(
-            """[["MPSPOLSIMs3bBf6gYi_OroS7rJPzDfCfO78ozaQ","History For The Curious",null,null,"https://i.ytimg/hq720.jpg",null,"history,stories"],
+            """[["MPSPOLSIMs3bBf6gYi_OroS7rJPzDfCfO78ozaQ","History For The Curious",null,null,"https://i.ytimg/hq720.jpg",null,"history,stories",1],
                 ["MPSPPL-PrlHukcayUrySa1UcDHcUzA5gItQQ0R","Nexus Podcast","James Dice","UCbnQAiPQEsvAqK84-q5IHcw","https://yt3/x=w544","12 episodes","shiur"],
                 ["MPSPlegacy6col","Legacy Show",null,null,null,null]]""",
         )
         assertEquals("History For The Curious", s[0].name)
         assertNull(s[0].author); assertNull(s[0].channelId); assertNull(s[0].episodeCountText)
         assertEquals(listOf("history", "stories"), s[0].genres)
+        assertTrue(s[0].isKidZone)
         assertEquals("James Dice", s[1].author)
         assertEquals("UCbnQAiPQEsvAqK84-q5IHcw", s[1].channelId)
         assertEquals("12 episodes", s[1].episodeCountText)
         assertEquals(listOf("shiur"), s[1].genres)
-        // Legacy 6-column row → no genres, no crash.
+        // Pre-kid-flag 7-column row → kid false.
+        assertFalse(s[1].isKidZone)
+        // Legacy 6-column row → no genres, no kid flag, no crash.
         assertEquals(emptyList<String>(), s[2].genres)
+        assertFalse(s[2].isKidZone)
     }
 
     @Test

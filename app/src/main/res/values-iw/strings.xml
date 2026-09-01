@@ -11,8 +11,6 @@
         <item quantity="two">%d נבחרו</item>
         <item quantity="other">%d נבחרו</item>
     </plurals>
-    <string name="stats">סטטיסטיקות</string>
-    <string name="mood_and_genres">מצב רוח וז\'אנרים</string>
     <string name="account">חשבון</string>
     <string name="quick_picks">בחירות מהירות</string>
     <string name="forgotten_favorites">מועדפים שנשכחו</string>
@@ -21,7 +19,6 @@
     <string name="yesterday">אתמול</string>
     <string name="this_week">השבוע</string>
     <string name="last_week">בשבוע האחרון</string>
-    <string name="most_played_songs">השירים הכי מושמעים</string>
     <string name="search">חיפוש</string>
     <string name="search_yt_music">חפש ביוטיוב מוזיקה…</string>
     <string name="filter_library">ספרייה</string>
@@ -179,8 +176,6 @@
     <string name="content">תוכן</string>
     <string name="action_logout">התנתקות</string>
     <string name="login">התחברות</string>
-    <string name="content_language">שפת תוכן ברירת מחדל</string>
-    <string name="content_country">מדינת תוכן ברירת מחדל</string>
     <string name="system_default">ברירת מחדל מערכת</string>
     <string name="player_and_audio">נגן ושמע</string>
     <string name="general">כללי</string>
@@ -217,8 +212,6 @@
     <string name="pause_search_history">השהיית היסטוריית החיפוש</string>
     <string name="clear_search_history">…נקה את היסטוריית החיפוש</string>
     <string name="clear_search_history_confirm">האם אתה בטוח שברצונך למחוק את כל היסטוריית החיפוש?</string>
-    <string name="disable_screenshot">השבתת צילום מסך</string>
-    <string name="disable_screenshot_desc">כאשר אפשרות זו מופעלת, צילומי מסך ותצוגת האפליקציה תחת \'אחרונים\' מושבתות.</string>
     <string name="enable_lrclib">הפעל את ספק המילים של LrcLib</string>
     <string name="backup_restore">גיבוי ושחזור</string>
     <string name="action_backup">גיבוי</string>
@@ -232,7 +225,6 @@
     <string name="content_filters">סינון תוכן</string>
     <string name="allow_female_singers">אפשר זמרות</string>
     <string name="enable_personal_filters">הפעלת מסננים אישיים</string>
-    <string name="i_am_chasidish">אני חסידי</string>
     <string name="radio_mode">מצב רדיו</string>
     <string name="sign_out_description">התנתק מהחשבון</string>
     <string name="onboarding_agree_label">קראתי והסכמתי לתנאי השירות ומדיניות הפרטיות</string>
@@ -270,17 +262,6 @@
     <string name="splash_syncing_progress">מסנכרן %1$d/%2$d אמנים</string>
     <string name="splash_syncing_background_action">המשך בזמן שאנחנו מסתנכרנים</string>
     <string name="splash_syncing_background_waiting">מסנכרן ברקע…</string>
-    <string name="new_release_error_title">לא ניתן לטעון יציאות חדשות</string>
-    <string name="new_release_empty_title">אין יציאות חדשות</string>
-    <string name="new_release_empty_subtitle">לא מצאנו יציאות חדשות כרגע. נסו שוב מאוחר יותר.</string>
-    <string name="new_release_retry">נסו שוב</string>
-    <string name="new_release_title">יציאות אחרונות</string>
-    <string name="new_release_songs_title">סינגלים אחרונים</string>
-    <string name="new_release_albums_title">אלבומים אחרונים</string>
-    <string name="mood_and_genres_error_title">לא ניתן לטעון מצבי רוח וז׳אנרים</string>
-    <string name="mood_and_genres_empty_title">לא נמצאו מצבי רוח או ז׳אנרים</string>
-    <string name="mood_and_genres_empty_subtitle">נסו לרענן כדי למשוך קטגוריות חדשות.</string>
-    <string name="mood_and_genres_retry">רענון</string>
     <string name="search_error_title">החיפוש נתקל בבעיה</string>
     <string name="search_empty_title">לא נמצאו תוצאות</string>
     <string name="search_retry">חיפוש מחדש</string>

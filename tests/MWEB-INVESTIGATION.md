@@ -81,3 +81,34 @@ signatureCipher → 206; full WEB_REMIX drain = whole song) and added to both
 `sig = mP(4,155,INPUT)`, `n = g.Yx` trick, `sts = 20613`. New tooling for next time:
 `tests/derive-player-config.mjs` (regex candidates), `tests/validate-player-config.mjs`
 (ground-truth 206 check — the one to trust), `tests/check-live-player.mjs` (is a rotation real?).
+
+---
+
+## Update (2026-09): MWEB over SABR — same wall, different signal
+
+The above is the PROGRESSIVE path. MWEB over the **SABR/UMP** transport hits the identical
+attestation wall, just signalled differently — proven live (`tests/probe-mweb-sabr.mjs`,
+`tests/sabr-clients.mjs`):
+
+```
+gl9VXSMZwTo (gated ATV), MWEB over SABR, itag 251:
+  iter 1: +2 segs   6%   STREAM_PROTECTION_STATUS=2
+  iter 2: +2 segs  19%   STREAM_PROTECTION_STATUS=2
+  iter 3: +2 segs  28% (6/23)  STREAM_PROTECTION_STATUS=2
+  iter 4+: NO media — only STREAM_PROTECTION_STATUS=2 + policy parts, forever
+  final: 6/23 segments (28%)     [WEB_REMIX/VISIONOS/TVHTML5_SIMPLY = WHOLE 23/23]
+```
+
+So the SABR server grants the same ~free window, then serves only `STREAM_PROTECTION_STATUS=2`
+("attestation pending") with no media. The web BotGuard poToken does **not** satisfy it — every pot
+binding fails identically (`tests/probe-mweb-pot.mjs`): streamerContext=web, =video, url-pot=web or
+video → all 6/23, PROT=2. MWEB's attestation needs a MOBILE device-integrity token the app cannot
+mint, exactly like the progressive 1-MiB wall. (innertubex reached the same conclusion — it ships
+`MWEB_SABR`/`IOS_SABR` disabled "after SABR attestation errors".)
+
+**App behaviour (2026-09):** `SabrSession`/`SabrVideoSession` detect the sustained cap
+(`SabrProtection`: STREAM_PROTECTION_STATUS>=2 with no media for 3 responses) and bail FAST with an
+`attestation-capped` reason, so the per-id stall fallback moves to a client that can attest instead
+of grinding to the dry cap. MWEB stays a conditional last-resort client (it DOES drain ungated
+videos whole, e.g. dQw4w9WgXcQ); it is not a reliable download client for gated content on either
+transport, and the whole-capable clients (WEB_REMIX / TVHTML5_SIMPLY / VISIONOS) cover it.

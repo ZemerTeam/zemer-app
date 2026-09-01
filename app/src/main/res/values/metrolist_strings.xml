@@ -30,11 +30,6 @@
     <string name="featured_artists">Featured Artists</string>
     <string name="featured_albums">Featured Albums</string>
 
-    <string name="weeks">Weeks</string>
-    <string name="months">Months</string>
-    <string name="years">Years</string>
-    <string name="continuous">Continuous</string>
-
     <string name="liked">Liked</string>
     <string name="offline">Downloaded</string>
     <string name="my_top">My top</string>
@@ -93,8 +88,6 @@
     <string name="player_background_style">Player background style</string>
     <string name="follow_theme">Follow theme</string>
     <string name="gradient">Gradient</string>
-    <string name="new_player_design">New player design</string>
-    <string name="new_mini_player_design">New mini player design</string>
     <string name="floating_mini_player">Floating mini player</string>
     <string name="floating_mini_player_desc">Show the mini player overlay above screens</string>
     <string name="featured_videos">Featured videos</string>
@@ -137,7 +130,6 @@
 
     <string name="token_adv_login_description">This is an ADVANCED login method. As an alternative to the web portal, you may directly enter or update your login token here. For example, this can speed up logging in on multiple devices. Please note that any invalid token formats the app fails to parse will not be accepted</string>
     <string name="yt_sync">Auto sync with account</string>
-    <string name="integrations">Integrations</string>
     <string name="more_content">More content</string>
     
     <!-- Playlist cover edit -->
@@ -212,6 +204,7 @@
     <string name="settings_section_player_content">Player &amp; Content</string>
     <string name="settings_section_storage">Storage &amp; Data</string>
     <string name="settings_section_system">System &amp; About</string>
+    <string name="settings_section_support">Support</string>
 
     <!-- Updater -->
     <string name="updater">Updater</string>
@@ -279,10 +272,6 @@
     <string name="stream_source_web_remix_desc">YouTube Music web client: the primary client</string>
     <string name="stream_source_tvhtml5">TVHTML5</string>
     <string name="stream_source_tvhtml5_desc">YouTube TV client: anonymous fallback, no sign-in needed</string>
-    <string name="stream_source_mweb">MWEB</string>
-    <string name="stream_source_mweb_desc">YouTube mobile web client: signed-in fallback</string>
-    <string name="stream_source_android_vr">Android VR</string>
-    <string name="stream_source_android_vr_desc">Direct URL client: reliable fallback, no cipher needed</string>
     <string name="stream_source_visionos">visionOS</string>
     <string name="stream_source_visionos_desc">Apple direct-URL client: most reliable fallback, no cipher or sign-in</string>
     <string name="stream_source_web_creator">WEB_CREATOR</string>
@@ -290,6 +279,13 @@
     <string name="stream_source_other_clients">Other clients</string>
     <string name="stream_source_generic_desc">Streaming client</string>
     <string name="stream_sources_updated">Updated %1$s</string>
+    <string name="stream_source_experimental">Experimental</string>
+    <string name="stream_source_sabr">SABR streaming</string>
+    <string name="stream_source_sabr_desc">Stream via the SABR protocol instead of a direct URL. Off by default; takes effect on the next track.</string>
+    <string name="stream_source_sabr_clients">SABR clients</string>
+    <string name="stream_source_sabr_web_remix_desc">Main web client. Streams whole songs over SABR; tried first.</string>
+    <string name="stream_source_sabr_visionos_desc">Apple direct client: no sign-in, no cipher. Reliable SABR fallback.</string>
+    <string name="stream_source_sabr_tvhtml5_desc">TV client: no sign-in. Reliable SABR fallback.</string>
 
     <!-- Mixes / suggested playlists -->
     <string name="mixes">Mixes</string>
@@ -412,7 +408,6 @@
     <string name="settings_desc_updater">Check for app updates</string>
     <string name="settings_desc_about">About Zemer</string>
     <string name="settings_desc_android_auto">Customize browsing &amp; quick-add</string>
-    <string name="recommendations">Recommendations</string>
 
     <!-- Bottom navigation customization -->
     <string name="bottom_nav_items">Bottom Navigation Items</string>
@@ -467,7 +462,6 @@
     <string name="download_channel_desc">Notifications for music download progress</string>
     <string name="download_preparing">Preparing downloads…</string>
     <string name="download_in_progress">Music downloads in progress</string>
-    <string name="proxy_url_parse_failed">Failed to parse proxy url.</string>
 
     <!-- Clipboard labels -->
     <string name="clip_label_title">Title</string>
@@ -613,9 +607,15 @@
     <string name="about_releases">Releases thread</string>
     <string name="about_discussion">Discussion &amp; feedback</string>
     <string name="about_source_code">Source code</string>
+    <string name="donate">Buy me a coffee</string>
+    <string name="settings_desc_donate">Support the Zemer project</string>
     <!-- Theme & Colors screen -->
     <string name="theme_colors">Theme &amp; Colors</string>
     <string name="theme_desc">Customize your app theme</string>
+    <string name="refresh_rate">Refresh rate</string>
+    <string name="refresh_rate_system">System default</string>
+    <string name="refresh_rate_standard">Standard (60 Hz)</string>
+    <string name="refresh_rate_high">High</string>
     <string name="theme_mode">Theme Mode</string>
     <string name="color_palette">Color Palette</string>
     <string name="cd_palette_item">%1$s palette</string>
@@ -649,6 +649,7 @@
 
     <!-- Podcasts -->
         <string name="podcasts">Podcasts</string>
+        <string name="refresh_artists">Refresh artists</string>
         <string name="refresh_podcasts">Refresh podcasts</string>
         <string name="search_podcasts">Search podcasts…</string>
         <string name="search_episodes">Search episodes…</string>
@@ -687,7 +688,6 @@
         <string name="downloaded_episodes">Downloaded episodes</string>
         <string name="no_subscribed_channels">No subscribed channels</string>
         <string name="no_downloaded_episodes">No downloaded episodes</string>
-        <string name="close_chip">Close</string>
     <string name="action_sync">Sync</string>
     <plurals name="n_episode">
         <item quantity="one">%d episode</item>
@@ -696,5 +696,9 @@
     <plurals name="n_channel">
         <item quantity="one">%d channel</item>
         <item quantity="other">%d channels</item>
+    </plurals>
+    <plurals name="n_show">
+        <item quantity="one">%d show</item>
+        <item quantity="other">%d shows</item>
     </plurals>
 </resources>

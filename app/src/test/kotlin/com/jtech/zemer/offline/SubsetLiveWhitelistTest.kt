@@ -22,8 +22,8 @@ class SubsetLiveWhitelistTest {
     ) = SubsetCorpus(
         artists = artists,
         tracks = listOf(
-            SubTrack("v1", "T1", "UC1", isVideo = false, explicit = false, durationSec = null, playCount = null, uploadDate = null),
-            SubTrack("v2", "T2", "UC2", isVideo = false, explicit = false, durationSec = null, playCount = null, uploadDate = null),
+            SubTrack("v1", "T1", "UC1", isVideo = false, durationSec = null, playCount = null, uploadDate = null),
+            SubTrack("v2", "T2", "UC2", isVideo = false, durationSec = null, playCount = null, uploadDate = null),
         ),
         albums = listOf(
             SubAlbum("AL1", null, "A1", "UC1", "album", null, null, null),

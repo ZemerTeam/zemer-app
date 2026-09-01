@@ -28,6 +28,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -49,6 +50,8 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.LaunchedEffect
+import kotlinx.coroutines.delay
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -125,7 +128,10 @@ inline fun ListItem(
     noinline subtitle: (@Composable RowScope.() -> Unit)? = null,
     thumbnailContent: @Composable () -> Unit,
     trailingContent: @Composable RowScope.() -> Unit = {},
-    isActive: Boolean = false
+    isActive: Boolean = false,
+    // Gently scroll a title too long for one line instead of ellipsizing it (podcast rows: long
+    // show/episode titles). Off by default so music rows are unchanged.
+    titleMarquee: Boolean = false,
 ) {
     var isFocused by remember { mutableStateOf(false) }
     val backgroundColor by animateColorAsState(
@@ -147,8 +153,10 @@ inline fun ListItem(
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = modifier
-            .focusable()
+            // onFocusChanged only observes focus targets AFTER it in the chain, so it must precede
+            // focusable() (the FocusBorder.kt order) - reversed, the row's own focus is never seen.
             .onFocusChanged { isFocused = it.isFocused }
+            .focusable()
             .height(ListItemHeight)
             .padding(horizontal = ListItemHorizontalPadding)
             .clip(RoundedCornerShape(8.dp))
@@ -158,8 +166,11 @@ inline fun ListItem(
         Box(Modifier.padding(ListThumbnailPadding), contentAlignment = Alignment.Center) { thumbnailContent() }
         Column(Modifier.weight(1f).padding(horizontal = 6.dp)) {
             Text(
-                text = title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold,
-                maxLines = 1, overflow = TextOverflow.Ellipsis
+                text = title,
+                style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold,
+                maxLines = 1, overflow = TextOverflow.Ellipsis,
+                // The row's own focus re-arms the one-shot glide for D-pad/TV users.
+                modifier = if (titleMarquee) Modifier.gentleMarquee(focused = isFocused) else Modifier
             )
             if (subtitle != null) Row(verticalAlignment = Alignment.CenterVertically) { subtitle() }
         }
@@ -175,11 +186,13 @@ fun ListItem(
     badges: @Composable RowScope.() -> Unit = {},
     thumbnailContent: @Composable () -> Unit,
     trailingContent: @Composable RowScope.() -> Unit = {},
-    isActive: Boolean = false
+    isActive: Boolean = false,
+    titleMarquee: Boolean = false,
 ) = ListItem(
     title = title,
     modifier = modifier,
     isActive = isActive,
+    titleMarquee = titleMarquee,
     subtitle = {
         badges()
         if (!subtitle.isNullOrEmpty()) {
@@ -199,6 +212,13 @@ fun GridItem(
     thumbnailContent: @Composable BoxWithConstraintsScope.() -> Unit,
     thumbnailRatio: Float = 1f,
     fillMaxWidth: Boolean = false,
+    // Gently scroll an overflowing title once instead of ellipsizing, re-armed on D-pad focus. The
+    // card applies gentleMarquee AROUND the opaque title slot, so the slot content itself must not
+    // carry its own marquee when this is set.
+    titleMarquee: Boolean = false,
+    // Center the text block under the artwork (the whitelist browse tiles). Column alignment, not
+    // just textAlign, so the marquee-wrapped title Box and the badge/subtitle row center too.
+    centerContent: Boolean = false,
 ) {
     var isFocused by remember { mutableStateOf(false) }
     val backgroundColor by animateColorAsState(
@@ -211,13 +231,16 @@ fun GridItem(
     )
     val baseModifier = modifier
         .padding(12.dp)
-        .focusable()
+        // onFocusChanged only observes focus targets AFTER it in the chain, so it must precede
+        // focusable() (the FocusBorder.kt order) - reversed, the card's own focus is never seen.
         .onFocusChanged { isFocused = it.isFocused }
+        .focusable()
         .clip(RoundedCornerShape(12.dp))
         .background(backgroundColor)
         .border(width = 1.5.dp, color = borderColor, shape = RoundedCornerShape(12.dp))
 
     Column(
+        horizontalAlignment = if (centerContent) Alignment.CenterHorizontally else Alignment.Start,
         modifier = if (fillMaxWidth) {
             baseModifier.fillMaxWidth()
         } else {
@@ -238,7 +261,14 @@ fun GridItem(
 
         Spacer(modifier = Modifier.height(6.dp))
 
-        title()
+        if (titleMarquee) {
+            // The title slot is opaque here, so the marquee wraps it (basicMarquee animates any
+            // overflowing child); the card's own focus re-arms the glide for D-pad/TV users. The
+            // slot content must NOT carry its own marquee - two nested marquees fight.
+            Box(Modifier.gentleMarquee(focused = isFocused)) { title() }
+        } else {
+            title()
+        }
 
         Row(verticalAlignment = Alignment.CenterVertically) {
             badges()
@@ -257,8 +287,16 @@ fun GridItem(
     thumbnailContent: @Composable BoxWithConstraintsScope.() -> Unit,
     thumbnailRatio: Float = 1f,
     fillMaxWidth: Boolean = false,
+    // Gently scroll a title too long for one narrow card instead of ellipsizing it (podcast browse
+    // cards) - the same one-glide feel as the podcast list rows. Off by default.
+    titleMarquee: Boolean = false,
+    // Center the title/subtitle under the artwork (the whitelist browse tiles).
+    centerContent: Boolean = false,
 ) = GridItem(
     modifier = modifier,
+    titleMarquee = titleMarquee,
+    centerContent = centerContent,
+    badges = badges,
     title = {
         Text(
             text = title,
@@ -266,7 +304,10 @@ fun GridItem(
             fontWeight = FontWeight.Bold,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
-            textAlign = TextAlign.Start,
+            textAlign = if (centerContent) TextAlign.Center else TextAlign.Start,
+            // The marquee (when titleMarquee) is applied by GridItem around the title slot; under it
+            // this fillMaxWidth is inert (a marquee measures its child unbounded), and without it
+            // fillMaxWidth is what lets the text fill the card.
             modifier = Modifier.fillMaxWidth()
         )
     },
@@ -296,9 +337,6 @@ fun SongListItem(
         if (showLikedIcon && song.song.liked) {
             Icon.Favorite()
         }
-        if (song.song.explicit) {
-            Icon.Explicit()
-        }
         if (song.song.isVideo) {
             Icon.Video()
         }
@@ -320,6 +358,9 @@ fun SongListItem(
     val content: @Composable () -> Unit = {
         ListItem(
             title = song.song.title,
+            // Episodes carry long titles; decided by type HERE so every caller (library tabs,
+            // auto-playlists, history) gets the glide without a per-call-site flag to forget.
+            titleMarquee = song.song.isEpisode,
             subtitle = joinByBullet(
                 song.artists.joinToString { it.name },
                 makeTimeString(song.song.duration * 1000L)
@@ -333,7 +374,8 @@ fun SongListItem(
                     isActive = isActive,
                     isPlaying = isPlaying,
                     shape = RoundedCornerShape(ThumbnailCornerRadius),
-                    modifier = Modifier.size(ListThumbnailSize)
+                    modifier = Modifier.size(ListThumbnailSize),
+                    isPreparing = rememberIsPreparing(song.song.id)
                 )
             },
             trailingContent = trailingContent,
@@ -403,14 +445,16 @@ fun SongGridItem(
     },
     badges = badges,
     thumbnailContent = {
+        val preparing = rememberIsPreparing(song.song.id)
         ItemThumbnail(
             thumbnailUrl = song.song.thumbnailUrl,
             isActive = isActive,
             isPlaying = isPlaying,
             shape = RoundedCornerShape(ThumbnailCornerRadius),
-            modifier = Modifier.size(GridThumbnailHeight)
+            modifier = Modifier.size(GridThumbnailHeight),
+            isPreparing = preparing
         )
-        if (!isActive) {
+        if (!isActive && !preparing) {
             OverlayPlayButton(
                 visible = true
             )
@@ -463,11 +507,10 @@ fun ArtistListItem(
 fun ArtistGridItem(
     artist: Artist,
     modifier: Modifier = Modifier,
-    badges: @Composable RowScope.() -> Unit = {
-        if (artist.artist.bookmarkedAt != null) {
-            Icon.Favorite()
-        }
-    },
+    // No badge by default: the String GridItem overload used to drop badges, so the artist grid tile
+    // never actually rendered one. Keeping it empty preserves that shipped look now that the overload
+    // forwards badges (a heart-on-bookmarked badge can be re-added as a reviewed visual change).
+    badges: @Composable RowScope.() -> Unit = {},
     fillMaxWidth: Boolean = false,
 ) = GridItem(
     title = artist.artist.name,
@@ -493,7 +536,7 @@ fun ArtistGridItem(
 )
 
 /**
- * The standard library badges for an album row — bookmarked / explicit / aggregate download state
+ * The standard library badges for an album row — bookmarked / aggregate download state
  * (downloaded when every track is, downloading when any is). Single source of truth shared by the
  * library album rows and any other surface that renders an album (e.g. the Latest Releases rows).
  */
@@ -515,9 +558,6 @@ fun RowScope.AlbumBadges(
 
     if (showLikedIcon && album.album.bookmarkedAt != null) {
         Icon.Favorite()
-    }
-    if (album.album.explicit) {
-        Icon.Explicit()
     }
     DownloadStatusIcon(downloadStatus, downloadProgress)
 }
@@ -573,9 +613,6 @@ fun AlbumGridItem(
 
         if (album.album.bookmarkedAt != null) {
             Icon.Favorite()
-        }
-        if (album.album.explicit) {
-            Icon.Explicit()
         }
         DownloadStatusIcon(downloadStatus, downloadProgress)
     },
@@ -813,6 +850,10 @@ fun YouTubeListItem(
     isSwipeable: Boolean = true,
     subtitleOverride: String? = null,
     centeredPlayButton: Boolean = false,
+    // The id whose play the tap-to-play spinner should track, when it differs from [item].id. A Latest
+    // Releases single is an AlbumItem (id = browseId) but plays its sampleVideoId, so the See-all list
+    // passes that here; null falls back to item.id (the normal case).
+    preparingIdOverride: String? = null,
     trailingContent: @Composable RowScope.() -> Unit = {},
     badges: @Composable RowScope.() -> Unit = {
         val database = LocalDatabase.current
@@ -833,7 +874,6 @@ fun YouTubeListItem(
         ) {
             Icon.Favorite()
         }
-        if (item.explicit) Icon.Explicit()
         if (item is SongItem && item.isVideo) Icon.Video()
         if (item is SongItem && song?.song?.inLibrary != null) {
             Icon.Library()
@@ -853,6 +893,8 @@ fun YouTubeListItem(
     val content: @Composable () -> Unit = {
         ListItem(
             title = item.title,
+            // Podcast shows/episodes carry long titles; gently scroll them instead of clipping.
+            titleMarquee = item is PodcastItem || item is EpisodeItem,
             subtitle = subtitleOverride ?: when (item) {
                 is SongItem -> joinByBullet(item.artists.joinToString { it.name }, makeTimeString(item.duration?.times(1000L)))
                 is AlbumItem -> joinByBullet(item.artists?.joinToString { it.name }, item.year?.toString())
@@ -863,6 +905,7 @@ fun YouTubeListItem(
             },
             badges = badges,
             thumbnailContent = {
+                val preparing = rememberIsPreparing(preparingIdOverride ?: item.id)
                 Box(contentAlignment = Alignment.Center) {
                     ItemThumbnail(
                         thumbnailUrl = item.thumbnail,
@@ -871,10 +914,11 @@ fun YouTubeListItem(
                         isActive = isActive,
                         isPlaying = isPlaying,
                         shape = if (item is ArtistItem) CircleShape else RoundedCornerShape(ThumbnailCornerRadius),
-                        modifier = Modifier.size(ListThumbnailSize)
+                        modifier = Modifier.size(ListThumbnailSize),
+                        isPreparing = preparing
                     )
                     // A single shows the centred play button on its artwork (album rows stay plain).
-                    if (centeredPlayButton && !isActive) {
+                    if (centeredPlayButton && !isActive && !preparing) {
                         OverlayPlayButton(visible = true)
                     }
                 }
@@ -908,26 +952,25 @@ fun EpisodeListItem(
 ) {
     // For an in-progress (not finished, not just-started) episode, show how much time is left.
     val durationMs = episode.duration?.times(1000L)
-    val timeLeft = resumePositionMs
-        ?.takeIf { com.jtech.zemer.playback.EpisodeResume.shouldResume(it, durationMs) }
-        ?.let { pos -> durationMs?.let { d -> makeTimeString((d - pos).coerceAtLeast(0)) } }
+    val timeLeft = com.jtech.zemer.playback.EpisodeResume.timeLeftMs(resumePositionMs, durationMs)
+        ?.let { makeTimeString(it) }
     ListItem(
         title = episode.title,
+        titleMarquee = true,
         subtitle = joinByBullet(
             episode.publishDateText,
             if (timeLeft != null) stringResource(R.string.episode_time_left, timeLeft)
             else episode.duration?.let { makeTimeString(it.times(1000L)) }
         ),
-        badges = {
-            if (episode.explicit) Icon.Explicit()
-        },
+        badges = {},
         thumbnailContent = {
             ItemThumbnail(
                 thumbnailUrl = episode.thumbnail,
                 isActive = isActive,
                 isPlaying = isPlaying,
                 shape = RoundedCornerShape(ThumbnailCornerRadius),
-                modifier = Modifier.size(ListThumbnailSize)
+                modifier = Modifier.size(ListThumbnailSize),
+                isPreparing = rememberIsPreparing(episode.id)
             )
         },
         trailingContent = trailingContent,
@@ -965,7 +1008,6 @@ fun YouTubeGridItem(
         ) {
             Icon.Favorite()
         }
-        if (item.explicit) Icon.Explicit()
         if (showVideoBadge && item is SongItem && item.isVideo) Icon.Video()
         if (item is SongItem && song?.song?.inLibrary != null) Icon.Library()
         when (item) {
@@ -989,6 +1031,10 @@ fun YouTubeGridItem(
     // Suppress the sub-label entirely (the compact Home curated card is just the cover).
     showSubtitle: Boolean = true,
 ) = GridItem(
+    // Podcast shows/episodes carry long titles; give their cards the same calm one-shot glide
+    // (re-armed on D-pad focus) as their list rows, instead of the looping music-card marquee -
+    // otherwise the Podcasts Home shelves/see-alls/genre grids loop forever while the rows below glide.
+    titleMarquee = showTitle && (item is PodcastItem || item is EpisodeItem),
     title = {
         if (showTitle) {
             Text(
@@ -998,7 +1044,10 @@ fun YouTubeGridItem(
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
                 textAlign = if (item is ArtistItem) TextAlign.Center else TextAlign.Start,
-                modifier = Modifier.basicMarquee().fillMaxWidth()
+                // Podcast/episode cards marquee via GridItem's titleMarquee wrapper (never doubled);
+                // every other card keeps its pre-existing looping marquee.
+                modifier = if (item is PodcastItem || item is EpisodeItem) Modifier.fillMaxWidth()
+                else Modifier.basicMarquee().fillMaxWidth()
             )
         }
     },
@@ -1029,6 +1078,7 @@ fun YouTubeGridItem(
         val context = LocalContext.current
         val playerConnection = LocalPlayerConnection.current ?: return@GridItem
         val scope = rememberCoroutineScope()
+        val preparing = rememberIsPreparing(item.id)
 
         ItemThumbnail(
             // A video's derived thumbnail is `.../hqdefault.jpg` (4:3, letterboxed) so the square
@@ -1043,11 +1093,12 @@ fun YouTubeGridItem(
             isActive = isActive,
             isPlaying = isPlaying,
             shape = if (item is ArtistItem) CircleShape else RoundedCornerShape(ThumbnailCornerRadius),
+            isPreparing = preparing,
         )
 
-        // A single (centeredPlayButton) gets the song-style centred play button instead of the
-        // album's corner one, so it reads as "tap to play" like the Keep Listening song cards.
-        if ((item is SongItem || centeredPlayButton) && !isActive) {
+        // A single / episode (or an explicit centeredPlayButton) gets the song-style centred play button
+        // instead of the album's corner one, so it reads as "tap to play" like the Keep Listening cards.
+        if ((item is SongItem || item is EpisodeItem || centeredPlayButton) && !isActive && !preparing) {
             OverlayPlayButton(
                 visible = true
             )
@@ -1174,14 +1225,27 @@ fun ItemThumbnail(
     modifier: Modifier = Modifier,
     albumIndex: Int? = null,
     isSelected: Boolean = false,
-    thumbnailRatio: Float = 1f
+    thumbnailRatio: Float = 1f,
+    // The tapped item is resolving/buffering (see PlayerConnection.preparingMediaId): show a loading
+    // spinner over the cover instead of the play / now-playing overlays until audio actually starts.
+    isPreparing: Boolean = false
 ) {
+        // A currently-PLAYING card morphs its artwork to a scalloped expressive silhouette (and pops
+        // once as it BECOMES active - rising-edge only, so the card it left never bounces too), so the
+        // active item reads as playing beyond the equalizer badge. While PREPARING it is not playing yet,
+        // so the active treatment (morph, pop, equalizer) waits for real playback.
+        val effectiveActive = isActive && !isPreparing
+        val effectiveShape = if (effectiveActive) expressivePlayingShape() else shape
+        val activePop = rememberActivationPopScale(effectiveActive)
     Box(
         contentAlignment = Alignment.Center,
         modifier = modifier
             .fillMaxSize()
             .aspectRatio(thumbnailRatio)
-            .clip(shape)
+            // Only the ACTIVE card pops (rising-edge), so add the scale layer just for it - a graphicsLayer
+            // on every thumbnail across a long scrolling grid is wasted compositing otherwise.
+            .then(if (effectiveActive) Modifier.graphicsLayer { scaleX = activePop; scaleY = activePop } else Modifier)
+            .clip(effectiveShape)
     ) {
         if (albumIndex == null) {
             AsyncImage(
@@ -1195,7 +1259,7 @@ fun ItemThumbnail(
                 contentScale = ContentScale.Crop,
                 modifier = Modifier
                     .fillMaxSize()
-                    .clip(shape)
+                    .clip(effectiveShape)
             )
         }
 
@@ -1218,7 +1282,7 @@ fun ItemThumbnail(
                 modifier = Modifier
                     .fillMaxSize()
                     .zIndex(1f)
-                    .clip(shape)
+                    .clip(effectiveShape)
                     .background(Color.Black.copy(alpha = 0.5f))
             ) {
                 Icon(
@@ -1228,10 +1292,14 @@ fun ItemThumbnail(
             }
         }
 
+        // The on-cover overlay neutral - the SAME color the now-playing equalizer, the play icon and the
+        // over-cover titles use - so the loading spinner is never a different color from the playing
+        // animation (a neutral, never the theme accent).
+        val overlayColor = if (albumIndex != null) MaterialTheme.colorScheme.onBackground else Color.White
         PlayingIndicatorBox(
-            isActive = isActive,
+            isActive = effectiveActive,
             playWhenReady = isPlaying,
-            color = if (albumIndex != null) MaterialTheme.colorScheme.onBackground else Color.White,
+            color = overlayColor,
             modifier = Modifier
                 .fillMaxSize()
                 .background(
@@ -1239,9 +1307,20 @@ fun ItemThumbnail(
                         Color.Transparent
                     else
                         Color.Black.copy(alpha = ActiveBoxAlpha),
-                    shape = shape
+                    shape = effectiveShape
                 )
         )
+
+        if (isPreparing) {
+            // Resolving/buffering the tapped item: the shared PreparingOverlay uses the SAME neutral as the
+            // equalizer (never the accent) and dims EXACTLY like it - transparent for an album track
+            // (albumIndex) so a dark onBackground spinner is never lost on a black scrim.
+            PreparingOverlay(
+                shape = effectiveShape,
+                color = overlayColor,
+                scrimColor = if (albumIndex != null) Color.Transparent else Color.Black.copy(alpha = ActiveBoxAlpha),
+            )
+        }
     }
 }
 
@@ -1417,9 +1496,24 @@ fun PlaylistThumbnail(
     }
 }
 
+/**
+ * Whether the player is currently PREPARING [id] to play - the user tapped it and audio has not started
+ * yet (stream resolve + buffer), so a card shows a loading spinner instead of a hanging play affordance.
+ * Reads PlayerConnection.preparingMediaId; false when [id] is null or there is no player connection.
+ */
+@Composable
+fun rememberIsPreparing(id: String?): Boolean {
+    val connection = LocalPlayerConnection.current ?: return false
+    val preparing by connection.preparingMediaId.collectAsState()
+    return id != null && preparing == id
+}
+
 @Composable
 fun BoxScope.OverlayPlayButton(
-    visible: Boolean
+    visible: Boolean,
+    // While the tapped item resolves/buffers, the disc shows the M3 Expressive loading indicator instead
+    // of the play icon (surfaces that use ItemThumbnail get the spinner from it and leave this false).
+    loading: Boolean = false,
 ) {
     AnimatedVisibility(
         visible = visible,
@@ -1435,12 +1529,17 @@ fun BoxScope.OverlayPlayButton(
                 .clip(CircleShape)
                 .background(Color.Black.copy(alpha = ActiveBoxAlpha))
         ) {
-            Icon(
-                painter = painterResource(R.drawable.play),
-                contentDescription = null,
-                tint = Color.White,
-                modifier = Modifier.size(20.dp)
-            )
+            if (loading) {
+                // The neutral white of the play icon it replaces - never the theme accent.
+                MediaLoadingSpinner()
+            } else {
+                Icon(
+                    painter = painterResource(R.drawable.play),
+                    contentDescription = null,
+                    tint = Color.White,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
         }
     }
 }
@@ -1482,7 +1581,27 @@ fun BoxScope.OverlayEditButton(
 fun BoxScope.AlbumPlayButton(
     visible: Boolean,
     onClick: () -> Unit,
+    // Resets the internal loading state when the item at this slot changes. The Latest Releases carousel
+    // is index-keyed (no per-item key), so without this a spinning disc's loading=true would bleed onto a
+    // different release that later occupies the same slot; pass the release/album id there.
+    itemKey: Any? = null,
 ) {
+    // An album resolves + fetches its tracks before any audio, so the static play disc used to just hang.
+    // Show the shared M3 Expressive over-media spinner from tap until the album becomes active (the caller
+    // flips `visible` off), then it fades into the now-playing indicator. A timeout reverts to the play
+    // icon so a failed / aborted play never spins forever.
+    var loading by remember { mutableStateOf(false) }
+    LaunchedEffect(visible) { if (!visible) loading = false }
+    LaunchedEffect(itemKey) { loading = false }
+    LaunchedEffect(loading) {
+        if (loading) {
+            // A successful play flips `visible` off within a few seconds (the queue's first track becomes
+            // current); this backstop only matters when the play never activates - e.g. the album fetch
+            // 404s and navigates to the page instead - so keep it short rather than a long hang.
+            delay(12_000L)
+            loading = false
+        }
+    }
     AnimatedVisibility(
         visible = visible,
         enter = fadeIn(),
@@ -1497,13 +1616,29 @@ fun BoxScope.AlbumPlayButton(
                 .size(36.dp)
                 .clip(CircleShape)
                 .background(Color.Black.copy(alpha = ActiveBoxAlpha))
-                .clickable(onClick = onClick)
+                // Always clickable (never enabled=false) so the tap is CONSUMED and cannot fall through to
+                // the card behind it (which would navigate to the album page mid-fetch); a re-tap while
+                // loading is simply ignored.
+                .clickable {
+                    if (!loading) {
+                        loading = true
+                        onClick()
+                    }
+                }
         ) {
-            Icon(
-                painter = painterResource(R.drawable.play),
-                contentDescription = null,
-                tint = Color.White
-            )
+            if (loading) {
+                // The neutral white of the play icon it replaces - never the theme accent.
+                MediaLoadingSpinner()
+            } else {
+                Icon(
+                    painter = painterResource(R.drawable.play),
+                    contentDescription = null,
+                    tint = Color.White,
+                    // Match OverlayPlayButton's icon so a song's and an album's play button read identically
+                    // (same 36dp disc, same tint, same icon) wherever they appear together.
+                    modifier = Modifier.size(20.dp)
+                )
+            }
         }
     }
 }
@@ -1639,17 +1774,6 @@ private object Icon {
 
     // Download badge lives in DownloadStatusUi.kt (DownloadStatusIcon / SongDownloadBadge) — the one
     // place download/progress state is rendered, so it can't drift between surfaces.
-
-    @Composable
-    fun Explicit() {
-        Icon(
-            painter = painterResource(R.drawable.explicit),
-            contentDescription = null,
-            modifier = Modifier
-                .size(18.dp)
-                .padding(end = 2.dp)
-        )
-    }
 
     /** Marks a row that is a video being surfaced as a "video song" (played as audio). */
     @Composable

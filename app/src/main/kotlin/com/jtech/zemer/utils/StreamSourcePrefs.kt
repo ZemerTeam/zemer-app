@@ -4,8 +4,6 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
-import com.jtech.zemer.constants.StreamSourceAndroidVRKey
-import com.jtech.zemer.constants.StreamSourceMWEBKey
 import com.jtech.zemer.constants.StreamSourcePrefsMigratedKey
 import com.jtech.zemer.constants.StreamSourceTVHTML5Key
 import com.jtech.zemer.constants.StreamSourceVisionOSKey
@@ -35,14 +33,15 @@ object StreamSourcePrefs {
             .map { (key, _) -> key.name.removePrefix(FAMILY_KEY_PREFIX) }
             .toSet()
 
-    /** Legacy single-client toggle key → the family id it governed. */
+    /**
+     * Legacy single-client toggle key → the family id it governed. Only the families that still
+     * exist: the retired ANDROID_VR / MWEB toggles have no family to migrate onto.
+     */
     internal val LEGACY_KEY_TO_FAMILY = mapOf(
         StreamSourceWebRemixKey to "WEB_REMIX",
         StreamSourceTVHTML5Key to "TVHTML5",
-        StreamSourceAndroidVRKey to "ANDROID_VR",
         StreamSourceWebCreatorKey to "WEB_CREATOR",
         StreamSourceVisionOSKey to "VISIONOS",
-        StreamSourceMWEBKey to "MWEB",
     )
 
     /**

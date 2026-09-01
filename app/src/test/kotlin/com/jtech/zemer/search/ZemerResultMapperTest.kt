@@ -23,7 +23,7 @@ import org.junit.Test
  * Pure-JVM coverage of the Zemer → YTItem adaptation that lets the existing search UI render Zemer
  * results unchanged. Guards the contracts the screens depend on: derived thumbnails, null endpoints
  * (playback falls back to the videoId), albums+singles merging, videos-as-SongItem, both playlist
- * chips, hide-explicit, and the summary section order.
+ * chips, and the summary section order.
  */
 class ZemerResultMapperTest {
 
@@ -33,7 +33,7 @@ class ZemerResultMapperTest {
             categories = ZemerCategories(songs = listOf(ZemerTrack("vid123", "Title", "Artist"))),
         )
 
-        val song = ZemerResultMapper.summaryPage(resp, hideExplicit = false)
+        val song = ZemerResultMapper.summaryPage(resp)
             .summaries.single().items.single() as SongItem
 
         assertEquals("vid123", song.id)
@@ -45,27 +45,6 @@ class ZemerResultMapperTest {
     }
 
     @Test
-    fun `hideExplicit drops only explicit songs`() {
-        val resp = ZemerSearchResponse(
-            categories = ZemerCategories(
-                songs = listOf(
-                    ZemerTrack("a", "Clean", "X", explicit = false),
-                    ZemerTrack("b", "Dirty", "Y", explicit = true),
-                ),
-            ),
-        )
-
-        val kept = ZemerResultMapper.summaryPage(resp, hideExplicit = true)
-            .summaries.single().items
-        assertEquals(1, kept.size)
-        assertEquals("a", kept.single().id)
-
-        val all = ZemerResultMapper.summaryPage(resp, hideExplicit = false)
-            .summaries.single().items
-        assertEquals(2, all.size)
-    }
-
-    @Test
     fun `albums and singles merge under one Albums section with playlistId fallback`() {
         val resp = ZemerSearchResponse(
             categories = ZemerCategories(
@@ -74,7 +53,7 @@ class ZemerResultMapperTest {
             ),
         )
 
-        val section = ZemerResultMapper.summaryPage(resp, hideExplicit = false).summaries.single()
+        val section = ZemerResultMapper.summaryPage(resp).summaries.single()
         assertEquals("Albums", section.title)
         assertEquals(2, section.items.size)
 
@@ -101,7 +80,7 @@ class ZemerResultMapperTest {
             ),
         )
 
-        val page = ZemerResultMapper.summaryPage(resp, hideExplicit = false)
+        val page = ZemerResultMapper.summaryPage(resp)
         // Songs and Videos are SEPARATE sections (videos no longer fold into Songs).
         assertEquals(listOf("Albums", "Songs", "Videos", "Artists", "Playlists"), page.summaries.map { it.title })
         assertEquals(listOf("s1"), page.summaries.first { it.title == "Songs" }.items.map { it.id })
@@ -124,7 +103,7 @@ class ZemerResultMapperTest {
             ),
         )
 
-        val items = ZemerResultMapper.suggestions(resp, hideExplicit = false).recommendedItems
+        val items = ZemerResultMapper.suggestions(resp).recommendedItems
         assertEquals(1, items.size)
         assertEquals(items.size, items.distinctBy { it.id }.size)
     }
@@ -138,9 +117,9 @@ class ZemerResultMapperTest {
             ),
         )
 
-        val songs = ZemerResultMapper.filtered(resp, SearchFilter.FILTER_SONG, false).items
+        val songs = ZemerResultMapper.filtered(resp, SearchFilter.FILTER_SONG).items
         assertEquals(listOf("ok"), songs.map { it.id })
-        val artists = ZemerResultMapper.filtered(resp, SearchFilter.FILTER_ARTIST, false).items
+        val artists = ZemerResultMapper.filtered(resp, SearchFilter.FILTER_ARTIST).items
         assertEquals(listOf("UC1"), artists.map { it.id })
     }
 
@@ -153,7 +132,7 @@ class ZemerResultMapperTest {
             ),
         )
 
-        val result = ZemerResultMapper.filtered(resp, SearchFilter.FILTER_ALBUM, hideExplicit = false)
+        val result = ZemerResultMapper.filtered(resp, SearchFilter.FILTER_ALBUM)
         assertEquals(2, result.items.size)
         assertNull(result.continuation)
     }
@@ -164,7 +143,7 @@ class ZemerResultMapperTest {
             categories = ZemerCategories(videos = listOf(ZemerTrack("v1", "Live", "A"))),
         )
 
-        val item = ZemerResultMapper.filtered(resp, SearchFilter.FILTER_VIDEO, hideExplicit = false).items.single()
+        val item = ZemerResultMapper.filtered(resp, SearchFilter.FILTER_VIDEO).items.single()
         assertTrue(item is SongItem)
         assertEquals("v1", item.id)
     }
@@ -178,8 +157,8 @@ class ZemerResultMapperTest {
             ),
         )
 
-        val community = ZemerResultMapper.filtered(resp, SearchFilter.FILTER_COMMUNITY_PLAYLIST, false).items
-        val featured = ZemerResultMapper.filtered(resp, SearchFilter.FILTER_FEATURED_PLAYLIST, false).items
+        val community = ZemerResultMapper.filtered(resp, SearchFilter.FILTER_COMMUNITY_PLAYLIST).items
+        val featured = ZemerResultMapper.filtered(resp, SearchFilter.FILTER_FEATURED_PLAYLIST).items
         // The two chips map to two distinct server categories — never the same list.
         assertEquals(listOf("community1"), community.map { it.id })
         assertEquals(listOf("featured1"), featured.map { it.id })
@@ -196,7 +175,7 @@ class ZemerResultMapperTest {
         )
 
         val item = ZemerResultMapper
-            .filtered(resp, SearchFilter.FILTER_COMMUNITY_PLAYLIST, hideExplicit = false) { "$it songs" }
+            .filtered(resp, SearchFilter.FILTER_COMMUNITY_PLAYLIST) { "$it songs" }
             .items.single() as PlaylistItem
         assertEquals("12 songs", item.songCountText)
     }
@@ -213,7 +192,7 @@ class ZemerResultMapperTest {
         )
 
         val items = ZemerResultMapper
-            .filtered(resp, SearchFilter.FILTER_COMMUNITY_PLAYLIST, hideExplicit = false) { "$it songs" }
+            .filtered(resp, SearchFilter.FILTER_COMMUNITY_PLAYLIST) { "$it songs" }
             .items.map { it as PlaylistItem }
         assertNull(items[0].songCountText) // absent → no count
         assertNull(items[1].songCountText) // zero → no count
@@ -227,7 +206,7 @@ class ZemerResultMapperTest {
             categories = ZemerCategories(playlists = listOf(ZemerPlaylist("featured1", "Featured", "A", "t"))),
         )
         assertTrue(
-            ZemerResultMapper.summaryPage(featuredOnly, hideExplicit = false)
+            ZemerResultMapper.summaryPage(featuredOnly)
                 .summaries.none { it.title == "Playlists" },
         )
 
@@ -238,7 +217,7 @@ class ZemerResultMapperTest {
                 community = listOf(ZemerPlaylist("community1", "Community", "B", "t")),
             ),
         )
-        val section = ZemerResultMapper.summaryPage(withCommunity, hideExplicit = false)
+        val section = ZemerResultMapper.summaryPage(withCommunity)
             .summaries.first { it.title == "Playlists" }
         assertEquals(listOf("community1"), section.items.map { it.id })
     }
@@ -250,11 +229,11 @@ class ZemerResultMapperTest {
             categories = ZemerCategories(songs = (1..20).map { ZemerTrack("s$it", "Song $it", "A") }),
         )
 
-        val songsSection = ZemerResultMapper.summaryPage(resp, hideExplicit = false)
+        val songsSection = ZemerResultMapper.summaryPage(resp)
             .summaries.first { it.title == "Songs" }
         assertEquals(8, songsSection.items.size) // capped
 
-        val songsChip = ZemerResultMapper.filtered(resp, SearchFilter.FILTER_SONG, hideExplicit = false).items
+        val songsChip = ZemerResultMapper.filtered(resp, SearchFilter.FILTER_SONG).items
         assertEquals(20, songsChip.size) // chip is uncapped
     }
 
@@ -268,29 +247,11 @@ class ZemerResultMapperTest {
                 videos = listOf(ZemerTrack("v1", "Video", "A")),
             ),
         )
-        val songsChip = ZemerResultMapper.filtered(resp, SearchFilter.FILTER_SONG, hideExplicit = false).items
+        val songsChip = ZemerResultMapper.filtered(resp, SearchFilter.FILTER_SONG).items
         assertEquals(listOf("s1"), songsChip.map { it.id }) // songs only — no video
 
-        val videosChip = ZemerResultMapper.filtered(resp, SearchFilter.FILTER_VIDEO, hideExplicit = false).items
+        val videosChip = ZemerResultMapper.filtered(resp, SearchFilter.FILTER_VIDEO).items
         assertEquals(listOf("v1"), videosChip.map { it.id }) // videos only
-    }
-
-    @Test
-    fun `hideExplicit drops an explicit title from the as-you-type completions, not just the rows`() {
-        val resp = ZemerSearchResponse(
-            categories = ZemerCategories(
-                songs = listOf(
-                    ZemerTrack("a", "Clean Song", "X", explicit = false),
-                    ZemerTrack("b", "Dirty Song", "Y", explicit = true),
-                ),
-            ),
-        )
-
-        val hidden = ZemerResultMapper.suggestions(resp, hideExplicit = true).queries
-        assertEquals(listOf("Clean Song"), hidden) // explicit title not offered as a completion
-
-        val shown = ZemerResultMapper.suggestions(resp, hideExplicit = false).queries
-        assertEquals(listOf("Clean Song", "Dirty Song"), shown)
     }
 
     @Test
@@ -299,7 +260,7 @@ class ZemerResultMapperTest {
             categories = ZemerCategories(artists = listOf(ZemerArtist("UC1", "Name", "th"))),
         )
 
-        val artist = ZemerResultMapper.filtered(resp, SearchFilter.FILTER_ARTIST, false).items.single() as ArtistItem
+        val artist = ZemerResultMapper.filtered(resp, SearchFilter.FILTER_ARTIST).items.single() as ArtistItem
         assertEquals("UC1", artist.id)
         assertEquals("Name", artist.title)
         assertEquals("th", artist.thumbnail)
@@ -317,7 +278,7 @@ class ZemerResultMapperTest {
             ),
         )
 
-        val suggestions = ZemerResultMapper.suggestions(resp, hideExplicit = false)
+        val suggestions = ZemerResultMapper.suggestions(resp)
 
         // Part 1: text completions — artist names first, then song titles.
         assertEquals(listOf("Name", "Song"), suggestions.queries)
@@ -345,7 +306,7 @@ class ZemerResultMapperTest {
             ),
         )
 
-        val queries = ZemerResultMapper.suggestions(resp, hideExplicit = false).queries
+        val queries = ZemerResultMapper.suggestions(resp).queries
         assertEquals(5, queries.size) // capped at MAX_QUERY_SUGGESTIONS
         assertEquals(queries.size, queries.distinctBy { it.lowercase() }.size) // no case-dupes
     }
@@ -367,22 +328,11 @@ class ZemerResultMapperTest {
             whitelisted = 2,
         )
 
-        val songs = resp.toSongItems(hideExplicit = false)
+        val songs = resp.toSongItems()
         assertEquals(listOf("a", "b"), songs.map { it.id })
         assertEquals("https://i.ytimg.com/vi/a/hqdefault.jpg", songs.first().thumbnail)
     }
 
-    @Test
-    fun `playlist response honors hideExplicit`() {
-        val resp = ZemerPlaylistResponse(
-            tracks = listOf(
-                ZemerTrack("clean", "Clean", "A", explicit = false),
-                ZemerTrack("dirty", "Dirty", "B", explicit = true),
-            ),
-        )
-        assertEquals(listOf("clean"), resp.toSongItems(hideExplicit = true).map { it.id })
-        assertEquals(listOf("clean", "dirty"), resp.toSongItems(hideExplicit = false).map { it.id })
-    }
 
     @Test
     fun `album response maps to an AlbumPage ordered by track number`() {
@@ -490,11 +440,11 @@ class ZemerResultMapperTest {
         ContentFilterState.current = ContentFilterConfig(filtersEnabled = true, allowFemaleSingers = false)
         assertEquals(
             listOf("okSong"),
-            ZemerResultMapper.filtered(resp, SearchFilter.FILTER_SONG, hideExplicit = false).items.map { it.id },
+            ZemerResultMapper.filtered(resp, SearchFilter.FILTER_SONG).items.map { it.id },
         )
         assertEquals(
             listOf("okPlaylist"),
-            ZemerResultMapper.filtered(resp, SearchFilter.FILTER_COMMUNITY_PLAYLIST, hideExplicit = false)
+            ZemerResultMapper.filtered(resp, SearchFilter.FILTER_COMMUNITY_PLAYLIST)
                 .items.map { it.id },
         )
 
@@ -502,7 +452,7 @@ class ZemerResultMapperTest {
         ContentFilterState.current = ContentFilterConfig(filtersEnabled = true, allowFemaleSingers = true)
         assertEquals(
             listOf("okSong", "blockedSong"),
-            ZemerResultMapper.filtered(resp, SearchFilter.FILTER_SONG, hideExplicit = false).items.map { it.id },
+            ZemerResultMapper.filtered(resp, SearchFilter.FILTER_SONG).items.map { it.id },
         )
     }
 
@@ -514,12 +464,31 @@ class ZemerResultMapperTest {
             artist = ZemerArtist("UC1", "Artist"),
             songs = listOf(ZemerTrack("s1", "Song", "Artist")),
             videos = listOf(ZemerTrack("v1", "Clip", "Artist")),
-        ).toArtistPage(hideExplicit = false)
+        ).toArtistPage()
 
         val songs = page.sections.first { it.title == "Songs" }.items.filterIsInstance<SongItem>()
         val videos = page.sections.first { it.title == "Videos" }.items.filterIsInstance<SongItem>()
         assertFalse(songs.single().isVideo)
         assertTrue(videos.single().isVideo)
+    }
+
+    @Test
+    fun `artist page threads the page artist into credit-less tracks`() {
+        // The wire tracks carry no artist credit (the page IS the artist); without the threading a
+        // played track shows no (tappable) artist line in the player at all (issue #519).
+        val page = ZemerArtistResponse(
+            artist = ZemerArtist("UC1", "Page Artist"),
+            songs = listOf(ZemerTrack("s1", "Song")),
+            videos = listOf(ZemerTrack("v1", "Clip", artist = "Featured Guest", artistId = "UCg")),
+        ).toArtistPage()
+
+        val song = page.sections.first { it.title == "Songs" }.items.single() as SongItem
+        assertEquals("Page Artist", song.artists.single().name)
+        assertEquals("UC1", song.artists.single().id)
+        // An explicit wire credit is never overwritten.
+        val video = page.sections.first { it.title == "Videos" }.items.single() as SongItem
+        assertEquals("Featured Guest", video.artists.single().name)
+        assertEquals("UCg", video.artists.single().id)
     }
 
     // --- /video-home-rows mapping (the Videos tab's ranked rows) ---
@@ -600,6 +569,28 @@ class ZemerResultMapperTest {
         assertEquals("Community", community.title)
         assertEquals("Cur", community.author?.name)
         assertEquals("12 songs", community.songCountText)
+    }
+
+    @Test
+    fun `home rows expose only realVideo-flagged ids while videos row stays full`() {
+        // The Featured Videos hero shows only server-flagged REAL videos (topVideos[].realVideo); the
+        // See-all still gets the full videos row. realVideoIds carries which of them are real; an absent
+        // flag counts as not-real (the server's conservative default).
+        val resp = ZemerHomeRowsResponse(
+            topVideos = listOf(
+                ZemerTrack(videoId = "real1", title = "Filmed", artist = "A", artistId = "UCa", realVideo = true),
+                ZemerTrack(videoId = "cover1", title = "Cover graphic", artist = "B", artistId = "UCb", realVideo = false),
+                ZemerTrack(videoId = "unset1", title = "Not classified", artist = "C", artistId = "UCc"), // realVideo absent
+                ZemerTrack(videoId = "real2", title = "Filmed 2", artist = "D", artistId = "UCd", realVideo = true),
+            ),
+        )
+
+        val rows = ZemerResultMapper.homeRows(resp)
+
+        // The videos row itself is unfiltered — the See-all shows all four.
+        assertEquals(listOf("real1", "cover1", "unset1", "real2"), rows.videos.map { it.id })
+        // Only the flagged videos are real; absent/false are excluded.
+        assertEquals(setOf("real1", "real2"), rows.realVideoIds)
     }
 
     @Test
@@ -694,15 +685,6 @@ class ZemerResultMapperTest {
     }
 
     @Test
-    fun `radio mapping keeps explicit tracks - explicit filtering is central in MusicService`() {
-        val resp = ZemerRadioResponse(
-            tracks = listOf(ZemerTrack("a", "Clean", "A"), ZemerTrack("b", "Dirty", "A", explicit = true)),
-        )
-
-        assertEquals(listOf("a", "b"), resp.toSongItems().map { it.id })
-    }
-
-    @Test
     fun `videos are classified as video-songs per item and plain songs are not`() {
         val resp = ZemerSearchResponse(
             categories = ZemerCategories(
@@ -712,7 +694,7 @@ class ZemerResultMapperTest {
         )
 
         // Songs and videos live in separate summary sections; each item carries the right flag.
-        val page = ZemerResultMapper.summaryPage(resp, hideExplicit = false)
+        val page = ZemerResultMapper.summaryPage(resp)
         val songs = page.summaries.single { it.title == "Songs" }.items.filterIsInstance<SongItem>()
         val videos = page.summaries.single { it.title == "Videos" }.items.filterIsInstance<SongItem>()
 
@@ -728,7 +710,7 @@ class ZemerResultMapperTest {
             categories = ZemerCategories(videos = listOf(ZemerTrack("vid1", "A Video", "Artist"))),
         )
 
-        val item = ZemerResultMapper.filtered(resp, SearchFilter.FILTER_VIDEO, hideExplicit = false)
+        val item = ZemerResultMapper.filtered(resp, SearchFilter.FILTER_VIDEO)
             .items.single() as SongItem
 
         assertTrue(item.isVideo)
@@ -739,7 +721,6 @@ class ZemerResultMapperTest {
         val video = ZemerResultMapper.filtered(
             ZemerSearchResponse(categories = ZemerCategories(videos = listOf(ZemerTrack("vid1", "V", "A")))),
             SearchFilter.FILTER_VIDEO,
-            hideExplicit = false,
         ).items.single() as SongItem
 
         assertTrue(video.isVideo)                          // classified as a video for the UI…

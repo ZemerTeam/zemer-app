@@ -11,4 +11,9 @@ data class PersistPlayerState(
     val currentMediaItemIndex: Int,
     val playbackState: Int,
     val timestamp: Long = System.currentTimeMillis()
-) : Serializable
+) : Serializable {
+    companion object {
+        // Pinned so class edits can't orphan the persisted player state (see MediaMetadata).
+        private const val serialVersionUID = 5774712238918091842L
+    }
+}

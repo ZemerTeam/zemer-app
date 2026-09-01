@@ -113,7 +113,6 @@ object SubsetDecoder {
             title = r[1].asString(),
             artistId = r[2].asString(),
             isVideo = flags and 1 != 0,
-            explicit = flags and 2 != 0,
             durationSec = r[4].asIntOrNull(),
             playCount = r[5].asLongOrNull(),
             uploadDate = r[6].asStringOrNull(),
@@ -198,9 +197,10 @@ object SubsetDecoder {
         )
     }
 
-    // Podcast show row: [ id(MPSP), name, author, channelId(UC), thumbnail, episodeCountText, genres ].
-    // `genres` (col 6) is a comma-separated slug string, appended after the podcast client shipped —
-    // getOrNull keeps a pre-genres snapshot (6 cols) decoding cleanly.
+    // Podcast show row: [ id(MPSP), name, author, channelId(UC), thumbnail, episodeCountText, genres,
+    // isKidZone ]. `genres` (col 6) is a comma-separated slug string and `isKidZone` (col 7, 0|1) the
+    // per-show kid flag — both appended after the podcast client shipped; getOrNull keeps older
+    // snapshots (6- or 7-col rows) decoding cleanly with empty/false defaults.
     fun decodePodcastShows(text: String): List<SubPodcastShow> = rows(text).map { r ->
         SubPodcastShow(
             id = r[0].asString(),
@@ -210,6 +210,7 @@ object SubsetDecoder {
             thumbnail = r[4].asStringOrNull(),
             episodeCountText = r[5].asStringOrNull(),
             genres = r.getOrNull(6).asStringOrNull()?.split(",")?.map { it.trim() }?.filter { it.isNotEmpty() }.orEmpty(),
+            isKidZone = (r.getOrNull(7).asIntOrNull() ?: 0) != 0,
         )
     }
 

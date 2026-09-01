@@ -82,7 +82,6 @@ import com.jtech.zemer.LocalPlayerConnection
 import com.jtech.zemer.R
 import com.jtech.zemer.constants.AppBarHeight
 import com.jtech.zemer.constants.BlockVideosKey
-import com.jtech.zemer.constants.HideExplicitKey
 import com.jtech.zemer.db.entities.ArtistEntity
 import com.jtech.zemer.extensions.toMediaItem
 import com.jtech.zemer.extensions.copyToClipboard
@@ -155,7 +154,6 @@ fun ArtistScreen(
     val libraryArtistEntity by viewModel.libraryArtistEntity.collectAsState()
     val librarySongs by viewModel.librarySongs.collectAsState()
     val libraryAlbums by viewModel.libraryAlbums.collectAsState()
-    val hideExplicit by rememberPreference(key = HideExplicitKey, defaultValue = false)
     val (blockVideos, _) = rememberPreference(BlockVideosKey, false)
     // With video imagery blocked, a video section keeps the same grid but is retitled "Video songs"
     // (every tile plays audio-first either way; video is the in-player toggle, gated on the filter).
@@ -531,13 +529,8 @@ fun ArtistScreen(
                             )
                         }
 
-                        val filteredLibrarySongs = if (hideExplicit) {
-                            librarySongs.filter { !it.song.explicit }
-                        } else {
-                            librarySongs
-                        }
                         itemsIndexed(
-                            items = filteredLibrarySongs,
+                            items = librarySongs,
                             key = { index, item -> "local_song_${item.id}_$index" }
                         ) { index, song ->
                             SongListItem(
@@ -550,6 +543,7 @@ fun ArtistScreen(
                                         onClick = {
                                             menuState.show {
                                                 SongMenu(
+                                                    kidZone = viewModel.kidZone,
                                                     originalSong = song,
                                                     navController = navController,
                                                     onDismiss = menuState::dismiss,
@@ -579,6 +573,7 @@ fun ArtistScreen(
                                             haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                                             menuState.show {
                                                 SongMenu(
+                                                    kidZone = viewModel.kidZone,
                                                     originalSong = song,
                                                     navController = navController,
                                                     onDismiss = menuState::dismiss,
@@ -606,17 +601,12 @@ fun ArtistScreen(
                         }
 
                         item(key = "local_albums_list") {
-                            val filteredLibraryAlbums = if (hideExplicit) {
-                                libraryAlbums.filter { !it.album.explicit }
-                            } else {
-                                libraryAlbums
-                            }
                             LazyRow(
                                 contentPadding = WindowInsets.systemBars.only(WindowInsetsSides.Horizontal).asPaddingValues(),
                             ) {
                                 items(
-                                    items = filteredLibraryAlbums,
-                                    key = { "local_album_${it.id}_${filteredLibraryAlbums.indexOf(it)}" }
+                                    items = libraryAlbums,
+                                    key = { "local_album_${it.id}_${libraryAlbums.indexOf(it)}" }
                                 ) { album ->
                                     AlbumGridItem(
                                         album = album,
@@ -691,7 +681,7 @@ fun ArtistScreen(
                                     // so a short row (nothing more to reveal) shows no arrow.
                                     onClick = seeAllOnClick(distinctItems.size) {
                                         navController.navigate(
-                                            "artist_section/${viewModel.artistId}?title=${java.net.URLEncoder.encode(section.title, "UTF-8")}&isPodcastChannel=${viewModel.isPodcastChannel}",
+                                            "artist_section/${viewModel.artistId}?title=${java.net.URLEncoder.encode(section.title, "UTF-8")}&isPodcastChannel=${viewModel.isPodcastChannel}&kidZone=${viewModel.kidZone}",
                                         )
                                     },
                                 )
@@ -719,6 +709,7 @@ fun ArtistScreen(
                                             onClick = {
                                                 menuState.show {
                                                     YouTubeSongMenu(
+                                                        kidZone = viewModel.kidZone,
                                                         song = song,
                                                         navController = navController,
                                                         onDismiss = menuState::dismiss,
@@ -747,6 +738,7 @@ fun ArtistScreen(
                                                 haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                                                 menuState.show {
                                                     YouTubeSongMenu(
+                                                        kidZone = viewModel.kidZone,
                                                         song = song,
                                                         navController = navController,
                                                         onDismiss = menuState::dismiss,
@@ -773,7 +765,10 @@ fun ArtistScreen(
                                             item = item,
                                             isActive = when (item) {
                                                 is com.metrolist.innertube.models.PodcastItem -> false
-                                                is com.metrolist.innertube.models.EpisodeItem -> false
+                                                // An episode plays by its videoId (== the played
+                                                // mediaId), so mark the on-air episode active for the
+                                                // now-playing animation + cookie thumbnail, like songs.
+                                                is com.metrolist.innertube.models.EpisodeItem -> mediaMetadata?.id == item.id
                                                 is SongItem -> mediaMetadata?.id == item.id
                                                 is AlbumItem -> mediaMetadata?.album?.id == item.id
                                                 is ArtistItem -> false
@@ -799,13 +794,10 @@ fun ArtistScreen(
                                                             // episode alone (NOT YouTubeQueue - that whitelist-filters
                                                             // via YouTube.next and would clip a non-corpus episode).
                                                             is com.metrolist.innertube.models.PodcastItem ->
-                                                                navController.navigateToPodcast(item.id)
+                                                                navController.navigateToPodcast(item.id, kidZone = viewModel.kidZone)
                                                             is com.metrolist.innertube.models.EpisodeItem ->
                                                                 playerConnection.playQueue(
-                                                                    ListQueue(
-                                                                        title = item.title,
-                                                                        items = listOf(item.toMediaItem()),
-                                                                    ),
+                                                                    ListQueue.episode(item, PlaySource.podcast(item.podcast?.id)),
                                                                 )
                                                             is SongItem -> {
                                                                 playerConnection.playQueue(

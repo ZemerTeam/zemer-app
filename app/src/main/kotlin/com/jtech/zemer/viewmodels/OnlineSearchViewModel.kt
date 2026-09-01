@@ -13,7 +13,6 @@ import com.metrolist.innertube.YouTube.SearchFilter
 import com.metrolist.innertube.pages.SearchSummaryPage
 import com.metrolist.innertube.pages.SearchSummary
 import com.jtech.zemer.constants.BlockVideosKey
-import com.jtech.zemer.constants.HideExplicitKey
 import com.jtech.zemer.db.MusicDatabase
 import com.jtech.zemer.db.entities.Song
 import com.jtech.zemer.models.ItemsPage
@@ -188,9 +187,7 @@ constructor(
                             )
                         }
                         SearchFilter.FILTER_ALBUM -> {
-                            val hideExplicit = context.dataStore.getSuspend(HideExplicitKey, false)
                             val localAlbums = database.searchAlbums(query).first()
-                                .filter { if (hideExplicit) !it.album.explicit else true }
                             items.addAll(
                                 localAlbums.map { album ->
                                     com.metrolist.innertube.models.AlbumItem(

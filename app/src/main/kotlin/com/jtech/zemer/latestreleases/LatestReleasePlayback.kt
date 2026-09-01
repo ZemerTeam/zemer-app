@@ -1,12 +1,21 @@
 package com.jtech.zemer.latestreleases
 
+import android.content.Context
 import androidx.navigation.NavController
+import com.jtech.zemer.db.MusicDatabase
 import com.jtech.zemer.extensions.toMediaItem
 import com.jtech.zemer.models.MediaMetadata
 import com.jtech.zemer.playback.PlayerConnection
 import com.jtech.zemer.playback.queues.ListQueue
+import com.jtech.zemer.playback.queues.LocalAlbumRadio
 import com.jtech.zemer.playback.queues.ZemerRadioQueue
+import com.jtech.zemer.search.ZemerSearchRepository
+import com.jtech.zemer.search.zemerSearchOptions
 import com.jtech.zemer.tracking.PlaySource
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.firstOrNull
+import kotlinx.coroutines.withContext
 
 /**
  * Decides what tapping a [LatestRelease] does, shared by the Home shelf and the "See all" list so the
@@ -51,6 +60,49 @@ fun LatestRelease.sampleMediaMetadata(): MediaMetadata? {
 /** The track a single plays on tap: its [sampleMediaMetadata], but only for a one-track single. */
 fun LatestRelease.playableSingle(): MediaMetadata? =
     if (isPlayableSingle()) sampleMediaMetadata() else null
+
+/**
+ * Plays a release's ALBUM directly - the corner play button on the Latest Releases card, restoring the
+ * affordance the pre-carousel card had - WITHOUT reintroducing InnerTube. Prefers the locally-stored rows
+ * (a downloaded album plays offline like the rest of Home); otherwise fetches the album ONCE from the
+ * Zemer server (the same path the album screen opens through) and plays the fetched tracks directly, so
+ * the fire-and-forget DB insert (done in the background for library consistency) can never race the queue.
+ * Fail-soft: a 404 / empty / failed fetch just opens the album page rather than leaving a dead button.
+ * Only meaningful for a real album - a single plays via [openOrPlay].
+ */
+suspend fun LatestRelease.playAlbum(
+    playerConnection: PlayerConnection,
+    database: MusicDatabase,
+    zemerRepository: ZemerSearchRepository,
+    context: Context,
+    navController: NavController,
+) {
+    val local = database.albumWithSongs(browseId).firstOrNull()
+    if (local != null && local.songs.isNotEmpty()) {
+        withContext(Dispatchers.Main) {
+            playerConnection.playQueue(LocalAlbumRadio(local, context = context))
+        }
+        return
+    }
+    val page = runCatching { zemerRepository.album(browseId, null, zemerSearchOptions(context)) }.getOrNull()
+    if (page == null || page.songs.isEmpty()) {
+        withContext(Dispatchers.Main) { navController.navigate("album/$browseId") }
+        return
+    }
+    val existing = database.album(browseId).first()
+    database.transaction {
+        if (existing == null) insert(page) else update(existing.album, page, existing.artists)
+    }
+    withContext(Dispatchers.Main) {
+        playerConnection.playQueue(
+            ListQueue(
+                title = title,
+                items = page.songs.map { it.toMediaItem() },
+                playSource = PlaySource.NEW,
+            )
+        )
+    }
+}
 
 /** Plays a single immediately (with autoplay radio, like the rest of Home); opens an album's page. */
 fun LatestRelease.openOrPlay(

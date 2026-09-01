@@ -18,7 +18,9 @@ This document covers the artist whitelist as implemented in the app source: data
 | `source` | `String = "firestore"` | Source label default. |
 | `lastSyncedAt` | `LocalDateTime = LocalDateTime.now()` | Sync timestamp default. |
 | `isFemale` | `Boolean = false` | Used by content filters to block or allow female singers. |
-| `isChasid` | `Boolean = false` | Returned in filter decisions and available for sorting/promotion code paths. |
+| `isChasid` | `Boolean = false` | Captured from Firestore and stored (the chassidish-promotion feature that consumed it was removed; the filter no longer threads it). |
+| `displayName` | `String? = null` | The curated clean single-script name — present ONLY on the ~50 split docs whose legacy `artistName` is a dual "English - עברית" dash form. AUTHORITATIVE for the artist row's name (see the display-name split section). |
+| `altName` | `String? = null` | The same name in the other script — a search alias matched by library artist search, the Artists/KidZone browse pills, and `artistByName`. |
 | `isGenZ` | `Boolean = false` | Captured from Firestore and stored. |
 | `isKids` | `Boolean = false` | Captured from Firestore and stored. |
 | `isKidZone` | `Boolean = false` | Used by Kid Zone / non-Kid-Zone DAO queries. |
@@ -43,6 +45,21 @@ The DAO exposes these whitelist-specific operations:
 | Overwriting thumbnail write (fallback resolver) | `replaceArtistThumbnailUrl(artistId, thumbnailUrl)` |
 | Delete all whitelist rows | `clearWhitelist()` |
 | Delete one whitelist row | `removeFromWhitelist(artistId: String)` |
+| Apply curated display names (set-based) | `applyWhitelistDisplayNames()` — renames artist rows to the split docs' `displayName`; idempotent, self-terminating, run after `insertWhitelist` on every full fetch |
+| Curated display name for one artist (sync) | `whitelistDisplayNameSync(artistId)` — the stale-artist YTM refresh prefers it over the channel title |
+
+### The display-name split (`displayName` / `altName`)
+
+Contract: `handoff-docs/zemer-whitelist-display-names.md`. The legacy `artistName` is FROZEN (old
+installs and zemer-search wire credits carry it); `displayName` exists only on split docs and is
+authoritative for the artist row's rendered name; `altName` is the cross-script search alias. Three
+rules that must not regress: (1) `artistByName` matches all three whitelist names so a legacy
+dual-name wire credit still resolves to the whitelisted row after the rename (missing it mints a
+generated duplicate — the infinite-album-skeleton class); (2) the rename is the set-based
+`applyWhitelistDisplayNames`, never a one-shot legacy-name-guarded UPDATE (that froze installs on
+stale names when the curator corrected a `displayName`); (3) `DisplayNamesBackfilledKey` is only set
+by a full fetch whose payload actually carried split names (`whitelistCarriesDisplayNames`, pure +
+tested), so a stale pre-split mirror snapshot cannot burn the one-time backfill.
 
 The DAO also uses `artist_whitelist` in many library queries so local songs, albums, artists, related songs, and search previews are constrained to whitelisted artists.
 
@@ -123,7 +140,8 @@ mirrored by `content.zemer.io/whitelist`). The pipeline, end to end:
    - Try per-call cache, private process cache, then DAO `getWhitelistEntry`.
    - If no entry exists, reject.
    - If filters are enabled and female singers are disallowed and the entry is female, reject.
-   - Otherwise allow and carry the `isChasid` flag in the decision.
+   - Otherwise allow. (The decision is a plain Boolean; the old `ArtistFilterDecision.isChasidish`
+     threading was removed with the chassidish-promotion feature.)
 
 ## Conditional id overrides
 
@@ -210,7 +228,6 @@ The whitelist appears in these synchronization paths:
 | `app/src/main/kotlin/com/jtech/zemer/playback/MediaLibrarySessionCallback.kt` | 655 | class MediaLibrarySessionCallback, val databaseLazy, val downloadUtil, val database, val scope, var toggleLike, var toggleStartRadio, var toggleLibrary, val connectionResult, val whitelistedArtistIds |
 | `app/src/main/kotlin/com/jtech/zemer/playback/MusicService.kt` | 1590 | class MusicService, val database, var audioFocusRequest, var lastAudioFocusState, var wasPlayingBeforeAudioFocusLoss, var hasAudioFocus, val scope, val binder, val waitingForNetworkConnection, val isNetworkConnected |
 | `app/src/main/kotlin/com/jtech/zemer/playback/queues/LocalAlbumRadio.kt` | 65 | class LocalAlbumRadio, val albumWithSongs, val startIndex, val database, val endpoint, var continuation, var firstTimeLoaded, val nextResult, val filteredItems, val nextResult |
-| `app/src/main/kotlin/com/jtech/zemer/playback/queues/YouTubeAlbumRadio.kt` | 60 | class YouTubeAlbumRadio, var playlistId, val database, val endpoint, var albumSongCount, var continuation, var firstTimeLoaded, val albumSongs, val filteredSongs, val nextResult |
 | `app/src/main/kotlin/com/jtech/zemer/playback/queues/YouTubeQueue.kt` | 58 | class YouTubeQueue, var endpoint, val database, var continuation, val nextResult, val filteredItems, val nextResult, val filteredItems, fun radio |
 | `app/src/main/kotlin/com/jtech/zemer/sync/ContentFilterSyncService.kt` | 446 | class ContentFilterSyncService, val userPreferencesRepository, val authManager, val serviceScope, val _syncState, val syncState, val _lastSyncResult, val lastSyncResult, var _isApplyingServerPreferences, fun initialize |
 | `app/src/main/kotlin/com/jtech/zemer/sync/UserPreferencesRepository.kt` | 760 | fun ContentFilterConfig, fun com, class UserPreferencesRepository, val firestore, val authManager, val deviceIdGenerator, fun getDocumentId, fun classifyFirebaseError, val lastSyncTimeKey, val deviceIdKey |
@@ -231,11 +248,8 @@ The whitelist appears in these synchronization paths:
 | `app/src/main/kotlin/com/jtech/zemer/utils/WhitelistCache.kt` | — | object WhitelistCache, var memory (@Volatile immutable map), fun updateAll (whole-map swap), fun get, fun snapshot, fun allowedEntries, fun isAllowed |
 | `app/src/main/kotlin/com/jtech/zemer/utils/BlockedIdsCache.kt` | 84 | object BlockedIdsCache, const REASON_FEMALE, const REASON_GLOBAL, fun updateAll, fun isBlocked, fun isEmpty, fun snapshot, fun serialize, fun parse |
 | `app/src/main/kotlin/com/jtech/zemer/utils/WhitelistFetcher.kt` | 72 | object WhitelistFetcher, val firestore, var lastFetchTime, val doc, val updatedAt, val update, val value, val now, val whitelistEntities, val snapshot |
-| `app/src/main/kotlin/com/jtech/zemer/utils/WhitelistFilter.kt` | 262 | class ArtistFilterDecision, val allowed, val isChasidish, object WhitelistEntryCache, val memory, fun get, fun put, var anyAllowed, var allAllowed, var isChasidish |
-| `app/src/main/kotlin/com/jtech/zemer/viewmodels/AccountViewModel.kt` | 81 | class AccountContentType, class AccountViewModel, val database, val playlists, val albums, val artists, val selectedContentType, val likedPlaylists, val likedAlbums, val libraryArtists |
-| `app/src/main/kotlin/com/jtech/zemer/viewmodels/ArtistItemsViewModel.kt` | 98 | class ArtistItemsViewModel, val database, val artistId, val browseId, val params, val title, val itemsPage, val hideExplicit, fun loadMore, val oldItemsPage |
+| `app/src/main/kotlin/com/jtech/zemer/utils/WhitelistFilter.kt` | — | object WhitelistEntryCache, fun isWhitelisted (per item type), fun filterWhitelisted, fun shouldKeepPlaylistSong, fun filterWhitelistedWithLocalArtists, fun podcastPasses, fun artistMatchesFilters (Boolean) |
 | `app/src/main/kotlin/com/jtech/zemer/viewmodels/ArtistViewModel.kt` | 134 | class ArtistViewModel, val database, val artistId, var artistPage, var isLoading, val libraryArtist, val librarySongs, val libraryAlbums, fun fetchArtistsFromYTM, val hideExplicit |
-| `app/src/main/kotlin/com/jtech/zemer/viewmodels/BrowseViewModel.kt` | 55 | class BrowseViewModel, val database, val browseId, val items, val title, val allItems |
 | `app/src/main/kotlin/com/jtech/zemer/viewmodels/HistoryViewModel.kt` | 108 | class HistoryViewModel, val database, var historySource, val today, val thisMonday, val lastMonday, val historyPage, val events, val date, val daysAgo |
 | `app/src/main/kotlin/com/jtech/zemer/viewmodels/HomeViewModel.kt` | 1537 | class HomeViewModel, val database, val syncUtils, class HomeArtistProfile, val id, val name, val isAmerican, val isIsraeli, val isFemale, val isFamous |
 | `app/src/main/kotlin/com/jtech/zemer/viewmodels/KidZoneViewModel.kt` | 73 | class KidZoneViewModel, val database, val syncUtils, val searchQuery, val syncProgress, val isSyncing, fun sync, val allArtists, val filteredByQuery, val thumbRequests |
@@ -247,4 +261,3 @@ The whitelist appears in these synchronization paths:
 | `app/src/main/kotlin/com/jtech/zemer/viewmodels/OnlineSearchSuggestionViewModel.kt` | 129 | class OnlineSearchSuggestionViewModel, val database, val query, val _viewState, val viewState, val filters, val whitelist, val matchingArtists, val result, val hideExplicit |
 | `app/src/main/kotlin/com/jtech/zemer/viewmodels/OnlineSearchViewModel.kt` | 286 | class OnlineSearchViewModel, val database, val query, val initialFilter, val filter, var summaryPage, val viewStateMap, val isSummaryLoading, val summaryError, val filterLoading |
 | `app/src/main/kotlin/com/jtech/zemer/viewmodels/WhitelistedArtistsViewModel.kt` | 82 | class WhitelistedArtistsViewModel, val database, val syncUtils, val searchQuery, val syncProgress, val isSyncing, val allArtists, val filteredByToggle, val entry, val filteredByQuery |
-| `app/src/main/kotlin/com/jtech/zemer/viewmodels/YouTubeBrowseViewModel.kt` | 52 | class YouTubeBrowseViewModel, val database, val browseId, val params, val result, val explicitFiltered |

@@ -3,9 +3,7 @@ package com.jtech.zemer.ui.screens.playlist
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
@@ -18,16 +16,8 @@ import androidx.compose.foundation.layout.union
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextField
-import androidx.compose.material3.TextFieldDefaults
-import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarScrollBehavior
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -36,60 +26,44 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.toMutableStateList
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
-import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalHapticFeedback
-import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.TextFieldValue
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.compose.ui.util.fastSumBy
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.navigation.NavController
-import coil3.compose.AsyncImage
 import com.jtech.zemer.LocalPlayerAwareWindowInsets
 import com.jtech.zemer.LocalPlayerConnection
 import com.jtech.zemer.R
-import com.jtech.zemer.constants.AlbumThumbnailSize
 import com.jtech.zemer.constants.SongSortDescendingKey
 import com.jtech.zemer.constants.SongSortType
 import com.jtech.zemer.constants.SongSortTypeKey
-import com.jtech.zemer.constants.ThumbnailCornerRadius
 import com.jtech.zemer.constants.VideoDownloadsInMusicKey
 import com.jtech.zemer.ui.component.SwitchPreference
 import com.jtech.zemer.db.entities.Song
 import com.jtech.zemer.extensions.toMediaItem
 import com.jtech.zemer.playback.queues.ListQueue
-import com.jtech.zemer.ui.component.AppBarTitle
-import com.jtech.zemer.ui.component.AutoResizeText
 import com.jtech.zemer.ui.component.DraggableScrollbar
 import com.jtech.zemer.ui.component.EmptyPlaceholder
-import com.jtech.zemer.ui.component.FontSizeRange
-import com.jtech.zemer.ui.component.IconButton
 import com.jtech.zemer.ui.component.LocalMenuState
 import com.jtech.zemer.ui.component.MoreVertMenuButton
+import com.jtech.zemer.ui.component.SearchableSelectableTopAppBar
 import com.jtech.zemer.ui.component.SelectionActions
 import com.jtech.zemer.ui.component.SongListItem
 import com.jtech.zemer.ui.component.SortHeader
-import com.jtech.zemer.ui.component.zemerTopAppBarColors
+import com.jtech.zemer.ui.component.songSortTypeLabel
 import com.jtech.zemer.ui.menu.SelectionSongMenu
 import com.jtech.zemer.ui.menu.SongMenu
 import com.jtech.zemer.ui.utils.ItemWrapper
-import com.jtech.zemer.ui.utils.backToMain
-import com.jtech.zemer.utils.makeTimeString
 import com.jtech.zemer.utils.rememberEnumPreference
 import com.jtech.zemer.utils.rememberPreference
 import com.jtech.zemer.viewmodels.DownloadedVideosViewModel
@@ -103,7 +77,6 @@ fun DownloadedVideosScreen(
 ) {
     val menuState = LocalMenuState.current
     val haptic = LocalHapticFeedback.current
-    val focusManager = LocalFocusManager.current
     val playerConnection = LocalPlayerConnection.current ?: return
     val isPlaying by playerConnection.isPlaying.collectAsState()
     val mediaMetadata by playerConnection.mediaMetadata.collectAsState()
@@ -112,8 +85,10 @@ fun DownloadedVideosScreen(
     val downloadedVideosTitle = stringResource(R.string.downloaded_videos)
     val mutableVideos = remember { mutableStateListOf<Song>() }
 
-    var isSearching by remember { mutableStateOf(false) }
-    var query by remember { mutableStateOf(TextFieldValue()) }
+    var isSearching by rememberSaveable { mutableStateOf(false) }
+    var query by rememberSaveable(stateSaver = TextFieldValue.Saver) {
+        mutableStateOf(TextFieldValue())
+    }
     val focusRequester = remember { FocusRequester() }
 
     LaunchedEffect(isSearching) {
@@ -186,94 +161,36 @@ fun DownloadedVideosScreen(
                 } else {
                     if (!isSearching) {
                         item(key = "playlist_header") {
-                            Column(
-                                verticalArrangement = Arrangement.spacedBy(12.dp),
-                                modifier = Modifier.padding(12.dp),
-                            ) {
-                                Row(
-                                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                ) {
-                                    Box(
-                                        contentAlignment = Alignment.Center,
-                                        modifier = Modifier
-                                            .size(AlbumThumbnailSize)
-                                            .clip(RoundedCornerShape(ThumbnailCornerRadius))
-                                            .fillMaxWidth(),
-                                    ) {
-                                        AsyncImage(
-                                            model = videos!![0].song.thumbnailUrl,
-                                            contentDescription = null,
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .clip(RoundedCornerShape(ThumbnailCornerRadius)),
+                            PlaylistDetailHeader(
+                                coverUrl = videos!![0].song.thumbnailUrl,
+                                title = stringResource(R.string.downloaded_videos),
+                                itemCount = videos!!.size,
+                                pluralRes = R.plurals.n_video,
+                                totalDurationMs = videoLength * 1000L,
+                                aggregateDownload = null,
+                                onAddToQueue = {
+                                    playerConnection.addToQueue(
+                                        items = videos!!.map { it.toMediaItem() },
+                                    )
+                                },
+                                onPlay = {
+                                    // Audio-first always (I2); video is a per-play in-player toggle (D3).
+                                    playerConnection.playQueue(
+                                        ListQueue(
+                                            title = downloadedVideosTitle,
+                                            items = videos!!.map { it.toMediaItem() },
                                         )
-                                    }
-
-                                    Column(
-                                        verticalArrangement = Arrangement.Center,
-                                    ) {
-                                        AutoResizeText(
-                                            text = stringResource(R.string.downloaded_videos),
-                                            fontWeight = FontWeight.Bold,
-                                            maxLines = 2,
-                                            overflow = TextOverflow.Ellipsis,
-                                            fontSizeRange = FontSizeRange(16.sp, 22.sp),
+                                    )
+                                },
+                                onShuffle = {
+                                    playerConnection.playQueue(
+                                        ListQueue(
+                                            title = downloadedVideosTitle,
+                                            items = videos!!.shuffled().map { it.toMediaItem() },
                                         )
-
-                                        Text(
-                                            text = pluralStringResource(
-                                                R.plurals.n_video,
-                                                videos!!.size,
-                                                videos!!.size,
-                                            ),
-                                            style = MaterialTheme.typography.titleMedium,
-                                            fontWeight = FontWeight.Normal,
-                                        )
-
-                                        Text(
-                                            text = makeTimeString(videoLength * 1000L),
-                                            style = MaterialTheme.typography.titleMedium,
-                                            fontWeight = FontWeight.Normal,
-                                        )
-
-                                        Row {
-                                            IconButton(
-                                                onClick = {
-                                                    playerConnection.addToQueue(
-                                                        items = videos!!.map { it.toMediaItem() },
-                                                    )
-                                                },
-                                            ) {
-                                                Icon(
-                                                    painter = painterResource(R.drawable.queue_music),
-                                                    contentDescription = null,
-                                                )
-                                            }
-                                        }
-                                    }
-                                }
-
-                                PlaylistPlayShuffleButtons(
-                                    onPlay = {
-                                        // Audio-first always (I2); video is a per-play in-player toggle (D3).
-                                        playerConnection.playQueue(
-                                            ListQueue(
-                                                title = downloadedVideosTitle,
-                                                items = videos!!.map { it.toMediaItem() },
-                                            )
-                                        )
-                                    },
-                                    onShuffle = {
-                                        playerConnection.playQueue(
-                                            ListQueue(
-                                                title = downloadedVideosTitle,
-                                                items = videos!!.shuffled().map { it.toMediaItem() },
-                                            )
-                                        )
-                                    },
-                                )
-                            }
+                                    )
+                                },
+                            )
                         }
                     }
 
@@ -299,14 +216,7 @@ fun DownloadedVideosScreen(
                                 sortDescending = sortDescending,
                                 onSortTypeChange = onSortTypeChange,
                                 onSortDescendingChange = onSortDescendingChange,
-                                sortTypeText = { sortType ->
-                                    when (sortType) {
-                                        SongSortType.CREATE_DATE -> R.string.sort_by_create_date
-                                        SongSortType.NAME -> R.string.sort_by_name
-                                        SongSortType.ARTIST -> R.string.sort_by_artist
-                                        SongSortType.PLAY_TIME -> R.string.sort_by_play_time
-                                    }
-                                },
+                                sortTypeText = ::songSortTypeLabel,
                                 modifier = Modifier.weight(1f),
                             )
                         }
@@ -379,103 +289,32 @@ fun DownloadedVideosScreen(
             headerItems = 2
         )
 
-        TopAppBar(
-            title = {
-                when {
-                    selection -> {
-                        val count = wrappedVideos.count { it.isSelected }
-                        AppBarTitle(
-                            text = pluralStringResource(R.plurals.n_video, count, count)
-                        )
-                    }
-                    isSearching -> {
-                        TextField(
-                            value = query,
-                            onValueChange = { query = it },
-                            placeholder = {
-                                Text(
-                                    text = stringResource(R.string.search),
-                                    style = MaterialTheme.typography.titleLarge
-                                )
-                            },
-                            singleLine = true,
-                            textStyle = MaterialTheme.typography.titleLarge,
-                            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-                            colors = TextFieldDefaults.colors(
-                                focusedContainerColor = Color.Transparent,
-                                unfocusedContainerColor = Color.Transparent,
-                                focusedIndicatorColor = Color.Transparent,
-                                unfocusedIndicatorColor = Color.Transparent,
-                                disabledIndicatorColor = Color.Transparent,
-                            ),
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .focusRequester(focusRequester)
-                        )
-                    }
-                    else -> {
-                        AppBarTitle(text = stringResource(R.string.downloaded_videos))
-                    }
-                }
-            },
-            navigationIcon = {
-                IconButton(
-                    onClick = {
-                        when {
-                            isSearching -> {
-                                isSearching = false
-                                query = TextFieldValue()
-                                focusManager.clearFocus()
-                            }
-                            selection -> {
-                                selection = false
-                            }
-                            else -> {
-                                navController.navigateUp()
-                            }
+        SearchableSelectableTopAppBar(
+            navController = navController,
+            idleTitle = stringResource(R.string.downloaded_videos),
+            isSearching = isSearching,
+            onIsSearchingChange = { isSearching = it },
+            query = query,
+            onQueryChange = { query = it },
+            focusRequester = focusRequester,
+            selectionCount = { if (selection) wrappedVideos.count { it.isSelected } else null },
+            selectionCountPlural = R.plurals.n_video,
+            onExitSelection = { selection = false },
+            actions = {
+                SelectionActions(
+                    wrapped = wrappedVideos,
+                    onMore = {
+                        menuState.show {
+                            SelectionSongMenu(
+                                songSelection = wrappedVideos.filter { it.isSelected }
+                                    .map { it.item },
+                                onDismiss = menuState::dismiss,
+                                clearAction = { selection = false },
+                            )
                         }
                     },
-                    onLongClick = {
-                        if (!isSearching && !selection) {
-                            navController.backToMain()
-                        }
-                    }
-                ) {
-                    Icon(
-                        painter = painterResource(
-                            if (selection) R.drawable.close else R.drawable.arrow_back
-                        ),
-                        contentDescription = null
-                    )
-                }
+                )
             },
-            actions = {
-                if (selection) {
-                    SelectionActions(
-                        wrapped = wrappedVideos,
-                        onMore = {
-                            menuState.show {
-                                SelectionSongMenu(
-                                    songSelection = wrappedVideos.filter { it.isSelected }
-                                        .map { it.item },
-                                    onDismiss = menuState::dismiss,
-                                    clearAction = { selection = false },
-                                )
-                            }
-                        },
-                    )
-                } else if (!isSearching) {
-                    IconButton(
-                        onClick = { isSearching = true }
-                    ) {
-                        Icon(
-                            painter = painterResource(R.drawable.search),
-                            contentDescription = null
-                        )
-                    }
-                }
-            },
-            colors = zemerTopAppBarColors(),
         )
     }
 }

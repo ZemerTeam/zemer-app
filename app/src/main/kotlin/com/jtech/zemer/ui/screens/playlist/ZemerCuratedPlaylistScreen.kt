@@ -18,7 +18,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -72,6 +71,7 @@ import com.jtech.zemer.ui.component.rememberChartRankMetrics
 import com.jtech.zemer.ui.component.chartAnchorLabel
 import com.jtech.zemer.ui.component.ChipsRow
 import com.jtech.zemer.ui.component.FontSizeRange
+import com.jtech.zemer.ui.component.ErrorRetryState
 import com.jtech.zemer.ui.component.LocalMenuState
 import com.jtech.zemer.ui.component.MoreVertMenuButton
 import com.jtech.zemer.ui.component.YouTubeListItem
@@ -437,22 +437,7 @@ fun ZemerCuratedPlaylistScreen(
 
                 UiState.Error -> {
                     item(key = "error_state") {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(32.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally
-                        ) {
-                            Text(
-                                text = stringResource(R.string.error_unknown),
-                                style = MaterialTheme.typography.titleLarge,
-                                color = MaterialTheme.colorScheme.error
-                            )
-                            Spacer(modifier = Modifier.height(16.dp))
-                            Button(onClick = viewModel::load) {
-                                Text(stringResource(R.string.retry))
-                            }
-                        }
+                        ErrorRetryState(onRetry = viewModel::load)
                     }
                 }
             }

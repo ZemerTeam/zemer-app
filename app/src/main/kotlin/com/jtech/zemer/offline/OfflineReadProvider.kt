@@ -12,6 +12,7 @@ import com.jtech.zemer.search.ZemerPodcastChannelResponse
 import com.jtech.zemer.search.ZemerPodcastGenrePageResponse
 import com.jtech.zemer.search.ZemerPodcastGenresResponse
 import com.jtech.zemer.search.ZemerPodcastResponse
+import com.jtech.zemer.search.ZemerPodcastsResponse
 import com.jtech.zemer.search.ZemerSearchResponse
 import com.jtech.zemer.utils.PodcastWhitelistCache
 import com.jtech.zemer.utils.WhitelistCache
@@ -33,8 +34,7 @@ import javax.inject.Singleton
  * The decoded corpus is cached behind a [SoftReference] — warm across repeated offline reads, but never
  * pinning heap the app needs elsewhere (the snapshot is tens of MB in memory). It is reloaded when the
  * on-disk manifest version changes (a sync landed) or the GC reclaimed it. All flags mirror the client:
- * `kidZone` is always false (the client sends `kidZone=0` for these surfaces) and `hideExplicit` is
- * applied by the shared mapper afterwards, not here.
+ * `kidZone` is always false (the client sends `kidZone=0` for these surfaces).
  *
  * The endpoints that are NOT reproducible offline — `/playlist` (live YouTube) and `/radio` (needs the
  * co-occurrence graph, not shipped) — have no method here; the repository leaves those server-only.
@@ -111,19 +111,25 @@ class OfflineReadProvider @Inject constructor(
 
     // Podcasts (server reply 4 — pre-gated to approved channels in the snapshot). The browse-grid + channel
     // allow-set come from the Room-backed content mirror, not here; these serve the drill-in reads.
-    suspend fun podcast(id: String, offset: Int, allowFemale: Boolean, blockVideos: Boolean): ZemerPodcastResponse? =
+    suspend fun podcast(id: String, offset: Int, allowFemale: Boolean, blockVideos: Boolean, kidZone: Boolean = false): ZemerPodcastResponse? =
         withContext(Dispatchers.IO) {
-            snapshot()?.let { offlinePodcast(it.corpus, id, offset, allowFemale, blockVideos, kidZone = false) }
+            snapshot()?.let { offlinePodcast(it.corpus, id, offset, allowFemale, blockVideos, kidZone) }
         }
 
-    suspend fun podcastChannel(id: String, allowFemale: Boolean, blockVideos: Boolean): ZemerPodcastChannelResponse? =
+    suspend fun podcastChannel(id: String, allowFemale: Boolean, blockVideos: Boolean, kidZone: Boolean = false): ZemerPodcastChannelResponse? =
         withContext(Dispatchers.IO) {
-            snapshot()?.let { offlinePodcastChannel(it.corpus, id, allowFemale, blockVideos, kidZone = false) }
+            snapshot()?.let { offlinePodcastChannel(it.corpus, id, allowFemale, blockVideos, kidZone) }
         }
 
-    suspend fun podcastsNewEpisodes(k: Int, allowFemale: Boolean, blockVideos: Boolean): ZemerNewEpisodesResponse? =
+    /** The `/podcasts` catalog (the KidZone grid's outage fallback with kidZone = true). */
+    suspend fun podcasts(allowFemale: Boolean, blockVideos: Boolean, kidZone: Boolean): ZemerPodcastsResponse? =
         withContext(Dispatchers.IO) {
-            snapshot()?.let { offlinePodcastsNewEpisodes(it.corpus, k, allowFemale, blockVideos, kidZone = false) }
+            snapshot()?.let { offlinePodcasts(it.corpus, allowFemale, blockVideos, kidZone) }
+        }
+
+    suspend fun podcastsNewEpisodes(k: Int, allowFemale: Boolean, blockVideos: Boolean, kidZone: Boolean = false): ZemerNewEpisodesResponse? =
+        withContext(Dispatchers.IO) {
+            snapshot()?.let { offlinePodcastsNewEpisodes(it.corpus, k, allowFemale, blockVideos, kidZone) }
         }
 
     suspend fun podcastGenres(allowFemale: Boolean, blockVideos: Boolean): ZemerPodcastGenresResponse? =

@@ -16,6 +16,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
@@ -98,6 +100,7 @@ fun WhitelistedArtistListItem(
     @SuppressLint("ModifierParameter") modifier: Modifier = Modifier
 ) = ListItem(
     title = artist.artist.name,
+    titleMarquee = true,
     subtitle = "", // No song count for whitelisted artists
     badges = {}, // No badges for whitelisted artists
     thumbnailContent = {
@@ -178,6 +181,8 @@ fun WhitelistedArtistGridItem(
     @SuppressLint("ModifierParameter") modifier: Modifier = Modifier
 ) = GridItem(
     title = artist.artist.name,
+    titleMarquee = true,
+    centerContent = true,
     subtitle = "", // No song count for whitelisted artists
     badges = {}, // No badges for whitelisted artists
     thumbnailContent = {
@@ -412,8 +417,8 @@ fun WhitelistedPodcastListItem(
     @SuppressLint("ModifierParameter") modifier: Modifier = Modifier
 ) = ListItem(
     title = podcast.name,
-    subtitle = "",
-    badges = {},
+    titleMarquee = true,
+    subtitle = podcastShowCountSubtitle(podcast),
     thumbnailContent = {
         if (podcast.thumbnailUrl.isNullOrBlank()) {
             LaunchedEffect(podcast.channelId) { onRequestThumb() }
@@ -469,8 +474,9 @@ fun WhitelistedPodcastGridItem(
     @SuppressLint("ModifierParameter") modifier: Modifier = Modifier
 ) = GridItem(
     title = podcast.name,
-    subtitle = "",
-    badges = {},
+    titleMarquee = true,
+    centerContent = true,
+    subtitle = podcastShowCountSubtitle(podcast),
     thumbnailContent = {
         if (podcast.thumbnailUrl.isNullOrBlank()) {
             LaunchedEffect(podcast.channelId) { onRequestThumb() }
@@ -520,3 +526,16 @@ fun WhitelistedPodcastGridItem(
 private fun NavController.openWhitelistedPodcast(podcast: PodcastWhitelistEntity) {
     whitelistedPodcastRoute(null, podcast.channelId)?.let(::navigate)
 }
+
+/**
+ * The browse tile subtitle for a whitelisted podcast channel: its mirror-synced show count
+ * ("3 shows"), hidden when the mirror hasn't counted any. Shared by the list + grid rows.
+ */
+@Composable
+private fun podcastShowCountSubtitle(podcast: PodcastWhitelistEntity): String =
+    if (podcast.showCount > 0) {
+        pluralStringResource(R.plurals.n_show, podcast.showCount, podcast.showCount)
+    } else {
+        ""
+    }
+

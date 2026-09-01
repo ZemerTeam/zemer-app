@@ -58,6 +58,15 @@ export const RETIRED = [
     osName: "Android", osVersion: "12", deviceMake: "Oculus", deviceModel: "Quest 3", androidSdkVersion: "32",
     loginSupported: false, useSignatureTimestamp: false },
 
+  // The last-living VR build (1.65.10, eureka UA) cleared the bot gate the older variants hit, but a
+  // whole-song drain (client-fulldownload) showed it 403s after 0 bytes - it can resolve a URL but
+  // delivers none of the media, so it was removed from the app's fallback chain (2026-08-25). The
+  // surviving fallbacks (VISIONOS/VISIONOS_0_1/WEB_CREATOR/TVHTML5_SIMPLY) drain whole songs.
+  { key: "ANDROID_VR_1_65_10", clientName: "ANDROID_VR", clientVersion: "1.65.10", clientId: "28",
+    userAgent: "com.google.android.apps.youtube.vr.oculus/1.65.10 (Linux; U; Android 12L; eureka-user Build/SQ3A.220605.009.A1) gzip",
+    osName: "Android", osVersion: "12L", deviceMake: "Oculus", deviceModel: "Quest 3", androidSdkVersion: "32",
+    loginSupported: false, useSignatureTimestamp: false },
+
   { key: "TVHTML5_SIMPLY_EMBEDDED_PLAYER", clientName: "TVHTML5_SIMPLY_EMBEDDED_PLAYER", clientVersion: "2.0", clientId: "85",
     userAgent: "Mozilla/5.0 (PlayStation; PlayStation 4/12.02) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.4 Safari/605.1.15",
     loginSupported: true, useSignatureTimestamp: true, isEmbedded: true },

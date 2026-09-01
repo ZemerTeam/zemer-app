@@ -2,18 +2,15 @@ package com.jtech.zemer.ui.utils
 
 import android.text.format.Formatter
 import androidx.annotation.DrawableRes
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
@@ -45,8 +42,7 @@ import com.jtech.zemer.db.entities.Song
 import com.jtech.zemer.utils.rememberEnumPreference
 import com.jtech.zemer.ui.component.Material3MenuGroup
 import com.jtech.zemer.ui.component.Material3MenuItemData
-import com.jtech.zemer.ui.component.shimmer.ShimmerHost
-import com.jtech.zemer.ui.component.shimmer.TextPlaceholder
+import com.jtech.zemer.ui.component.ZemerLoadingSection
 import com.jtech.zemer.extensions.copyToClipboard
 import com.metrolist.innertube.YouTube
 import com.metrolist.innertube.models.MediaInfo
@@ -98,23 +94,21 @@ fun ShowMediaInfo(videoId: String, isEpisodeHint: Boolean = false) {
             .padding(top = 8.dp, bottom = 16.dp),
     ) {
         // In DIRECT mode wait for the YouTube media info; in RELAY mode it may never load (filtered
-        // device), so render from local `song` + the relay info rather than shimmering forever.
+        // device), so render from local `song` + the relay info rather than spinning forever.
         if (info == null && !relayMode) {
-            ShimmerHost {
-                Row(
-                    horizontalArrangement = Arrangement.Center,
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.fillMaxWidth().padding(all = 16.dp),
-                ) { TextPlaceholder() }
-            }
+            ZemerLoadingSection()
             return
         }
 
         val unknown = stringResource(R.string.unknown)
         val notApplicable = stringResource(R.string.not_applicable)
         // Player hash + cipher date apply only to deciphered web clients; direct-URL clients
-        // (VISIONOS/ANDROID_VR/IOS) never run the cipher, so show "N/A", not "Unknown".
-        val isWebStream = currentFormat?.streamClient in setOf("WEB_REMIX", "WEB_CREATOR", "TVHTML5", "TVHTML5_SIMPLY", "MWEB", "WEB")
+        // (VISIONOS, plus retired ones like ANDROID_VR/IOS still recorded in old FormatEntity rows)
+        // never ran the cipher, so show "N/A", not "Unknown". A SABR stream labels its client
+        // "WEB_REMIX (SABR)" etc. - strip the suffix so a web SABR client (which DOES run the
+        // n-transform cipher) still resolves its player hash, while VISIONOS (SABR) stays N/A.
+        val baseStreamClient = currentFormat?.streamClient?.substringBefore(" (")
+        val isWebStream = baseStreamClient in setOf("WEB_REMIX", "WEB_CREATOR", "TVHTML5", "TVHTML5_SIMPLY", "MWEB", "WEB")
         val playerHash = if (isWebStream) CipherDeobfuscator.lastUsedPlayerHash else notApplicable
         val cipherSupportAdded =
             if (isWebStream) PlayerDatesStore.get(CipherDeobfuscator.lastUsedPlayerHash) else notApplicable

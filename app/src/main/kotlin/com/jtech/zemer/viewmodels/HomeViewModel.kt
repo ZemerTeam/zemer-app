@@ -718,14 +718,25 @@ class HomeViewModel @Inject constructor(
             // row rather than falling back to a scrape. All featured content is therefore Zemer-sourced.
             val albumsPool = homeRows?.albums.orEmpty().filter { it.isAllowedRanked() }
             val artistsPool = homeRows?.artists.orEmpty().filter { it.isAllowedRanked() }
+            // Featured Videos is the Videos-tab HERO CAROUSEL, which crops each cover to 16:9 - so it must
+            // show only ACTUAL filmed videos, not audio singles with a designed cover graphic (those are
+            // typed OMV with a real 16:9 thumbnail, so no client-side signal separates them). The server
+            // flags real videos per topVideos row (a CLIP classifier); the app keeps the FULL pool for the
+            // See-all and filters only the HERO to the flagged ids. Absent/false = out of the hero (the
+            // conservative default). Contract: handoff-docs/zemer-app-featured-videos-real-videos-request.md.
             val videosPool = homeRows?.videos.orEmpty().filter { it.isAllowedRanked() }
+            val realVideoIds = homeRows?.realVideoIds.orEmpty()
+            val realVideosPool = videosPool.filter { it.id in realVideoIds }
             val communityPool = homeRows?.community.orEmpty().filter { it.isAllowedRanked() }
             val finalFeaturedAlbums = rotateByArtist(albumsPool, maxPerArtist = 1, target = 20)
             val finalFeaturedArtists = rotateByArtist(artistsPool, maxPerArtist = 1, target = 20)
-            // Videos are content-limited (only ~19 whitelisted music videos clear the 30-day reach floor,
-            // ~14 distinct artists) — a 20-slot row would just show all of them every time. Cap the shown
-            // count so the row stays curated AND has headroom to turn over on refresh (server RESPONSE 18).
-            val finalFeaturedVideos = rotateByArtist(videosPool, maxPerArtist = 1, target = 8)
+            // The hero shows the one-per-artist set of REAL (server-flagged) videos, up to 20. If the pool
+            // has NONE flagged real - a heavily-filtered user whose ranked videos are all cover-graphics, an
+            // older server that omits the flag, or the offline snapshot (no CLIP classifier) - fall back to
+            // the FULL pool so the shelf AND its See-all never vanish (an empty carousel returns early,
+            // taking the title + See-all arrow with it - worse than showing cover-graphics). The See-all
+            // (displayedFirst below) shows the WHOLE videosPool either way.
+            val finalFeaturedVideos = rotateByArtist(realVideosPool.ifEmpty { videosPool }, maxPerArtist = 1, target = 20)
             // Community has no artist id (so no rotateByArtist recent-avoidance): shuffle, then prefer the
             // playlists NOT shown on the previous load so a pull-to-refresh turns the 8-of-16 row over fully.
             val communityShuffled = communityPool.shuffled(Random(System.nanoTime()))
@@ -939,9 +950,7 @@ class HomeViewModel @Inject constructor(
                 viewModelScope.launch(Dispatchers.IO) {
                     syncUtils.syncLikedSongs()
                     syncUtils.syncLibrarySongs()
-                    syncUtils.syncUploadedSongs()
                     syncUtils.syncLikedAlbums()
-                    syncUtils.syncUploadedAlbums()
                     syncUtils.syncArtistsSubscriptions()
                     syncUtils.syncSavedPlaylists()
                 }

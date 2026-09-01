@@ -13,10 +13,8 @@ import androidx.navigation.NavType
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
 import com.jtech.zemer.BuildConfig
-import com.jtech.zemer.ui.screens.artist.ArtistAlbumsScreen
 import com.jtech.zemer.ui.screens.artist.ArtistScreen
 import com.jtech.zemer.ui.screens.artist.ArtistSectionScreen
-import com.jtech.zemer.ui.screens.artist.ArtistSongsScreen
 import com.jtech.zemer.ui.screens.library.LibraryScreen
 import com.jtech.zemer.ui.screens.statuses.SavedStatusScreen
 import com.jtech.zemer.ui.screens.statuses.StatusDownloadsScreen
@@ -49,7 +47,6 @@ import com.jtech.zemer.ui.screens.settings.StorageSettings
 import com.jtech.zemer.ui.screens.settings.ThemeScreen
 import com.jtech.zemer.ui.screens.settings.StreamSourceSettings
 import com.jtech.zemer.ui.screens.settings.UpdaterScreen
-import com.jtech.zemer.ui.screens.settings.integrations.IntegrationScreen
 import androidx.compose.runtime.LaunchedEffect
 import com.jtech.zemer.viewmodels.HomeSeeAllRow
 import com.jtech.zemer.viewmodels.HomeViewModel
@@ -98,10 +95,17 @@ fun NavGraphBuilder.navigationBuilder(
         }
     }
     composable(
-        route = "online_podcast/{podcastId}",
+        // kidZone: the KidZone-navigation-context flag (like isPodcastChannel) - a show opened from
+        // the KidZone podcasts grid keeps every server call restricted to kid content (drill-in
+        // discipline; the server 404s non-kid shows under it as the second layer).
+        route = "online_podcast/{podcastId}?kidZone={kidZone}",
         arguments = listOf(
             navArgument("podcastId") {
                 type = NavType.StringType
+            },
+            navArgument("kidZone") {
+                type = NavType.BoolType
+                defaultValue = false
             },
         ),
     ) {
@@ -110,7 +114,7 @@ fun NavGraphBuilder.navigationBuilder(
         }
     }
     composable(Screens.KidZone.route) {
-        KidZoneScreen(navController)
+        KidZoneScreen(navController, searchBarScrollBehavior)
     }
     composable(
         Screens.Library.route,
@@ -122,15 +126,6 @@ fun NavGraphBuilder.navigationBuilder(
     }
     composable("recognition_history") {
         RecognitionHistoryScreen(navController)
-    }
-    composable("stats") {
-        StatsScreen(navController)
-    }
-    composable("account") {
-        AccountScreen(navController, scrollBehavior)
-    }
-    composable("new_release") {
-        NewReleaseScreen(navController, scrollBehavior)
     }
     composable("latest_releases") {
         LatestReleasesScreen(navController, scrollBehavior)
@@ -197,7 +192,7 @@ fun NavGraphBuilder.navigationBuilder(
         else HomeSeeAllScreen(navController, scrollBehavior, row)
     }
     composable(
-        route = "artist_section/{artistId}?title={title}&isPodcastChannel={isPodcastChannel}",
+        route = "artist_section/{artistId}?title={title}&isPodcastChannel={isPodcastChannel}&kidZone={kidZone}",
         arguments = listOf(
             navArgument("artistId") { type = NavType.StringType },
             navArgument("title") {
@@ -207,6 +202,11 @@ fun NavGraphBuilder.navigationBuilder(
             // Carried through so the section's ArtistViewModel loads the podcast-channel endpoint
             // (/podcast-channel) rather than the music /artist path for a UC... channel id.
             navArgument("isPodcastChannel") {
+                type = NavType.BoolType
+                defaultValue = false
+            },
+            // KidZone navigation context - the see-all must stay kid-scoped (see the artist route).
+            navArgument("kidZone") {
                 type = NavType.BoolType
                 defaultValue = false
             },
@@ -279,13 +279,18 @@ fun NavGraphBuilder.navigationBuilder(
         AlbumScreen(navController, scrollBehavior)
     }
     composable(
-        route = "artist/{artistId}?isPodcastChannel={isPodcastChannel}",
+        route = "artist/{artistId}?isPodcastChannel={isPodcastChannel}&kidZone={kidZone}",
         arguments =
         listOf(
             navArgument("artistId") {
                 type = NavType.StringType
             },
             navArgument("isPodcastChannel") {
+                type = NavType.BoolType
+                defaultValue = false
+            },
+            // KidZone navigation context - see the online_podcast route.
+            navArgument("kidZone") {
                 type = NavType.BoolType
                 defaultValue = false
             },
@@ -298,27 +303,6 @@ fun NavGraphBuilder.navigationBuilder(
             return@composable
         }
         ArtistScreen(navController, scrollBehavior)
-    }
-    composable(
-        route = "artist/{artistId}/songs",
-        arguments =
-        listOf(
-            navArgument("artistId") {
-                type = NavType.StringType
-            },
-        ),
-    ) {
-        ArtistSongsScreen(navController, scrollBehavior)
-    }
-    composable(
-        route = "artist/{artistId}/albums",
-        arguments = listOf(
-            navArgument("artistId") {
-                type = NavType.StringType
-            }
-        )
-    ) {
-        ArtistAlbumsScreen(navController, scrollBehavior)
     }
     // The full-screen JewishStatus story viewer, opened from the Home "Music Status" row by the tapped
     // creator's STABLE id (the creators list comes from the shared session cache; the viewer resolves
@@ -486,9 +470,6 @@ fun NavGraphBuilder.navigationBuilder(
     }
     composable("settings/backup_restore") {
         BackupAndRestore(navController, scrollBehavior)
-    }
-    composable("settings/integrations") {
-        IntegrationScreen(navController, scrollBehavior)
     }
     composable("settings/updater") {
         UpdaterScreen(navController, scrollBehavior)

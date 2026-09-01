@@ -1,5 +1,11 @@
 # Remote stream-client config — full plan
 
+> **Post-plan update (2026-09-01, at merge time):** `ANDROID_VR_1_65_10` (403s after 0 bytes on a
+> whole-song drain, removed from main 2026-08-25) and `MWEB` (attestation-walled on both transports,
+> removed with the SABR work 2026-09) were proven dead before this landed, so the shipped table,
+> the compiled floor, the families list and the legacy-key migration cover FOUR families:
+> WEB_REMIX, VISIONOS, WEB_CREATOR, TVHTML5. The chain/family lists below are the plan as written.
+
 > **Status 2026-08-16: IMPLEMENTED** on `feat/remote-stream-clients` (zemer-app) +
 > `feat/remote-stream-clients` (zemer-cipher). PR 1 (flag-ification), PR 2 (parser/store/asset)
 > and PR 3 (end-to-end wiring, dynamic settings, migration, harness loader + parity + deploy

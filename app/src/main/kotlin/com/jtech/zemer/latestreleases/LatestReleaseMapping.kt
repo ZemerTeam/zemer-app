@@ -15,5 +15,4 @@ fun LatestRelease.toAlbumItem(): AlbumItem = AlbumItem(
     artists = listOf(Artist(name = artistName, id = artistId)),
     year = year,
     thumbnail = thumbnail,
-    explicit = false,
 )

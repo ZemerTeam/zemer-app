@@ -23,12 +23,12 @@ class SubsetReadLayerTest {
     private val fem = SubArtist("UCf", "Franciska", "tf", isFemale = true, isChasid = false, isKidZone = false)
     private val kid = SubArtist("UCk", "KidStar", "tk", isFemale = false, isChasid = false, isKidZone = true)
 
-    // --- tracks (videoId, title, artistId, isVideo, explicit, durationSec, playCount, uploadDate) --
-    private val v1 = SubTrack("v1", "Song One", "UCa", false, false, 200, 100, null)
-    private val v2 = SubTrack("v2", "Song Two", "UCa", false, false, 100, 300, null)
-    private val v3 = SubTrack("v3", "No Plays", "UCa", false, false, 150, null, null)
-    private val v4 = SubTrack("v4", "A Video", "UCa", true, false, 50, 500, null)
-    private val v5 = SubTrack("v5", "Duet (feat. Franciska)", "UCa", false, false, 120, 999, null) // credited female
+    // --- tracks (videoId, title, artistId, isVideo, durationSec, playCount, uploadDate) --
+    private val v1 = SubTrack("v1", "Song One", "UCa", false, 200, 100, null)
+    private val v2 = SubTrack("v2", "Song Two", "UCa", false, 100, 300, null)
+    private val v3 = SubTrack("v3", "No Plays", "UCa", false, 150, null, null)
+    private val v4 = SubTrack("v4", "A Video", "UCa", true, 50, 500, null)
+    private val v5 = SubTrack("v5", "Duet (feat. Franciska)", "UCa", false, 120, 999, null) // credited female
 
     // --- albums (id, playlistId, title, artistId, type, year, thumbnail, uploadDate) --------------
     private val al1 = SubAlbum("al1", "OLAK1", "Album X", "UCa", "album", 2020, "art1", null)

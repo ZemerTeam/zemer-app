@@ -86,8 +86,6 @@ import com.jtech.zemer.constants.MiniPlayerHeight
 import com.jtech.zemer.constants.PlayerBackgroundStyle
 import com.jtech.zemer.constants.PlayerBackgroundStyleKey
 import com.jtech.zemer.constants.SwipeSensitivityKey
-import com.jtech.zemer.constants.ThumbnailCornerRadius
-import com.jtech.zemer.constants.UseNewMiniPlayerDesignKey
 import com.jtech.zemer.db.entities.ArtistEntity
 import com.jtech.zemer.extensions.togglePlayPause
 import com.jtech.zemer.models.MediaMetadata
@@ -96,6 +94,7 @@ import com.jtech.zemer.utils.rememberPreference
 import androidx.compose.ui.graphics.toArgb
 import kotlinx.coroutines.launch
 import com.jtech.zemer.ui.component.focusBorder
+import com.jtech.zemer.ui.component.gentleMarquee
 import kotlin.math.absoluteValue
 import kotlin.math.roundToInt
 import androidx.compose.ui.res.stringResource
@@ -109,9 +108,6 @@ data class MiniPlayerFocusTargets(
     val down: FocusRequester?
 )
 
-private fun Modifier.disableTvFocus(): Modifier =
-    this.focusable(false).focusProperties { canFocus = false }
-
 @SuppressLint("ConfigurationScreenWidthHeight")
 @Composable
 fun MiniPlayer(
@@ -122,38 +118,14 @@ fun MiniPlayer(
     allowFocus: Boolean = true,
     focusTargets: MiniPlayerFocusTargets? = null,
 ) {
-    val useNewMiniPlayerDesign by rememberPreference(UseNewMiniPlayerDesignKey, true)
-
-    if (useNewMiniPlayerDesign) {
-        NewMiniPlayer(
-            position = position,
-            duration = duration,
-            modifier = modifier,
-            pureBlack = pureBlack,
-            allowFocus = allowFocus,
-            focusTargets = focusTargets
-        )
-    } else {
-        // NEW: Wrap LegacyMiniPlayer in a Box to allow alignment on tablet landscape.
-        // The outer Box fills the width, providing a container for the inner player to be aligned within.
-        Box(modifier = modifier.fillMaxWidth()) {
-            LegacyMiniPlayer(
-                position = position,
-                duration = duration,
-                // NEW: Align the player to the end if it's a tablet in landscape.
-                // This modifier is passed to LegacyMiniPlayer and applied to its root Box.
-                modifier = if (
-                    LocalConfiguration.current.screenWidthDp >= 600 &&
-                    LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
-                ) {
-                    Modifier.align(Alignment.CenterEnd)
-                } else {
-                    Modifier.align(Alignment.Center)
-                },
-                pureBlack = pureBlack
-            )
-        }
-    }
+    NewMiniPlayer(
+        position = position,
+        duration = duration,
+        modifier = modifier,
+        pureBlack = pureBlack,
+        allowFocus = allowFocus,
+        focusTargets = focusTargets
+    )
 }
 
 @SuppressLint("ConfigurationScreenWidthHeight")
@@ -542,7 +514,7 @@ private fun NewMiniPlayer(
                                 fontWeight = FontWeight.Medium,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
-                                modifier = Modifier.basicMarquee(iterations = 1, initialDelayMillis = 3000, velocity = 30.dp),
+                                modifier = Modifier.gentleMarquee(),
                             )
                         }
 
@@ -566,7 +538,7 @@ private fun NewMiniPlayer(
                                         style = MaterialTheme.typography.bodySmall,
                                         maxLines = 1,
                                         overflow = TextOverflow.Ellipsis,
-                                        modifier = Modifier.basicMarquee(iterations = 1, initialDelayMillis = 3000, velocity = 30.dp),
+                                        modifier = Modifier.gentleMarquee(),
                                     )
                                 }
                             }
@@ -754,350 +726,6 @@ private fun NewMiniPlayer(
                             else
                                 subtitleColor,
                             modifier = Modifier.size(20.dp)
-                        )
-                    }
-                }
-            }
-        }
-    }
-}
-
-@SuppressLint("ConfigurationScreenWidthHeight")
-@Composable
-private fun LegacyMiniPlayer(
-    position: () -> Long,
-    duration: () -> Long,
-    modifier: Modifier = Modifier,
-    pureBlack: Boolean,
-) {
-    val playerConnection = LocalPlayerConnection.current ?: return
-    val isPlaying by playerConnection.isPlaying.collectAsState()
-    val playbackState by playerConnection.playbackState.collectAsState()
-    val error by playerConnection.error.collectAsState()
-    val isStationBroadcast by playerConnection.isStationBroadcast.collectAsState()
-    val mediaMetadata by playerConnection.mediaMetadata.collectAsState()
-    val canSkipNext by playerConnection.canSkipNext.collectAsState()
-    val canSkipPrevious by playerConnection.canSkipPrevious.collectAsState()
-
-    LocalView.current
-    val layoutDirection = LocalLayoutDirection.current
-    val coroutineScope = rememberCoroutineScope()
-    val swipeSensitivity by rememberPreference(SwipeSensitivityKey, 0.73f)
-    val swipeThumbnail by rememberPreference(com.jtech.zemer.constants.SwipeThumbnailKey, true)
-
-    // NEW: Get screen configuration to determine if it's a tablet in landscape mode.
-    val configuration = LocalConfiguration.current
-    val isTabletLandscape = configuration.screenWidthDp >= 600 &&
-        configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
-
-    val offsetXAnimatable = remember { Animatable(0f) }
-    var dragStartTime by remember { mutableLongStateOf(0L) }
-    var totalDragDistance by remember { mutableFloatStateOf(0f) }
-
-    val animationSpec = spring<Float>(
-        dampingRatio = Spring.DampingRatioNoBouncy,
-        stiffness = Spring.StiffnessLow
-    )
-
-    fun calculateAutoSwipeThreshold(swipeSensitivity: Float): Int {
-        return (600 / (1f + kotlin.math.exp(-(-11.44748 * swipeSensitivity + 9.04945)))).roundToInt()
-    }
-    val autoSwipeThreshold = calculateAutoSwipeThreshold(swipeSensitivity)
-
-    Box(
-        modifier = modifier
-            .then(
-                // NEW: Conditionally set the width based on the device configuration.
-                if (isTabletLandscape) {
-                    Modifier.width(500.dp)
-                } else {
-                    Modifier.fillMaxWidth()
-                }
-            )
-            .height(MiniPlayerHeight)
-            .windowInsetsPadding(WindowInsets.systemBars.only(WindowInsetsSides.Horizontal))
-            // NEW: Clip the shape BEFORE applying the background.
-            // This ensures that the background is applied to the clipped, rounded shape,
-            // preventing sharp edges when the width is reduced.
-            .clip(RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp))
-            .background(
-                if (pureBlack)
-                    Color.Black
-                else
-                    MaterialTheme.colorScheme.surfaceContainer // Fixed background independent of player background
-            )
-            .let { baseModifier ->
-                if (swipeThumbnail) {
-                    baseModifier.pointerInput(Unit) {
-                        detectHorizontalDragGestures(
-                            onDragStart = {
-                                dragStartTime = System.currentTimeMillis()
-                                totalDragDistance = 0f
-                            },
-                            onDragCancel = {
-                                coroutineScope.launch {
-                                    offsetXAnimatable.animateTo(
-                                        targetValue = 0f,
-                                        animationSpec = animationSpec
-                                    )
-                                }
-                            },
-                            onHorizontalDrag = { _, dragAmount ->
-                                val adjustedDragAmount =
-                                    if (layoutDirection == LayoutDirection.Rtl) -dragAmount else dragAmount
-                                // A broadcast has no transport: the swipe gesture acts on the raw
-                                // player and would bypass the session command mask.
-                                val canSkipPrevious = !isStationBroadcast && playerConnection.player.previousMediaItemIndex != -1
-                                val canSkipNext = !isStationBroadcast && playerConnection.player.nextMediaItemIndex != -1
-                                val allowLeft = adjustedDragAmount < 0 && canSkipNext
-                                val allowRight = adjustedDragAmount > 0 && canSkipPrevious
-                                if (allowLeft || allowRight) {
-                                    totalDragDistance += kotlin.math.abs(adjustedDragAmount)
-                                    coroutineScope.launch {
-                                        offsetXAnimatable.snapTo(offsetXAnimatable.value + adjustedDragAmount)
-                                    }
-                                }
-                            },
-                            onDragEnd = {
-                                val dragDuration = System.currentTimeMillis() - dragStartTime
-                                val velocity = if (dragDuration > 0) totalDragDistance / dragDuration else 0f
-                                val currentOffset = offsetXAnimatable.value
-
-                                val minDistanceThreshold = 50f
-                                val velocityThreshold = (swipeSensitivity * -8.25f) + 8.5f
-
-                                val shouldChangeSong = (
-                                    kotlin.math.abs(currentOffset) > minDistanceThreshold &&
-                                    velocity > velocityThreshold
-                                ) || (kotlin.math.abs(currentOffset) > autoSwipeThreshold)
-
-                                if (shouldChangeSong) {
-                                    val isRightSwipe = currentOffset > 0
-
-                                    if (isRightSwipe && canSkipPrevious) {
-                                        playerConnection.player.seekToPreviousMediaItem()
-                                    } else if (!isRightSwipe && canSkipNext) {
-                                        playerConnection.player.seekToNext()
-                                    }
-                                }
-
-                                coroutineScope.launch {
-                                    offsetXAnimatable.animateTo(
-                                        targetValue = 0f,
-                                        animationSpec = animationSpec
-                                    )
-                                }
-                            }
-                        )
-                    }
-                } else {
-                    baseModifier
-                }
-            }
-    ) {
-        // Draw-phase progress bar: reads position()/duration() at draw time so a
-        // per-second position change no longer recomposes this composable.
-        val legacyProgressColor = MaterialTheme.colorScheme.primary
-        val legacyTrackColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.24f)
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(2.dp)
-                .align(Alignment.BottomCenter)
-                .drawWithContent {
-                    drawContent()
-                    drawRect(color = legacyTrackColor)
-                    val d = duration()
-                    if (d > 0) {
-                        val fraction = (position().toFloat() / d).coerceIn(0f, 1f)
-                        drawRect(
-                            color = legacyProgressColor,
-                            size = androidx.compose.ui.geometry.Size(size.width * fraction, size.height)
-                        )
-                    }
-                },
-        )
-
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier
-                .fillMaxSize()
-                .offset { IntOffset(offsetXAnimatable.value.roundToInt(), 0) }
-                .padding(end = 12.dp),
-        ) {
-            Box(Modifier.weight(1f)) {
-                mediaMetadata?.let {
-                    LegacyMiniMediaInfo(
-                        mediaMetadata = it,
-                        error = error,
-                        pureBlack = pureBlack,
-                        isStationBroadcast = isStationBroadcast,
-                        modifier = Modifier.padding(horizontal = 6.dp),
-                    )
-                }
-            }
-
-            rememberCastButtonState()?.let { castState ->
-                IconButton(onClick = castState.onClick) {
-                    CastIcon(
-                        connected = castState.connected,
-                        idleTint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
-                        size = 24.dp,
-                    )
-                }
-            }
-
-            IconButton(
-                onClick = {
-                    playerConnection.playPauseOrReplay(playbackState == Player.STATE_ENDED)
-                },
-            ) {
-                Icon(
-                    painter = painterResource(
-                        if (playbackState == Player.STATE_ENDED) {
-                            R.drawable.replay
-                        } else if (isPlaying) {
-                            R.drawable.pause
-                        } else {
-                            R.drawable.play
-                        },
-                    ),
-                    contentDescription = null,
-                )
-            }
-
-            IconButton(
-                enabled = canSkipNext,
-                onClick = playerConnection::seekToNext,
-            ) {
-                Icon(
-                    painter = painterResource(R.drawable.skip_next),
-                    contentDescription = null,
-                )
-            }
-        }
-
-        // Visual indicator
-        if (offsetXAnimatable.value.absoluteValue > 50f) {
-            Box(
-                modifier = Modifier
-                    .align(if (offsetXAnimatable.value > 0) Alignment.CenterStart else Alignment.CenterEnd)
-                    .padding(horizontal = 16.dp)
-            ) {
-                Icon(
-                    painter = painterResource(
-                        if (offsetXAnimatable.value > 0) R.drawable.skip_previous else R.drawable.skip_next
-                    ),
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary.copy(
-                        alpha = (offsetXAnimatable.value.absoluteValue / autoSwipeThreshold).coerceIn(0f, 1f)
-                    ),
-                    modifier = Modifier.size(24.dp)
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun LegacyMiniMediaInfo(
-    mediaMetadata: MediaMetadata,
-    error: PlaybackException?,
-    pureBlack: Boolean,
-    isStationBroadcast: Boolean,
-    modifier: Modifier = Modifier,
-) {
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        modifier = modifier,
-    ) {
-        Box(
-            modifier = Modifier
-                .padding(6.dp)
-                .size(48.dp)
-                .clip(RoundedCornerShape(ThumbnailCornerRadius))
-        ) {
-            // Simple background instead of expensive blur
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(MaterialTheme.colorScheme.surfaceVariant)
-            )
-
-            // Main thumbnail
-            AsyncImage(
-                model = mediaMetadata.thumbnailUrl,
-                contentDescription = null,
-                contentScale = ContentScale.Fit,
-                modifier = Modifier
-                    .fillMaxSize()
-                    .clip(RoundedCornerShape(ThumbnailCornerRadius)),
-            )
-
-            androidx.compose.animation.AnimatedVisibility(
-                visible = error != null,
-                enter = fadeIn(),
-                exit = fadeOut(),
-            ) {
-                Box(
-                    Modifier
-                        .fillMaxSize()
-                        .background(
-                            color = if (pureBlack) Color.Black else Color.Black.copy(alpha = 0.6f),
-                            shape = RoundedCornerShape(ThumbnailCornerRadius),
-                        ),
-                ) {
-                    Icon(
-                        painter = painterResource(R.drawable.info),
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.error,
-                        modifier = Modifier.align(Alignment.Center),
-                    )
-                }
-            }
-        }
-
-        Column(
-            modifier = Modifier
-                .weight(1f)
-                .padding(horizontal = 6.dp),
-        ) {
-            AnimatedContent(
-                targetState = mediaMetadata.title,
-                transitionSpec = { fadeIn() togetherWith fadeOut() },
-                label = "",
-            ) { title ->
-                Text(
-                    text = title,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.basicMarquee(),
-                )
-            }
-
-            if (mediaMetadata.artists.any { it.name.isNotBlank() }) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    // A broadcast identifies itself on the mini bar too (handoff par. 5).
-                    if (isStationBroadcast) {
-                        StationLiveBadge(
-                            accentColor = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.padding(end = 6.dp),
-                        )
-                    }
-                    AnimatedContent(
-                        targetState = mediaMetadata.artists.joinToString { it.name },
-                        transitionSpec = { fadeIn() togetherWith fadeOut() },
-                        label = "",
-                    ) { artists ->
-                        Text(
-                            text = artists,
-                            color = MaterialTheme.colorScheme.secondary,
-                            style = MaterialTheme.typography.bodySmall,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
                         )
                     }
                 }

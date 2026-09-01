@@ -7,6 +7,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -14,7 +15,9 @@ import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.graphicsLayer
+import com.jtech.zemer.constants.ThumbnailCornerRadius
 import com.valentinilk.shimmer.defaultShimmerTheme
 import com.valentinilk.shimmer.shimmer
 
@@ -47,10 +50,11 @@ fun ShimmerHost(
 fun LoadingListPlaceholder(
     count: Int,
     modifier: Modifier = Modifier,
+    thumbnailShape: Shape = RoundedCornerShape(ThumbnailCornerRadius),
 ) {
     ShimmerHost(modifier) {
         repeat(count) {
-            ListItemPlaceHolder()
+            ListItemPlaceHolder(thumbnailShape = thumbnailShape)
         }
     }
 }

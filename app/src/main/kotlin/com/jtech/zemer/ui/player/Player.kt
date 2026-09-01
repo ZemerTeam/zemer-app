@@ -15,7 +15,6 @@ import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
@@ -51,7 +50,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedIconButton
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -60,7 +58,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -85,7 +83,6 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextLayoutResult
@@ -108,6 +105,7 @@ import com.jtech.zemer.LocalPlayerConnection
 import com.jtech.zemer.R
 import com.jtech.zemer.playback.PlayerConnection
 import com.jtech.zemer.ui.component.focusBorder
+import com.jtech.zemer.ui.component.gentleMarquee
 import com.jtech.zemer.constants.DarkModeKey
 import com.jtech.zemer.constants.FloatingMiniPlayerKey
 import com.jtech.zemer.constants.PlayerBackgroundStyle
@@ -118,7 +116,6 @@ import com.jtech.zemer.constants.PlayerHorizontalPadding
 import com.jtech.zemer.constants.QueuePeekHeight
 import com.jtech.zemer.constants.SliderStyle
 import com.jtech.zemer.constants.SliderStyleKey
-import com.jtech.zemer.constants.UseNewPlayerDesignKey
 import com.jtech.zemer.extensions.repeatModeIconRes
 import com.jtech.zemer.extensions.shuffleIconRes
 import com.jtech.zemer.extensions.toast
@@ -126,6 +123,7 @@ import com.jtech.zemer.extensions.toggleRepeatMode
 import com.jtech.zemer.extensions.shareText
 import com.jtech.zemer.extensions.copyToClipboard
 import com.jtech.zemer.models.MediaMetadata
+import com.jtech.zemer.models.withResolvedNavIds
 import com.jtech.zemer.playback.PlayerVideoUiLogic
 import com.jtech.zemer.ui.component.DefaultDialog
 import com.jtech.zemer.ui.component.BottomSheet
@@ -134,6 +132,8 @@ import com.jtech.zemer.ui.component.LocalBottomSheetPageState
 import com.jtech.zemer.ui.component.LocalMenuState
 import com.jtech.zemer.ui.component.PlayerSliderTrack
 import com.jtech.zemer.ui.component.ResizableIconButton
+import com.jtech.zemer.ui.component.rememberPopScale
+import androidx.compose.ui.graphics.graphicsLayer
 import com.jtech.zemer.ui.component.rememberBottomSheetState
 import com.jtech.zemer.ui.menu.PlayerMenu
 import com.jtech.zemer.ui.screens.settings.DarkMode
@@ -150,7 +150,6 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import me.saket.squiggles.SquigglySlider
-import kotlin.math.roundToInt
 import com.jtech.zemer.tracking.Tracker
 import com.jtech.zemer.tracking.TrackingActionKind
 
@@ -171,10 +170,6 @@ fun BottomSheetPlayer(
     val bottomSheetPageState = LocalBottomSheetPageState.current
     val playerConnection = LocalPlayerConnection.current ?: return
 
-    val (useNewPlayerDesign, _) = rememberPreference(
-        UseNewPlayerDesignKey,
-        defaultValue = true
-    )
     val (floatingMiniPlayerPref, _) = rememberPreference(
         FloatingMiniPlayerKey,
         defaultValue = true
@@ -217,9 +212,13 @@ fun BottomSheetPlayer(
     val playbackState by playerConnection.playbackState.collectAsState()
     val isPlaying by playerConnection.isPlaying.collectAsState()
     val isCasting by playerConnection.isCasting.collectAsState()
-    val mediaMetadata by playerConnection.mediaMetadata.collectAsState()
+    val rawMediaMetadata by playerConnection.mediaMetadata.collectAsState()
     val currentSong by playerConnection.currentSong.collectAsState(initial = null)
-    val automix by playerConnection.service.automixItems.collectAsState()
+    // Fill navigation ids (artist / album) the wire item lacked from the played song's DB row, so the
+    // title/artist taps and the player menu's view rows work on name-only Zemer surfaces too.
+    val mediaMetadata = remember(rawMediaMetadata, currentSong) {
+        rawMediaMetadata?.withResolvedNavIds(currentSong)
+    }
     val repeatMode by playerConnection.repeatMode.collectAsState()
     val shuffleModeEnabled by playerConnection.shuffleModeEnabled.collectAsState()
     val canSkipPrevious by playerConnection.canSkipPrevious.collectAsState()
@@ -278,10 +277,6 @@ fun BottomSheetPlayer(
         mutableStateOf<Long?>(null)
     }
     // Track if we're in control focus mode (showing outlines)
-
-    if (!canSkipNext && automix.isNotEmpty()) {
-        playerConnection.service.addToQueueAutomix(automix[0], 0)
-    }
 
     val fallbackColor = MaterialTheme.colorScheme.surface.toArgb()
     // Shared, bounded, deduped gradient extraction (see rememberPlayerGradient).
@@ -363,88 +358,6 @@ fun BottomSheetPlayer(
         },
         label = "sideBtnContent",
     )
-
-    val sleepTimerEnabled =
-        remember(
-            playerConnection.service.sleepTimer.triggerTime,
-            playerConnection.service.sleepTimer.pauseWhenSongEnd
-        ) {
-            playerConnection.service.sleepTimer.isActive
-        }
-
-    LaunchedEffect(sleepTimerEnabled) {
-        if (sleepTimerEnabled) {
-            while (isActive) {
-                delay(1000L)
-            }
-        }
-    }
-
-    var showSleepTimerDialog by remember {
-        mutableStateOf(false)
-    }
-
-    var sleepTimerValue by remember {
-        mutableFloatStateOf(30f)
-    }
-    if (showSleepTimerDialog) {
-        DefaultDialog(
-            onDismiss = { showSleepTimerDialog = false },
-            icon = {
-                Icon(
-                    painter = painterResource(R.drawable.bedtime),
-                    contentDescription = null
-                )
-            },
-            title = { Text(stringResource(R.string.sleep_timer)) },
-            content = {
-                Text(
-                    text = pluralStringResource(
-                        R.plurals.minute,
-                        sleepTimerValue.roundToInt(),
-                        sleepTimerValue.roundToInt()
-                    ),
-                    style = MaterialTheme.typography.bodyLarge,
-                )
-
-                Slider(
-                    value = sleepTimerValue,
-                    onValueChange = { sleepTimerValue = it },
-                    valueRange = 5f..120f,
-                    steps = (120 - 5) / 5 - 1,
-                )
-
-                OutlinedIconButton(
-                    onClick = {
-                        showSleepTimerDialog = false
-                        playerConnection.service.sleepTimer.start(-1)
-                    },
-                    border = BorderStroke(1.dp, accentColor),
-                    colors = IconButtonDefaults.outlinedIconButtonColors(
-                        contentColor = accentColor
-                    ),
-                ) {
-                    Text(stringResource(R.string.end_of_song))
-                }
-            },
-            buttons = {
-                TextButton(
-                    onClick = { showSleepTimerDialog = false },
-                ) {
-                    Text(stringResource(android.R.string.cancel))
-                }
-
-                TextButton(
-                    onClick = {
-                        showSleepTimerDialog = false
-                        playerConnection.service.sleepTimer.start(sleepTimerValue.roundToInt())
-                    },
-                ) {
-                    Text(stringResource(android.R.string.ok))
-                }
-            },
-        )
-    }
 
     LaunchedEffect(playbackState, isCasting) {
         if (playbackState == STATE_READY || isCasting) {
@@ -624,7 +537,7 @@ fun BottomSheetPlayer(
                                 color = TextBackgroundColor,
                                 modifier =
                                 Modifier
-                                    .basicMarquee(iterations = 1, initialDelayMillis = 3000, velocity = 30.dp)
+                                    .gentleMarquee()
                                     .combinedClickable(
                                         enabled = true,
                                         indication = null,
@@ -673,7 +586,7 @@ fun BottomSheetPlayer(
                                 .fillMaxWidth()
                                 .border(2.dp, artistBorderColor.value, RoundedCornerShape(4.dp))
                                 .padding(4.dp)
-                                .basicMarquee(iterations = 1, initialDelayMillis = 3000, velocity = 30.dp)
+                                .gentleMarquee()
                                 .focusable()
                                 .onFocusChanged { artistFocused.value = it.isFocused }
                         ) {
@@ -732,7 +645,6 @@ fun BottomSheetPlayer(
 
                 Spacer(modifier = Modifier.width(12.dp))
 
-                if (useNewPlayerDesign) {
                     val shareShape = RoundedCornerShape(
                         topStart = 50.dp, bottomStart = 50.dp,
                         topEnd = 5.dp, bottomEnd = 5.dp
@@ -783,6 +695,7 @@ fun BottomSheetPlayer(
                             )
                         }
 
+                        var favPop by remember { mutableIntStateOf(0) }
                         Box(
                             modifier = Modifier
                                 .size(42.dp)
@@ -792,9 +705,13 @@ fun BottomSheetPlayer(
                                 .focusable()
                                 .onFocusChanged { favFocused.value = it.isFocused }
                                 .clickable {
+                                    // Pop on the USER'S tap, not on the liked flag - that flag also flips
+                                    // on every track transition, which bounced the heart on plain skips.
+                                    favPop++
                                     playerConnection.toggleLike()
                                 }
                         ) {
+                            val likePop = rememberPopScale(favPop)
                             Image(
                                 painter = painterResource(
                                     if (currentSong?.song?.isSavedForPlayer == true)
@@ -806,84 +723,10 @@ fun BottomSheetPlayer(
                                 modifier = Modifier
                                     .align(Alignment.Center)
                                     .size(24.dp)
+                                    .graphicsLayer { scaleX = likePop; scaleY = likePop }
                             )
                         }
                     }
-                } else {
-                    val oldShareFocused = remember { mutableStateOf(false) }
-                    val oldShareBorderColor = animateColorAsState(
-                        targetValue = if (oldShareFocused.value && focusVisualsEnabled()) accentColor else Color.Transparent,
-                        label = "old_share_focus"
-                    )
-                    val oldMenuFocused = remember { mutableStateOf(false) }
-                    val oldMenuBorderColor = animateColorAsState(
-                        targetValue = if (oldMenuFocused.value && focusVisualsEnabled()) accentColor else Color.Transparent,
-                        label = "old_menu_focus"
-                    )
-                    Box(
-                        modifier =
-                        Modifier
-                            .size(40.dp)
-                            .clip(RoundedCornerShape(24.dp))
-                            .background(textButtonColor)
-                            .border(3.dp, oldShareBorderColor.value, RoundedCornerShape(24.dp))
-                            .focusable()
-                            .onFocusChanged { oldShareFocused.value = it.isFocused }
-                            .clickable {
-                                Tracker.action(TrackingActionKind.SHARE, mediaMetadata.id)
-                                context.shareText(
-                                        VideoLinkBuilder.shareLink(mediaMetadata.id, mediaMetadata.isEpisode, mediaMetadata.album?.id),
-                                    )
-                            },
-                    ) {
-                        Image(
-                            painter = painterResource(R.drawable.share),
-                            contentDescription = null,
-                            colorFilter = ColorFilter.tint(iconButtonColor),
-                            modifier =
-                            Modifier
-                                .align(Alignment.Center)
-                                .size(24.dp),
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.size(12.dp))
-
-                    Box(
-                        contentAlignment = Alignment.Center,
-                        modifier =
-                        Modifier
-                            .size(40.dp)
-                            .clip(RoundedCornerShape(24.dp))
-                            .background(textButtonColor)
-                            .border(3.dp, oldMenuBorderColor.value, RoundedCornerShape(24.dp))
-                            .focusable()
-                            .onFocusChanged { oldMenuFocused.value = it.isFocused }
-                            .clickable {
-                                menuState.show {
-                                    PlayerMenu(
-                                        mediaMetadata = mediaMetadata,
-                                        navController = navController,
-                                        playerBottomSheetState = state,
-                                        onShowDetailsDialog = {
-                                            mediaMetadata.id.let {
-                                                bottomSheetPageState.show {
-                                                    ShowMediaInfo(it, isEpisodeHint = mediaMetadata.isEpisode)
-                                                }
-                                            }
-                                        },
-                                        onDismiss = menuState::dismiss,
-                                    )
-                                }
-                            },
-                    ) {
-                        Image(
-                            painter = painterResource(R.drawable.more_horiz),
-                            contentDescription = null,
-                            colorFilter = ColorFilter.tint(iconButtonColor),
-                        )
-                    }
-                }
             }
 
             Spacer(Modifier.height(12.dp))
@@ -1022,7 +865,6 @@ fun BottomSheetPlayer(
                 Spacer(modifier = Modifier.weight(1f))
             }
 
-            if (useNewPlayerDesign) {
                 // Spring-grow-on-press transport cluster: a wide, labelled play/pause button
                 // flanked by circular skips (see TransportSkipButton). Each grows while pressed.
                 val skipPrevInteraction = remember { MutableInteractionSource() }
@@ -1125,137 +967,6 @@ fun BottomSheetPlayer(
                         )
                     }
                 }
-            } else {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = PlayerHorizontalPadding),
-                ) {
-                    Box(modifier = Modifier.weight(1f)) {
-                        ResizableIconButton(
-                            icon = shuffleIconRes(shuffleModeEnabled),
-                            color = TextBackgroundColor,
-                            modifier = Modifier
-                                .size(32.dp)
-                                .padding(4.dp)
-                                .align(Alignment.Center)
-                                .alpha(if (shuffleModeEnabled) 1f else 0.5f),
-                            onClick = {
-                                // A station broadcast masks shuffle (synchronized timeline) — same
-                                // gate as repeat below and the queue sheet's controls.
-                                if (!isStationBroadcast) {
-                                    playerConnection.player.shuffleModeEnabled =
-                                        !playerConnection.player.shuffleModeEnabled
-                                }
-                            },
-                        )
-                    }
-
-                    Box(modifier = Modifier.weight(1f)) {
-                        ResizableIconButton(
-                            icon = repeatModeIconRes(repeatMode),
-                            color = TextBackgroundColor,
-                            modifier = Modifier
-                                .size(32.dp)
-                                .padding(4.dp)
-                                .align(Alignment.Center)
-                                .alpha(if (repeatMode == Player.REPEAT_MODE_OFF) 0.5f else 1f),
-                            onClick = {
-                                if (!isStationBroadcast) playerConnection.player.toggleRepeatMode()
-                            },
-                        )
-                    }
-
-                    Box(modifier = Modifier.weight(1f)) {
-                        ResizableIconButton(
-                            icon = R.drawable.skip_previous,
-                            enabled = canSkipPrevious,
-                            color = TextBackgroundColor,
-                            modifier =
-                            Modifier
-                                .size(32.dp)
-                                .align(Alignment.Center),
-                            onClick = {
-                                playerConnection.seekToPrevious()
-                            },
-                        )
-                    }
-
-                    Spacer(Modifier.width(8.dp))
-
-                    val landscapePlayFocused = remember { mutableStateOf(false) }
-                    val landscapePlayBorderColor = animateColorAsState(
-                        targetValue = if (landscapePlayFocused.value && focusVisualsEnabled()) accentColor else Color.Transparent,
-                        label = "landscape_play_focus"
-                    )
-                    Box(
-                        modifier =
-                        Modifier
-                            .size(72.dp)
-                            .clip(RoundedCornerShape(playPauseRoundness))
-                            .background(textButtonColor)
-                            .border(3.dp, landscapePlayBorderColor.value, RoundedCornerShape(playPauseRoundness))
-                            .focusable()
-                            .onFocusChanged { landscapePlayFocused.value = it.isFocused }
-                            .clickable {
-                                playerConnection.playPauseOrReplay(playbackState == STATE_ENDED)
-                            },
-                    ) {
-                        Image(
-                            painter =
-                            painterResource(
-                                if (playbackState ==
-                                    STATE_ENDED
-                                ) {
-                                    R.drawable.replay
-                                } else if (isPlaying) {
-                                    R.drawable.pause
-                                } else {
-                                    R.drawable.play
-                                },
-                            ),
-                            contentDescription = null,
-                            colorFilter = ColorFilter.tint(iconButtonColor),
-                            modifier =
-                            Modifier
-                                .align(Alignment.Center)
-                                .size(36.dp),
-                        )
-                    }
-
-                    Spacer(Modifier.width(8.dp))
-
-                    Box(modifier = Modifier.weight(1f)) {
-                        ResizableIconButton(
-                            icon = R.drawable.skip_next,
-                            enabled = canSkipNext,
-                            color = TextBackgroundColor,
-                            modifier =
-                            Modifier
-                                .size(32.dp)
-                                .align(Alignment.Center),
-                            onClick = {
-                                playerConnection.seekToNext()
-                            },
-                        )
-                    }
-
-                    Box(modifier = Modifier.weight(1f)) {
-                        ResizableIconButton(
-                            icon = if (currentSong?.song?.isSavedForPlayer == true) R.drawable.favorite else R.drawable.favorite_border,
-                            color = if (currentSong?.song?.isSavedForPlayer == true) MaterialTheme.colorScheme.error else TextBackgroundColor,
-                            modifier =
-                            Modifier
-                                .size(32.dp)
-                                .padding(4.dp)
-                                .align(Alignment.Center),
-                            onClick = playerConnection::toggleLike,
-                        )
-                    }
-                }
-            }
         }
 
         when (LocalConfiguration.current.orientation) {

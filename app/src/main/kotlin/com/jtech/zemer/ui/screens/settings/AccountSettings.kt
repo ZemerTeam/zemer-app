@@ -68,8 +68,11 @@ import com.jtech.zemer.ui.component.TextFieldDialog
 import com.jtech.zemer.ui.component.InfoLabel
 import com.jtech.zemer.utils.Updater
 import com.jtech.zemer.utils.rememberPreference
+import com.jtech.zemer.utils.reportException
 import com.jtech.zemer.viewmodels.AccountSettingsViewModel
 import com.jtech.zemer.viewmodels.HomeViewModel
+import com.jtech.zemer.extensions.cookieHasSession
+import com.jtech.zemer.extensions.isValidVisitorData
 import com.jtech.zemer.extensions.toast
 import com.metrolist.innertube.utils.parseCookieString
 import com.metrolist.innertube.YouTube
@@ -96,7 +99,7 @@ fun AccountSettings(
     val (dataSyncId, onDataSyncIdChange) = rememberPreference(DataSyncIdKey, "")
 
     val isLoggedIn = remember(innerTubeCookie) {
-        "SAPISID" in parseCookieString(innerTubeCookie)
+        innerTubeCookie.cookieHasSession()
     }
     val hasVisitorToken = remember(visitorData) { visitorData.startsWith("Cg") }
     val (useLoginForBrowse, onUseLoginForBrowseChange) = rememberPreference(UseLoginForBrowse, true)
@@ -230,7 +233,7 @@ fun AccountSettings(
                             val fetchedAccountChannelHandle = json.jsonObject["accountChannelHandle"]?.jsonPrimitive?.content
 
                             val decodedVisitorData = fetchedVisitorData?.let { android.net.Uri.decode(it) }
-                            if (!decodedVisitorData.isNullOrEmpty() && decodedVisitorData.startsWith("Cg") && decodedVisitorData.length > 20) {
+                            if (isValidVisitorData(decodedVisitorData)) {
                                 onVisitorDataChange(decodedVisitorData)
                                 YouTube.visitorData = decodedVisitorData
                                 fetchedCookie
@@ -335,7 +338,7 @@ fun AccountSettings(
                 singleLine = false,
                 maxLines = 20,
                 isInputValid = {
-                    it.isNotEmpty() && "SAPISID" in parseCookieString(it)
+                    it.cookieHasSession()
                 },
                 extraContent = {
                     InfoLabel(text = stringResource(R.string.token_adv_login_description))
@@ -392,7 +395,12 @@ fun AccountSettings(
                     TextButton(
                         onClick = {
                             scope.launch {
-                                accountSettingsViewModel.clearAllLibraryData()
+                                // Await the wipe (now suspending) and report a failure instead of
+                                // crashing on a bare fire-and-forget launch; forget the account only
+                                // after, so a half-erased library is never stranded behind an
+                                // already-forgotten account.
+                                runCatching { accountSettingsViewModel.clearAllLibraryData() }
+                                    .onFailure { reportException(it, "logout: clear library") }
                                 App.forgetAccount(context)
                                 context.toast(context.getString(R.string.logged_out))
                                 showLogoutDialog = false

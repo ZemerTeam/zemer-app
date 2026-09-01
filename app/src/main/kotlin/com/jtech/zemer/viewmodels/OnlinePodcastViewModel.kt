@@ -43,6 +43,9 @@ class OnlinePodcastViewModel @Inject constructor(
     val database: MusicDatabase,
 ) : ViewModel() {
     private val podcastId = savedStateHandle.get<String>("podcastId")!!
+    // KidZone navigation context: every server call from this screen stays kid-restricted, and the
+    // screen reads it for its drill-outs (View channel, the episode menus).
+    val kidZone = savedStateHandle.get<Boolean>("kidZone") ?: false
 
     val podcast = MutableStateFlow<PodcastItem?>(null)
     val episodes = MutableStateFlow<List<EpisodeItem>>(emptyList())
@@ -86,7 +89,7 @@ class OnlinePodcastViewModel @Inject constructor(
             // page = the show is unknown / fully filtered out under the current flags → the not-available
             // state (matching the corpus artist/album 404 behavior).
             try {
-                val page = zemerRepository.podcast(podcastId, offset = 0, zemerSearchOptions(context))
+                val page = zemerRepository.podcast(podcastId, offset = 0, zemerSearchOptions(context).copy(kidZone = kidZone))
                 if (page == null) {
                     _error.value = context.getString(R.string.podcast_not_available)
                 } else {
@@ -115,7 +118,7 @@ class OnlinePodcastViewModel @Inject constructor(
         isLoadingMore = true
         viewModelScope.launch(Dispatchers.IO) {
             try {
-                val page = zemerRepository.podcast(podcastId, offset, zemerSearchOptions(context)) ?: return@launch
+                val page = zemerRepository.podcast(podcastId, offset, zemerSearchOptions(context).copy(kidZone = kidZone)) ?: return@launch
                 episodes.value = (episodes.value + page.episodes).distinctBy { it.id }
                 _nextOffset.value = page.continuation?.toIntOrNull()
             } catch (throwable: Throwable) {

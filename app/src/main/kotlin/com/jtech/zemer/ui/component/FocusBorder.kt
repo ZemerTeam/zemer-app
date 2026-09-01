@@ -15,13 +15,18 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.composed
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.focus.onFocusEvent
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.launch
 
 /**
  * The app's standard D-pad focus treatment for a clickable row/card: an animated `surfaceVariant`
@@ -78,6 +83,25 @@ fun focusVisualsEnabled(): Boolean =
  * changes. The grab is wrapped in runCatching: a requester whose row is not composed yet must not
  * crash the screen.
  */
+/**
+ * Scrolls the element into view whenever it gains D-pad focus — the focus companion of a
+ * scrollable container: a focused row below the fold is brought on-screen instead of the cursor
+ * moving invisibly. One remembered [BringIntoViewRequester] per call site (loop items each get
+ * their own). Extracted from the nav drawer's four hand-rolled copies (Account / nav items /
+ * Radio / Settings).
+ */
+fun Modifier.bringIntoViewOnFocus(): Modifier = composed {
+    val requester = remember { BringIntoViewRequester() }
+    val scope = rememberCoroutineScope()
+    this
+        .bringIntoViewRequester(requester)
+        .onFocusEvent { event ->
+            if (event.isFocused) {
+                scope.launch { requester.bringIntoView() }
+            }
+        }
+}
+
 @Composable
 fun RequestInitialDpadFocus(
     requester: FocusRequester,

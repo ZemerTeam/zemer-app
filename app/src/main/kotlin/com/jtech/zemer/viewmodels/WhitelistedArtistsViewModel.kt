@@ -28,11 +28,10 @@ constructor(
 ) : ViewModel() {
     val searchQuery = MutableStateFlow("")
 
-    // Expose sync progress from SyncUtils
-    val syncProgress = syncUtils.whitelistSyncProgress
     val isSyncing = syncUtils.isWhitelistSyncing
 
-    val allArtists =
+    // Null until the first DB emission so the screen can shimmer instead of flashing "empty".
+    val allArtists: kotlinx.coroutines.flow.StateFlow<List<com.jtech.zemer.db.entities.Artist>?> =
         combine(
             database.allWhitelistedArtistsByName(),
             ContentFilterState.state,
@@ -45,11 +44,17 @@ constructor(
             }
             val filteredByQuery =
                 if (query.isBlank()) filteredByToggle
-                else filteredByToggle.filter { artist -> artist.artist.name.contains(query, ignoreCase = true) }
+                // Match the other-script altName too: the row name is single-script since the
+                // displayName split, so "רזאל" must still find Aaron Razel here (parity with the
+                // library search DAO's altName clause).
+                else filteredByToggle.filter { artist ->
+                    artist.artist.name.contains(query, ignoreCase = true) ||
+                        WhitelistCache.get(artist.id)?.altName?.contains(query, ignoreCase = true) == true
+                }
 
             Timber.d("WhitelistedArtistsVM: Filtered result: ${filteredByQuery.size} artists")
             filteredByQuery
-        }.stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
+        }.stateIn(viewModelScope, SharingStarted.Lazily, null)
 
     fun sync() {
         viewModelScope.launch(Dispatchers.IO) {

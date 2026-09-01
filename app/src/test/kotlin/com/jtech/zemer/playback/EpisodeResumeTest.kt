@@ -1,6 +1,8 @@
 package com.jtech.zemer.playback
 
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -37,6 +39,25 @@ class EpisodeResumeTest {
         assertFalse(EpisodeResume.shouldResume(EpisodeResume.RESUME_EDGE_MS, null))
         // Non-positive duration is treated as unknown (no completion cap).
         assertTrue(EpisodeResume.shouldResume(EpisodeResume.RESUME_EDGE_MS + 1, 0L))
+    }
+
+    @Test
+    fun `timeLeftMs returns remaining only for a resumable position`() {
+        // Mid-episode: remaining is duration - position.
+        assertEquals(dur / 2, EpisodeResume.timeLeftMs(dur / 2, dur))
+        // At the start / finished / null inputs: no hint.
+        assertNull(EpisodeResume.timeLeftMs(0L, dur))
+        assertNull(EpisodeResume.timeLeftMs(EpisodeResume.RESUME_EDGE_MS, dur))
+        assertNull(EpisodeResume.timeLeftMs(dur, dur)) // finished
+        assertNull(EpisodeResume.timeLeftMs(null, dur))
+        assertNull(EpisodeResume.timeLeftMs(dur / 2, null)) // unknown duration -> cannot compute remaining
+    }
+
+    @Test
+    fun `timeLeftMs never returns negative`() {
+        // Defensive: a resumable position can't exceed duration, but the result is floored at 0.
+        val left = EpisodeResume.timeLeftMs(EpisodeResume.RESUME_EDGE_MS + 1, dur)
+        assertTrue(left != null && left >= 0)
     }
 
     @Test

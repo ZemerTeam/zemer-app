@@ -10,7 +10,6 @@ import com.metrolist.innertube.models.PlaylistItem
 import com.metrolist.innertube.models.PodcastItem
 import com.metrolist.innertube.models.SongItem
 import com.metrolist.innertube.models.YTItem
-import com.metrolist.innertube.models.filterExplicit
 import com.metrolist.innertube.pages.AlbumPage
 import com.metrolist.innertube.pages.ArtistPage
 import com.metrolist.innertube.pages.ArtistSection
@@ -32,7 +31,7 @@ import com.jtech.zemer.utils.ContentFilterState
  *   (the artist-owned `playlists` back the Featured chip, the `community` list backs the Community chip).
  *
  * Zemer results are already whitelist-scoped server-side, so the local whitelist filter is NOT applied
- * here; only `hideExplicit` is honored (on the song/video lists — the other types are never explicit).
+ * here (Zemer's whitelist-pure corpus has no explicit content).
  */
 // Zemer-only search chips — podcasts and episodes have no YouTube [SearchFilter] equivalent. The value
 // is a private key used ONLY client-side to pick the `/search` response's podcast/episode category in
@@ -74,7 +73,6 @@ object ZemerResultMapper {
             // Prefer the server's square album art; fall back to the (letterboxed) video frame until the
             // track carries one — see the /artist per-track thumbnail request.
             thumbnail = thumbnail?.takeIf { it.isNotBlank() } ?: thumbnailFor(videoId),
-            explicit = explicit,
             isVideo = isVideo,
         )
 
@@ -126,24 +124,23 @@ object ZemerResultMapper {
 
     // Each helper drops rows missing their id (the server should never send those, but one sparse row
     // must not crash navigation) and de-dupes by id, since the id-keyed LazyColumns reject duplicates.
-    private fun songItems(tracks: List<ZemerTrack>, hideExplicit: Boolean, isVideo: Boolean = false): List<SongItem> =
+    private fun songItems(tracks: List<ZemerTrack>, isVideo: Boolean = false): List<SongItem> =
         tracks.filter { it.videoId.isNotBlank() }
             .map { it.toSongItem(isVideo) }
-            .filterExplicit(hideExplicit)
             .distinctBy { it.id }
             .dropBlocked()
 
     /** Plain songs only (the Songs chip and the summary "Songs" section). */
-    private fun plainSongItems(resp: ZemerSearchResponse, hideExplicit: Boolean): List<SongItem> =
-        songItems(resp.categories.songs, hideExplicit)
+    private fun plainSongItems(resp: ZemerSearchResponse): List<SongItem> =
+        songItems(resp.categories.songs)
 
     /**
      * Videos as [SongItem]s (flagged `isVideo`) — the dedicated Videos / "Video songs" chip and its own
      * summary section. Songs and videos are kept in SEPARATE sections/chips so a video-song never shows
      * up in both the Songs chip and the Video songs chip.
      */
-    private fun videoSongItems(resp: ZemerSearchResponse, hideExplicit: Boolean): List<SongItem> =
-        songItems(resp.categories.videos, hideExplicit, isVideo = true)
+    private fun videoSongItems(resp: ZemerSearchResponse): List<SongItem> =
+        songItems(resp.categories.videos, isVideo = true)
 
     private fun artistItems(resp: ZemerSearchResponse): List<ArtistItem> =
         resp.categories.artists.filter { it.id.isNotBlank() }.map { it.toArtistItem() }.distinctBy { it.id }.dropBlocked()
@@ -180,12 +177,13 @@ object ZemerResultMapper {
                 .map { it.toAlbumItem() }
                 .distinctBy { it.id }
                 .dropBlocked(),
-            videos = songItems(resp.topVideos, hideExplicit = false, isVideo = true),
+            videos = songItems(resp.topVideos, isVideo = true),
             artists = resp.topArtists.filter { it.id.isNotBlank() }
                 .map { it.toArtistItem() }
                 .distinctBy { it.id }
                 .dropBlocked(),
             community = playlistItems(resp.topCommunity, formatSongCount),
+            realVideoIds = resp.topVideos.filter { it.realVideo }.map { it.videoId }.toSet(),
         )
 
     /** The four telemetry/discovery-ranked home rows in native item types (see [homeRows]). */
@@ -194,24 +192,27 @@ object ZemerResultMapper {
         val videos: List<SongItem>,
         val artists: List<ArtistItem>,
         val community: List<PlaylistItem>,
+        // The videoIds among [videos] the server classified as REAL filmed videos (topVideos[].realVideo).
+        // The Featured Videos hero carousel shows only these; the See-all shows the full [videos] row.
+        val realVideoIds: Set<String> = emptySet(),
     )
 
     /**
      * A Zemer `/playlist` response as playable [SongItem]s. The server already whitelist-scoped and
      * content-filtered the tracks, so — like every other Zemer surface — the local artist whitelist is
      * NOT re-run here (re-filtering would re-introduce the card-vs-open count mismatch this endpoint
-     * fixes); only `hideExplicit` and the surgical id-overrides ([dropBlocked]) are applied.
+     * fixes); only the surgical id-overrides ([dropBlocked]) are applied.
      */
-    fun ZemerPlaylistResponse.toSongItems(hideExplicit: Boolean): List<SongItem> =
-        songItems(tracks, hideExplicit)
+    fun ZemerPlaylistResponse.toSongItems(): List<SongItem> =
+        songItems(tracks)
 
     /**
      * A curated `/zemer-playlists?id=…` response as playable [SongItem]s, in curated order. Filtering
      * (whitelist, female, videos, id-overrides) already ran server-side against the sent flags, so —
-     * like every Zemer surface — only `hideExplicit` and the surgical [dropBlocked] run here.
+     * like every Zemer surface — only the surgical [dropBlocked] runs here.
      */
-    fun ZemerCuratedPlaylistResponse.toSongItems(hideExplicit: Boolean): List<SongItem> =
-        songItems(tracks, hideExplicit)
+    fun ZemerCuratedPlaylistResponse.toSongItems(): List<SongItem> =
+        songItems(tracks)
 
     /**
      * One station schedule slot as a playable [SongItem], so station items ride the SAME
@@ -226,18 +227,15 @@ object ZemerResultMapper {
             artists = listOf(Artist(name = artist, id = artistId)),
             duration = durationSec,
             thumbnail = thumbnail?.takeIf { it.isNotBlank() } ?: thumbnailFor(videoId),
-            explicit = false,
         )
 
     /**
      * A `/radio` page's tracks as playable [SongItem]s with the same defense-in-depth every other
      * Zemer surface gets — sparse-row drop, de-dup, and the surgical id-overrides ([dropBlocked]):
      * a Firestore-blocked id must not play even when the server's override sync lags the app's.
-     * Explicit filtering is centrally applied by MusicService over every queue page, so
-     * `hideExplicit` is not re-run here.
      */
     fun ZemerRadioResponse.toSongItems(): List<SongItem> =
-        songItems(tracks, hideExplicit = false)
+        songItems(tracks)
 
     /**
      * The curated albums as browsable [AlbumItem] rows (the detail screen's Albums chip), with the
@@ -251,10 +249,9 @@ object ZemerResultMapper {
     /**
      * A Zemer `/album` response as the [AlbumPage] the album screen + DB persist flow already consume,
      * so the Zemer path reuses that whole pipeline unchanged. Like every Zemer surface the tracks are
-     * whitelist-scoped server-side, so only the surgical id-overrides ([dropBlocked]) run here
-     * (hide-explicit is applied by the album screen itself, over the persisted rows). [playlistId] is
-     * the search card's OP playlist id — the server header carries none — falling back to the browseId
-     * (whose only consumer then is the disabled automix).
+     * whitelist-scoped server-side, so only the surgical id-overrides ([dropBlocked]) run here.
+     * [playlistId] is
+     * the search card's OP playlist id — the server header carries none — falling back to the browseId.
      */
     fun ZemerAlbumResponse.toAlbumPage(playlistId: String?): AlbumPage {
         val albumItem = AlbumItem(
@@ -296,26 +293,34 @@ object ZemerResultMapper {
     /**
      * A Zemer `/artist` response as the [ArtistPage] the artist screen already consumes: the flat
      * songs / videos / albums / singles / playlists arrays become the screen's sections, in that order.
-     * Tracks are whitelist-scoped server-side, so only hide-explicit + the surgical id-overrides
-     * ([dropBlocked]) run here. Section titles reuse the same English constants as the summary view. The
-     * header carries no play/shuffle/radio endpoint (the corpus has none): the screen plays Shuffle from
-     * these tracks locally, and the Radio button waits for Zemer Radio.
+     * Tracks are whitelist-scoped server-side, so only the surgical id-overrides ([dropBlocked]) run
+     * here. Section titles reuse the same English constants as the summary view. The header carries no
+     * play/shuffle/radio endpoint (the corpus has none): the screen plays Shuffle from these tracks
+     * locally, and the Radio button waits for Zemer Radio.
      */
     fun ZemerArtistResponse.toArtistPage(
-        hideExplicit: Boolean,
         formatSongCount: (Int) -> String? = { null },
     ): ArtistPage {
         fun albumSection(list: List<ZemerAlbum>): List<AlbumItem> =
             list.filter { it.id.isNotBlank() }.map { it.toAlbumItem() }.distinctBy { it.id }.dropBlocked()
+        // The wire tracks carry no artist credit (the page IS the artist) — thread the page artist's
+        // name + id in, so a played track shows a (tappable) artist line in the player instead of
+        // none, the same threading toAlbumPage does for its album artist.
+        fun credited(tracks: List<ZemerTrack>): List<ZemerTrack> =
+            tracks.map { t ->
+                if (t.artist.isBlank()) {
+                    t.copy(artist = artist.name, artistId = t.artistId ?: artist.id.takeIf { it.isNotBlank() })
+                } else t
+            }
         // Section order mirrors the InnerTube artist page: Songs, Albums, Singles, Videos, Playlists.
         val sections = buildList {
-            songItems(songs, hideExplicit).takeIf { it.isNotEmpty() }
+            songItems(credited(songs)).takeIf { it.isNotEmpty() }
                 ?.let { add(ArtistSection(TITLE_SONGS, it, null)) }
             albumSection(albums).takeIf { it.isNotEmpty() }
                 ?.let { add(ArtistSection(TITLE_ALBUMS, it, null)) }
             albumSection(singles).takeIf { it.isNotEmpty() }
                 ?.let { add(ArtistSection(TITLE_SINGLES, it, null)) }
-            songItems(videos, hideExplicit, isVideo = true).takeIf { it.isNotEmpty() }
+            songItems(credited(videos), isVideo = true).takeIf { it.isNotEmpty() }
                 ?.let { add(ArtistSection(TITLE_VIDEOS, it, null)) }
             playlistItems(playlists, formatSongCount).takeIf { it.isNotEmpty() }
                 ?.let { add(ArtistSection(TITLE_PLAYLISTS, it, null)) }
@@ -370,6 +375,9 @@ object ZemerResultMapper {
     private fun List<ZemerPodcastEpisode>.toEpisodeItems(): List<EpisodeItem> =
         filter { it.videoId.isNotBlank() }.map { it.toEpisodeItem() }.distinctBy { it.id }.dropBlocked()
 
+    /** The `/podcasts` catalog as browsable show cards (the KidZone podcasts grid). */
+    fun ZemerPodcastsResponse.toPodcastItems(): List<PodcastItem> = podcasts.toPodcastItems()
+
     private fun List<ZemerPodcastShow>.toPodcastItems(): List<PodcastItem> =
         filter { it.id.isNotBlank() }.map { it.toPodcastItem() }.distinctBy { it.id }.dropBlocked()
 
@@ -400,14 +408,13 @@ object ZemerResultMapper {
 
     /**
      * The `/video-home-rows` rows as the item types the Videos tab already renders. Both track rows are
-     * video-classified (`isVideo = true` — the badge/menu/toggle flag, set once at this mapper boundary);
-     * `hideExplicit = false` matches the `/home-rows` topVideos treatment. Blocked-id overrides run
-     * inside [songItems]; artists drop blank ids like every artist row.
+     * video-classified (`isVideo = true` — the badge/menu/toggle flag, set once at this mapper boundary).
+     * Blocked-id overrides run inside [songItems]; artists drop blank ids like every artist row.
      */
     fun videoHomeRows(resp: ZemerVideoHomeRowsResponse): VideoHomeRows =
         VideoHomeRows(
-            trending = songItems(resp.trendingVideos, hideExplicit = false, isVideo = true),
-            newVideos = songItems(resp.newVideos, hideExplicit = false, isVideo = true),
+            trending = songItems(resp.trendingVideos, isVideo = true),
+            newVideos = songItems(resp.newVideos, isVideo = true),
             artists = resp.topVideoArtists.filter { it.id.isNotBlank() }
                 .map { it.toArtistItem() }
                 .distinctBy { it.id }
@@ -567,11 +574,11 @@ object ZemerResultMapper {
 
     /**
      * A `/genres?id=` response in the same native item types the artist page maps to, with the same
-     * defense-in-depth every Zemer surface gets — sparse-row drop, de-dup, hide-explicit on the
-     * track lists, and the surgical id-overrides ([dropBlocked]). The artist-membership whitelist is
-     * NOT re-run (the corpus is whitelist-pure server-side).
+     * defense-in-depth every Zemer surface gets — sparse-row drop, de-dup, and the surgical
+     * id-overrides ([dropBlocked]). The artist-membership whitelist is NOT re-run (the corpus is
+     * whitelist-pure server-side).
      */
-    fun ZemerGenrePageResponse.toGenrePage(hideExplicit: Boolean): ZemerGenrePage {
+    fun ZemerGenrePageResponse.toGenrePage(): ZemerGenrePage {
         fun albumSection(list: List<ZemerAlbum>): List<AlbumItem> =
             list.filter { it.id.isNotBlank() }.map { it.toAlbumItem() }.distinctBy { it.id }.dropBlocked()
         return ZemerGenrePage(
@@ -579,8 +586,8 @@ object ZemerResultMapper {
             artists = artists.filter { it.id.isNotBlank() }.map { it.toArtistItem() }.distinctBy { it.id }.dropBlocked(),
             albums = albumSection(albums),
             singles = albumSection(singles),
-            songs = songItems(songs, hideExplicit),
-            videos = songItems(videos, hideExplicit, isVideo = true),
+            songs = songItems(songs),
+            videos = songItems(videos, isVideo = true),
             nextOffset = nextOffset,
         )
     }
@@ -596,7 +603,6 @@ object ZemerResultMapper {
      */
     fun summaryPage(
         resp: ZemerSearchResponse,
-        hideExplicit: Boolean,
         formatSongCount: (Int) -> String? = { null },
     ): SearchSummaryPage {
         val playlists = playlistItems(resp.categories.community, formatSongCount)
@@ -606,8 +612,8 @@ object ZemerResultMapper {
             items.take(SUMMARY_SECTION_LIMIT).takeIf { it.isNotEmpty() }?.let { add(SearchSummary(title, it)) }
         val summaries = buildList {
             section(TITLE_ALBUMS, albumItems(resp))
-            section(TITLE_SONGS, plainSongItems(resp, hideExplicit))
-            section(TITLE_VIDEOS, videoSongItems(resp, hideExplicit))
+            section(TITLE_SONGS, plainSongItems(resp))
+            section(TITLE_VIDEOS, videoSongItems(resp))
             section(TITLE_ARTISTS, artistItems(resp))
             section(TITLE_PLAYLISTS, playlists)
             // Podcast SHOWS + EPISODES folded in (server reply 2026-08-01). No filter chip, so these
@@ -623,14 +629,13 @@ object ZemerResultMapper {
     fun filtered(
         resp: ZemerSearchResponse,
         filter: SearchFilter,
-        hideExplicit: Boolean,
         formatSongCount: (Int) -> String? = { null },
     ): SearchResult {
         val items: List<YTItem> = when (filter.value) {
             // Songs and videos are separate: the Songs chip returns plain songs only, the Videos /
             // "Video songs" chip returns videos only — so a video-song never appears in both.
-            SearchFilter.FILTER_SONG.value -> plainSongItems(resp, hideExplicit)
-            SearchFilter.FILTER_VIDEO.value -> videoSongItems(resp, hideExplicit)
+            SearchFilter.FILTER_SONG.value -> plainSongItems(resp)
+            SearchFilter.FILTER_VIDEO.value -> videoSongItems(resp)
             SearchFilter.FILTER_ARTIST.value -> artistItems(resp)
             SearchFilter.FILTER_ALBUM.value -> albumItems(resp)
             SearchFilter.FILTER_COMMUNITY_PLAYLIST.value -> playlistItems(resp.categories.community, formatSongCount)
@@ -652,25 +657,22 @@ object ZemerResultMapper {
      */
     fun suggestions(
         resp: ZemerSearchResponse,
-        hideExplicit: Boolean,
         formatSongCount: (Int) -> String? = { null },
     ): SearchSuggestions {
         val items: List<YTItem> =
-            (songItems(resp.categories.songs, hideExplicit) +
+            (songItems(resp.categories.songs) +
                 artistItems(resp) +
                 albumItems(resp) +
-                songItems(resp.categories.videos, hideExplicit, isVideo = true) +
+                songItems(resp.categories.videos, isVideo = true) +
                 playlistItems(resp.categories.playlists, formatSongCount) +
                 playlistItems(resp.categories.community, formatSongCount) +
                 resp.podcastShowItems() +
                 resp.podcastEpisodeItems())
                 .distinctBy { it.id }
 
-        // Drop explicit-flagged songs from the completion strings too (not just the result rows) so an
-        // explicit title can't be offered as a tappable suggestion when Hide explicit is on.
         val completions: List<String> =
             (resp.categories.artists.map { it.name } +
-                resp.categories.songs.filter { !hideExplicit || !it.explicit }.map { it.title })
+                resp.categories.songs.map { it.title })
                 .filter { it.isNotBlank() }
                 .distinctBy { it.lowercase() }
                 .take(MAX_QUERY_SUGGESTIONS)

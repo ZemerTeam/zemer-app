@@ -27,8 +27,6 @@ import com.metrolist.innertube.YouTube
 import com.metrolist.innertube.models.YouTubeLocale
 import com.jtech.zemer.constants.*
 import com.jtech.zemer.di.ApplicationScope
-import com.jtech.zemer.extensions.toEnum
-import com.jtech.zemer.extensions.toInetSocketAddress
 import com.jtech.zemer.extensions.toast
 import com.google.firebase.crashlytics.FirebaseCrashlytics
 import com.jtech.zemer.utils.ContentFilterConfig
@@ -39,7 +37,6 @@ import com.jtech.zemer.statuses.parseStatusSourcesConfig
 import com.jtech.zemer.utils.ContentFilterState
 import com.jtech.zemer.utils.IsraeliArtistRegistry
 import com.jtech.zemer.utils.LogBufferTree
-import com.jtech.zemer.utils.SyncUtils
 import com.zemer.cipher.ZemerCipher
 import timber.log.Timber
 import com.jtech.zemer.utils.UpdateChecker
@@ -59,20 +56,8 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
-import kotlinx.serialization.json.JsonElement
-import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
-import okhttp3.Credentials
 import okhttp3.Dispatcher
 import okhttp3.OkHttpClient
-import io.ktor.client.*
-import io.ktor.client.call.*
-import io.ktor.client.request.*
-import io.ktor.client.statement.bodyAsText
-import java.net.Authenticator
-import java.net.PasswordAuthentication
-import java.net.Proxy
 import java.util.Locale
 import javax.inject.Inject
 
@@ -82,9 +67,6 @@ class App : Application(), SingletonImageLoader.Factory {
     @Inject
     @ApplicationScope
     lateinit var applicationScope: CoroutineScope
-
-    @Inject
-    lateinit var syncUtils: SyncUtils
 
     @Inject
     lateinit var offlineSubsetSyncer: com.jtech.zemer.offline.OfflineSubsetSyncer
@@ -136,7 +118,6 @@ class App : Application(), SingletonImageLoader.Factory {
         // Initialize cipher library for WEB_REMIX streaming
         ZemerCipher.initialize(
             context = this,
-            proxy = YouTube.proxy,
             debugLogging = BuildConfig.DEBUG
         )
 
@@ -225,82 +206,6 @@ class App : Application(), SingletonImageLoader.Factory {
         }
     }
 
-    private suspend fun fetchAnonymousTokenOnStartup() {
-        fun sanitizeCookie(raw: String?): String? {
-            val trimmed = raw?.trim() ?: return null
-            return if ((trimmed.startsWith("\"") && trimmed.endsWith("\"")) ||
-                (trimmed.startsWith("'") && trimmed.endsWith("'"))
-            ) {
-                trimmed.drop(1).dropLast(1)
-            } else {
-                trimmed
-            }
-        }
-
-        try {
-            val httpClient = HttpClient()
-            val responseText = httpClient.get(
-                "https://mc.alltech.dev/credentials"
-            ).bodyAsText()
-
-            val json = kotlinx.serialization.json.Json.parseToJsonElement(responseText)
-            val visitorData = json.jsonObject["visitorData"]?.jsonPrimitive?.content
-                ?.let { android.net.Uri.decode(it) }
-            val clientVersion = json.jsonObject["clientVersion"]?.jsonPrimitive?.content
-            val timestamp = json.jsonObject["timestamp"]?.jsonPrimitive?.content?.toLongOrNull()
-            val expiresAt = json.jsonObject["expiresAt"]?.jsonPrimitive?.content?.toLongOrNull()
-            val cookie = sanitizeCookie(
-                json.jsonObject["cookie"]?.jsonPrimitive?.content
-                    ?: json.jsonObject["innerTubeCookie"]?.jsonPrimitive?.content
-            )
-            val dataSyncId = json.jsonObject["dataSyncId"]?.jsonPrimitive?.content
-            val accountName = json.jsonObject["accountName"]?.jsonPrimitive?.content
-            val accountEmail = json.jsonObject["accountEmail"]?.jsonPrimitive?.content
-            val accountChannelHandle = json.jsonObject["accountChannelHandle"]?.jsonPrimitive?.content
-
-            if (!visitorData.isNullOrEmpty()) {
-                // Validate token format
-                val isValidToken = visitorData.startsWith("Cg") && visitorData.length > 20
-
-                if (isValidToken) {
-                    dataStore.edit { prefs ->
-                        prefs[VisitorDataKey] = visitorData
-                        cookie
-                            ?.takeIf { parseCookieString(it).containsKey("SAPISID") }
-                            ?.let { prefs[InnerTubeCookieKey] = it }
-                        // Anonymous login must not set dataSyncId (onBehalfOfUser breaks playback).
-                        prefs[DataSyncIdKey] = ""
-                        accountName?.let { prefs[AccountNameKey] = it }
-                        accountEmail?.let { prefs[AccountEmailKey] = it }
-                        accountChannelHandle?.let { prefs[AccountChannelHandleKey] = it }
-                    }
-                    cookie
-                        ?.takeIf { parseCookieString(it).containsKey("SAPISID") }
-                        ?.let { YouTube.cookie = it }
-                    YouTube.dataSyncId = null
-                    YouTube.visitorData = visitorData
-                    val expiresIn = if (expiresAt != null) {
-                        val minutesLeft = (expiresAt - (timestamp ?: System.currentTimeMillis())) / 60000
-                        "$minutesLeft minutes"
-                    } else {
-                        "~24 hours"
-                    }
-                    android.util.Log.i("AnonymousToken", "✓ Token fetched successfully")
-                    android.util.Log.i("AnonymousToken", "  Data: ${visitorData.take(20)}...")
-                    android.util.Log.i("AnonymousToken", "  Version: $clientVersion")
-                    android.util.Log.i("AnonymousToken", "  Expires in: $expiresIn")
-                } else {
-                    android.util.Log.w("AnonymousToken", "✗ Invalid token format: $visitorData")
-                }
-            } else {
-                android.util.Log.w("AnonymousToken", "✗ No visitorData in response")
-            }
-            httpClient.close()
-        } catch (e: Exception) {
-            android.util.Log.w("AnonymousToken", "✗ Failed to fetch token: ${e.message}", e)
-        }
-    }
-
     private suspend fun initializeSettings() {
         val settings = dataStore.data.first()
         val locale = Locale.getDefault()
@@ -327,9 +232,6 @@ class App : Application(), SingletonImageLoader.Factory {
         if (!settings.contains(AllowFemaleSingersKey)) {
             dataStore.edit { it[AllowFemaleSingersKey] = false }
         }
-        if (!settings.contains(AllowChasidishKey)) {
-            dataStore.edit { it[AllowChasidishKey] = false }
-        }
         // One-time seed: whoever already blocks videos gets podcasts blocked too. Runs exactly once
         // (fresh installs seed false=false, matching the default-off parity); after this the two are
         // independent toggles. See BlockPodcastsSeededKey.
@@ -346,41 +248,11 @@ class App : Application(), SingletonImageLoader.Factory {
         }
 
         YouTube.locale = YouTubeLocale(
-            gl = settings[ContentCountryKey]?.takeIf { it != SYSTEM_DEFAULT }
-                ?: locale.country.takeIf { it in CountryCodeToName }
-                ?: "US",
-            hl = settings[ContentLanguageKey]?.takeIf { it != SYSTEM_DEFAULT }
-                ?: locale.language.takeIf { it in LanguageCodeToName }
+            gl = locale.country.takeIf { it in CountryCodeToName } ?: "US",
+            hl = locale.language.takeIf { it in LanguageCodeToName }
                 ?: languageTag.takeIf { it in LanguageCodeToName }
-                ?: "en"
+                ?: "en",
         )
-
-        if (settings[ProxyEnabledKey] == true) {
-            val username = settings[ProxyUsernameKey].orEmpty()
-            val password = settings[ProxyPasswordKey].orEmpty()
-            val type = settings[ProxyTypeKey].toEnum(defaultValue = Proxy.Type.HTTP)
-
-            if (username.isNotEmpty() || password.isNotEmpty()) {
-                if (type == Proxy.Type.HTTP) {
-                    YouTube.proxyAuth = Credentials.basic(username, password)
-                } else {
-                    Authenticator.setDefault(object : Authenticator() {
-                        override fun getPasswordAuthentication(): PasswordAuthentication =
-                            PasswordAuthentication(username, password.toCharArray())
-                    })
-                }
-            }
-            try {
-                settings[ProxyUrlKey]?.let {
-                    YouTube.proxy = Proxy(type, it.toInetSocketAddress())
-                }
-            } catch (e: Exception) {
-                withContext(Dispatchers.Main) {
-                    this@App.toast(getString(R.string.proxy_url_parse_failed))
-                }
-                reportException(e)
-            }
-        }
 
         YouTube.useLoginForBrowse = settings[UseLoginForBrowse] ?: true
 
@@ -460,21 +332,13 @@ class App : Application(), SingletonImageLoader.Factory {
     }
 
     override fun newImageLoader(context: PlatformContext): ImageLoader {
-        val cacheSize = dataStore.get(MaxImageCacheSizeKey, 256).coerceIn(0, 512)
+        val cacheSize = dataStore.get(MaxImageCacheSizeKey, 256).coerceIn(0, 8192)
         val okHttpClient = OkHttpClient.Builder()
             // Coil shares one host for many thumbnails (yt3.googleusercontent.com etc.). OkHttp's default
             // is 5 concurrent per host, so a screenful of same-host avatars loads in staggered waves.
             // Raise it so a full grid of avatars fetches in one wave.
             .dispatcher(Dispatcher().apply { maxRequestsPerHost = 12 })
             .dns(ResilientDns())
-            .proxy(YouTube.proxy)
-            .proxyAuthenticator { _, response ->
-                YouTube.proxyAuth?.let { auth ->
-                    response.request.newBuilder()
-                        .header("Proxy-Authorization", auth)
-                        .build()
-                } ?: response.request
-            }
             .build()
 
         return ImageLoader.Builder(this).apply {

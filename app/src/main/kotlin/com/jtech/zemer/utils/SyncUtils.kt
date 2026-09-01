@@ -4,6 +4,7 @@ import android.content.Context
 import android.util.Log
 import androidx.datastore.preferences.core.edit
 import com.jtech.zemer.constants.BlockedContentIdsKey
+import com.jtech.zemer.constants.DisplayNamesBackfilledKey
 import com.jtech.zemer.constants.LastWhitelistVersionKey
 import com.jtech.zemer.constants.LastPodcastWhitelistVersionKey
 import com.jtech.zemer.constants.LastPodcastWhitelistSyncTimeKey
@@ -67,9 +68,7 @@ class SyncUtils @Inject constructor(
 
     private val isSyncingLikedSongs = MutableStateFlow(false)
     private val isSyncingLibrarySongs = MutableStateFlow(false)
-    private val isSyncingUploadedSongs = MutableStateFlow(false)
     private val isSyncingLikedAlbums = MutableStateFlow(false)
-    private val isSyncingUploadedAlbums = MutableStateFlow(false)
     private val isSyncingArtists = MutableStateFlow(false)
     private val isSyncingPlaylists = MutableStateFlow(false)
     private val isSyncingWhitelist = MutableStateFlow(false)
@@ -502,39 +501,6 @@ class SyncUtils @Inject constructor(
         }
     }
 
-    suspend fun syncUploadedSongs() {
-        if (!isPersonalAccountSignedIn) return
-        if (isSyncingUploadedSongs.value) return
-        isSyncingUploadedSongs.value = true
-        try {
-            YouTube.library("FEmusic_library_privately_owned_tracks", tabIndex = 1).completed().onSuccess { page ->
-                val remoteSongs = page.items
-                    .filterIsInstance<SongItem>()
-                    .filterWhitelisted(database)
-                    .filterIsInstance<SongItem>()
-                    .reversed()
-                val remoteIds = remoteSongs.map { it.id }.toSet()
-                val localSongs = database.uploadedSongsByNameAsc().first()
-
-                localSongs.filterNot { it.id in remoteIds }.forEach { database.update(it.song.toggleUploaded()) }
-
-                remoteSongs.forEach { song ->
-                    val dbSong = database.song(song.id).firstOrNull()
-                    database.transaction {
-                        if (dbSong == null) {
-                            insert(song.toMediaMetadata()) { it.toggleUploaded() }
-                        } else if (!dbSong.song.isUploaded) {
-                            update(dbSong.song.toggleUploaded())
-                        }
-                    }
-                }
-            }
-        } catch (e: Exception) {
-        } finally {
-            isSyncingUploadedSongs.value = false
-        }
-    }
-
     suspend fun syncLikedAlbums() {
         if (!isPersonalAccountSignedIn) return
         if (isSyncingLikedAlbums.value) return
@@ -568,42 +534,6 @@ class SyncUtils @Inject constructor(
         } catch (e: Exception) {
         } finally {
             isSyncingLikedAlbums.value = false
-        }
-    }
-
-    suspend fun syncUploadedAlbums() {
-        if (!isPersonalAccountSignedIn) return
-        if (isSyncingUploadedAlbums.value) return
-        isSyncingUploadedAlbums.value = true
-        try {
-            YouTube.library("FEmusic_library_privately_owned_releases", tabIndex = 1).completed().onSuccess { page ->
-                val remoteAlbums = page.items
-                    .filterIsInstance<AlbumItem>()
-                    .filterWhitelisted(database)
-                    .filterIsInstance<AlbumItem>()
-                    .reversed()
-                val remoteIds = remoteAlbums.map { it.id }.toSet()
-                val localAlbums = database.albumsUploadedByNameAsc().first()
-
-                localAlbums.filterNot { it.id in remoteIds }.forEach { database.update(it.album.toggleUploaded()) }
-
-                remoteAlbums.forEach { album ->
-                    val dbAlbum = database.album(album.id).firstOrNull()
-                    YouTube.album(album.browseId).onSuccess { albumPage ->
-                        if (dbAlbum == null) {
-                            database.insert(albumPage)
-                            database.album(album.id).firstOrNull()?.let { newDbAlbum ->
-                                database.update(newDbAlbum.album.toggleUploaded())
-                            }
-                        } else if (!dbAlbum.album.isUploaded) {
-                            database.update(dbAlbum.album.toggleUploaded())
-                        }
-                    }.onFailure { reportException(it) }
-                }
-            }
-        } catch (e: Exception) {
-        } finally {
-            isSyncingUploadedAlbums.value = false
         }
     }
 
@@ -753,6 +683,51 @@ class SyncUtils @Inject constructor(
         }
     }
 
+    /**
+     * On-demand reconcile of ONE synced playlist (the playlist screen's sync button) through the SAME
+     * #130-safe rules as [syncSavedPlaylists], so the two sync affordances can never disagree: a song
+     * is kept if a whitelisted artist is resolvable from the playlist renderer OR the local DB row
+     * ([filterWhitelistedWithLocalArtists]); no reconcile runs without a loaded whitelist; and a
+     * failed/empty remote read never wipes local songs. The screen previously inlined a strict
+     * [filterWhitelisted] + clearPlaylist rebuild, which dropped whitelisted songs whose YTM renderer
+     * carried sparse/topic-channel artist ids - the exact pathology the #130 fix removed elsewhere.
+     */
+    suspend fun syncPlaylistNow(browseId: String, playlistId: String) {
+        // 100% whitelisted: with no allow-set no song can be verified, and filtering against it would
+        // wipe the playlist - skip and leave the local copy intact.
+        val allowedArtistIds = WhitelistCache.allowedEntries(database, ContentFilterState.current)
+            .map { it.artistId }.toHashSet()
+        if (allowedArtistIds.isEmpty()) {
+            android.util.Log.d("SyncUtils", "syncPlaylistNow skipped - whitelist not loaded")
+            return
+        }
+        try {
+            YouTube.playlist(browseId).completed().onSuccess { page ->
+                // A failed or empty remote read must never restructure the playlist (issue #130).
+                if (page.songs.isEmpty()) {
+                    android.util.Log.d("SyncUtils", "syncPlaylistNow: $browseId read empty - kept, not clobbered")
+                    return@onSuccess
+                }
+                val allowedSongs = page.songs.filterWhitelistedWithLocalArtists(database, allowedArtistIds)
+                // Keep the playlist metadata in step with the reconciled songs (the same fields the
+                // library sync refreshes) so the two paths produce identical DB state.
+                database.playlist(playlistId).firstOrNull()?.playlist?.let { entity ->
+                    database.update(
+                        entity.copy(
+                            thumbnailUrl = allowedSongs.firstOrNull()?.thumbnail,
+                            remoteSongCount = allowedSongs.size,
+                            isEditable = page.playlist.isEditable,
+                        )
+                    )
+                }
+                syncPlaylist(browseId, playlistId, allowedSongs.map { it.id }.toSet())
+                android.util.Log.d("SyncUtils", "syncPlaylistNow: $browseId reconciled with ${allowedSongs.size} allowed songs")
+            }
+        } catch (e: Exception) {
+            android.util.Log.w("SyncUtils", "syncPlaylistNow failed for $browseId: ${e.message}")
+        }
+    }
+
     private suspend fun syncPlaylist(browseId: String, playlistId: String, allowedSongIds: Set<String>) {
         // Only sync if we have pre-filtered allowed songs
         if (allowedSongIds.isEmpty()) {
@@ -802,7 +777,6 @@ class SyncUtils @Inject constructor(
                                     title = mediaMetadata.title,
                                     duration = mediaMetadata.duration,
                                     thumbnailUrl = mediaMetadata.thumbnailUrl,
-                                    explicit = mediaMetadata.explicit,
                                     albumId = mediaMetadata.album?.id,
                                     albumName = mediaMetadata.album?.title
                                 )
@@ -880,8 +854,21 @@ class SyncUtils @Inject constructor(
                 val manyThumbsMissing = !localEmpty &&
                     database.getWhitelistedArtistIdsMissingThumb(MISSING_THUMB_BOOTSTRAP_THRESHOLD).size >= MISSING_THUMB_BOOTSTRAP_THRESHOLD
 
+                // One-time backfill of the v35 displayName/altName columns (added NULL by the migration):
+                // while unset, take the full-fetch path so an already-synced install picks up the split
+                // names on its first sync after updating, instead of waiting for a server version bump.
+                val displayNamesBackfilled = context.dataStore.get(DisplayNamesBackfilledKey, false)
+
                 // Always fetch at least once per version (including version 1). Subsequent runs skip if already synced.
-                if (!forceSync && remoteVersion != null && remoteVersion <= localVersion && !localEmpty && !manyThumbsMissing) {
+                if (whitelistFastPathEligible(
+                        forceSync = forceSync,
+                        remoteVersion = remoteVersion,
+                        localVersion = localVersion,
+                        localEmpty = localEmpty,
+                        manyThumbsMissing = manyThumbsMissing,
+                        displayNamesBackfilled = displayNamesBackfilled,
+                    )
+                ) {
                     runCatching { WhitelistCache.updateAll(database.getWhitelistEntriesSync()) }
                     refreshBlockedIds()
                     _whitelistSyncProgress.value = WhitelistSyncProgress(isComplete = true)
@@ -900,6 +887,17 @@ class SyncUtils @Inject constructor(
                     total = whitelistEntries.size
                 )
 
+                // Never apply an empty allow-set over a good local table: a successfully-parsed
+                // empty response (mirror bug, empty snapshot) would otherwise diff EVERY artist as
+                // removed and deleteRemovedArtists their songs/albums/history. Keep the last-good
+                // table instead (same fail-safe as syncPodcastWhitelist).
+                if (whitelistEntries.isEmpty()) {
+                    runCatching { WhitelistCache.updateAll(database.getWhitelistEntriesSync()) }
+                    refreshBlockedIds()
+                    _whitelistSyncProgress.value = WhitelistSyncProgress(isComplete = true)
+                    return@withContext
+                }
+
                 val currentWhitelistIds = database.getAllWhitelistedArtistIdsSync()
                 val newWhitelistIds = whitelistEntries.map { it.artistId }.toSet()
                 val removedArtistIds = currentWhitelistIds.filterNot { it in newWhitelistIds }
@@ -914,7 +912,7 @@ class SyncUtils @Inject constructor(
                     val existingArtistIds = getAllArtistIdsSync().toSet()
                     val missingArtists = whitelistEntries
                         .filter { it.artistId !in existingArtistIds }
-                        .map { ArtistEntity(id = it.artistId, name = it.artistName, thumbnailUrl = it.thumbnailUrl) }
+                        .map { ArtistEntity(id = it.artistId, name = it.displayName ?: it.artistName, thumbnailUrl = it.thumbnailUrl) }
                     if (missingArtists.isNotEmpty()) {
                         insertArtists(missingArtists)
                     }
@@ -925,6 +923,11 @@ class SyncUtils @Inject constructor(
                     artistThumbnailUpdates(whitelistEntries, existingArtistIds).forEach { (artistId, thumb) ->
                         updateArtistThumbnailUrl(artistId, thumb)
                     }
+                    // The curated displayName is authoritative for its artist row (split docs only —
+                    // one set-based, idempotent, self-terminating statement): repairs pre-split
+                    // seeds, re-applies after a stale YTM refresh restored the dual title, and lands
+                    // later server-side displayName corrections. See the DAO doc.
+                    applyWhitelistDisplayNames()
                 }
                 WhitelistCache.updateAll(whitelistEntries)
                 refreshBlockedIds()
@@ -937,6 +940,13 @@ class SyncUtils @Inject constructor(
 
                 context.dataStore.edit { settings ->
                     remoteVersion?.let { settings[LastWhitelistVersionKey] = it }
+                    // A full fetch just ran insertWhitelist with the split names, so the one-time
+                    // backfill is done — subsequent syncs may take the version-gated fast path again.
+                    // Gated on the fetch actually CARRYING split names: a pre-split payload (stale
+                    // mirror snapshot) must not burn the one-time flag with all-NULL columns.
+                    if (whitelistCarriesDisplayNames(whitelistEntries)) {
+                        settings[DisplayNamesBackfilledKey] = true
+                    }
                 }
             } catch (e: Exception) {
                 _whitelistSyncProgress.value = WhitelistSyncProgress(isComplete = true)
@@ -1027,6 +1037,11 @@ class SyncUtils @Inject constructor(
     private suspend fun refreshBlockedIds() {
         runCatching {
             WhitelistFetcher.fetchBlockedIds().onSuccess { overrides ->
+                // Keep-last-good on an EMPTY parse, like the whitelist syncs: a mirror bug serving
+                // an empty body must not unhide every conditionally-blocked id (fail-open). An
+                // intentional full clear of the collection should ride a versioned signal, not an
+                // empty response.
+                if (overrides.isEmpty()) return@onSuccess
                 BlockedIdsCache.updateAll(overrides)
                 context.dataStore.edit { it[BlockedContentIdsKey] = BlockedIdsCache.serialize(overrides) }
             }
@@ -1096,6 +1111,32 @@ class SyncUtils @Inject constructor(
 internal const val MISSING_THUMB_BOOTSTRAP_THRESHOLD = 25
 
 /**
+ * Whether the whitelist sync may take the version-gated FAST PATH (skip the full fetch) instead of
+ * fetching the whole allow-set. Pure so the gate is regression-tested. The fast path is eligible only
+ * when a full fetch is genuinely unnecessary: the caller did not force a sync, the server version
+ * probe succeeded and is not newer than the local version, the local table is non-empty, thumbnails
+ * are not being bootstrapped ([MISSING_THUMB_BOOTSTRAP_THRESHOLD]), AND the one-time display-name
+ * backfill has run. That last gate makes the v35 displayName/altName columns (added NULL by
+ * MIGRATION_34_35) populate on the first sync after an update, so both-script Library search and the
+ * legacy-name cleanup reach already-synced installs without a coordinated server version bump; once a
+ * full fetch has run it is set and the fast path is available again.
+ */
+internal fun whitelistFastPathEligible(
+    forceSync: Boolean,
+    remoteVersion: Long?,
+    localVersion: Long,
+    localEmpty: Boolean,
+    manyThumbsMissing: Boolean,
+    displayNamesBackfilled: Boolean,
+): Boolean =
+    !forceSync &&
+        remoteVersion != null &&
+        remoteVersion <= localVersion &&
+        !localEmpty &&
+        !manyThumbsMissing &&
+        displayNamesBackfilled
+
+/**
  * Which (artistId, thumbnailUrl) pairs the whitelist sync writes onto EXISTING artist rows — pure so
  * the population rules are regression-tested: a null/blank server thumbnail is never written (never
  * wipes), and only rows already in the artist table are targeted (new rows carry the thumbnail via
@@ -1109,3 +1150,13 @@ internal fun artistThumbnailUpdates(
         val thumb = entry.thumbnailUrl?.takeIf { it.isNotBlank() } ?: return@mapNotNull null
         if (entry.artistId in existingArtistIds) entry.artistId to thumb else null
     }
+
+/**
+ * Whether a fetched whitelist payload carries the v35 split display names at all — the gate that
+ * lets a completed full fetch set [DisplayNamesBackfilledKey]. Pure so the rule is regression-
+ * tested: a pre-split payload (every displayName null/blank) must NOT burn the one-time backfill
+ * flag, or the split names would never arrive without an unrelated version bump.
+ */
+internal fun whitelistCarriesDisplayNames(
+    entries: List<com.jtech.zemer.db.entities.ArtistWhitelistEntity>,
+): Boolean = entries.any { !it.displayName.isNullOrBlank() }

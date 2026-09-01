@@ -19,6 +19,7 @@ import com.jtech.zemer.search.ZemerPodcastGenrePageResponse
 import com.jtech.zemer.search.ZemerPodcastGenreSummary
 import com.jtech.zemer.search.ZemerPodcastGenresResponse
 import com.jtech.zemer.search.ZemerPodcastResponse
+import com.jtech.zemer.search.ZemerPodcastsResponse
 import com.jtech.zemer.search.ZemerPodcastShow
 import com.jtech.zemer.search.ZemerTrack
 import com.jtech.zemer.search.resolveZemerUrl
@@ -170,7 +171,6 @@ fun offlineAlbum(
             videoId = t.videoId,
             title = t.title,
             artist = trackArtist?.name ?: "",
-            explicit = t.explicit,
             durationSec = t.durationSec,
             trackNumber = at.pos + 1,
         )
@@ -228,7 +228,6 @@ fun offlineArtist(
         videoId = t.videoId,
         title = t.title,
         artist = a.name,
-        explicit = t.explicit,
         durationSec = t.durationSec,
     )
 
@@ -275,7 +274,7 @@ fun offlineHomeRows(
     fun ranked(row: String) = corpus.homeRankByRow[row].orEmpty()
 
     // top-albums → ZemerAlbum(+artistId). Gate by the album's primary artist; require it still exists;
-    // drop id-blocked ref/artist. (explicit is emitted by the server but not modeled by ZemerAlbum.)
+    // drop id-blocked ref/artist.
     val topAlbums = ranked("top-albums").mapNotNull { corpus.albumsById[it.refId] }
         .filter { al ->
             val artist = corpus.artistsById[al.artistId]
@@ -296,7 +295,9 @@ fun offlineHomeRows(
             contentGatePasses(femInv, artist?.isKidZone == true, isVideo = false, allowFemale, blockVideos, kidZone) &&
                 !corpus.idDropped(t.videoId, allowFemale) && !corpus.idDropped(t.artistId, allowFemale)
         }
-        .map { ZemerTrack(videoId = it.videoId, title = it.title, artist = corpus.artistsById[it.artistId]?.name ?: "", artistId = it.artistId, explicit = it.explicit, durationSec = it.durationSec) }
+        // realVideo left at its default false: the snapshot has no CLIP classifier, so no video is flagged
+        // real -> the ViewModel's empty-pool fallback shows the whole set in the hero (no special-case here).
+        .map { ZemerTrack(videoId = it.videoId, title = it.title, artist = corpus.artistsById[it.artistId]?.name ?: "", artistId = it.artistId, durationSec = it.durationSec) }
 
     // top-artists → ZemerArtist. Gate by the artist's own flags + id-override; no _female cross-credit.
     val topArtists = ranked("top-artists").mapNotNull { corpus.artistsById[it.refId] }
@@ -528,7 +529,6 @@ private fun zemerPlaylistTracks(
                 videoId = t.videoId,
                 title = t.title,
                 artist = artist?.name ?: "",
-                explicit = t.explicit,
                 durationSec = t.durationSec,
                 fromAlbum = fromAlbum,
             ),
@@ -548,17 +548,39 @@ private fun zemerPlaylistTracks(
  * female is blocked and `global` ids always). Episodes are audio (played by videoId via InnerTube), so
  * `blockVideos` never hides them — `isVideo = false` throughout. A channel-less grandfathered show has
  * no flags to inherit (female/KidZone = false).
+ *
+ * Kid semantics mirror the server's 2026-08-26 default-exclusion (contract doc, server response): a
+ * show is kid when ITS flag or its channel's is set; `kidZone = true` serves ONLY kid shows;
+ * `kidZone = false` EXCLUDES them on browse surfaces ([defaultExcludesKid] = true: new-episodes,
+ * genres) but NOT on detail opens by id (the show page and a mixed channel's shelf,
+ * [defaultExcludesKid] = false) — the server's deliberate carve-out so a saved subscription,
+ * share, or deep-link keeps working without the flag.
  */
 private fun SubsetCorpus.podcastShowPasses(
     show: SubPodcastShow,
     allowFemale: Boolean,
     blockVideos: Boolean,
     kidZone: Boolean,
+    defaultExcludesKid: Boolean = false,
 ): Boolean {
     val ch = show.channelId?.let { podcastChannelsById[it] }
     if (idDropped(show.id, allowFemale) || idDropped(show.channelId, allowFemale)) return false
-    return contentGatePasses(ch?.isFemale == true, ch?.isKidZone == true, isVideo = false, allowFemale, blockVideos, kidZone)
+    val isKid = podcastIsKid(show)
+    if (defaultExcludesKid && !podcastKidBrowseGate(isKid, kidZone)) return false
+    return contentGatePasses(ch?.isFemale == true, isKid, isVideo = false, allowFemale, blockVideos, kidZone)
 }
+
+/** THE one "is this show kid content" derivation: the per-SHOW flag OR its host channel's. */
+internal fun SubsetCorpus.podcastIsKid(show: SubPodcastShow): Boolean =
+    show.isKidZone || show.channelId?.let { podcastChannelsById[it] }?.isKidZone == true
+
+/**
+ * THE shared kid gate for BROWSE surfaces (catalog, new-episodes, genres, search categories) —
+ * kid content only under `kidZone = 1`, excluded by default (server parity, 2026-08-26). Detail
+ * opens by id deliberately do NOT use it (the server's saved-subscription/deep-link carve-out).
+ */
+internal fun podcastKidBrowseGate(isKid: Boolean, kidZone: Boolean): Boolean =
+    if (kidZone) isKid else !isKid
 
 // newest-first: publishedAt desc (ISO dates sort lexicographically), NULLs last, then videoId asc.
 private val EPISODE_RECENCY = compareByDescending<SubPodcastEpisode> { it.publishedAt != null }
@@ -632,7 +654,12 @@ fun offlinePodcastChannel(
 ): ZemerPodcastChannelResponse? {
     val ch = corpus.podcastChannelsById[id] ?: return null
     if (corpus.idDropped(id, allowFemale)) return null
-    if (!contentGatePasses(ch.isFemale, ch.isKidZone, isVideo = false, allowFemale, blockVideos, kidZone)) return null
+    // Under kidZone the channel passes when it IS kid OR HOSTS a kid show (the server contract:
+    // 404 only unless the channel hosts a kid show) — a mixed publisher must not dead-end the
+    // "View channel" drill-in from a kid show; its shelf below filters to the kid shows.
+    val hostsKid = ch.isKidZone || corpus.podcastsByChannel[id].orEmpty().any { corpus.podcastIsKid(it) }
+    if (kidZone && !hostsKid) return null
+    if (!contentGatePasses(ch.isFemale, hostsKid, isVideo = false, allowFemale, blockVideos, kidZone)) return null
 
     val shows = corpus.podcastsByChannel[id].orEmpty()
         .filter { corpus.podcastShowPasses(it, allowFemale, blockVideos, kidZone) }
@@ -652,6 +679,21 @@ fun offlinePodcastChannel(
 }
 
 /**
+ * `GET /podcasts` — the show catalog (browse semantics: kid shows only under `kidZone = 1`, excluded
+ * by default). The app's one consumer is the KidZone podcasts grid's outage fallback.
+ */
+fun offlinePodcasts(
+    corpus: SubsetCorpus,
+    allowFemale: Boolean,
+    blockVideos: Boolean,
+    kidZone: Boolean,
+): ZemerPodcastsResponse = ZemerPodcastsResponse(
+    podcasts = corpus.podcasts
+        .filter { corpus.podcastShowPasses(it, allowFemale, blockVideos, kidZone, defaultExcludesKid = true) }
+        .map { it.toWire() },
+)
+
+/**
  * `GET /podcasts/new-episodes?k=` — the newest gated episodes across every approved channel's shows,
  * newest-first, capped at [k].
  */
@@ -665,7 +707,7 @@ fun offlinePodcastsNewEpisodes(
     val episodes = corpus.podcastEpisodes.asSequence()
         .filter { ep ->
             val show = corpus.podcastsById[ep.showId] ?: return@filter false
-            corpus.podcastShowPasses(show, allowFemale, blockVideos, kidZone) &&
+            corpus.podcastShowPasses(show, allowFemale, blockVideos, kidZone, defaultExcludesKid = true) &&
                 !corpus.idDropped(ep.videoId, allowFemale)
         }
         .sortedWith(EPISODE_RECENCY)
@@ -693,7 +735,7 @@ fun offlinePodcastGenres(
     val counts = HashMap<String, Int>()
     for (show in corpus.podcasts) {
         if (show.genres.isEmpty()) continue
-        if (!corpus.podcastShowPasses(show, allowFemale, blockVideos, kidZone)) continue
+        if (!corpus.podcastShowPasses(show, allowFemale, blockVideos, kidZone, defaultExcludesKid = true)) continue
         for (slug in show.genres) counts[slug] = (counts[slug] ?: 0) + 1
     }
     val genres = counts.entries
@@ -714,7 +756,7 @@ fun offlinePodcastGenre(
     kidZone: Boolean,
 ): ZemerPodcastGenrePageResponse? {
     val shows = corpus.podcasts.filter {
-        slug in it.genres && corpus.podcastShowPasses(it, allowFemale, blockVideos, kidZone)
+        slug in it.genres && corpus.podcastShowPasses(it, allowFemale, blockVideos, kidZone, defaultExcludesKid = true)
     }
     if (shows.isEmpty()) return null
     return ZemerPodcastGenrePageResponse(

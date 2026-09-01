@@ -94,7 +94,6 @@ import com.jtech.zemer.LocalPlayerConnection
 import com.jtech.zemer.R
 import com.jtech.zemer.constants.ListItemHeight
 import com.jtech.zemer.constants.QueueEditLockKey
-import com.jtech.zemer.constants.UseNewPlayerDesignKey
 import com.jtech.zemer.extensions.metadata
 import com.jtech.zemer.extensions.move
 import com.jtech.zemer.extensions.repeatModeIconRes
@@ -102,6 +101,7 @@ import com.jtech.zemer.extensions.shuffleIconRes
 import com.jtech.zemer.extensions.togglePlayPause
 import com.jtech.zemer.extensions.toggleRepeatMode
 import com.jtech.zemer.models.MediaMetadata
+import com.jtech.zemer.models.withResolvedNavIds
 import com.jtech.zemer.ui.component.ActionPromptDialog
 import com.jtech.zemer.ui.component.BottomSheet
 import com.jtech.zemer.ui.component.BottomSheetState
@@ -153,7 +153,12 @@ fun Queue(
     val shuffleModeEnabled by playerConnection.shuffleModeEnabled.collectAsState()
 
     val currentWindowIndex by playerConnection.currentWindowIndex.collectAsState()
-    val mediaMetadata by playerConnection.mediaMetadata.collectAsState()
+    val rawMediaMetadata by playerConnection.mediaMetadata.collectAsState()
+    val currentSong by playerConnection.currentSong.collectAsState(initial = null)
+    // Same nav-id fill as Player.kt: the queue bar's PlayerMenu needs resolved artist/album ids too.
+    val mediaMetadata = remember(rawMediaMetadata, currentSong) {
+        rawMediaMetadata?.withResolvedNavIds(currentSong)
+    }
 
     val selectedSongs = remember { mutableStateListOf<MediaMetadata>() }
     val selectedItems = remember { mutableStateListOf<Timeline.Window>() }
@@ -166,11 +171,6 @@ fun Queue(
     }
 
     var locked by rememberPreference(QueueEditLockKey, defaultValue = true)
-
-    val (useNewPlayerDesign, _) = rememberPreference(
-        UseNewPlayerDesignKey,
-        defaultValue = true
-    )
 
     val snackbarHostState = remember { SnackbarHostState() }
     var dismissJob: Job? by remember { mutableStateOf(null) }
@@ -205,7 +205,6 @@ fun Queue(
         },
         modifier = modifier,
         collapsedContent = {
-            if (useNewPlayerDesign) {
                 // New design
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(6.dp),
@@ -378,127 +377,6 @@ fun Queue(
                         )
                     }
                 }
-            } else {
-                // Old design
-                Row(
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 30.dp, vertical = 12.dp)
-                        .windowInsetsPadding(
-                            WindowInsets.systemBars
-                                .only(WindowInsetsSides.Bottom + WindowInsetsSides.Horizontal),
-                        ),
-                ) {
-                    TextButton(
-                        onClick = { state.expandSoft() },
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.Center,
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Icon(
-                                painter = painterResource(id = R.drawable.queue_music),
-                                contentDescription = null,
-                                modifier = Modifier.size(20.dp),
-                                tint = TextBackgroundColor
-                            )
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(
-                                text = stringResource(id = R.string.queue),
-                                color = TextBackgroundColor,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                                textAlign = TextAlign.Center,
-                                modifier = Modifier.basicMarquee()
-                            )
-                        }
-                    }
-
-                    TextButton(
-                        onClick = {
-                            if (sleepTimerEnabled) {
-                                playerConnection.service.sleepTimer.clear()
-                            } else {
-                                showSleepTimerDialog = true
-                            }
-                        },
-                        modifier = Modifier.weight(1.2f)
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.Center,
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Icon(
-                                painter = painterResource(id = R.drawable.bedtime),
-                                contentDescription = null,
-                                modifier = Modifier.size(20.dp),
-                                tint = TextBackgroundColor
-                            )
-                            Spacer(modifier = Modifier.width(6.dp))
-                            AnimatedContent(
-                                label = "sleepTimer",
-                                targetState = sleepTimerEnabled,
-                            ) { enabled ->
-                                if (enabled) {
-                                    Text(
-                                        text = makeTimeString(sleepTimerTimeLeft),
-                                        color = TextBackgroundColor,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis,
-                                        textAlign = TextAlign.Center,
-                                        modifier = Modifier.basicMarquee()
-                                    )
-                                } else {
-                                    Text(
-                                        text = stringResource(id = R.string.sleep_timer),
-                                        color = TextBackgroundColor,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis,
-                                        textAlign = TextAlign.Center,
-                                        modifier = Modifier.basicMarquee()
-                                    )
-                                }
-                            }
-                        }
-                    }
-
-                    // Podcast episodes have no lyrics — hide the affordance instead of opening an
-                    // empty sheet (same gate as the new-design pill above).
-                    if (mediaMetadata?.isEpisode != true) {
-                        TextButton(
-                            onClick = { onShowLyrics() },
-                            modifier = Modifier.weight(1f)
-                        ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.Center,
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Icon(
-                                    painter = painterResource(id = R.drawable.lyrics),
-                                    contentDescription = null,
-                                    modifier = Modifier.size(20.dp),
-                                    tint = TextBackgroundColor
-                                )
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Text(
-                                    text = stringResource(id = R.string.lyrics),
-                                    color = TextBackgroundColor,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
-                                    textAlign = TextAlign.Center,
-                                    modifier = Modifier.basicMarquee()
-                                )
-                            }
-                        }
-                    }
-                }
-            }
 
             if (showSleepTimerDialog) {
                 ActionPromptDialog(
@@ -565,7 +443,6 @@ fun Queue(
     ) {
         val queueTitle by playerConnection.queueTitle.collectAsState()
         val queueWindows by playerConnection.queueWindows.collectAsState()
-        val automix by playerConnection.service.automixItems.collectAsState()
         val mutableQueueWindows = remember { mutableStateListOf<Timeline.Window>() }
         val queueLength =
             remember(queueWindows) {
@@ -810,82 +687,6 @@ fun Queue(
                             ) {
                                 content()
                             }
-                        }
-                    }
-                }
-
-                if (automix.isNotEmpty()) {
-                    item(key = "automix_divider") {
-                        HorizontalDivider(
-                            modifier = Modifier
-                                .padding(vertical = 8.dp, horizontal = 4.dp)
-                                .animateItem(),
-                        )
-                    }
-
-                    itemsIndexed(
-                        items = automix,
-                        key = { _, it -> it.mediaId },
-                    ) { index, item ->
-                        Row(
-                            horizontalArrangement = Arrangement.Center,
-                        ) {
-                            MediaMetadataListItem(
-                                mediaMetadata = item.metadata!!,
-                                trailingContent = {
-                                    IconButton(
-                                        onClick = {
-                                            playerConnection.service.playNextAutomix(
-                                                item,
-                                                index,
-                                            )
-                                        },
-                                    ) {
-                                        Icon(
-                                            painter = painterResource(R.drawable.playlist_play),
-                                            contentDescription = null,
-                                        )
-                                    }
-                                    IconButton(
-                                        onClick = {
-                                            playerConnection.service.addToQueueAutomix(
-                                                item,
-                                                index,
-                                            )
-                                        },
-                                    ) {
-                                        Icon(
-                                            painter = painterResource(R.drawable.queue_music),
-                                            contentDescription = null,
-                                        )
-                                    }
-                                },
-                                modifier =
-                                Modifier
-                                    .fillMaxWidth()
-                                    .combinedClickable(
-                                        onClick = {},
-                                        onLongClick = {
-                                            menuState.show {
-                                                PlayerMenu(
-                                                    mediaMetadata = item.metadata!!,
-                                                    navController = navController,
-                                                    playerBottomSheetState = playerBottomSheetState,
-                                                    isQueueTrigger = true,
-                                                    onShowDetailsDialog = {
-                                                        item.mediaId.let {
-                                                            bottomSheetPageState.show {
-                                                                ShowMediaInfo(it, isEpisodeHint = item.metadata?.isEpisode == true)
-                                                            }
-                                                        }
-                                                    },
-                                                    onDismiss = menuState::dismiss,
-                                                )
-                                            }
-                                        },
-                                    )
-                                    .animateItem(),
-                            )
                         }
                     }
                 }

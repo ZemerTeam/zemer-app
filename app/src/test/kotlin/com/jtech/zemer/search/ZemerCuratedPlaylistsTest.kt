@@ -103,7 +103,7 @@ class ZemerCuratedPlaylistsTest {
 
     @Test
     fun `stale-flag guard - a response only publishes while its options match the live config`() {
-        val options = ZemerSearchOptions(allowFemale = true, blockVideos = false, hideExplicit = false)
+        val options = ZemerSearchOptions(allowFemale = true, blockVideos = false)
 
         assertEquals(
             true,
@@ -152,7 +152,7 @@ class ZemerCuratedPlaylistsTest {
             ),
         )
 
-        val songs = with(ZemerResultMapper) { resp.toSongItems(hideExplicit = false) }
+        val songs = with(ZemerResultMapper) { resp.toSongItems() }
 
         assertEquals(listOf("v1", "v2"), songs.map { it.id })
         assertEquals(214, songs.first().duration)

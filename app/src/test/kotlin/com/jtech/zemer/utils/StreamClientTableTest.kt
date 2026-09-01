@@ -76,11 +76,11 @@ class StreamClientTableTest {
         assertEquals("WEB_REMIX", table.main.client.clientName)
         assertTrue(table.main.client.skipHeadValidation)
         assertEquals(
-            listOf("VISIONOS", "VISIONOS", "WEB_CREATOR", "ANDROID_VR", "TVHTML5_SIMPLY", "MWEB"),
+            listOf("VISIONOS", "VISIONOS", "WEB_CREATOR", "TVHTML5_SIMPLY"),
             table.fallbacks.map { it.client.clientName },
         )
         assertEquals(
-            listOf("VISIONOS", "VISIONOS", "WEB_CREATOR", "ANDROID_VR", "TVHTML5", "MWEB"),
+            listOf("VISIONOS", "VISIONOS", "WEB_CREATOR", "TVHTML5"),
             table.fallbacks.map { it.family },
         )
     }

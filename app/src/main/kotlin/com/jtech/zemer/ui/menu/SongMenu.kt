@@ -92,6 +92,8 @@ fun SongMenu(
     playlistSong: PlaylistSong? = null,
     playlistBrowseId: String? = null,
     onDismiss: () -> Unit,
+    // KidZone navigation context from the opening screen: View artist stays kid-scoped.
+    kidZone: Boolean = false,
     isFromCache: Boolean = false,
 ) {
     val context = LocalContext.current
@@ -217,15 +219,8 @@ fun SongMenu(
 
     AddToPlaylistDialog(
         isVisible = showChoosePlaylistDialog,
-        onGetSong = { playlist ->
-            // Anonymous (pooled) sessions are local-only — only a personal account writes to remote.
-            if (isPersonalAccountSignedIn) {
-                coroutineScope.launch(Dispatchers.IO) {
-                    playlist.playlist.browseId?.let { browseId ->
-                        YouTube.addToPlaylist(browseId, song.id)
-                    }
-                }
-            }
+        onGetSong = { _ ->
+            // The remote write is owned by AddToPlaylistDialog (single writer); callers return ids only.
             listOf(song.id)
         },
         onDismiss = {
@@ -251,7 +246,7 @@ fun SongMenu(
             onDismiss = { showSelectArtistDialog = false },
             onArtistClick = { artistId ->
                 // An episode's author is a podcast HOST channel — route to the podcast channel page.
-                navController.navigateToArtist(artistId, isPodcastChannel = song.song.isEpisode)
+                navController.navigateToArtist(artistId, isPodcastChannel = song.song.isEpisode, kidZone = kidZone)
                 onDismiss()
             },
         )
@@ -506,7 +501,7 @@ fun SongMenu(
                                 val valid = song.artists.filter { !it.id.isNullOrBlank() }
                                 when {
                                     valid.size == 1 -> {
-                                        navController.navigateToArtist(valid[0].id, isPodcastChannel = song.song.isEpisode)
+                                        navController.navigateToArtist(valid[0].id, isPodcastChannel = song.song.isEpisode, kidZone = kidZone)
                                         onDismiss()
                                     }
                                     valid.size > 1 -> showSelectArtistDialog = true

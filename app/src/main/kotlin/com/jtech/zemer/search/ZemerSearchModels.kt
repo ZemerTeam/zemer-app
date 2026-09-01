@@ -65,10 +65,16 @@ data class ZemerTrack(
     // instead of the letterboxed video frame). Absent on surfaces that don't provide it yet;
     // [ZemerResultMapper.toSongItem] then falls back to the videoId-derived thumbnail.
     val thumbnail: String? = null,
+    // `/home-rows` `topVideos` only: true = a REAL filmed music video (kept in the Featured Videos hero
+    // carousel); false/absent = an audio single with a designed cover graphic, or not-yet-classified -
+    // stays in the See-all but OUT of the hero, which crops a square cover wrong at 16:9. A server-side
+    // CLIP classifier over the thumbnail sets it (contract:
+    // handoff-docs/zemer-app-featured-videos-real-videos-request.md); absent on the other surfaces and on
+    // older servers, so it defaults false = conservative (out of the hero).
+    val realVideo: Boolean = false,
     // The track's album {id (browseId), name}, when the server links it — powers the song menu's
     // "View album". Null for standalone singles / videos (no album in the corpus).
     val album: ZemerTrackAlbum? = null,
-    val explicit: Boolean = false,
     // `/album` tracks only; absent (null) on the search categories.
     val durationSec: Int? = null,
     val trackNumber: Int? = null,
@@ -85,7 +91,7 @@ data class ZemerTrack(
     // different arrows to different users for the same chart. See [chartMovementOf].
     /**
      * 1-based position on the RAW, UNFILTERED chart — not this list's row index, which is filtered
-     * both server-side (the content flags we send) and client-side (explicit filter, chip). Present
+     * both server-side (the content flags we send) and client-side (chip). Present
      * whenever the chart has a stored ordering, INDEPENDENTLY of the rank history: a position is
      * knowable in cases the movement is not, so this is the test for "is this a ranked chart",
      * never [ZemerCuratedPlaylist.anchorDate], which is absent during a post-formula-change blackout
@@ -155,7 +161,7 @@ data class ZemerPlaylist(
  * by real distinct-device listening over a 30-day live window (contract: `handoff-docs/home-rows-plan.md`).
  * Every list is already whitelist-scoped and content-filtered (female / blocked-ids / kidZone) server-side
  * for the flags sent, so the app does NOT re-run the artist-membership whitelist; it re-applies only the
- * client-owned checks as defence-in-depth (female/israeli via [ZemerTrack.artistId], `hideExplicit`).
+ * client-owned checks as defence-in-depth (female/israeli via [ZemerTrack.artistId]).
  *
  * [topCommunity] stays empty until the app tags `community:<playlistId>` playback; the lenient parser
  * ([zemerResponseJson]) tolerates the key being absent on older servers.
@@ -250,8 +256,8 @@ data class ZemerCuratedPlaylistResponse(
 @Serializable
 data class ZemerAlbumHeader(
     val id: String = "",
-    // The album's own playlist id (OLAK…), when the server sends it — used for the album's radio/automix
-    // when the opener didn't thread one. Absent on older builds; [toAlbumPage] then falls back to the id.
+    // The album's own playlist id (OLAK…), when the server sends it — used for the album's radio when the
+    // opener didn't thread one. Absent on older builds; [toAlbumPage] then falls back to the id.
     val playlistId: String? = null,
     val title: String = "",
     val artist: String = "",
@@ -299,6 +305,12 @@ data class ZemerRadioResponse(
 // response — the mapper drops blank-id rows), and durationSeconds defaults to 0 (server sends 0 only
 // when YouTube truly has no length; the client resume math degrades gracefully).
 // ---------------------------------------------------------------------------------------------------
+
+/** The `/podcasts` catalog response (the KidZone podcast grid consumes it with `kidZone=1`). */
+@Serializable
+data class ZemerPodcastsResponse(
+    val podcasts: List<ZemerPodcastShow> = emptyList(),
+)
 
 /** A podcast SHOW row (browse grid, search, host-channel shelf). Keyed/routed on the `MPSP…` id. */
 @Serializable

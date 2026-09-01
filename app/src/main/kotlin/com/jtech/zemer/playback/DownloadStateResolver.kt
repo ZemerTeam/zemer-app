@@ -20,9 +20,9 @@ enum class DownloadStatus { NOT_DOWNLOADED, DOWNLOADING, DOWNLOADED }
  * - the LIVE in-session [MediaStoreDownloadManager.downloadStates] map, which carries progress and the
  *   transient QUEUED/DOWNLOADING/FAILED states but is empty on a fresh launch.
  *
- * The legacy ExoPlayer download map ([DownloadUtil.downloads] / [DownloadUtil.getDownload]) is
- * deliberately NOT consulted: nothing writes to it anymore, so reading it always reports "not
- * downloaded". `scripts/ui-audit.sh` bans new reads of it so this mistake can't come back.
+ * The legacy ExoPlayer download map (the old `DownloadUtil.downloads` + media3 `DownloadManager`
+ * engine) is GONE - removed entirely; MediaStore is the only download path. `scripts/ui-audit.sh`
+ * still bans reads of the `DownloadUtil.downloads` map so it can't be reintroduced.
  */
 object DownloadStateResolver {
 

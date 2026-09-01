@@ -4,6 +4,7 @@ import android.annotation.SuppressLint
 import android.app.PendingIntent
 import android.content.ComponentName
 import android.content.Intent
+import android.content.res.Configuration
 import android.content.ServiceConnection
 import android.os.Build
 import android.os.Bundle
@@ -13,7 +14,6 @@ import android.view.InputDevice
 import android.view.KeyEvent
 import android.view.MotionEvent
 import android.view.View
-import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
@@ -53,8 +53,6 @@ import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.relocation.BringIntoViewRequester
-import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -126,7 +124,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
-import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextRange
@@ -167,18 +165,22 @@ import coil3.request.allowHardware
 import coil3.request.crossfade
 import coil3.toBitmap
 import com.google.firebase.auth.FirebaseAuth
+import com.dpi.DensityScaler
 import com.jtech.zemer.constants.AppBarHeight
 import com.jtech.zemer.constants.HomeContentTabKey
+import com.jtech.zemer.extensions.cookieHasSession
 import com.jtech.zemer.extensions.toEnum
 import com.jtech.zemer.ui.screens.HomeContentTab
 import com.jtech.zemer.ui.screens.effectiveHomeTab
 import com.jtech.zemer.constants.BlockPodcastsKey
 import com.jtech.zemer.constants.AppLanguageKey
 import com.jtech.zemer.constants.CheckForUpdatesKey
+import com.jtech.zemer.constants.EnableHighRefreshRateKey
+import com.jtech.zemer.constants.RefreshRateMode
+import com.jtech.zemer.constants.RefreshRateModeKey
 import com.jtech.zemer.constants.LastNightlyAnnouncedKey
 import com.jtech.zemer.constants.DarkModeKey
 import com.jtech.zemer.constants.DefaultOpenTabKey
-import com.jtech.zemer.constants.DisableScreenshotKey
 import com.jtech.zemer.constants.DynamicThemeKey
 import com.jtech.zemer.constants.SelectedThemeColorKey
 import com.jtech.zemer.constants.FloatingMiniPlayerKey
@@ -203,7 +205,6 @@ import com.jtech.zemer.constants.BottomNavigationBarEnabledKey
 import com.jtech.zemer.constants.BottomNavigationItemsKey
 import com.jtech.zemer.constants.StopMusicOnTaskClearKey
 import com.jtech.zemer.constants.UpdateNotificationsEnabledKey
-import com.jtech.zemer.constants.UseNewMiniPlayerDesignKey
 import com.jtech.zemer.constants.VisitorDataKey
 import com.jtech.zemer.db.MusicDatabase
 import com.jtech.zemer.db.entities.SearchHistory
@@ -218,6 +219,7 @@ import com.jtech.zemer.playback.MusicService
 import com.jtech.zemer.playback.MusicService.MusicBinder
 import com.jtech.zemer.playback.PlayerConnection
 import com.jtech.zemer.playback.queues.YouTubeQueue
+import com.jtech.zemer.ui.component.bringIntoViewOnFocus
 import com.jtech.zemer.ui.component.AccountSettingsDialog
 import com.jtech.zemer.ui.component.BottomSheetMenu
 import com.jtech.zemer.ui.component.BottomSheetPage
@@ -260,6 +262,11 @@ import com.jtech.zemer.ui.utils.playHomeEasterEgg
 import com.jtech.zemer.ui.utils.backToMain
 import com.jtech.zemer.ui.utils.resetHeightOffset
 import com.jtech.zemer.utils.ButtonInputCapture
+import com.jtech.zemer.utils.DisplayModeInfo
+import com.jtech.zemer.utils.migrateRefreshRateMode
+import com.jtech.zemer.utils.preferredDisplayModeId
+import com.jtech.zemer.utils.preferredRefreshRateHz
+import com.jtech.zemer.utils.selectRefreshRateMode
 import com.jtech.zemer.utils.ButtonMapperBridge
 import com.jtech.zemer.utils.SyncUtils
 import com.jtech.zemer.utils.Updater
@@ -402,6 +409,16 @@ class MainActivity : ComponentActivity() {
         ButtonMapperBridge.register(this)
     }
 
+    override fun onConfigurationChanged(newConfig: Configuration) {
+        // This Activity opts into configChanges (orientation|screenSize|...), so a rotation — incl.
+        // the fullscreen video player's forced landscape — delivers a fresh Configuration that WIPES
+        // the custom density override with no lifecycle event to heal it (#521). Reapply BEFORE
+        // dispatching to super: the view tree re-reads density from the resources during dispatch,
+        // so the order is what keeps Compose on the scaled metrics. Idempotent; no-op at native scale.
+        DensityScaler.reapply(this)
+        super.onConfigurationChanged(newConfig)
+    }
+
     override fun onStop() {
         // Backgrounding reverts video mode to audio: an invisible muxed stream would keep downloading
         // and decoding (the same waste the lyrics-sheet revert exists for). Audio continues seamlessly;
@@ -492,26 +509,47 @@ class MainActivity : ComponentActivity() {
         // NOTE: Files permission is now handled in the onboarding flow
         // requestStoragePermissionsIfNeeded()
 
-        lifecycleScope.launch {
-            dataStore.data
-                .map { it[DisableScreenshotKey] ?: false }
-                .distinctUntilChanged()
-                .collectLatest {
-                    if (it) {
-                        window.setFlags(
-                            WindowManager.LayoutParams.FLAG_SECURE,
-                            WindowManager.LayoutParams.FLAG_SECURE,
-                        )
-                    } else {
-                        window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
-                    }
-                }
-        }
-
         // Initialize content filter sync service
         contentFilterSyncService.initialize()
 
         setContent {
+            // Display refresh-rate policy (Settings -> Appearance): SYSTEM leaves the rate unforced so
+            // the OS runs adaptive refresh (high while interacting, low when idle - the battery-sane
+            // default), STANDARD pins ~60Hz, HIGH forces the highest rate at the current resolution.
+            // One-time migration from the legacy boolean toggle runs first (explicit off -> STANDARD).
+            LaunchedEffect(Unit) {
+                if (this@MainActivity.dataStore.getSuspend(RefreshRateModeKey) == null) {
+                    val legacy = this@MainActivity.dataStore.getSuspend(EnableHighRefreshRateKey)
+                    this@MainActivity.dataStore.edit {
+                        it[RefreshRateModeKey] = migrateRefreshRateMode(legacy).name
+                    }
+                }
+            }
+            val refreshRateMode by rememberEnumPreference(RefreshRateModeKey, defaultValue = RefreshRateMode.SYSTEM)
+            LaunchedEffect(refreshRateMode) {
+                val win = this@MainActivity.window
+                @Suppress("DEPRECATION")
+                val display = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) this@MainActivity.display
+                    else win.windowManager.defaultDisplay
+                val modes = display?.supportedModes.orEmpty().map {
+                    DisplayModeInfo(it.modeId, it.physicalWidth, it.physicalHeight, it.refreshRate)
+                }
+                val current = display?.mode?.let {
+                    DisplayModeInfo(it.modeId, it.physicalWidth, it.physicalHeight, it.refreshRate)
+                }
+                val target = selectRefreshRateMode(modes, current, refreshRateMode)
+                val lp = win.attributes
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                    // 0 for SYSTEM (or no modes) leaves the panel adaptive and clears any previously
+                    // forced mode; a resolved mode pins that exact mode id.
+                    lp.preferredDisplayModeId = preferredDisplayModeId(target)
+                } else {
+                    // Pre-R can only ask for a rate, not a mode id.
+                    lp.preferredRefreshRate = preferredRefreshRateHz(refreshRateMode, target)
+                }
+                win.attributes = lp
+            }
+
             val checkForUpdates by rememberPreference(CheckForUpdatesKey, defaultValue = false)
 
             LaunchedEffect(checkForUpdates) {
@@ -841,13 +879,12 @@ class MainActivity : ComponentActivity() {
                             }
                             items
                         }
-                        val (useNewMiniPlayerDesign) = rememberPreference(UseNewMiniPlayerDesignKey, defaultValue = true)
                         val (floatingMiniPlayerEnabled) = rememberPreference(FloatingMiniPlayerKey, defaultValue = true)
                         val (recognizeMusicFab) = rememberPreference(RecognizeMusicFabKey, defaultValue = true)
                         val (innerTubeCookie) = rememberPreference(InnerTubeCookieKey, defaultValue = "")
                         val (storedVisitorData) = rememberPreference(VisitorDataKey, defaultValue = "")
                         val isLoggedIn = remember(innerTubeCookie) {
-                            parseCookieString(innerTubeCookie).containsKey("SAPISID")
+                            innerTubeCookie.cookieHasSession()
                         }
                         val hasVisitorToken = remember(storedVisitorData) {
                             storedVisitorData.startsWith("Cg")
@@ -1044,13 +1081,12 @@ class MainActivity : ComponentActivity() {
                         bottomInset,
                         shouldShowNavigationBar,
                         showRail,
-                        useNewMiniPlayerDesign,
                         floatingMiniPlayerAllowed
                     ) {
                         if (floatingMiniPlayerAllowed) {
                             bottomInset +
                                 (if (!showRail && shouldShowNavigationBar) NavigationBarHeight + 1.dp else 0.dp) +
-                                (if (useNewMiniPlayerDesign) MiniPlayerBottomSpacing else 0.dp) +
+                                MiniPlayerBottomSpacing +
                                 MiniPlayerHeight
                         } else {
                             0.dp
@@ -1089,7 +1125,15 @@ class MainActivity : ComponentActivity() {
                     val searchBarScrollBehavior =
                         appBarScrollBehavior(
                             canScroll = {
+                                // The browse screens pin the top bar. This behavior's connection is
+                                // ALSO attached one level up (the Scaffold wrapping the NavHost), so
+                                // even with the per-route pinned-routes guard on the inner NavHost
+                                // connection, a browse-list scroll would still reach it here and
+                                // collapse the (single-row) bar's height via heightOffset - while the
+                                // browse content sits on a fixed AppBarHeight inset, opening a gap.
+                                // Refuse to scroll on the pinned routes so heightOffset stays 0.
                                 !inSearchScreen &&
+                                        navBackStackEntry?.destination?.route !in Screens.PinnedTopBarRoutes &&
                                         (playerBottomSheetState.isCollapsed || playerBottomSheetState.isDismissed)
                             },
                         )
@@ -1244,6 +1288,13 @@ class MainActivity : ComponentActivity() {
                     val burgerFocusRequester = remember { FocusRequester() }
                     val contentFocusRequester = remember { FocusRequester() }
                     val drawerScrollState = rememberScrollState()
+                    // The scroll state is hoisted to Activity scope, so it would otherwise persist
+                    // across close/reopen and a reopened drawer would start scrolled to wherever the
+                    // last session left it (header off-screen). Reset once the close settles
+                    // (isOpen flips after the animation), so the jump-to-top is never visible.
+                    LaunchedEffect(drawerState.isOpen) {
+                        if (!drawerState.isOpen) drawerScrollState.scrollTo(0)
+                    }
 
                     // Observe playback errors and show snackbar
                     LaunchedEffect(playerConnection) {
@@ -1288,10 +1339,19 @@ class MainActivity : ComponentActivity() {
                                             canFocus = drawerState.isOpen
                                         }
                                 ) {
+                                    // Scroll the WHOLE drawer (header + every item), not just the
+                                    // header block: on a short screen the item list overflows the
+                                    // sheet and the bottom entries (Settings) were clipped off with
+                                    // no way to reach them (#493). One scroll container also lets the
+                                    // per-item bringIntoView calls below scroll to the focused item.
                                     Column(
                                         modifier = Modifier
                                             .fillMaxWidth()
                                             .verticalScroll(drawerScrollState)
+                                    ) {
+                                    Column(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
                                             .padding(horizontal = 16.dp, vertical = 12.dp),
                                         horizontalAlignment = Alignment.Start
                                     ) {
@@ -1320,7 +1380,6 @@ class MainActivity : ComponentActivity() {
                                         hasVisitorToken -> MaterialTheme.colorScheme.tertiary
                                         else -> MaterialTheme.colorScheme.outline
                                     }
-                                    val accountItemBringIntoViewRequester = remember { BringIntoViewRequester() }
                                     NavigationDrawerItem(
                                         label = {
                                             Column(verticalArrangement = Arrangement.Center) {
@@ -1373,20 +1432,12 @@ class MainActivity : ComponentActivity() {
                                         modifier = Modifier
                                             .padding(NavigationDrawerItemDefaults.ItemPadding)
                                             .focusProperties { canFocus = drawerState.isOpen }
-                                            .bringIntoViewRequester(accountItemBringIntoViewRequester)
-                                            .onFocusEvent { event ->
-                                                if (event.isFocused) {
-                                                    coroutineScope.launch {
-                                                        accountItemBringIntoViewRequester.bringIntoView()
-                                                    }
-                                                }
-                                            }
+                                            .bringIntoViewOnFocus()
                                     )
                                     } // end if (not RELAY): Account entry hidden in login-less relay mode
                                     navigationItems.fastForEachIndexed { index, screen ->
                                         val isSelected =
                                             navBackStackEntry?.destination?.hierarchy?.any { it.route == screen.route } == true
-                                        val itemBringIntoViewRequester = remember { BringIntoViewRequester() }
                                         NavigationDrawerItem(
                                             label = {
                                                 Text(
@@ -1427,20 +1478,12 @@ class MainActivity : ComponentActivity() {
                                             modifier = Modifier
                                                 .padding(NavigationDrawerItemDefaults.ItemPadding)
                                                 .focusProperties { canFocus = drawerState.isOpen }
-                                                .bringIntoViewRequester(itemBringIntoViewRequester)
-                                                .onFocusEvent { event ->
-                                                    if (event.isFocused) {
-                                                        coroutineScope.launch {
-                                                            itemBringIntoViewRequester.bringIntoView()
-                                                        }
-                                                    }
-                                                }
+                                                .bringIntoViewOnFocus()
                                                 .then(
                                                     if (index == 0) Modifier.focusRequester(drawerFocusRequester) else Modifier
                                                 )
                                     )
                                 }
-                                val radioBringIntoViewRequester = remember { BringIntoViewRequester() }
                                 NavigationDrawerItem(
                                     label = { Text(stringResource(R.string.radio_mode)) },
                                     icon = {
@@ -1463,16 +1506,8 @@ class MainActivity : ComponentActivity() {
                                     modifier = Modifier
                                         .padding(NavigationDrawerItemDefaults.ItemPadding)
                                         .focusProperties { canFocus = drawerState.isOpen }
-                                        .bringIntoViewRequester(radioBringIntoViewRequester)
-                                        .onFocusEvent { event ->
-                                            if (event.isFocused) {
-                                                coroutineScope.launch {
-                                                    radioBringIntoViewRequester.bringIntoView()
-                                                }
-                                            }
-                                        }
+                                        .bringIntoViewOnFocus()
                                 )
-                                                                val settingsBringIntoViewRequester = remember { BringIntoViewRequester() }
                                 NavigationDrawerItem(
                                     label = { Text(stringResource(R.string.settings)) },
                                     icon = {
@@ -1493,15 +1528,9 @@ class MainActivity : ComponentActivity() {
                                         modifier = Modifier
                                             .padding(NavigationDrawerItemDefaults.ItemPadding)
                                             .focusProperties { canFocus = drawerState.isOpen }
-                                            .bringIntoViewRequester(settingsBringIntoViewRequester)
-                                            .onFocusEvent { event ->
-                                                if (event.isFocused) {
-                                                    coroutineScope.launch {
-                                                        settingsBringIntoViewRequester.bringIntoView()
-                                                    }
-                                                }
-                                            }
+                                            .bringIntoViewOnFocus()
                                     )
+                                    } // end drawer scroll column
                                 }
                             }
                         ) {
@@ -1632,6 +1661,10 @@ class MainActivity : ComponentActivity() {
                                                     )
                                                 }
 
+                                                // The browse screens pin the top bar and refresh via
+                                                // pull-to-refresh, but that gesture is unreachable by
+                                                // D-pad/TV, so keep a focusable top-bar sync button
+                                                // here as the keyboard/remote path to a manual sync.
                                                 if (currentRoute == Screens.Artists.route && navBackStackEntry != null) {
                                                     val whitelistedArtistsViewModel: WhitelistedArtistsViewModel =
                                                         hiltViewModel(navBackStackEntry!!)
@@ -1969,15 +2002,21 @@ class MainActivity : ComponentActivity() {
                                             else
                                                 slideOutHorizontally { it / 4 } + fadeOut(tween(100))
                                         },
-                                        modifier = Modifier.nestedScroll(
-                                            if (navigationItems.fastAny { it.route == navBackStackEntry?.destination?.route } ||
-                                                inSearchScreen
-                                            ) {
-                                                searchBarScrollBehavior.nestedScrollConnection
-                                            } else {
-                                                topAppBarScrollBehavior.nestedScrollConnection
-                                            }
-                                        )
+                                        // The browse screens (Artists/Podcasts/KidZone) pin the
+                                        // top bar: no collapsing connection there.
+                                        modifier = if (navBackStackEntry?.destination?.route in Screens.PinnedTopBarRoutes) {
+                                            Modifier
+                                        } else {
+                                            Modifier.nestedScroll(
+                                                if (navigationItems.fastAny { it.route == navBackStackEntry?.destination?.route } ||
+                                                    inSearchScreen
+                                                ) {
+                                                    searchBarScrollBehavior.nestedScrollConnection
+                                                } else {
+                                                    topAppBarScrollBehavior.nestedScrollConnection
+                                                }
+                                            )
+                                        }
                                     ) {
                                         navigationBuilder(
                                             navController,

@@ -116,23 +116,6 @@ data class YouTubeClient(
         )
 
         /**
-         * The mobile-web client (yt-dlp-master-exact `mweb`, iPad UA). Requires a signed-in cookie:
-         * anonymous requests 403 at the CDN under every pot binding, authenticated ones drain whole
-         * songs (validated 2026-08-15 on multiple videos via tests/client-fulldownload.mjs). Streams
-         * through the normal web path (cipher sig + n-transform + web poToken).
-         */
-        val MWEB = YouTubeClient(
-            clientName = "MWEB",
-            clientVersion = "2.20260708.05.00",
-            clientId = "2",
-            userAgent = "Mozilla/5.0 (iPad; CPU OS 16_7_10 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1,gzip(gfe)",
-            loginSupported = true,
-            loginRequired = true,
-            protocol = StreamProtocol.WEB_CIPHER_POT,
-        )
-
-
-        /**
          * A minimal TV client (clientId 75) that serves ordinary ciphered adaptive URLs (not SABR),
          * so it streams through the existing web (cipher + web-poToken) path — unlike the current 7.x
          * TVHTML5, which returns SABR-only audio the app can't consume. Validated full-drain on-device;
@@ -146,28 +129,6 @@ data class YouTubeClient(
             protocol = StreamProtocol.WEB_CIPHER_POT,
         )
 
-
-
-
-        /**
-         * The current VR client (v1.65.10, eureka build). Its eureka-style UA clears the bot gate
-         * ("confirm you're not a bot") where the older 1.61.48/1.43.32 UAs are rejected. Like every VR
-         * client it serves a DIRECT stream URL used AS-IS — no signatureCipher, no n-transform, no
-         * poToken (yt-dlp `android_vr`: REQUIRE_JS_PLAYER=false, no GVS poToken policy); on-device
-         * validated. Shares clientName "ANDROID_VR" (the "Android VR" stream-source toggle governs it).
-         */
-        val ANDROID_VR_1_65_10 = YouTubeClient(
-            clientName = "ANDROID_VR",
-            clientVersion = "1.65.10",
-            clientId = "28",
-            userAgent = "com.google.android.apps.youtube.vr.oculus/1.65.10 (Linux; U; Android 12L; eureka-user Build/SQ3A.220605.009.A1) gzip",
-            osName = "Android",
-            osVersion = "12L",
-            deviceMake = "Oculus",
-            deviceModel = "Quest 3",
-            androidSdkVersion = "32",
-            loginSupported = false,
-        )
 
 
 

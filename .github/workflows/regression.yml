@@ -1,0 +1,82 @@
+name: Regression tests
+
+# Runs the app's JVM unit tests on every push/PR - previously they lived in the repo but
+# were never executed in CI. Covers the app + innertube module tests, the cipher library
+# tests, and the network-free Node loader tests. There is deliberately no signing and no
+# APK assemble here: assembleRelease in the release workflow already covers "does it build",
+# so this job stays fast and needs no keystore.
+on:
+  push:
+    branches: [ main ]
+    paths-ignore:
+      - 'docs/**'
+      - '**.md'
+      - '.github/**'
+      - 'scripts/**'
+      - '.idea/**'
+      - '.vscode/**'
+      - 'LICENSE'
+      - 'cipher'
+  pull_request:
+    branches: [ main ]
+    paths-ignore:
+      - 'docs/**'
+      - '**.md'
+      - '.github/**'
+      - 'scripts/**'
+      - '.idea/**'
+      - '.vscode/**'
+      - 'LICENSE'
+      - 'cipher'
+  workflow_dispatch:
+
+concurrency:
+  group: regression-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  node-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Node loader tests (no network)
+        run: |
+          node --test tests/player-configs.test.mjs
+          node --test tests/search/self-test.mjs
+
+  unit-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          cache-read-only: ${{ github.ref != 'refs/heads/main' }}
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+      - name: Configure Android SDK path
+        run: echo "sdk.dir=$ANDROID_SDK_ROOT" > local.properties
+      - name: Configure Firebase
+        run: echo "${{ secrets.GOOGLE_SERVICES_JSON_BASE64 }}" | base64 -d > app/google-services.json
+      - name: JVM unit tests (app + innertube + simpmusic)
+        run: ./gradlew :app:testDebugUnitTest :innertube:test :simpmusic:test
+      - name: Cipher library unit tests
+        run: ./gradlew -p cipher :library:testDebugUnitTest
+      - name: Upload test reports on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-reports
+          path: '**/build/reports/tests/**'
+          if-no-files-found: ignore
