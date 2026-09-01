@@ -16,7 +16,6 @@ import com.jtech.zemer.constants.StreamSabrKey
 import com.jtech.zemer.constants.StreamSabrWebRemixKey
 import com.jtech.zemer.constants.StreamSabrVisionOSKey
 import com.jtech.zemer.constants.StreamSabrTVHTML5Key
-import com.jtech.zemer.constants.StreamSabrMWEBKey
 import com.jtech.zemer.playback.sabr.SabrPlayerResolver
 import com.jtech.zemer.playback.sabr.SabrStreamResolver
 import com.jtech.zemer.extensions.toEnum
@@ -471,7 +470,6 @@ constructor(
                     if (context.dataStore.getSuspend(StreamSabrWebRemixKey) != false) add(SabrPlayerResolver.KEY_WEB_REMIX)
                     if (context.dataStore.getSuspend(StreamSabrVisionOSKey) != false) add(SabrPlayerResolver.KEY_VISIONOS)
                     if (context.dataStore.getSuspend(StreamSabrTVHTML5Key) != false) add(SabrPlayerResolver.KEY_TVHTML5_SIMPLY)
-                    if (context.dataStore.getSuspend(StreamSabrMWEBKey) != false) add(SabrPlayerResolver.KEY_MWEB)
                 }
             val sabrAudioMode = enabledSabrClients.isNotEmpty() && !videoDownload
             val sabrVideoMode = enabledSabrClients.isNotEmpty() && videoDownload

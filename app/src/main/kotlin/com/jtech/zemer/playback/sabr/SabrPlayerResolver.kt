@@ -16,7 +16,7 @@ import timber.log.Timber
  * ustreamer config) wins: registers a session and returns a `sabr://<videoId>` uri for ExoPlayer.
  *
  * Isolated from the DIRECT path. Reuses the app's [YouTube.player], the [PoTokenGenerator] WebView pot,
- * and the [CipherDeobfuscator] n-transform. Web clients (WEB_REMIX / TVHTML5_SIMPLY / MWEB) have a
+ * and the [CipherDeobfuscator] n-transform. Web clients (WEB_REMIX / TVHTML5_SIMPLY) have a
  * CIPHERED serverAbrStreamingUrl - their `n` is n-transformed and the videoId pot is appended; direct
  * clients (VISIONOS) do neither.
  */
@@ -28,7 +28,6 @@ object SabrPlayerResolver {
     const val KEY_WEB_REMIX = "WEB_REMIX"
     const val KEY_VISIONOS = "VISIONOS"
     const val KEY_TVHTML5_SIMPLY = "TVHTML5_SIMPLY"
-    const val KEY_MWEB = "MWEB"
 
     private class Spec(
         val key: String,
@@ -48,7 +47,6 @@ object SabrPlayerResolver {
         Spec(KEY_WEB_REMIX, YouTubeClient.WEB_REMIX, "WEB_REMIX (SABR)", web = true, osName = "Windows", osVersion = "10.0"),
         Spec(KEY_VISIONOS, YouTubeClient.VISIONOS, "VISIONOS (SABR)", web = false, osName = "visionOS", osVersion = "26.5.23O471", deviceMake = "Apple", deviceModel = "RealityDevice17,1"),
         Spec(KEY_TVHTML5_SIMPLY, YouTubeClient.TVHTML5_SIMPLY, "TVHTML5_SIMPLY (SABR)", web = true),
-        Spec(KEY_MWEB, YouTubeClient.MWEB, "MWEB (SABR)", web = true),
     )
 
     /**

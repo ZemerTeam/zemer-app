@@ -80,24 +80,6 @@ data class YouTubeClient(
         )
 
         /**
-         * The mobile-web client (yt-dlp-master-exact `mweb`, iPad UA). Requires a signed-in cookie:
-         * anonymous requests 403 at the CDN under every pot binding, authenticated ones drain whole
-         * songs (validated 2026-08-15 on multiple videos via tests/client-fulldownload.mjs). Streams
-         * through the normal web path (cipher sig + n-transform + web poToken).
-         */
-        val MWEB = YouTubeClient(
-            clientName = "MWEB",
-            clientVersion = "2.20260708.05.00",
-            clientId = "2",
-            userAgent = "Mozilla/5.0 (iPad; CPU OS 16_7_10 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1,gzip(gfe)",
-            loginSupported = true,
-            loginRequired = true,
-            useSignatureTimestamp = true,
-            useWebPoTokens = true,
-        )
-
-
-        /**
          * A minimal TV client (clientId 75) that serves ordinary ciphered adaptive URLs (not SABR),
          * so it streams through the existing web (cipher + web-poToken) path — unlike the current 7.x
          * TVHTML5, which returns SABR-only audio the app can't consume. Validated full-drain on-device;

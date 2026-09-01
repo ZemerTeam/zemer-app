@@ -129,7 +129,6 @@ val StreamSourceWebRemixKey   = booleanPreferencesKey("streamSourceWebRemix")
 val StreamSourceTVHTML5Key    = booleanPreferencesKey("streamSourceTVHTML5")
 val StreamSourceWebCreatorKey = booleanPreferencesKey("streamSourceWebCreator")
 val StreamSourceVisionOSKey   = booleanPreferencesKey("streamSourceVisionOS")
-val StreamSourceMWEBKey       = booleanPreferencesKey("streamSourceMWEB")
 
 // EXPERIMENTAL, off by default: route DIRECT playback through the SABR/UMP transport instead of a
 // progressive URL. Fully isolated (playback/sabr/) - the fallback for when progressive gets walled.
@@ -141,7 +140,6 @@ val StreamSabrKey             = booleanPreferencesKey("streamSabr")
 val StreamSabrWebRemixKey     = booleanPreferencesKey("streamSabrWebRemix")
 val StreamSabrVisionOSKey     = booleanPreferencesKey("streamSabrVisionOS")
 val StreamSabrTVHTML5Key      = booleanPreferencesKey("streamSabrTVHTML5")
-val StreamSabrMWEBKey         = booleanPreferencesKey("streamSabrMWEB")
 
 /**
  * The audio download format choice. BEST selects the highest-quality stream YouTube

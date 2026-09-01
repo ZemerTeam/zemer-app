@@ -37,7 +37,6 @@ multiple videos, by `tests/sabr-clients.mjs`:
 | **WEB_REMIX** (the app's main client) | yes whole song, every video | yes (tried first) |
 | **VISIONOS** / VISIONOS_0_1 | yes whole song, pot-less direct client | yes |
 | **TVHTML5_SIMPLY** | yes whole song, no sign-in | yes |
-| **MWEB** | partial whole song on most content, context-challenge stall on some | yes (last) |
 | IOS / IPADOS / WEB_CREATOR / ANDROID_VR | no throttled to ~60s on most content (whole only on rare unrestricted videos) | **no** |
 | WEB (desktop) | no needs browser-grade attestation | no |
 
@@ -46,7 +45,7 @@ Two hard-won facts behind that table:
 - **The web family's `serverAbrStreamingUrl` is CIPHERED** - it carries `n`/`sig` params, unlike the
   direct clients' URLs. It must be **n-transformed** (the same cipher the app runs for web progressive
   URLs) before POSTing, and the **videoId-bound pot appended** as `&pot=`. This n-transform was the single
-  missing piece that unlocked WEB_REMIX/TVHTML5_SIMPLY/MWEB; without it they `403`.
+  missing piece that unlocked WEB_REMIX/TVHTML5_SIMPLY; without it they `403`.
 - **The ~60s cap on IOS/IPADOS/WEB_CREATOR/ANDROID_VR is server-side, keyed on client identity, and NOT a
   bug in this code** - the *identical* loop and pot drain VISIONOS/WEB_REMIX whole. YouTube throttles the
   sensitive clients to ~60s on most (esp. premium/label) content; those clients require their native
@@ -203,11 +202,11 @@ still points at the file it evicts, so a live replay is never stranded (`SabrSpo
 first that exposes SABR inputs wins:
 
 ```
-WEB_REMIX (web)  ->  VISIONOS (direct)  ->  TVHTML5_SIMPLY (web)  ->  MWEB (web)
+WEB_REMIX (web)  ->  VISIONOS (direct)  ->  TVHTML5_SIMPLY (web)
 ```
 
 Per client:
-- **web** (WEB_REMIX / TVHTML5_SIMPLY / MWEB): `/player` sent with the signature timestamp + the session
+- **web** (WEB_REMIX / TVHTML5_SIMPLY): `/player` sent with the signature timestamp + the session
   web pot; the SABR url is **n-transformed** and the **videoId pot appended**.
 - **direct** (VISIONOS): `/player` with no pot/sts; the SABR url is used **as-is** (identity transform, no
   url-pot).
@@ -226,7 +225,7 @@ Per client:
 **standard** base64 (`+`/`/`), bgutils emits url-safe (`-`/`_`); both normalize to standard, pad, decode. A
 strict `URL_SAFE` decode threw `bad base-64` on the app's tokens - the first on-device failure.
 
-Each client is individually toggleable (`StreamSabr{WebRemix,VisionOS,TVHTML5,MWEB}Key`, all default on),
+Each client is individually toggleable (`StreamSabr{WebRemix,VisionOS,TVHTML5}Key`, all default on),
 exposed as the **"SABR clients"** sub-list in Stream Sources. Only clients validated to deliver a whole
 song are in the roster - the ~60s-capped ones are deliberately absent.
 
@@ -440,13 +439,12 @@ drains **both** tracks. Reliable = whole video **and** whole audio on **both** `
 | **WEB_REMIX** (main client) | yes whole, both videos | yes |
 | **TVHTML5_SIMPLY** | yes whole, both videos | yes |
 | **VISIONOS** / VISIONOS_0_1 | yes whole, both videos | yes |
-| **MWEB** | yes whole, both videos | yes (last) |
 | WEB_CREATOR / IOS / IPADOS | partial whole on unrestricted, ~60s cap on some | no |
 | ANDROID_VR | no ~60s cap | no |
 | WEB (desktop) / TVHTML5 7.x | no no SABR inputs / unplayable | no |
 
 This is the **same reliable set as SABR audio** (sec 2) - video adds no new usable/unusable clients, so the
-app's existing SABR roster (WEB_REMIX -> VISIONOS -> TVHTML5_SIMPLY -> MWEB) covers video unchanged. The cap
+app's existing SABR roster (WEB_REMIX -> VISIONOS -> TVHTML5_SIMPLY) covers video unchanged. The cap
 on the sensitive clients is the same server-side identity throttle as audio, content-dependent.
 
 ### 9.4 App integration (RELAY/SABR isolation pattern)
@@ -532,8 +530,10 @@ On-device soak of SABR video playback + downloads is the remaining validation ga
   the estimated `playerTimeMs` (sec 5) — a resumed 2-hour episode starts near its resume point instead
   of draining 2 hours of bytes first. The byte->time estimate is linear (approxDurationMs), so a highly
   VBR track may need a convergence restart or two (bounded, then errors loudly).
-- **MWEB** is inconsistent (context-challenge stall on some content) - it sits last, and the stall
-  fallback (sec 7) deprioritizes it per-id after an incomplete drain.
+- **MWEB was REMOVED** from the roster (and the DIRECT chain) — it is attestation-walled on gated content
+  on BOTH transports (SABR: `STREAM_PROTECTION_STATUS=2` after a ~28% free window; progressive: 403 at the
+  1-MiB wall), and only ever drained ungated videos the other clients already cover. `SabrProtection`
+  still guards any future gated client. See `tests/MWEB-INVESTIGATION.md`.
 - **Casting** cannot ride SABR: the cast receiver fetches its own URL and cannot speak UMP — a cast
   session still needs a progressive URL (the DIRECT pipeline).
 - **A WebView poToken is required** for every fresh resolve (the streamerContext pot) — there is no

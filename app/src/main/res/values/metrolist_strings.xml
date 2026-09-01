@@ -272,8 +272,6 @@
     <string name="stream_source_web_remix_desc">YouTube Music web client: the primary client</string>
     <string name="stream_source_tvhtml5">TVHTML5</string>
     <string name="stream_source_tvhtml5_desc">YouTube TV client: anonymous fallback, no sign-in needed</string>
-    <string name="stream_source_mweb">MWEB</string>
-    <string name="stream_source_mweb_desc">YouTube mobile web client: signed-in fallback</string>
     <string name="stream_source_visionos">visionOS</string>
     <string name="stream_source_visionos_desc">Apple direct-URL client: most reliable fallback, no cipher or sign-in</string>
     <string name="stream_source_web_creator">WEB_CREATOR</string>
@@ -285,7 +283,6 @@
     <string name="stream_source_sabr_web_remix_desc">Main web client. Streams whole songs over SABR; tried first.</string>
     <string name="stream_source_sabr_visionos_desc">Apple direct client: no sign-in, no cipher. Reliable SABR fallback.</string>
     <string name="stream_source_sabr_tvhtml5_desc">TV client: no sign-in. Reliable SABR fallback.</string>
-    <string name="stream_source_sabr_mweb_desc">Mobile web client: streams over SABR on most content.</string>
 
     <!-- Mixes / suggested playlists -->
     <string name="mixes">Mixes</string>

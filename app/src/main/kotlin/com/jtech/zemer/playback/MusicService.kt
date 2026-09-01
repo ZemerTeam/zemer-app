@@ -85,7 +85,6 @@ import com.jtech.zemer.constants.StreamSabrKey
 import com.jtech.zemer.constants.StreamSabrWebRemixKey
 import com.jtech.zemer.constants.StreamSabrVisionOSKey
 import com.jtech.zemer.constants.StreamSabrTVHTML5Key
-import com.jtech.zemer.constants.StreamSabrMWEBKey
 import com.jtech.zemer.playback.relay.RelayDataSourceFactory
 import com.jtech.zemer.playback.relay.RelayDeviceId
 import com.jtech.zemer.constants.AudioOffload
@@ -648,7 +647,6 @@ class MusicService :
                 if (prefs[com.jtech.zemer.constants.StreamSourceTVHTML5Key]   == false) disabled += setOf("TVHTML5", "TVHTML5_SIMPLY")
                 if (prefs[com.jtech.zemer.constants.StreamSourceVisionOSKey]  == false) disabled += "VISIONOS"
                 if (prefs[com.jtech.zemer.constants.StreamSourceWebCreatorKey] == false) disabled += "WEB_CREATOR"
-                if (prefs[com.jtech.zemer.constants.StreamSourceMWEBKey]      == false) disabled += "MWEB"
                 YTPlayerUtils.disabledStreamClients = disabled
             }
         }
@@ -2401,7 +2399,6 @@ class MusicService :
         if (dataStore.get(StreamSabrWebRemixKey, true)) add(com.jtech.zemer.playback.sabr.SabrPlayerResolver.KEY_WEB_REMIX)
         if (dataStore.get(StreamSabrVisionOSKey, true)) add(com.jtech.zemer.playback.sabr.SabrPlayerResolver.KEY_VISIONOS)
         if (dataStore.get(StreamSabrTVHTML5Key, true)) add(com.jtech.zemer.playback.sabr.SabrPlayerResolver.KEY_TVHTML5_SIMPLY)
-        if (dataStore.get(StreamSabrMWEBKey, true)) add(com.jtech.zemer.playback.sabr.SabrPlayerResolver.KEY_MWEB)
     }
 
     // The last-resolved audio itag per `videoaudio:<id>` merge key, and the last-resolved video itag
