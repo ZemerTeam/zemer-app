@@ -174,13 +174,13 @@ Every tracked Kotlin file is listed with hard metadata extracted from the file t
 | `app/src/main/kotlin/com/jtech/zemer/playback/sabr/SabrBuffer.kt` | 227 | `com.jtech.zemer.playback.sabr` | no | 4 | 52 | java.io, java.util |
 | `app/src/main/kotlin/com/jtech/zemer/playback/sabr/SabrDataSource.kt` | 283 | `com.jtech.zemer.playback.sabr` | no | 11 | 72 | android.net, androidx.media3, java.io, java.util, okhttp3.OkHttpClient, timber.log |
 | `app/src/main/kotlin/com/jtech/zemer/playback/sabr/SabrMessages.kt` | 193 | `com.jtech.zemer.playback.sabr` | no | 4 | 54 |  |
-| `app/src/main/kotlin/com/jtech/zemer/playback/sabr/SabrPlayerResolver.kt` | 241 | `com.jtech.zemer.playback.sabr` | no | 9 | 51 | android.net, com.zemer, kotlinx.coroutines, timber.log |
+| `app/src/main/kotlin/com/jtech/zemer/playback/sabr/SabrPlayerResolver.kt` | 248 | `com.jtech.zemer.playback.sabr` | no | 8 | 51 | android.net, com.zemer, kotlinx.coroutines, timber.log |
 | `app/src/main/kotlin/com/jtech/zemer/playback/sabr/SabrProto.kt` | 101 | `com.jtech.zemer.playback.sabr` | no | 1 | 39 | java.io |
 | `app/src/main/kotlin/com/jtech/zemer/playback/sabr/SabrSession.kt` | 235 | `com.jtech.zemer.playback.sabr` | no | 5 | 71 | okhttp3.MediaType, okhttp3.OkHttpClient, okhttp3.Request, okhttp3.RequestBody, timber.log |
 | `app/src/main/kotlin/com/jtech/zemer/playback/sabr/SabrSpool.kt` | 134 | `com.jtech.zemer.playback.sabr` | no | 3 | 37 | java.io, java.util, timber.log |
 | `app/src/main/kotlin/com/jtech/zemer/playback/sabr/SabrStreamResolver.kt` | 172 | `com.jtech.zemer.playback.sabr` | no | 8 | 29 | android.util, java.io, java.util, kotlinx.coroutines, okhttp3.OkHttpClient, timber.log |
 | `app/src/main/kotlin/com/jtech/zemer/playback/sabr/SabrUmp.kt` | 71 | `com.jtech.zemer.playback.sabr` | no | 0 | 27 |  |
-| `app/src/main/kotlin/com/jtech/zemer/playback/sabr/SabrVideoResolver.kt` | 386 | `com.jtech.zemer.playback.sabr` | no | 16 | 101 | android.net, android.util, com.zemer, java.io, kotlinx.coroutines, timber.log |
+| `app/src/main/kotlin/com/jtech/zemer/playback/sabr/SabrVideoResolver.kt` | 391 | `com.jtech.zemer.playback.sabr` | no | 15 | 101 | android.net, android.util, com.zemer, java.io, kotlinx.coroutines, timber.log |
 | `app/src/main/kotlin/com/jtech/zemer/playback/sabr/SabrVideoSession.kt` | 263 | `com.jtech.zemer.playback.sabr` | no | 5 | 91 | okhttp3.MediaType, okhttp3.OkHttpClient, okhttp3.Request, okhttp3.RequestBody, timber.log |
 | `app/src/main/kotlin/com/jtech/zemer/playback/sabr/SabrVideoStream.kt` | 243 | `com.jtech.zemer.playback.sabr` | no | 9 | 71 | android.net, androidx.media3, java.io, okhttp3.OkHttpClient, timber.log |
 | `app/src/main/kotlin/com/jtech/zemer/recognition/AudioResampler.kt` | 118 | `com.jtech.zemer.recognition` | no | 6 | 24 | java.nio, kotlinx.coroutines, timber.log |

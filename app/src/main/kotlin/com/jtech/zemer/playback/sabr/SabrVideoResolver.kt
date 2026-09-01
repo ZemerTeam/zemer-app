@@ -5,7 +5,6 @@ import android.util.Base64
 import com.jtech.zemer.playback.VideoDecoderCaps
 import com.jtech.zemer.playback.VideoQualityLogic
 import com.jtech.zemer.playback.VideoQualityRung
-import com.metrolist.innertube.NewPipeUtils
 import com.metrolist.innertube.YouTube
 import com.metrolist.innertube.models.YouTubeClient
 import com.zemer.cipher.CipherDeobfuscator
@@ -272,7 +271,13 @@ object SabrVideoResolver {
     private suspend fun firstWorkingBuilt(videoId: String, enabled: Set<String>, targetLabel: String, maxAutoBitrateKbps: Int?): Built? {
         val visitorData = YouTube.visitorData ?: return null
         val pot = poTokenGenerator.getWebClientPoToken(videoId, visitorData) ?: return null
-        val sts = NewPipeUtils.getSignatureTimestamp(videoId).getOrNull()
+        // STS from the cipher player - the single sts/decipher source (see SabrPlayerResolver).
+        val sts = try {
+            CipherDeobfuscator.signatureTimestamp()
+        } catch (e: Exception) {
+            Timber.tag(TAG).e(e, "Cipher player STS fetch FAILED")
+            null
+        }
         // Stall fallback (shared with the audio resolver): a client that drained this id incomplete is
         // deprioritized, so a replay advances the roster instead of truncating identically forever.
         val stalled = SabrPlayerResolver.stalledFor(videoId)

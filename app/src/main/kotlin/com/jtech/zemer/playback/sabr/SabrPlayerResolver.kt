@@ -1,7 +1,6 @@
 package com.jtech.zemer.playback.sabr
 
 import android.net.Uri
-import com.metrolist.innertube.NewPipeUtils
 import com.metrolist.innertube.YouTube
 import com.metrolist.innertube.models.YouTubeClient
 import com.zemer.cipher.CipherDeobfuscator
@@ -121,7 +120,15 @@ object SabrPlayerResolver {
         }
         val visitorData = YouTube.visitorData ?: return@withContext null
         val pot = poTokenGenerator.getWebClientPoToken(videoId, visitorData) ?: return@withContext null
-        val sts = NewPipeUtils.getSignatureTimestamp(videoId).getOrNull()
+        // STS must come from the cipher player - the single sts/decipher source (a sig minted for one
+        // player generation but deciphered by another 403s on the CDN). Null sts degrades the /player
+        // response, never playback of clients that need no signature.
+        val sts = try {
+            CipherDeobfuscator.signatureTimestamp()
+        } catch (e: Exception) {
+            Timber.tag(TAG).e(e, "Cipher player STS fetch FAILED")
+            null
+        }
         val stalled = stalledClients[videoId].orEmpty()
         // Two passes: prefer non-stalled clients; a fully-stalled roster still retries them (last hope).
         val order = ROSTER.filter { it.key in enabled && it.key !in stalled } +
