@@ -259,6 +259,12 @@ object YTPlayerUtils {
         var streamPlayerResponse: PlayerResponse? = null
         var successClient: String? = null
         var successClientObj: YouTubeClient? = null
+        // Whether ANY OK response carried a format the progressive path can consume (a direct url
+        // or a signatureCipher). Distinguishes "no format matched THIS request" (audio-only upload
+        // asked for video, quality mismatch — a per-video outcome) from the SABR-only client-kill
+        // shape (every client OK, but nothing but serverAbrStreamingUrl), which is the one
+        // format==null case that is a stream-client-table signal.
+        var sawConsumableFormat = false
 
         for (clientIndex in (-1 until fallbackClients.size)) {
             // reset for each client
@@ -310,6 +316,7 @@ object YTPlayerUtils {
                 // carry playable URLs; web clients are deciphered per-format by the Zemer
                 // cipher in findUrlOrNull (sig) + transformNParamInUrl (n) below.
                 val responseToUse = streamPlayerResponse
+                if (hasConsumableFormats(responseToUse.streamingData)) sawConsumableFormat = true
 
                 // An EXPLICIT quality-rung streaming resolution (videoItag) must come from a WEB client
                 // only: a non-web fallback (VISIONOS) can carry the itag, but its pot-bound URL
@@ -445,10 +452,12 @@ object YTPlayerUtils {
 
         if (format == null) {
             Timber.tag(TAG).e( "No playable format found for $videoId")
-            // No client offered a playable format: the SABR-only client-kill shape — UNLESS this
-            // was an explicit quality-rung request, where "no client carries that itag" is an
-            // ordinary per-video outcome that reverts to audio.
-            if (videoItag == null) onAllClientsFailed()
+            // Only the SABR-only client-kill shape is a table signal: every client answered OK
+            // but none served a single consumable format. A response that DID carry consumable
+            // formats which merely did not match this request (audio-only upload with
+            // preferVideo, an explicit quality rung no client carries) is a per-video outcome —
+            // firing there would spam the config host on ordinary videos.
+            if (videoItag == null && !sawConsumableFormat) onAllClientsFailed()
             throw PlaybackException(
                 "No playable format found",
                 null,
@@ -568,6 +577,17 @@ object YTPlayerUtils {
         playlistId: String? = null,
     ): Result<PlayerResponse> {
         return YouTube.player(videoId, playlistId, client = WEB_REMIX) // non-web fallbacks do not work with history
+    }
+
+    /**
+     * True when [streamingData] offers at least one format the progressive path can consume — a
+     * direct `url` or a `signatureCipher` — in either the muxed or the adaptive list. A response
+     * with formats but none of these is SABR-only (media only behind serverAbrStreamingUrl).
+     */
+    internal fun hasConsumableFormats(streamingData: PlayerResponse.StreamingData?): Boolean {
+        if (streamingData == null) return false
+        val all = streamingData.formats.orEmpty() + streamingData.adaptiveFormats
+        return all.any { it.url != null || it.signatureCipher != null }
     }
 
     private fun clientNeedsNTransform(client: YouTubeClient): Boolean =
