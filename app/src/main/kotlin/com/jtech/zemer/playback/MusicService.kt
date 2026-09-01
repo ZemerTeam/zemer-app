@@ -82,9 +82,6 @@ import com.jtech.zemer.constants.AudioNormalizationKey
 import com.jtech.zemer.constants.PlaybackMode
 import com.jtech.zemer.constants.PlaybackModeKey
 import com.jtech.zemer.constants.StreamSabrKey
-import com.jtech.zemer.constants.StreamSabrWebRemixKey
-import com.jtech.zemer.constants.StreamSabrVisionOSKey
-import com.jtech.zemer.constants.StreamSabrTVHTML5Key
 import com.jtech.zemer.playback.relay.RelayDataSourceFactory
 import com.jtech.zemer.playback.relay.RelayDeviceId
 import com.jtech.zemer.constants.AudioOffload
@@ -640,8 +637,8 @@ class MusicService :
         }
 
         // Keep YTPlayerUtils in sync with the per-family stream source toggles. The one-time
-        // legacy-key migration runs first so a pre-family install's choices carry over before the
-        // first collect emission publishes the disabled set.
+        // legacy-key migration (DIRECT and SABR keys) runs first so a pre-family install's choices
+        // carry over before the first collect emission publishes the disabled set.
         scope.launch {
             com.jtech.zemer.utils.StreamSourcePrefs.migrateLegacyToggles(dataStore)
             dataStore.data.collect { prefs ->
@@ -2393,11 +2390,16 @@ class MusicService :
     fun sabrCpnFor(videoId: String): String =
         watchTimeReporter.mediaCpnFor(VideoRendition.baseVideoId(videoId))
 
-    /** The enabled SABR clients from settings (read off the main thread, e.g. a resolver coroutine). */
-    fun sabrEnabledClients(): Set<String> = buildSet {
-        if (dataStore.get(StreamSabrWebRemixKey, true)) add(com.jtech.zemer.playback.sabr.SabrPlayerResolver.KEY_WEB_REMIX)
-        if (dataStore.get(StreamSabrVisionOSKey, true)) add(com.jtech.zemer.playback.sabr.SabrPlayerResolver.KEY_VISIONOS)
-        if (dataStore.get(StreamSabrTVHTML5Key, true)) add(com.jtech.zemer.playback.sabr.SabrPlayerResolver.KEY_TVHTML5_SIMPLY)
+    /**
+     * The enabled SABR client FAMILIES from settings: the current table's SABR roster minus the
+     * per-family off switches (read off the main thread, e.g. a resolver coroutine — the blocking
+     * DataStore snapshot is the same one the legacy per-key reads made).
+     */
+    fun sabrEnabledClients(): Set<String> {
+        val prefs = kotlinx.coroutines.runBlocking(kotlinx.coroutines.Dispatchers.IO) { dataStore.data.first() }
+        return com.jtech.zemer.utils.StreamSourcePrefs.enabledSabrFamilies(
+            prefs, com.jtech.zemer.utils.StreamClientTable.current(),
+        )
     }
 
     // The last-resolved audio itag per `videoaudio:<id>` merge key, and the last-resolved video itag

@@ -4,7 +4,9 @@
 > whole-song drain, removed from main 2026-08-25) and `MWEB` (attestation-walled on both transports,
 > removed with the SABR work 2026-09) were proven dead before this landed, so the shipped table,
 > the compiled floor, the families list and the legacy-key migration cover FOUR families:
-> WEB_REMIX, VISIONOS, WEB_CREATOR, TVHTML5. The chain/family lists below are the plan as written.
+> WEB_REMIX, VISIONOS, WEB_CREATOR, TVHTML5. The SABR roster (added on main meanwhile) is table data too:
+> entries carrying a `sabr` object, with per-family `streamSabrFamily_<id>` toggles. The chain/family
+> lists below are the plan as written.
 
 > **Status 2026-08-16: IMPLEMENTED** on `feat/remote-stream-clients` (zemer-app) +
 > `feat/remote-stream-clients` (zemer-cipher). PR 1 (flag-ification), PR 2 (parser/store/asset)

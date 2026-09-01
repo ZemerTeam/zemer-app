@@ -87,7 +87,9 @@ regress:
   migrated ONCE (`migrateLegacyToggles`, only explicit-false copied) and left in place for
   rollback. Settings rows/groups/chip-order all derive from the table (`StreamSourceUiModel`);
   known families keep bespoke localized strings, a remotely-added one renders its config `title`
-  (English, server-driven precedent) + a generic description.
+  (English, server-driven precedent) + a generic description. The SABR client list is the same
+  table's `sabr`-capable entries (§SABR below): its rows, order and per-family toggles
+  (`streamSabrFamily_<id>`) derive from the table exactly like the DIRECT rows.
 - **The deploy gate:** `node tests/validate-stream-clients.mjs [file]` = schema validation + a
   whole-song CDN drain per client (`client-fulldownload.mjs` against the CANDIDATE file via
   `STREAM_CLIENTS_JSON`) - push to zemer-cipher `master` ONLY after it passes, then bump the
@@ -216,10 +218,15 @@ byte-for-byte unchanged. The engine is a faithful Kotlin port of the proven Node
   duration/position, and the session polls it on every info change INCLUDING restore - one bad value would
   crash-loop the app on launch with no recovery short of clearing data. Never let a buffered-percentage
   read crash the session, for any source. This is a general hardening, not SABR-specific.
-- **The resolver is a roster of SABR-USABLE clients only** (`SabrPlayerResolver`): WEB_REMIX (main),
-  VISIONOS, TVHTML5_SIMPLY - each toggleable (`StreamSabr{WebRemix,VisionOS,TVHTML5}Key`),
-  tried in that order, first-working wins. Only clients validated to deliver a WHOLE song over SABR with
-  the app's pot (`tests/sabr-clients.mjs`) are offered; ANDROID_VR/IOS/IPADOS/WEB_CREATOR are throttled to
+- **The resolver's roster is TABLE data** (`SabrRoster` ← `StreamClientTable.current().sabrRoster`):
+  the `stream_clients.json` entries carrying a `sabr` object, in table order - currently WEB_REMIX
+  (main), VISIONOS, TVHTML5_SIMPLY - each toggleable per FAMILY (`StreamSourcePrefs.sabrFamilyKey`,
+  absent = on; the three legacy `StreamSabr*Key`s migrate once, like the DIRECT keys), first-working
+  wins. Adding/removing a SABR client is a config push, not an APK. The `sabr` object's os/device
+  fields override the entry's identity for the SABR streamerContext ONLY (WEB_REMIX announces
+  Windows 10.0 there while its `/player` context stays OS-less); an empty `{}` inherits the entry's
+  own. Only clients validated to deliver a WHOLE song over SABR with the app's pot
+  (`tests/sabr-clients.mjs`) may carry a `sabr` object; ANDROID_VR/IOS/IPADOS/WEB_CREATOR are throttled to
   ~60s on most content and are NOT in the roster. Reuses the app's `/player`, the `PoTokenGenerator`
   WebView pot, and the `CipherDeobfuscator` n-transform. The pick mirrors DIRECT: bitrate weighted by the
   quality preference with the opus/webm bonus, and `opusAllowed=false` for a COMPATIBLE / pre-API-29

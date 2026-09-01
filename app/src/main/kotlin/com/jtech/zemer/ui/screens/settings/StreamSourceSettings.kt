@@ -38,9 +38,6 @@ import com.jtech.zemer.constants.InnerTubeCookieKey
 import com.jtech.zemer.constants.PlaybackMode
 import com.jtech.zemer.constants.PlaybackModeKey
 import com.jtech.zemer.constants.StreamSabrKey
-import com.jtech.zemer.constants.StreamSabrWebRemixKey
-import com.jtech.zemer.constants.StreamSabrVisionOSKey
-import com.jtech.zemer.constants.StreamSabrTVHTML5Key
 import com.jtech.zemer.ui.component.AppBarTitle
 import com.jtech.zemer.ui.component.BackNavigationIcon
 import com.jtech.zemer.ui.component.RequestInitialDpadFocus
@@ -69,6 +66,13 @@ private val KNOWN_FAMILY_STRINGS = mapOf(
     "WEB_CREATOR" to FamilyStrings(R.string.stream_source_web_creator, R.string.stream_source_web_creator_desc),
 )
 
+/** SABR-specific descriptions for the known families; a remotely-added one gets the generic line. */
+private val KNOWN_SABR_FAMILY_DESC = mapOf(
+    "WEB_REMIX" to R.string.stream_source_sabr_web_remix_desc,
+    "VISIONOS" to R.string.stream_source_sabr_visionos_desc,
+    "TVHTML5" to R.string.stream_source_sabr_tvhtml5_desc,
+)
+
 private fun groupTitleRes(group: String): Int = when (group) {
     StreamSourceUiModel.GROUP_WEB -> R.string.stream_source_web_clients
     StreamSourceUiModel.GROUP_NATIVE -> R.string.stream_source_native_clients
@@ -88,12 +92,13 @@ fun StreamSourceSettings(
     navController: NavController,
     scrollBehavior: TopAppBarScrollBehavior,
 ) {
-    // The toggle list derives from the CURRENT client table (remote/bundled via the store,
-    // compiled floor otherwise), so the screen always matches the chain the resolver runs.
-    // Snapshot once per screen-open — a remote refresh shows on the next open (rare event).
-    val families = remember {
+    // Both toggle lists (DIRECT chain, SABR roster) derive from the CURRENT client table
+    // (remote/bundled via the store, compiled floor otherwise), so the screen always matches what
+    // the resolvers run. Snapshot once per screen-open — a remote refresh shows on the next open.
+    val (families, sabrFamilies) = remember {
         val table = StreamClientTable.current()
-        StreamSourceUiModel.families(table, StreamClientStore.config()?.families.orEmpty())
+        val meta = StreamClientStore.config()?.families.orEmpty()
+        StreamSourceUiModel.families(table, meta) to StreamSourceUiModel.sabrFamilies(table, meta)
     }
 
     // When the client table last synced with the deploy channel (200 applied or 304 unchanged);
@@ -117,10 +122,15 @@ fun StreamSourceSettings(
     }
     val disabled = familyStates.filterValues { !it.first }.keys
 
-    val (sabrEnabled, onSabrChange)             = rememberPreference(StreamSabrKey,             defaultValue = false)
-    val (sabrWebRemix, onSabrWebRemixChange)    = rememberPreference(StreamSabrWebRemixKey,     defaultValue = true)
-    val (sabrVisionOS, onSabrVisionOSChange)    = rememberPreference(StreamSabrVisionOSKey,     defaultValue = true)
-    val (sabrTVHTML5, onSabrTVHTML5Change)      = rememberPreference(StreamSabrTVHTML5Key,      defaultValue = true)
+    val (sabrEnabled, onSabrChange) = rememberPreference(StreamSabrKey, defaultValue = false)
+    // One dynamic SABR preference per SABR-roster family (absent = enabled), like the DIRECT rows.
+    val sabrFamilyStates = sabrFamilies.associate { family ->
+        val (enabled, setEnabled) = rememberPreference(
+            StreamSourcePrefs.sabrFamilyKey(family.id),
+            defaultValue = true,
+        )
+        family.id to Pair(enabled, setEnabled)
+    }
 
     // RELAY playback mode: stream audio through the Zemer relay instead of resolving YouTube on-device.
     // Off (DIRECT) for every normal user. When ON, the per-client fallback list below is bypassed entirely.
@@ -260,39 +270,23 @@ fun StreamSourceSettings(
         )
 
         // The SABR client list — shown when SABR streaming is on. Mirrors the DIRECT client list above:
-        // a header + one toggle per available SABR client, tried in the listed order until one delivers.
-        if (sabrEnabled) {
+        // one toggle per SABR-roster family, in TABLE order (the order the resolvers try them).
+        if (sabrEnabled && sabrFamilies.isNotEmpty()) {
             SettingsCardGroup(
                 title = stringResource(R.string.stream_source_sabr_clients),
-                rows = listOf(
+                rows = sabrFamilies.map { family ->
                     {
+                        val (enabled, setEnabled) = sabrFamilyStates.getValue(family.id)
                         SwitchPreference(
-                            title = { Text(stringResource(R.string.stream_source_web_remix)) },
-                            description = stringResource(R.string.stream_source_sabr_web_remix_desc),
+                            title = { Text(familyTitle(family)) },
+                            description = KNOWN_SABR_FAMILY_DESC[family.id]?.let { stringResource(it) }
+                                ?: stringResource(R.string.stream_source_generic_desc),
                             icon = { Icon(painterResource(R.drawable.play), null) },
-                            checked = sabrWebRemix,
-                            onCheckedChange = onSabrWebRemixChange,
+                            checked = enabled,
+                            onCheckedChange = setEnabled,
                         )
-                    },
-                    {
-                        SwitchPreference(
-                            title = { Text(stringResource(R.string.stream_source_visionos)) },
-                            description = stringResource(R.string.stream_source_sabr_visionos_desc),
-                            icon = { Icon(painterResource(R.drawable.play), null) },
-                            checked = sabrVisionOS,
-                            onCheckedChange = onSabrVisionOSChange,
-                        )
-                    },
-                    {
-                        SwitchPreference(
-                            title = { Text(stringResource(R.string.stream_source_tvhtml5)) },
-                            description = stringResource(R.string.stream_source_sabr_tvhtml5_desc),
-                            icon = { Icon(painterResource(R.drawable.play), null) },
-                            checked = sabrTVHTML5,
-                            onCheckedChange = onSabrTVHTML5Change,
-                        )
-                    },
-                ),
+                    }
+                },
             )
         }
         } // end if (!relayEnabled): DIRECT-only client list

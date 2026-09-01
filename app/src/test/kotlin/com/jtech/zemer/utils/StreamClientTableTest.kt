@@ -13,6 +13,7 @@ class StreamClientTableTest {
         key: String,
         protocol: StreamClientParser.StreamClientDef.Protocol =
             StreamClientParser.StreamClientDef.Protocol.DIRECT,
+        sabr: StreamClientParser.StreamClientDef.SabrInfo? = null,
     ) = StreamClientParser.StreamClientDef(
         key = key,
         clientName = key,
@@ -21,7 +22,32 @@ class StreamClientTableTest {
         userAgent = "ua",
         protocol = protocol,
         family = key,
+        sabr = sabr,
     )
+
+    @Test
+    fun `entry key and sabr info ride along onto the table entry`() {
+        val info = StreamClientParser.StreamClientDef.SabrInfo(osName = "Windows")
+        val mapped = def("MAIN", sabr = info).toStreamClient()
+        assertEquals("MAIN", mapped.key)
+        assertEquals(info, mapped.sabr)
+        assertEquals(null, def("PLAIN").toStreamClient().sabr)
+    }
+
+    @Test
+    fun `sabrRoster is the sabr-capable entries in table order, main first`() {
+        val info = StreamClientParser.StreamClientDef.SabrInfo()
+        val table = StreamClientTable.fromConfig(
+            StreamClientParser.StreamClientConfig(
+                clients = listOf(def("MAIN", sabr = info), def("A"), def("B", sabr = info), def("C")),
+                families = emptyMap(),
+            ),
+        )
+        assertEquals(listOf("MAIN", "B"), table.sabrRoster.map { it.key })
+        assertTrue(StreamClientTable.fromConfig(
+            StreamClientParser.StreamClientConfig(listOf(def("MAIN"), def("A")), emptyMap()),
+        ).sabrRoster.isEmpty())
+    }
 
     @Test
     fun `def maps onto the innertube client field for field`() {
@@ -82,6 +108,16 @@ class StreamClientTableTest {
         assertEquals(
             listOf("VISIONOS", "VISIONOS", "WEB_CREATOR", "TVHTML5"),
             table.fallbacks.map { it.family },
+        )
+        assertEquals(
+            listOf("WEB_REMIX", "VISIONOS", "VISIONOS_0_1", "WEB_CREATOR", "TVHTML5_SIMPLY"),
+            (listOf(table.main) + table.fallbacks).map { it.key },
+        )
+        // The SABR roster the resolvers ran before the table existed, and WEB_REMIX's SABR identity.
+        assertEquals(listOf("WEB_REMIX", "VISIONOS", "TVHTML5_SIMPLY"), table.sabrRoster.map { it.key })
+        assertEquals(
+            StreamClientParser.StreamClientDef.SabrInfo(osName = "Windows", osVersion = "10.0"),
+            table.main.sabr,
         )
     }
 }

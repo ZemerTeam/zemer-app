@@ -727,8 +727,8 @@ class VideoModeController(
     private fun resolveAndSwapSabr(renditionId: String, audioItem: MediaItem, index: Int, targetLabel: String, entry: Boolean) {
         scope.launch {
             val result = try {
-                // The four per-client toggle reads are blocking DataStore reads — do them off the main
-                // thread (scope is the service Main scope) before handing them to the IO resolve.
+                // The per-family toggle snapshot is a blocking DataStore read — do it off the main
+                // thread (scope is the service Main scope) before handing it to the IO resolve.
                 val enabledClients = withContext(Dispatchers.IO) { service.sabrEnabledClients() }
                 com.jtech.zemer.playback.sabr.SabrVideoResolver.resolve(
                     renditionId,

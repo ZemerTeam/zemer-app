@@ -1,6 +1,6 @@
 # Non-Kotlin file reference
 
-Every tracked non-Kotlin path outside `docs/` is listed. Text files report line counts; binary files report byte counts; gitlinks are recorded as non-file tracked paths. Total paths: `400`.
+Every tracked non-Kotlin path outside `docs/` is listed. Text files report line counts; binary files report byte counts; gitlinks are recorded as non-file tracked paths. Total paths: `392`.
 
 | Path | Size/status | Type metadata |
 | --- | ---: | --- |
@@ -12,9 +12,7 @@ Every tracked non-Kotlin path outside `docs/` is listed. Text files report line 
 | `.github/workflows/ui-audit.yml` | 56 lines | text `.yml` |
 | `.gitignore` | 117 lines | text `[none]` |
 | `.gitmodules` | 3 lines | text `[none]` |
-| `AGENTS.md` | 1876 lines | text `.md` |
-| `AGENTS.md` | 1876 lines | text `.md` |
-| `AGENTS.md` | 1876 lines | text `.md` |
+| `AGENTS.md` | 1883 lines | text `.md` |
 | `LICENSE` | 674 lines | text `[none]` |
 | `README.md` | 9 lines | text `.md` |
 | `app/.gitignore` | 1 lines | text `[none]` |
@@ -261,8 +259,6 @@ Every tracked non-Kotlin path outside `docs/` is listed. Text files report line 
 | `app/src/main/res/values/app_name.xml` | 4 lines | text `.xml`; XML root `resources` |
 | `app/src/main/res/values/colors.xml` | 9 lines | text `.xml`; XML root `resources` |
 | `app/src/main/res/values/metrolist_strings.xml` | 704 lines | text `.xml`; XML root `resources` |
-| `app/src/main/res/values/metrolist_strings.xml` | 704 lines | text `.xml`; XML root `resources` |
-| `app/src/main/res/values/metrolist_strings.xml` | 704 lines | text `.xml`; XML root `resources` |
 | `app/src/main/res/values/strings.xml` | 419 lines | text `.xml`; XML root `resources` |
 | `app/src/main/res/values/styles.xml` | 26 lines | text `.xml`; XML root `resources` |
 | `app/src/main/res/values/values.xml` | 8 lines | text `.xml`; XML root `resources` |
@@ -309,11 +305,7 @@ Every tracked non-Kotlin path outside `docs/` is listed. Text files report line 
 | `tests/cipher-check.mjs` | 86 lines | text `.mjs` |
 | `tests/cipher.mjs` | 205 lines | text `.mjs` |
 | `tests/client-fulldownload.mjs` | 119 lines | text `.mjs` |
-| `tests/client-fulldownload.mjs` | 119 lines | text `.mjs` |
-| `tests/client-fulldownload.mjs` | 119 lines | text `.mjs` |
 | `tests/clients-retired.mjs` | 76 lines | text `.mjs` |
-| `tests/clients.mjs` | 31 lines | text `.mjs` |
-| `tests/clients.mjs` | 31 lines | text `.mjs` |
 | `tests/clients.mjs` | 31 lines | text `.mjs` |
 | `tests/config-covers.mjs` | 24 lines | text `.mjs` |
 | `tests/cred.mjs` | 82 lines | text `.mjs` |
@@ -393,8 +385,8 @@ Every tracked non-Kotlin path outside `docs/` is listed. Text files report line 
 | `tests/search/self-test.mjs` | 103 lines | text `.mjs` |
 | `tests/search/verify-album-fix.mjs` | 61 lines | text `.mjs` |
 | `tests/search/whitelist-findable.mjs` | 114 lines | text `.mjs` |
-| `tests/stream-clients.mjs` | 208 lines | text `.mjs` |
-| `tests/stream-clients.test.mjs` | 94 lines | text `.mjs` |
+| `tests/stream-clients.mjs` | 240 lines | text `.mjs` |
+| `tests/stream-clients.test.mjs` | 117 lines | text `.mjs` |
 | `tests/sts-mismatch.mjs` | 125 lines | text `.mjs` |
 | `tests/test-mweb-cipher.mjs` | 142 lines | text `.mjs` |
 | `tests/validate-player-config.mjs` | 202 lines | text `.mjs` |

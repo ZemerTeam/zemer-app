@@ -19,11 +19,25 @@ import com.zemer.cipher.StreamClientStore
  * A client's toggle identity is its FAMILY (several entries may share one — the VISIONOS
  * second-chance pair), so every entry carries it alongside the mapped client.
  */
-data class StreamClient(val client: YouTubeClient, val family: String)
+data class StreamClient(
+    val client: YouTubeClient,
+    val family: String,
+    /** The table entry key (stall tracking, telemetry labels); the compiled floor keys by constant name. */
+    val key: String = client.clientName,
+    /**
+     * Present = SABR-usable: the SABR resolvers' roster is the table's sabr entries in table order
+     * ([StreamClientTable.Table.sabrRoster]). Its fields override the client's os/device identity
+     * for the SABR streamerContext only — the `/player` context is [client]'s own.
+     */
+    val sabr: StreamClientParser.StreamClientDef.SabrInfo? = null,
+)
 
 object StreamClientTable {
 
-    data class Table(val main: StreamClient, val fallbacks: List<StreamClient>)
+    data class Table(val main: StreamClient, val fallbacks: List<StreamClient>) {
+        /** The SABR roster: every sabr-capable entry, main first, in table order. */
+        val sabrRoster: List<StreamClient> get() = (listOf(main) + fallbacks).filter { it.sabr != null }
+    }
 
     /** Maps a validated config entry onto the innertube request-builder model. */
     fun StreamClientParser.StreamClientDef.toStreamClient(): StreamClient = StreamClient(
@@ -47,6 +61,8 @@ object StreamClientTable {
             skipHeadValidation = skipHeadValidation,
         ),
         family = family,
+        key = key,
+        sabr = sabr,
     )
 
     /** Pure mapping from a parsed config (entry 0 = main) — JVM-testable without the store. */
@@ -74,12 +90,18 @@ object StreamClientTable {
      * second-chance 0.1 config behind it, then the cipher clients.
      */
     internal val COMPILED_TABLE = Table(
-        main = StreamClient(WEB_REMIX, "WEB_REMIX"),
+        // SABR identity: WEB_REMIX announces Windows 10.0 in the SABR streamerContext (its /player
+        // context stays OS-less); VISIONOS and TVHTML5_SIMPLY use their own identity. VISIONOS_0_1
+        // and WEB_CREATOR are DIRECT-only (WEB_CREATOR is attestation-throttled over SABR).
+        main = StreamClient(
+            WEB_REMIX, "WEB_REMIX", key = "WEB_REMIX",
+            sabr = StreamClientParser.StreamClientDef.SabrInfo(osName = "Windows", osVersion = "10.0"),
+        ),
         fallbacks = listOf(
-            StreamClient(VISIONOS, "VISIONOS"),
-            StreamClient(VISIONOS_0_1, "VISIONOS"),
-            StreamClient(WEB_CREATOR, "WEB_CREATOR"),
-            StreamClient(TVHTML5_SIMPLY, "TVHTML5"),
+            StreamClient(VISIONOS, "VISIONOS", key = "VISIONOS", sabr = StreamClientParser.StreamClientDef.SabrInfo()),
+            StreamClient(VISIONOS_0_1, "VISIONOS", key = "VISIONOS_0_1"),
+            StreamClient(WEB_CREATOR, "WEB_CREATOR", key = "WEB_CREATOR"),
+            StreamClient(TVHTML5_SIMPLY, "TVHTML5", key = "TVHTML5_SIMPLY", sabr = StreamClientParser.StreamClientDef.SabrInfo()),
         ),
     )
 }

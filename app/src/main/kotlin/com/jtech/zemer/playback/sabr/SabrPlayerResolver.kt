@@ -2,7 +2,6 @@ package com.jtech.zemer.playback.sabr
 
 import android.net.Uri
 import com.metrolist.innertube.YouTube
-import com.metrolist.innertube.models.YouTubeClient
 import com.zemer.cipher.CipherDeobfuscator
 import com.zemer.cipher.potoken.PoTokenGenerator
 import kotlinx.coroutines.Dispatchers
@@ -10,10 +9,11 @@ import kotlinx.coroutines.withContext
 import timber.log.Timber
 
 /**
- * Self-contained SABR resolution over a roster of SABR-USABLE clients (only those validated to deliver a
- * whole song over SABR with the app's pot in `tests/sabr-clients.mjs`). Fetches the `/player` response for
- * each ENABLED client in priority order, and the FIRST that exposes SABR inputs (serverAbrStreamingUrl +
- * ustreamer config) wins: registers a session and returns a `sabr://<videoId>` uri for ExoPlayer.
+ * Self-contained SABR resolution over the [SabrRoster] — the stream-client TABLE's SABR-usable entries
+ * (only those validated to deliver a whole song over SABR with the app's pot in `tests/sabr-clients.mjs`
+ * carry a `sabr` object). Fetches the `/player` response for each ENABLED client in table order, and
+ * the FIRST that exposes SABR inputs (serverAbrStreamingUrl + ustreamer config) wins: registers a
+ * session and returns a `sabr://<videoId>` uri for ExoPlayer.
  *
  * Isolated from the DIRECT path. Reuses the app's [YouTube.player], the [PoTokenGenerator] WebView pot,
  * and the [CipherDeobfuscator] n-transform. Web clients (WEB_REMIX / TVHTML5_SIMPLY) have a
@@ -24,30 +24,8 @@ object SabrPlayerResolver {
     private const val TAG = "SabrPlayerResolver"
     private val poTokenGenerator = PoTokenGenerator()
 
-    // Preference-key ids the settings toggles + MusicService use to enable/disable each client.
-    const val KEY_WEB_REMIX = "WEB_REMIX"
-    const val KEY_VISIONOS = "VISIONOS"
-    const val KEY_TVHTML5_SIMPLY = "TVHTML5_SIMPLY"
-
-    private class Spec(
-        val key: String,
-        val client: YouTubeClient,
-        val label: String,
-        /** web = ciphered SABR url (n-transform + videoId url-pot + web pot/sts in /player). */
-        val web: Boolean,
-        val osName: String? = null,
-        val osVersion: String? = null,
-        val deviceMake: String? = null,
-        val deviceModel: String? = null,
-        val androidSdk: Int? = null,
-    )
-
-    // Priority order. WEB_REMIX first (the app's main client); VISIONOS is the reliable pot-less direct one.
-    private val ROSTER = listOf(
-        Spec(KEY_WEB_REMIX, YouTubeClient.WEB_REMIX, "WEB_REMIX (SABR)", web = true, osName = "Windows", osVersion = "10.0"),
-        Spec(KEY_VISIONOS, YouTubeClient.VISIONOS, "VISIONOS (SABR)", web = false, osName = "visionOS", osVersion = "26.5.23O471", deviceMake = "Apple", deviceModel = "RealityDevice17,1"),
-        Spec(KEY_TVHTML5_SIMPLY, YouTubeClient.TVHTML5_SIMPLY, "TVHTML5_SIMPLY (SABR)", web = true),
-    )
+    // The roster (WHICH clients, in what order, with what SABR identity) is table data — see
+    // SabrRoster / StreamClientTable.Table.sabrRoster. Nothing about it is compiled here.
 
     /**
      * A successful SABR audio resolution: the `sabr://` uri plus everything MusicService mirrors from
@@ -96,7 +74,8 @@ object SabrPlayerResolver {
     fun stalledFor(videoId: String): Set<String> = stalledClients[videoId].orEmpty()
 
     /**
-     * Resolve [videoId] over the first [enabled] SABR client that works, or null (caller falls back).
+     * Resolve [videoId] over the first SABR client of an [enabled] FAMILY that works, or null (caller
+     * falls back). [enabled] = family ids (StreamSourcePrefs.enabledSabrFamilies).
      * [register] true (playback) installs the config in [SabrStreamRegistry] so the returned `sabr://`
      * uri opens; false (downloads) leaves the registry untouched — a download of the currently-playing
      * id must never clobber its live playback entry.
@@ -135,10 +114,9 @@ object SabrPlayerResolver {
             Timber.tag(TAG).e(e, "Cipher player STS fetch FAILED")
             null
         }
-        val stalled = stalledClients[videoId].orEmpty()
-        // Two passes: prefer non-stalled clients; a fully-stalled roster still retries them (last hope).
-        val order = ROSTER.filter { it.key in enabled && it.key !in stalled } +
-            ROSTER.filter { it.key in enabled && it.key in stalled }
+        // ONE roster snapshot per resolution (table order; non-stalled clients first, a fully-stalled
+        // roster still retries them as the last hope).
+        val order = SabrRoster.order(enabled, stalledClients[videoId].orEmpty())
         var networkError: Throwable? = null
         for (spec in order) {
             val result = tryClient(spec, videoId, pot, sts, audioQuality, meteredNetwork, cpn, opusAllowed) { e ->
@@ -196,7 +174,7 @@ object SabrPlayerResolver {
     }
 
     private suspend fun tryClient(
-        spec: Spec,
+        spec: SabrClientSpec,
         videoId: String,
         pot: com.zemer.cipher.potoken.PoTokenResult,
         sts: Int?,

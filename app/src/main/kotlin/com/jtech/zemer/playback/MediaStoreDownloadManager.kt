@@ -13,10 +13,6 @@ import com.jtech.zemer.constants.DownloadAudioFormatKey
 import com.jtech.zemer.constants.PlaybackMode
 import com.jtech.zemer.constants.PlaybackModeKey
 import com.jtech.zemer.constants.StreamSabrKey
-import com.jtech.zemer.constants.StreamSabrWebRemixKey
-import com.jtech.zemer.constants.StreamSabrVisionOSKey
-import com.jtech.zemer.constants.StreamSabrTVHTML5Key
-import com.jtech.zemer.playback.sabr.SabrPlayerResolver
 import com.jtech.zemer.playback.sabr.SabrStreamResolver
 import com.jtech.zemer.extensions.toEnum
 import com.jtech.zemer.playback.relay.RelayDeviceId
@@ -463,13 +459,14 @@ constructor(
             // reassemble the whole byte-exact file(s). Active when SABR mode is on and not a relay download.
             // AUDIO downloads pull one track; VIDEO downloads pull the dual-track session and remux on-device
             // (SabrVideoResolver.download + VideoMuxer), exactly like a DIRECT adaptive video download.
+            // The enabled SABR FAMILIES: the table's SABR roster minus the per-family off switches.
             val enabledSabrClients =
                 if (relayMode || context.dataStore.getSuspend(StreamSabrKey) != true) {
                     emptySet()
-                } else buildSet {
-                    if (context.dataStore.getSuspend(StreamSabrWebRemixKey) != false) add(SabrPlayerResolver.KEY_WEB_REMIX)
-                    if (context.dataStore.getSuspend(StreamSabrVisionOSKey) != false) add(SabrPlayerResolver.KEY_VISIONOS)
-                    if (context.dataStore.getSuspend(StreamSabrTVHTML5Key) != false) add(SabrPlayerResolver.KEY_TVHTML5_SIMPLY)
+                } else {
+                    com.jtech.zemer.utils.StreamSourcePrefs.enabledSabrFamilies(
+                        context.dataStore.data.first(), com.jtech.zemer.utils.StreamClientTable.current(),
+                    )
                 }
             val sabrAudioMode = enabledSabrClients.isNotEmpty() && !videoDownload
             val sabrVideoMode = enabledSabrClients.isNotEmpty() && videoDownload

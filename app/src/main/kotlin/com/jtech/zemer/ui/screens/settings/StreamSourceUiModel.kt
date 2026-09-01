@@ -33,8 +33,22 @@ object StreamSourceUiModel {
     fun families(
         table: StreamClientTable.Table,
         meta: Map<String, StreamClientParser.FamilyMeta>,
+    ): List<Family> = familiesOf(listOf(table.main) + table.fallbacks, meta)
+
+    /**
+     * The SABR toggle rows: the families of the table's SABR roster (its sabr-capable entries), in
+     * table order, deduped — so the SABR list also follows the table, never a compiled trio.
+     */
+    fun sabrFamilies(
+        table: StreamClientTable.Table,
+        meta: Map<String, StreamClientParser.FamilyMeta>,
+    ): List<Family> = familiesOf(table.sabrRoster, meta)
+
+    private fun familiesOf(
+        clients: List<com.jtech.zemer.utils.StreamClient>,
+        meta: Map<String, StreamClientParser.FamilyMeta>,
     ): List<Family> =
-        (listOf(table.main) + table.fallbacks)
+        clients
             .map { it.family }
             .distinct()
             .map { id ->

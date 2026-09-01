@@ -87,6 +87,29 @@ function parseEntry(obj, label) {
     return obj[field];
   };
 
+  // `sabr`: absent/null = not SABR-usable; an object (possibly empty) = SABR-usable, with the same
+  // optional os/device identity overrides (same shapes) for the SABR streamerContext. Anything
+  // else is a malformed entry (the app skips it; here: loud).
+  let sabr;
+  if ("sabr" in obj && obj.sabr !== null && obj.sabr !== undefined) {
+    const o = obj.sabr;
+    if (o === null || typeof o !== "object" || Array.isArray(o)) bad("sabr");
+    const sub = (field, valid) => {
+      if (!(field in o) || o[field] === null || o[field] === undefined) return undefined;
+      const v = o[field];
+      if (typeof v !== "string" || !valid(v)) bad(`sabr.${field}`);
+      return v;
+    };
+    const s = {
+      osName: sub("osName", (v) => headerSafe(v, 64)),
+      osVersion: sub("osVersion", (v) => VERSIONISH_RE.test(v)),
+      deviceMake: sub("deviceMake", (v) => headerSafe(v, 64)),
+      deviceModel: sub("deviceModel", (v) => headerSafe(v, 64)),
+      androidSdkVersion: sub("androidSdkVersion", (v) => VERSIONISH_RE.test(v)),
+    };
+    sabr = Object.fromEntries(Object.entries(s).filter(([, v]) => v !== undefined));
+  }
+
   const isWeb = protocol === "web_cipher_pot";
   return {
     key, clientName, clientVersion, clientId, userAgent, protocol, family,
@@ -99,6 +122,7 @@ function parseEntry(obj, label) {
     loginRequired: bool("loginRequired"),
     isEmbedded: bool("isEmbedded"),
     skipHeadValidation: bool("skipHeadValidation"),
+    ...(sabr && { sabr }),
     // Derived exactly like YouTubeClient (the protocol is the single source of truth).
     useSignatureTimestamp: isWeb,
     useWebPoTokens: isWeb,
@@ -167,6 +191,14 @@ export function parseStreamClients(text) {
   }
 
   return { clients, families, skipped };
+}
+
+/**
+ * The SABR roster: the sabr-capable entries in table order — what the app's SabrRoster runs.
+ * Scripts probing SABR against "the app's clients" must take this, not a hand-kept list.
+ */
+export function sabrRoster(clients) {
+  return clients.filter((c) => c.sabr);
 }
 
 /** True iff parse() rejects the whole file (the parity-fixture verdict). */

@@ -11,7 +11,7 @@ import assert from "node:assert/strict";
 import { readFileSync, readdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
-import { loadStreamClients, parseStreamClients, fileVerdictRejects } from "./stream-clients.mjs";
+import { loadStreamClients, parseStreamClients, fileVerdictRejects, sabrRoster } from "./stream-clients.mjs";
 
 const FIXTURES = join(
   dirname(fileURLToPath(import.meta.url)),
@@ -47,6 +47,29 @@ test("derived booleans track the protocol (the app's single-source rule)", () =>
     const isWeb = c.protocol === "web_cipher_pot";
     assert.equal(c.useSignatureTimestamp, isWeb, c.key);
     assert.equal(c.useWebPoTokens, isWeb, c.key);
+  }
+});
+
+test("the SABR roster is the bundled table's sabr-capable entries, in table order", () => {
+  const { clients } = loadStreamClients();
+  assert.deepEqual(sabrRoster(clients).map((c) => c.key), ["WEB_REMIX", "VISIONOS", "TVHTML5_SIMPLY"]);
+  // WEB_REMIX announces Windows 10.0 in the SABR streamerContext; its /player context stays OS-less.
+  assert.deepEqual(clients[0].sabr, { osName: "Windows", osVersion: "10.0" });
+  assert.equal(clients[0].osName, undefined);
+});
+
+test("sabr: absent/null = not SABR-usable, object = usable, anything else is malformed", () => {
+  const base = {
+    key: "MAIN", clientName: "MAIN", clientVersion: "1.0", clientId: "1",
+    userAgent: "Mozilla/5.0 (test)", protocol: "web_cipher_pot", family: "MAIN",
+  };
+  const one = (extra) => parseStreamClients(JSON.stringify({ schemaVersion: 1, clients: [{ ...base, ...extra }] })).clients[0];
+  assert.equal(one({}).sabr, undefined);
+  assert.equal(one({ sabr: null }).sabr, undefined);
+  assert.deepEqual(one({ sabr: {} }).sabr, {});
+  assert.deepEqual(one({ sabr: { osName: "Windows", deviceMake: null } }).sabr, { osName: "Windows" });
+  for (const bad of [true, "yes", [], { osName: 1 }, { osVersion: "bad version!" }]) {
+    assert.throws(() => one({ sabr: bad }), `sabr=${JSON.stringify(bad)} must be malformed`);
   }
 });
 

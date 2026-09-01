@@ -10,21 +10,32 @@ import org.junit.Test
 
 class StreamSourceUiModelTest {
 
-    private fun sc(name: String, family: String = name) = StreamClient(
+    private fun sc(name: String, family: String = name, sabr: Boolean = false) = StreamClient(
         YouTubeClient(clientName = name, clientVersion = "1.0", clientId = "1", userAgent = "ua"),
         family,
+        key = name,
+        sabr = if (sabr) StreamClientParser.StreamClientDef.SabrInfo() else null,
     )
 
     private fun meta(id: String, title: String, group: String) =
         id to StreamClientParser.FamilyMeta(id, title, group)
 
     private val table = StreamClientTable.Table(
-        main = sc("WEB_REMIX"),
+        main = sc("WEB_REMIX", sabr = true),
         fallbacks = listOf(
-            sc("VISIONOS"), sc("VISIONOS"), sc("WEB_CREATOR"),
-            sc("TVHTML5_SIMPLY", family = "TVHTML5"),
+            sc("VISIONOS", sabr = true), sc("VISIONOS"), sc("WEB_CREATOR"),
+            sc("TVHTML5_SIMPLY", family = "TVHTML5", sabr = true),
         ),
     )
+
+    @Test
+    fun `sabrFamilies are the SABR roster's families in table order, deduped`() {
+        val families = StreamSourceUiModel.sabrFamilies(table, mapOf(meta("VISIONOS", "visionOS", "native")))
+        assertEquals(listOf("WEB_REMIX", "VISIONOS", "TVHTML5"), families.map { it.id })
+        assertEquals("visionOS", families[1].configTitle)
+        val noSabr = StreamClientTable.Table(main = sc("WEB_REMIX"), fallbacks = listOf(sc("VISIONOS")))
+        assertEquals(emptyList<StreamSourceUiModel.Family>(), StreamSourceUiModel.sabrFamilies(noSabr, emptyMap()))
+    }
 
     @Test
     fun `families come out in chain order, deduped`() {

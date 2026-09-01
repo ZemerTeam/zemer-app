@@ -139,12 +139,16 @@ val StreamSourceVisionOSKey   = booleanPreferencesKey("streamSourceVisionOS")
 // progressive URL. Fully isolated (playback/sabr/) - the fallback for when progressive gets walled.
 val StreamSabrKey             = booleanPreferencesKey("streamSabr")
 
-// Which SABR clients the resolver may use, tried in this order until one yields a stream. Only the
-// clients validated to deliver a whole song over SABR with the app's pot (tests/sabr-clients.mjs) are
-// offered. Default on, like the DIRECT client list.
+// LEGACY per-client SABR toggles — superseded by the per-family dynamic keys
+// (StreamSourcePrefs.sabrFamilyKey; the SABR roster is the stream-client TABLE's sabr-capable
+// entries, so the toggles derive from it like the DIRECT rows). Kept ONLY as the one-time
+// migration source, exactly like the legacy StreamSource* keys above.
 val StreamSabrWebRemixKey     = booleanPreferencesKey("streamSabrWebRemix")
 val StreamSabrVisionOSKey     = booleanPreferencesKey("streamSabrVisionOS")
 val StreamSabrTVHTML5Key      = booleanPreferencesKey("streamSabrTVHTML5")
+
+// One-time flag: the legacy SABR toggles above have been copied onto the per-family SABR keys.
+val StreamSabrPrefsMigratedKey = booleanPreferencesKey("streamSabrPrefsMigrated")
 
 /**
  * The audio download format choice. BEST selects the highest-quality stream YouTube
