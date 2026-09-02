@@ -99,7 +99,10 @@ regress:
   client that works again only opens an issue. The same scan drains every `sabr`-capable entry over
   SABR (`tests/sabr-clients.mjs` as a module): a SABR-side kill benches the capability alone
   (`sabr.enabled: false`, read by both parsers; `StreamClientTable.Table.sabrRoster` skips it) and a
-  revival un-benches it, on the same two-run quorum. An entry whose identity (clientVersion, userAgent,
+  revival un-benches it, on the same two-run quorum. Dead = fails on EVERY validation video;
+  revived / works-again = whole on EVERY video (an ungated video like `dQw4w9WgXcQ` streams whole
+  even for the retired IOS/MWEB/ANDROID_VR - the validation set must include gated content, the
+  default `JTF9fLJvniI` is). An entry whose identity (clientVersion, userAgent,
   os/device fields) is behind the yt-dlp key it `mirrors` is BUMPED once a candidate table with
   yt-dlp's values drains a whole song on every validation video (`apply-bump.mjs`); VISIONOS_0_1
   carries no `mirrors` and is pinned. "Sign in to confirm you're not a bot" on an anonymous request
