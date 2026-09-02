@@ -51,7 +51,7 @@ class ZemerLyricsProviderTest {
 
     @Test
     fun `label is one string for both the auto-fetch and picker paths`() {
-        assertEquals("Zemer · jkaraoke ✓", ZemerLyricsProvider.label("jkaraoke", verified = true))
+        assertEquals("Zemer · jkaraoke", ZemerLyricsProvider.label("jkaraoke", verified = true))
         assertEquals("Zemer · jyrics", ZemerLyricsProvider.label("jyrics", verified = false))
     }
 }

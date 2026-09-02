@@ -50,8 +50,8 @@ object ZemerLyricsProvider : LyricsProvider {
 
     private fun rank(s: ZemerLyricsClient.Source) = when (s.type) { "jkaraoke" -> 0; "jyrics" -> 1; "shironet" -> 1; "zingmusic" -> 1; "booklet" -> 2; "manual" -> 2; "canonical" -> 3; else -> 9 }
 
-    /** "Zemer · jkaraoke ✓": the sub-source matters for provenance; ✓ = the server cross-checked two sources. */
-    fun label(source: String, verified: Boolean): String = "$name · $source" + (if (verified) " ✓" else "")
+    /** "Zemer · jkaraoke": the sub-source matters for provenance. Verification is a server fact, not shown in the label. */
+    fun label(source: String, @Suppress("UNUSED_PARAMETER") verified: Boolean): String = "$name · $source"
 
     override suspend fun getLyrics(id: String, title: String, artist: String, duration: Int, album: String?): Result<String> =
         getLabeledLyrics(id, title, artist, duration, album).map { it.lyrics }

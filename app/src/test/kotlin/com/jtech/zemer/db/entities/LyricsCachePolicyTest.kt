@@ -38,8 +38,8 @@ class LyricsCachePolicyTest {
 
     @Test
     fun `found body replaces the row with its provenance`() {
-        val row = LyricsEntity.resolved("v", LyricsEntity("v", "old words", null), "[00:01.00] new", "Zemer · jkaraoke ✓")
-        assertEquals(LyricsEntity("v", "[00:01.00] new", "Zemer · jkaraoke ✓"), row)
+        val row = LyricsEntity.resolved("v", LyricsEntity("v", "old words", null), "[00:01.00] new", "Zemer · jkaraoke")
+        assertEquals(LyricsEntity("v", "[00:01.00] new", "Zemer · jkaraoke"), row)
     }
 
     @Test

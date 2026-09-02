@@ -2,7 +2,7 @@ package com.jtech.zemer.lyrics
 
 import android.content.Context
 
-/** A lyrics body plus the label to persist in `LyricsEntity.provider` ("Zemer · jkaraoke ✓", "SimpMusic", ...). */
+/** A lyrics body plus the label to persist in `LyricsEntity.provider` ("Zemer · jkaraoke", "SimpMusic", ...). */
 data class LabeledLyrics(val label: String, val lyrics: String)
 
 interface LyricsProvider {

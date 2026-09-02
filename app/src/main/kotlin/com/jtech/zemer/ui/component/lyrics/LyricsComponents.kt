@@ -34,7 +34,7 @@ import com.jtech.zemer.models.MediaMetadata
 @Composable
 fun LyricsSourceHeader(provider: String?, synced: Boolean, color: Color, modifier: Modifier = Modifier) {
     Text(
-        text = stringResource(R.string.lyrics_from, provider?.takeUnless { it == LyricsEntity.PROVIDER_LEGACY } ?: stringResource(R.string.unknown)) + " · " +
+        text = stringResource(R.string.lyrics_from, provider?.replace(" ✓", "")?.takeUnless { it == LyricsEntity.PROVIDER_LEGACY } ?: stringResource(R.string.unknown)) + " · " +
             stringResource(if (synced) R.string.lyrics_synced else R.string.lyrics_plain),
         style = MaterialTheme.typography.labelMedium,
         color = color.copy(alpha = 0.6f),
