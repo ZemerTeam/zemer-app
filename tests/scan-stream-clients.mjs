@@ -107,13 +107,24 @@ const sabrPass = (async () => {
   }
   sctx.close();
 })();
-const [ctx] = await Promise.all([progressivePass, sabrPass]);
+// A pass-level failure (context creation, pot minting, the cipher fetch) marks every pending
+// result of THAT transport as a transport error - inconclusive - and the other pass still counts.
+const guard = (name, p, fill) => p.catch((e) => {
+  console.error(`${name} pass failed: ${e?.cause?.message || e?.message || e} - its pending verdicts are inconclusive`);
+  fill(String(e?.cause?.message || e?.message || e).slice(0, 80));
+});
+const videosList = [...new Set(videos)];
+await Promise.all([
+  guard("progressive", progressivePass, (msg) => { for (const c of clients) for (const v of videosList) if (!c.results.some((r) => r.video === v)) c.results.push({ video: v, kind: "error", reason: `pass failed: ${msg}` }); }),
+  guard("sabr", sabrPass, (msg) => { for (const c of clients) if (c.sabr) for (const v of videosList) if (!c.sabrResults.some((r) => r.video === v)) c.sabrResults.push({ video: v, kind: "error", reason: `pass failed: ${msg}` }); }),
+]);
+const hasCookie = Boolean((await (await import("./cred.mjs")).getCred()).cookie);
 
 const conclusive = clients.some((c) => c.results.some((r) => r.kind === "whole"));
 const sabrConclusive = clients.some((c) => c.sabrResults.some((r) => r.kind === "whole"));
 const mainHealthy = Boolean(clients.find((c) => c.main)?.results.some((r) => r.kind === "whole"));
 process.stdout.write(JSON.stringify({
-  table: STREAM_CLIENTS_PATH, videos: [...new Set(videos)], cookie: ctx.hasCookie, conclusive, sabrConclusive, mainHealthy, clients,
+  table: STREAM_CLIENTS_PATH, videos: [...new Set(videos)], cookie: hasCookie, conclusive, sabrConclusive, mainHealthy, clients,
   roles: { live: table.clients.length, benched: table.benched.length, retired: roster.filter((c) => c.role === "retired").length },
   only,
 }, null, 2) + "\n");

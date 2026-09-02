@@ -28,4 +28,5 @@ test("non-network errors and HTTP statuses are never retried", async () => {
   const g = withRetries(async () => { calls2++; return { status: 403 }; }, { attempts: 4, sleep: async () => {}, log: () => {} });
   assert.equal((await g("https://x")).status, 403); assert.equal(calls2, 1);
   assert.equal(isNetworkError(new Error("socket hang up")), true); assert.equal(isNetworkError(new Error("nope")), false);
+  assert.equal(isNetworkError(netErr("UND_ERR_HEADERS_TIMEOUT")), true); assert.equal(isNetworkError(netErr("UND_ERR_BODY_TIMEOUT")), true);
 });

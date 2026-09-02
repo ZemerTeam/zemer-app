@@ -20,16 +20,18 @@ const v6 = process.env.FORCE_IPV6 === "1";
 // NETWORK-class failure (connect timeout, reset, DNS hiccup) a few times with backoff — a /player
 // POST and a CDN range GET are both safe to repeat; nothing here retries an HTTP status.
 const connect = { timeout: 30000, ...(v4 ? { family: 4 } : v6 ? { family: 6 } : {}) };
+// A stalled tunnel must fail fast enough to be retried, not hang a slot: 60 s to first byte.
+const agentOpts = { connect, headersTimeout: 60000, bodyTimeout: 120000 };
 if (url) {
-  setGlobalDispatcher(new ProxyAgent({ uri: url, connect }));
+  setGlobalDispatcher(new ProxyAgent({ uri: url, ...agentOpts }));
   console.error(`egress: via proxy ${url.replace(/\/\/.*@/, "//<credentials>@")}`);
 } else {
-  setGlobalDispatcher(new Agent({ connect }));
+  setGlobalDispatcher(new Agent(agentOpts));
   if (v4) console.error("egress: IPv4 only");
   if (v6) console.error("egress: IPv6 only");
 }
 
-const NETWORK_ERR = /UND_ERR_CONNECT_TIMEOUT|ECONNRESET|ECONNREFUSED|EAI_AGAIN|ENOTFOUND|ETIMEDOUT|EHOSTUNREACH|ENETUNREACH|socket hang up|fetch failed|other side closed/i;
+const NETWORK_ERR = /UND_ERR_CONNECT_TIMEOUT|UND_ERR_HEADERS_TIMEOUT|UND_ERR_BODY_TIMEOUT|UND_ERR_SOCKET|Headers Timeout|Body Timeout|ECONNRESET|ECONNREFUSED|EAI_AGAIN|ENOTFOUND|ETIMEDOUT|EHOSTUNREACH|ENETUNREACH|EPIPE|socket hang up|fetch failed|other side closed|terminated/i;
 const describe = (e) => `${e?.cause?.code || e?.code || ""} ${e?.cause?.message || e?.message || e}`;
 export function isNetworkError(e) { return NETWORK_ERR.test(describe(e)); }
 
