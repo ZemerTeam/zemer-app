@@ -12,8 +12,13 @@ import io.ktor.client.statement.bodyAsText
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.serialization.kotlinx.json.json
+import io.ktor.client.request.post
+import io.ktor.client.request.setBody
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 
 /**
  * The Zemer lyrics RESOLVER (search server `/lyrics/resolve`): for a corpus videoId it returns which
@@ -30,6 +35,7 @@ object ZemerLyricsClient {
         val feedPage: Int? = null,
         val feedUrl: String? = null,
         val browseId: String? = null,     // youtube lyrics tab
+        val trackId: Long? = null,        // zingmusic (server-vetted track id) / musixmatch
         val plain: String? = null,        // operator-hosted text (booklet/manual)
         val syncedLrc: String? = null,
         val synced: Boolean = false,
@@ -58,6 +64,18 @@ object ZemerLyricsClient {
     suspend fun fetchText(url: String): String? {
         val r = client.get(url) { header(HttpHeaders.UserAgent, "Zemer/${BuildConfig.VERSION_NAME} lyrics"); header(HttpHeaders.Accept, "text/html,application/json") }
         return if (r.status == HttpStatusCode.OK) r.bodyAsText() else null
+    }
+
+    /**
+     * zingmusic (jewishmusic.fm) public GraphQL: the lyrics HTML for ONE server-vetted track id. The server resolved
+     * and verified which zingmusic track is this song; the app only fetches that id — no title matching here.
+     */
+    suspend fun zingLyricsHtml(trackId: Long): String? {
+        val body = """{"query":"{ track(where:{id:$trackId}){ heLyrics enLyrics } }"}"""
+        val r = client.post("https://jewishmusic.fm:8443/graphql") { header(HttpHeaders.ContentType, "application/json"); setBody(body) }
+        if (r.status != HttpStatusCode.OK) return null
+        val j = json.parseToJsonElement(r.bodyAsText()).jsonObject["data"]?.jsonObject?.get("track")?.let { runCatching { it.jsonObject }.getOrNull() } ?: return null
+        return j["heLyrics"]?.jsonPrimitive?.contentOrNull?.takeIf { it.isNotBlank() } ?: j["enLyrics"]?.jsonPrimitive?.contentOrNull
     }
 
     @Serializable

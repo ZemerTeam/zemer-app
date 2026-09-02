@@ -30,6 +30,7 @@ object ZemerLyricsProvider : LyricsProvider {
         resolved: ZemerLyricsClient.Resolved,
         fetch: suspend (String) -> String? = ZemerLyricsClient::fetchText,
         firstOnly: Boolean = false,
+        zing: suspend (Long) -> String? = ZemerLyricsClient::zingLyricsHtml,
     ): List<Pair<String, String>> {
         val out = ArrayList<Pair<String, String>>()
         for (s in resolved.sources.sortedBy { rank(it) }) {
@@ -38,6 +39,7 @@ object ZemerLyricsProvider : LyricsProvider {
                 "jkaraoke" -> s.feedUrl?.let { fetch(it) }?.let { page -> s.songId?.let { id -> JkaraokeLrc.fromFeedPage(page, id)?.synced } }
                 "jyrics" -> s.url?.let { fetch(it) }?.let { JyricsParser.parse(it).plain.takeIf { p -> p.lines().count { l -> l.isNotBlank() } >= 4 } }
                 "shironet" -> s.url?.let { fetch(it) }?.let { ShironetParser.parse(it).plain.takeIf { p -> p.lines().count { l -> l.isNotBlank() } >= 4 } }
+                "zingmusic" -> s.trackId?.let { zing(it) }?.let { ZingParser.toPlain(it).takeIf { p -> p.lines().count { l -> l.isNotBlank() } >= 4 } }
                 "booklet", "manual", "canonical" -> s.syncedLrc?.takeIf { it.isNotBlank() } ?: s.plain?.takeIf { it.isNotBlank() }
                 else -> null
             }
@@ -46,7 +48,7 @@ object ZemerLyricsProvider : LyricsProvider {
         return out
     }
 
-    private fun rank(s: ZemerLyricsClient.Source) = when (s.type) { "jkaraoke" -> 0; "jyrics" -> 1; "shironet" -> 1; "booklet" -> 2; "manual" -> 2; "canonical" -> 3; else -> 9 }
+    private fun rank(s: ZemerLyricsClient.Source) = when (s.type) { "jkaraoke" -> 0; "jyrics" -> 1; "shironet" -> 1; "zingmusic" -> 1; "booklet" -> 2; "manual" -> 2; "canonical" -> 3; else -> 9 }
 
     /** "Zemer · jkaraoke ✓": the sub-source matters for provenance; ✓ = the server cross-checked two sources. */
     fun label(source: String, verified: Boolean): String = "$name · $source" + (if (verified) " ✓" else "")
