@@ -59,4 +59,13 @@ object ZemerLyricsClient {
         val r = client.get(url) { header(HttpHeaders.UserAgent, "Zemer/${BuildConfig.VERSION_NAME} lyrics"); header(HttpHeaders.Accept, "text/html,application/json") }
         return if (r.status == HttpStatusCode.OK) r.bodyAsText() else null
     }
+
+    @Serializable
+    data class MusixmatchToken(val token: String, val issuedAt: Long = 0)
+
+    /** The shared Musixmatch token brokered by the server (one clean IP issues it; every app reuses it). */
+    suspend fun musixmatchToken(renew: String? = null): String? {
+        val r = client.get("$baseUrl/lyrics/musixmatch-token") { if (renew != null) url { parameters.append("renew", renew) }; header(HttpHeaders.Accept, "application/json") }
+        return if (r.status == HttpStatusCode.OK) r.body<MusixmatchToken>().token else null
+    }
 }

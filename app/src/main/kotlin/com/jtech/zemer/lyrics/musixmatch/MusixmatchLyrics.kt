@@ -5,6 +5,7 @@ import androidx.datastore.preferences.core.edit
 import com.jtech.zemer.constants.MusixmatchCooldownUntilKey
 import com.jtech.zemer.constants.MusixmatchLastStatusKey
 import com.jtech.zemer.constants.MusixmatchTokenKey
+import com.jtech.zemer.lyrics.zemer.ZemerLyricsClient
 import com.jtech.zemer.utils.dataStore
 import com.jtech.zemer.utils.get
 import io.ktor.client.HttpClient
@@ -137,11 +138,18 @@ object MusixmatchLyrics {
     private fun JsonObject?.body(): JsonObject? = this?.get("message")?.jsonObject?.get("body")?.let { runCatching { it.jsonObject }.getOrNull() }
 
     private suspend fun token(context: Context, forceNew: Boolean = false): String? {
+        val stored = context.dataStore[MusixmatchTokenKey]?.takeIf { it.isNotBlank() }
+        if (!forceNew && stored != null) return stored
+        // Prefer the token the Zemer server brokers: it issues from one clean IP, so a phone (whose IP Musixmatch
+        // often refuses) never touches issuance. forceNew means our stored token went stale → ask for a renew.
+        runCatching { ZemerLyricsClient.musixmatchToken(renew = if (forceNew) stored else null) }.getOrNull()?.let {
+            context.dataStore.edit { p -> p[MusixmatchTokenKey] = it; p.remove(MusixmatchCooldownUntilKey) }
+            return it
+        }
+        // Fallback: issue directly (works off the home network). Guarded by a short cooldown when refused.
         val cooldown = context.dataStore[MusixmatchCooldownUntilKey] ?: 0L
-        // A cooldown further out than we ever set is a leftover from the old 6 h rule — drop it.
         if (cooldown > System.currentTimeMillis() + COOLDOWN_MS) context.dataStore.edit { it.remove(MusixmatchCooldownUntilKey) }
-        else if (cooldown > System.currentTimeMillis()) return null
-        if (!forceNew) context.dataStore[MusixmatchTokenKey]?.takeIf { it.isNotBlank() }?.let { return it }
+        else if (cooldown > System.currentTimeMillis()) return stored
         val j = getJson("${BASE}token.get?app_id=$APP")
         val tok = j.body()?.get("user_token")?.jsonPrimitive?.contentOrNull
         context.dataStore.edit { if (tok != null) it[MusixmatchTokenKey] = tok else { it.remove(MusixmatchTokenKey); it[MusixmatchCooldownUntilKey] = System.currentTimeMillis() + COOLDOWN_MS } }
