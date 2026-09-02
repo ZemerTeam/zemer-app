@@ -215,11 +215,22 @@ export function loadStreamClientsIncludingBenched(path = STREAM_CLIENTS_PATH) {
   const raw = JSON.parse(readFileSync(path, "utf8"));
   const benchedKeys = (raw.clients || []).filter((c) => c && c.enabled === false).map((c) => c.key);
   if (benchedKeys.length === 0) return { ...live, benched: [] };
-  // Re-parse with the kill switch lifted: a benched entry must still be a VALID entry (the
-  // monitor would otherwise probe a shape the app could never run).
-  const lifted = { ...raw, clients: raw.clients.map((c) => (c && c.enabled === false ? { ...c, enabled: true } : c)) };
-  const all = parseStreamClients(JSON.stringify(lifted));
-  const benched = all.clients.filter((c) => benchedKeys.includes(c.key)).map((c) => ({ ...c, benched: true }));
+  // Re-parse each benched entry with the kill switch lifted, ONE AT A TIME: a benched entry must
+  // still be a valid entry to be probed (the monitor would otherwise scan a shape the app could
+  // never run), but a broken benched row is skipped with a warning rather than failing the whole
+  // scan — the app skips it silently too. `live` is the loader's own already-validated parse.
+  const benched = [];
+  for (const key of benchedKeys) {
+    const row = raw.clients.find((c) => c && c.key === key);
+    try {
+      const single = parseStreamClients(JSON.stringify({ ...raw, clients: [raw.clients[0], { ...row, enabled: true }] }));
+      const def = single.clients.find((c) => c.key === key);
+      if (def) benched.push({ ...def, benched: true });
+      else console.error(`warning: benched entry ${key} is not a usable entry even when enabled — skipped`);
+    } catch (e) {
+      console.error(`warning: benched entry ${key} is malformed (${e.message}) — skipped`);
+    }
+  }
   return { ...live, benched };
 }
 

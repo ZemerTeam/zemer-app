@@ -18,9 +18,13 @@
 // stderr: the human table, one block per video.
 // Exit 0 normally; exit 1 only when the table itself is invalid (devices would reject it).
 //
-// `conclusive` is the runner sanity canary: false unless the MAIN client drained a whole song on at
-// least one video. A datacenter IP that is bot-gated, a dead cookie, or a broken cipher makes EVERY
-// client fail — that must read as "scan broken", never as "every client is dead".
+// `conclusive` is the runner sanity canary: false unless SOME client (any role, any video) drained
+// a whole song — then the runner, cookie, cipher and pot minter are known-good and every failure
+// is the client's own. A bot-gated datacenter IP, a dead cookie or a broken cipher makes EVERY
+// client fail, and that must read as "scan broken", never as "every client is dead". (It is
+// deliberately not "the MAIN drained": a dead main — e.g. YouTube retiring its version, /player
+// 404 — must surface as DEAD so its issue opens and its yt-dlp bump can revive it, not hide
+// every other verdict behind an inconclusive scan.)
 
 import "./egress.mjs"; // FIRST: routes every fetch through SCAN_PROXY when set
 import { STREAM_CLIENTS_PATH, loadStreamClientsIncludingBenched } from "./stream-clients.mjs";
@@ -33,16 +37,26 @@ const videos = [
 ].map((v) => v.trim()).filter(Boolean);
 if (videos.length === 0) videos.push("JTF9fLJvniI");
 
+/** The dynamic roster: live table entries (entry 0 = main), benched entries, then retired defs. */
+export function buildRoster(table, retired, onlyKeys = []) {
+  const roster = [
+    ...table.clients.map((c, i) => ({ def: c, role: "live", main: i === 0 })),
+    ...table.benched.map((c) => ({ def: c, role: "benched", main: false })),
+    // A retired def whose key the table still carries is the table's to judge, not a resurrection.
+    ...retired.filter((c) => ![...table.clients, ...table.benched].some((t) => t.key === c.key))
+      .map((c) => ({ def: c, role: "retired", main: false })),
+  ];
+  return onlyKeys.length ? roster.filter((r) => onlyKeys.includes(r.def.key)) : roster;
+}
+
+const isMain = process.argv[1] && import.meta.url === new URL(`file://${process.argv[1]}`).href;
+if (!isMain) {
+  // Imported for its exports (tests): do not scan.
+} else {
 const table = loadStreamClientsIncludingBenched();
-const roster = [
-  ...table.clients.map((c, i) => ({ def: c, role: "live", main: i === 0 })),
-  ...table.benched.map((c) => ({ def: c, role: "benched", main: false })),
-  // A retired def whose key the table still carries is the table's to judge, not a resurrection.
-  ...RETIRED.filter((c) => ![...table.clients, ...table.benched].some((t) => t.key === c.key))
-    .map((c) => ({ def: c, role: "retired", main: false })),
-];
 const only = (process.env.ONLY_KEYS || "").split(/[\s,]+/).filter(Boolean);
-const scanned = only.length ? roster.filter((r) => only.includes(r.def.key)) : roster;
+const roster = buildRoster(table, RETIRED);
+const scanned = buildRoster(table, RETIRED, only);
 const ctx = await createDrainContext();
 const clients = scanned.map(({ def, role, main }) => ({
   key: def.key, family: def.family ?? def.clientName, role, main, loginRequired: Boolean(def.loginRequired), results: [],
@@ -60,11 +74,12 @@ for (const videoId of [...new Set(videos)]) {
 }
 ctx.close();
 
-const main = clients.find((c) => c.main);
-const conclusive = Boolean(main && main.results.some((r) => r.kind === "whole"));
+const conclusive = clients.some((c) => c.results.some((r) => r.kind === "whole"));
+const mainHealthy = Boolean(clients.find((c) => c.main)?.results.some((r) => r.kind === "whole"));
 process.stdout.write(JSON.stringify({
-  table: STREAM_CLIENTS_PATH, videos: [...new Set(videos)], cookie: ctx.hasCookie, conclusive, clients,
+  table: STREAM_CLIENTS_PATH, videos: [...new Set(videos)], cookie: ctx.hasCookie, conclusive, mainHealthy, clients,
   roles: { live: table.clients.length, benched: table.benched.length, retired: roster.filter((c) => c.role === "retired").length },
   only,
 }, null, 2) + "\n");
 process.exit(0);
+}

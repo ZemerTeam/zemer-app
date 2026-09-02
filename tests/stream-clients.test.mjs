@@ -25,10 +25,19 @@ test("parity: accept fixtures parse, reject fixtures reject", () => {
   assert.ok(names.some((n) => n.startsWith("accept-")));
   assert.ok(names.some((n) => n.startsWith("reject-")));
   for (const name of names) {
+    if (name.endsWith(".expect.json")) continue;
     const text = readFileSync(join(FIXTURES, name), "utf8");
     const rejects = fileVerdictRejects(text);
     if (name.startsWith("accept-")) assert.equal(rejects, false, `${name} must be accepted`);
     if (name.startsWith("reject-")) assert.equal(rejects, true, `${name} must be rejected`);
+    // Entry-level parity: the sidecar pins the live chain and the skips the Kotlin parser produces.
+    const expectPath = join(FIXTURES, name.replace(/\.json$/, ".expect.json"));
+    if (name.startsWith("accept-") && names.includes(name.replace(/\.json$/, ".expect.json"))) {
+      const expect = JSON.parse(readFileSync(expectPath, "utf8"));
+      const parsed = parseStreamClients(text);
+      assert.deepEqual(parsed.clients.map((c) => c.key), expect.clients, `${name} live chain`);
+      assert.deepEqual(parsed.skipped, expect.skipped, `${name} skipped`);
+    }
   }
 });
 
@@ -92,6 +101,23 @@ test("loadStreamClientsIncludingBenched surfaces benched entries parsed with the
   assert.equal(t.benched[0].useWebPoTokens, true);
   // The bundled table today has no benched entry.
   assert.deepEqual(loadStreamClientsIncludingBenched().benched, []);
+  // A benched entry that is itself broken is skipped with a warning, never a scan failure.
+  writeFileSync(file, JSON.stringify({ schemaVersion: 1, clients: [
+    base, { ...base, key: "BROKEN", family: "BROKEN", clientId: "not-digits", enabled: false }, { ...base, key: "OK", family: "OK", enabled: false },
+  ] }));
+  const t2 = loadStreamClientsIncludingBenched(file);
+  assert.deepEqual(t2.clients.map((c) => c.key), ["MAIN"]);
+  assert.deepEqual(t2.benched.map((c) => c.key), ["OK"]);
+});
+
+test("buildRoster: live first (entry 0 = main), then benched, then retired minus keys the table carries", async () => {
+  const { buildRoster } = await import("./scan-stream-clients.mjs");
+  const table = { clients: [{ key: "MAIN" }, { key: "B" }], benched: [{ key: "C" }] };
+  const retired = [{ key: "C" }, { key: "OLD" }, { key: "MAIN" }];
+  const r = buildRoster(table, retired);
+  assert.deepEqual(r.map((x) => `${x.def.key}:${x.role}${x.main ? ":main" : ""}`), ["MAIN:live:main", "B:live", "C:benched", "OLD:retired"]);
+  assert.deepEqual(buildRoster(table, retired, ["OLD", "NOPE"]).map((x) => x.def.key), ["OLD"]);
+  assert.deepEqual(buildRoster({ clients: [], benched: [] }, []), []);
 });
 
 test("mirrors: the yt-dlp key an entry follows is optional harness metadata; pinned entries have none", () => {
@@ -141,6 +167,41 @@ test("duplicate keys and an unusable main reject the file", () => {
     fileVerdictRejects(JSON.stringify({ schemaVersion: 1, clients: [{ ...base, protocol: "sabr" }] })),
     true,
   );
+});
+
+test("boundaries: key/clientId/version/UA limits, 32-client cap, schemaVersion shapes (parser parity)", () => {
+  const base = { key: "MAIN", clientName: "MAIN", clientVersion: "1.0", clientId: "1", userAgent: "Mozilla/5.0 (test)", protocol: "direct", family: "MAIN" };
+  const file = (clients, schemaVersion = 1) => JSON.stringify({ schemaVersion, clients });
+  const ok = (clients, sv) => parseStreamClients(file(clients, sv));
+  assert.equal(ok([{ ...base, key: "A".repeat(32), family: "A" }]).clients.length, 1);
+  assert.throws(() => ok([{ ...base, key: "A".repeat(33) }]));
+  assert.throws(() => ok([{ ...base, key: "web_remix" }]));
+  assert.equal(ok([{ ...base, clientId: "9999" }]).clients.length, 1);
+  assert.throws(() => ok([{ ...base, clientId: "10000" }]));
+  assert.equal(ok([{ ...base, userAgent: "u".repeat(300) }]).clients.length, 1);
+  assert.throws(() => ok([{ ...base, userAgent: "u".repeat(301) }]));
+  assert.throws(() => ok([{ ...base, userAgent: "Mozilla/5.0 \u00e9" }]));
+  assert.throws(() => ok([{ ...base, clientVersion: "1.0 beta" }]));
+  assert.throws(() => ok([{ ...base, androidSdkVersion: 32 }]), "androidSdkVersion must be a string");
+  assert.equal(ok([{ ...base, androidSdkVersion: "32" }]).clients[0].androidSdkVersion, "32");
+  assert.throws(() => ok([{ ...base, loginSupported: "true" }]));
+  assert.equal(ok([{ ...base, loginRequired: null }]).clients[0].loginRequired, false);
+  const many = (n) => Array.from({ length: n }, (_, i) => ({ ...base, key: `K${i}`, family: `K${i}` }));
+  assert.equal(ok(many(32)).clients.length, 32);
+  assert.equal(fileVerdictRejects(file(many(33))), true);
+  const benchedTail = [...many(32), ...Array.from({ length: 8 }, (_, i) => ({ ...base, key: `B${i}`, family: `B${i}`, enabled: false }))];
+  assert.equal(ok(benchedTail).clients.length, 32, "skipped entries do not count toward the cap");
+  for (const sv of [0, -1, 2, "1", true, null, 1.5]) assert.equal(fileVerdictRejects(file([base], sv)), true, `schemaVersion ${JSON.stringify(sv)}`);
+  assert.equal(fileVerdictRejects("[]"), true); assert.equal(fileVerdictRejects("null"), true); assert.equal(fileVerdictRejects(""), true);
+  // Unknown fields are ignored (mirrors is read, arbitrary extras are not a reason to skip).
+  assert.equal(ok([{ ...base, notes: [1, {}], mirrors: "web_music" }]).clients[0].mirrors, "web_music");
+  // families: duplicate keeps the first, bad rows skipped, non-array ignored.
+  const fam = parseStreamClients(JSON.stringify({ schemaVersion: 1, clients: [base], families: [
+    { id: "MAIN", title: "First", group: "web" }, { id: "MAIN", title: "Second", group: "web" },
+    { id: "bad id", title: "x", group: "web" }, { id: "BADGROUP", title: "x", group: "Web" }, "nope", null, 7,
+  ] }));
+  assert.deepEqual(Object.keys(fam.families), ["MAIN"]); assert.equal(fam.families.MAIN.title, "First");
+  assert.deepEqual(parseStreamClients(JSON.stringify({ schemaVersion: 1, clients: [base], families: "nope" })).families, {});
 });
 
 test("header-injection shapes are refused", () => {
