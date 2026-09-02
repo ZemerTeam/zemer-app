@@ -41,7 +41,8 @@ async function player(c, { visitorData, cookie, poToken, sts }) {
   const reason = j?.playabilityStatus?.reason || "";
   const gated = /confirm you.re not a bot/i.test(reason);
   const usable = st === "OK" && (j?.streamingData?.adaptiveFormats || []).some((f) => f.url || f.signatureCipher);
-  return { st, gated, usable, freshVisitor: j?.responseContext?.visitorData || null };
+  const direct = (j?.streamingData?.adaptiveFormats || []).filter((f) => f.url && f.width == null).sort((a, b) => b.bitrate - a.bitrate)[0];
+  return { st, gated, usable, directUrl: direct?.url || null, freshVisitor: j?.responseContext?.visitorData || null };
 }
 
 const cred = await getCred();
@@ -57,8 +58,17 @@ if (process.env.QUICK) {
   if (!c) { console.log("QUICK: no anonymous client in the table"); process.exit(2); }
   try {
     const r = await player(c, { visitorData });
-    console.log(`QUICK ${c.key}: ${r.gated ? "BOT-GATED" : r.usable ? "OK (consumable)" : r.st}`);
-    process.exit(r.gated ? 1 : r.usable ? 0 : 2);
+    if (r.gated || !r.usable) { console.log(`QUICK ${c.key}: ${r.gated ? "BOT-GATED" : r.st}`); process.exit(r.gated ? 1 : 2); }
+    // The wall can be on the CDN, not on /player ("403 after 0KB" on every anonymous client from a
+    // bad egress): drain the first 256 KiB of the direct url as the app would. A direct (no-cipher)
+    // client keeps this dependency-free; a clean egress gets 200/206 with bytes.
+    const url = r.directUrl;
+    if (!url) { console.log(`QUICK ${c.key}: OK (consumable) but no direct url to drain`); process.exit(2); }
+    const g = await fetch(url, { headers: { "User-Agent": c.userAgent, Range: "bytes=0-262143" } });
+    let got = 0; if (g.status === 200 || g.status === 206) { const rd = g.body.getReader(); for (;;) { const { done, value } = await rd.read(); if (done) break; got += value.length; if (got >= 262144) { await rd.cancel(); break; } } }
+    const cdnOk = (g.status === 200 || g.status === 206) && got > 0;
+    console.log(`QUICK ${c.key}: /player OK, CDN ${g.status} ${Math.round(got / 1024)}KB -> ${cdnOk ? "OK" : "WALLED"}`);
+    process.exit(cdnOk ? 0 : 1);
   } catch (e) { console.log(`QUICK ${c.key}: ERR ${e.message}`); process.exit(2); }
 }
 const minter = await createMinter(visitorData);

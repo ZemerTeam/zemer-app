@@ -65,7 +65,7 @@ const roster = buildRoster(table, RETIRED);
 const scanned = buildRoster(table, RETIRED, only);
 const ctx = await createDrainContext();
 const clients = scanned.map(({ def, role, main }) => ({
-  key: def.key, family: def.family ?? def.clientName, role, main, loginRequired: Boolean(def.loginRequired),
+  key: def.key, family: def.family ?? def.clientName, role, main, loginRequired: Boolean(def.loginRequired), loginSupported: Boolean(def.loginSupported),
   sabr: def.sabr ? (def.sabr.enabled === false ? "benched" : "live") : null,
   results: [], sabrResults: [],
 }));
