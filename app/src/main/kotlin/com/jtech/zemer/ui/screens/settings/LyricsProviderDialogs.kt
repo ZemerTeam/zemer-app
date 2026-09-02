@@ -9,7 +9,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Switch
@@ -28,6 +27,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.jtech.zemer.R
 import com.jtech.zemer.lyrics.LyricsProviderRegistry
+import com.jtech.zemer.ui.component.DefaultDialog
 import com.jtech.zemer.ui.component.DraggableLyricsProviderItem
 import com.jtech.zemer.ui.component.DraggableLyricsProviderList
 
@@ -44,30 +44,30 @@ class LyricsProviderToggle(
 /** Content settings → Provider selection: one switch per provider, with what each source is. */
 @Composable
 fun LyricsProviderSelectionDialog(providers: List<LyricsProviderToggle>, onDismiss: () -> Unit) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
+    DefaultDialog(
+        onDismiss = onDismiss,
         title = { Text(stringResource(R.string.lyrics_provider_selection)) },
-        text = {
-            Column(modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                providers.forEach { p ->
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                        Column(modifier = Modifier.weight(1f).padding(end = 12.dp)) {
-                            Text(stringResource(p.title), fontWeight = FontWeight.Bold)
-                            Text(stringResource(p.description), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            p.status?.takeIf { it.isNotBlank() }?.let { Text(it, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.tertiary) }
-                        }
-                        Switch(
-                            checked = p.enabled,
-                            onCheckedChange = p.onEnabledChange,
-                            thumbContent = { Icon(painterResource(if (p.enabled) R.drawable.check else R.drawable.close), null, Modifier.size(SwitchDefaults.IconSize)) },
-                        )
+        horizontalAlignment = Alignment.Start,
+        buttons = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.close)) } },
+    ) {
+        Column(modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            providers.forEach { p ->
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                    Column(modifier = Modifier.weight(1f).padding(end = 12.dp)) {
+                        Text(stringResource(p.title), fontWeight = FontWeight.Bold)
+                        Text(stringResource(p.description), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        p.status?.takeIf { it.isNotBlank() }?.let { Text(it, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.tertiary) }
                     }
+                    Switch(
+                        checked = p.enabled,
+                        onCheckedChange = p.onEnabledChange,
+                        thumbContent = { Icon(painterResource(if (p.enabled) R.drawable.check else R.drawable.close), null, Modifier.size(SwitchDefaults.IconSize)) },
+                    )
                 }
-                Text(stringResource(R.string.lyrics_provider_youtube_note), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 4.dp))
             }
-        },
-        confirmButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.close)) } },
-    )
+            Text(stringResource(R.string.lyrics_provider_youtube_note), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 4.dp))
+        }
+    }
 }
 
 /**
@@ -86,23 +86,23 @@ fun LyricsProviderPriorityDialog(providers: List<LyricsProviderToggle>, order: S
     val titles = rows.associate { it.ids.first() to stringResource(it.title) }
     LaunchedEffect(rows) { items.clear(); items.addAll(rows.map { DraggableLyricsProviderItem(it.ids.first(), titles.getValue(it.ids.first())) }) }
 
-    AlertDialog(
-        onDismissRequest = onDismiss,
+    DefaultDialog(
+        onDismiss = onDismiss,
         title = { Text(stringResource(R.string.lyrics_provider_priority)) },
-        text = {
-            Column(modifier = Modifier.fillMaxWidth().height(320.dp)) {
-                Text(stringResource(R.string.lyrics_provider_priority_desc), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(bottom = 8.dp))
-                DraggableLyricsProviderList(
-                    items = items,
-                    onItemsReordered = { reordered ->
-                        val enabledOrder = reordered.flatMap { byId.getValue(it.id).ids }
-                        val disabledOrder = normalized.filter { it !in enabledIds }
-                        onOrderChange(LyricsProviderRegistry.serializeProviderOrder(enabledOrder + disabledOrder))
-                    },
-                    modifier = Modifier.fillMaxWidth().weight(1f),
-                )
-            }
-        },
-        confirmButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.close)) } },
-    )
+        horizontalAlignment = Alignment.Start,
+        buttons = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.close)) } },
+    ) {
+        Column(modifier = Modifier.fillMaxWidth().height(320.dp)) {
+            Text(stringResource(R.string.lyrics_provider_priority_desc), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(bottom = 8.dp))
+            DraggableLyricsProviderList(
+                items = items,
+                onItemsReordered = { reordered ->
+                    val enabledOrder = reordered.flatMap { byId.getValue(it.id).ids }
+                    val disabledOrder = normalized.filter { it !in enabledIds }
+                    onOrderChange(LyricsProviderRegistry.serializeProviderOrder(enabledOrder + disabledOrder))
+                },
+                modifier = Modifier.fillMaxWidth().weight(1f),
+            )
+        }
+    }
 }
