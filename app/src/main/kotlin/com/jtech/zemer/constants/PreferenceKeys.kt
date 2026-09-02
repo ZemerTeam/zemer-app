@@ -95,6 +95,7 @@ val EnableYouTubeLyricsKey = booleanPreferencesKey("enableYouTubeLyrics")
 val LyricsProviderOrderKey = stringPreferencesKey("lyricsProviderOrder")   // comma-separated LyricsProviderRegistry names; blank = default order   // YouTube subtitles + the Music lyrics tab (lower trust, last)
 val EnableMusixmatchKey = booleanPreferencesKey("enableMusixmatch")
 val MusixmatchTokenKey = stringPreferencesKey("musixmatchToken")          // one desktop-API token per device (lyrics/musixmatch)
+val MusixmatchLastStatusKey = stringPreferencesKey("musixmatchLastStatus")   // last lookup outcome, shown under the provider toggle
 val MusixmatchCooldownUntilKey = longPreferencesKey("musixmatchCooldownUntil") // epoch ms; set after a captcha-gated reply
 val YtmSyncKey = booleanPreferencesKey("ytmSync")
 // Persisted snapshot of the server's blockedContentIds list (newline-joined), loaded at startup so the

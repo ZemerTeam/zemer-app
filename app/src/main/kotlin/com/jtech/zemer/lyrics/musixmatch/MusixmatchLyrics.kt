@@ -3,6 +3,7 @@ package com.jtech.zemer.lyrics.musixmatch
 import android.content.Context
 import androidx.datastore.preferences.core.edit
 import com.jtech.zemer.constants.MusixmatchCooldownUntilKey
+import com.jtech.zemer.constants.MusixmatchLastStatusKey
 import com.jtech.zemer.constants.MusixmatchTokenKey
 import com.jtech.zemer.utils.dataStore
 import com.jtech.zemer.utils.get
@@ -41,7 +42,7 @@ object MusixmatchLyrics {
     const val SYNC_TOL = 1
     private const val BASE = "https://apic-desktop.musixmatch.com/ws/1.1/"
     private const val APP = "web-desktop-app-v1.0"
-    private const val COOLDOWN_MS = 6 * 3600_000L
+    private const val COOLDOWN_MS = 30 * 60_000L   // token issuance refused: try again in half an hour (issuance is per-IP rate-limited)
 
     data class Track(val trackName: String, val artistName: String, val trackLength: Int, val commontrackId: Long, val trackId: Long)
     data class Judged(val plain: String, val synced: String?, val ref: String)
@@ -135,31 +136,60 @@ object MusixmatchLyrics {
     private fun JsonObject?.header(): JsonObject? = this?.get("message")?.jsonObject?.get("header")?.jsonObject
     private fun JsonObject?.body(): JsonObject? = this?.get("message")?.jsonObject?.get("body")?.let { runCatching { it.jsonObject }.getOrNull() }
 
-    private suspend fun token(context: Context): String? {
+    private suspend fun token(context: Context, forceNew: Boolean = false): String? {
         val cooldown = context.dataStore[MusixmatchCooldownUntilKey] ?: 0L
         if (cooldown > System.currentTimeMillis()) return null
-        context.dataStore[MusixmatchTokenKey]?.takeIf { it.isNotBlank() }?.let { return it }
+        if (!forceNew) context.dataStore[MusixmatchTokenKey]?.takeIf { it.isNotBlank() }?.let { return it }
         val j = getJson("${BASE}token.get?app_id=$APP")
         val tok = j.body()?.get("user_token")?.jsonPrimitive?.contentOrNull
-        context.dataStore.edit { if (tok != null) it[MusixmatchTokenKey] = tok else it[MusixmatchCooldownUntilKey] = System.currentTimeMillis() + COOLDOWN_MS }
+        context.dataStore.edit { if (tok != null) it[MusixmatchTokenKey] = tok else { it.remove(MusixmatchTokenKey); it[MusixmatchCooldownUntilKey] = System.currentTimeMillis() + COOLDOWN_MS } }
         return tok
+    }
+
+    /** Outcome of one lookup, also recorded in `MusixmatchLastStatusKey` so Content settings can show why a song had nothing. */
+    sealed class Outcome(val status: String) {
+        class Hit(val judged: Judged) : Outcome("ok" + if (judged.synced != null) " synced" else "")
+        object Unauthorized : Outcome("token quota reached (captcha)")
+        object Network : Outcome("network error")
+        object NoMatch : Outcome("no matching track")
+        object NoLyrics : Outcome("track known, no lyrics on file")
+        class Rejected(why: String) : Outcome("rejected: $why")
+    }
+
+    /** One gated lookup with an explicit token (pure network + gates; live-testable off-device). */
+    suspend fun fetch(token: String, title: String, artist: String, duration: Int): Outcome {
+        val q = listOf(
+            "app_id" to APP, "usertoken" to token, "q_track" to cleanTitle(title), "q_artist" to cleanArtist(artist),
+            "q_duration" to (duration.takeIf { it > 0 }?.toString() ?: ""), "f_subtitle_length" to (duration.takeIf { it > 0 }?.toString() ?: ""),
+            "f_subtitle_length_max_deviation" to "1", "subtitle_format" to "lrc", "format" to "json",
+        ).joinToString("&") { (k, v) -> "$k=${java.net.URLEncoder.encode(v, "UTF-8")}" }
+        val j = getJson("${BASE}macro.subtitles.get?$q") ?: return Outcome.Network
+        if (j.header()?.get("status_code")?.jsonPrimitive?.intOrNull == 401) return Outcome.Unauthorized
+        val (track, ly, st) = parseMacro(j) ?: return Outcome.Network
+        if (track == null) return Outcome.NoMatch
+        if (ly.body.isNullOrBlank()) return Outcome.NoLyrics
+        if (ly.instrumental || ly.restricted) return Outcome.Rejected(if (ly.instrumental) "instrumental" else "restricted")
+        if (!artistMatches(track.artistName, listOf(artist))) return Outcome.Rejected("artist ${track.artistName}")
+        if (!titleMatches(track.trackName, listOf(title))) return Outcome.Rejected("title ${track.trackName}")
+        val judged = judge(track, ly.body, ly.instrumental, ly.restricted, st, title, null, artist, null, duration) ?: return Outcome.Rejected("length ${track.trackLength}s vs ${duration}s")
+        return Outcome.Hit(judged)
     }
 
     /** The gated body for this song: LRC when the recording length matched within 1 s, else plain text; null = not found. */
     suspend fun getLyrics(context: Context, title: String, artist: String, duration: Int): Judged? {
-        val tok = token(context) ?: return null
-        val q = listOf(
-            "app_id" to APP, "usertoken" to tok, "q_track" to cleanTitle(title), "q_artist" to cleanArtist(artist),
-            "q_duration" to (duration.takeIf { it > 0 }?.toString() ?: ""), "f_subtitle_length" to (duration.takeIf { it > 0 }?.toString() ?: ""),
-            "f_subtitle_length_max_deviation" to "1", "subtitle_format" to "lrc", "format" to "json",
-        ).joinToString("&") { (k, v) -> "$k=${java.net.URLEncoder.encode(v, "UTF-8")}" }
-        val j = getJson("${BASE}macro.subtitles.get?$q") ?: return null
-        if (j.header()?.get("status_code")?.jsonPrimitive?.intOrNull == 401) {
-            context.dataStore.edit { it.remove(MusixmatchTokenKey); it[MusixmatchCooldownUntilKey] = System.currentTimeMillis() + COOLDOWN_MS }
-            return null
+        val tok = token(context) ?: run { record(context, "no token (issuance refused, retry in 30 min)"); return null }
+        var out = fetch(tok, title, artist, duration)
+        // A token is good for roughly a dozen lookups (measured 2026-09-02), then every reply is a 401 "captcha":
+        // fetch a fresh token and retry once; when issuance is refused too, back off (never a 6 h blackout).
+        if (out is Outcome.Unauthorized) {
+            val fresh = token(context, forceNew = true)
+            out = if (fresh != null) fetch(fresh, title, artist, duration) else out
         }
-        return parseMacro(j)?.let { (track, ly, st) -> judge(track, ly.body, ly.instrumental, ly.restricted, st, title, null, artist, null, duration) }
+        record(context, "${out.status} — $artist / $title")
+        return (out as? Outcome.Hit)?.judged
     }
+
+    private suspend fun record(context: Context, status: String) { runCatching { context.dataStore.edit { it[MusixmatchLastStatusKey] = status } } }
 
     class LyricsPayload(val body: String?, val instrumental: Boolean, val restricted: Boolean)
 

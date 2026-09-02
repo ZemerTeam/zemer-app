@@ -37,6 +37,7 @@ class LyricsProviderToggle(
     val description: Int,
     val enabled: Boolean,
     val onEnabledChange: (Boolean) -> Unit,
+    val status: String? = null,      // last outcome line (Musixmatch), shown under the description
 )
 
 /** Content settings → Provider selection: one switch per provider, with what each source is. */
@@ -52,6 +53,7 @@ fun LyricsProviderSelectionDialog(providers: List<LyricsProviderToggle>, onDismi
                         Column(modifier = Modifier.weight(1f).padding(end = 12.dp)) {
                             Text(stringResource(p.title))
                             Text(stringResource(p.description), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            p.status?.takeIf { it.isNotBlank() }?.let { Text(it, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.tertiary) }
                         }
                         Switch(
                             checked = p.enabled,

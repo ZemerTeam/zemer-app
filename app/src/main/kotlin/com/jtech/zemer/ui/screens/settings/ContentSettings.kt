@@ -66,6 +66,7 @@ import com.jtech.zemer.constants.EnableSimpMusicKey
 import com.jtech.zemer.constants.EnableYouTubeLyricsKey
 import com.jtech.zemer.constants.EnableZemerLyricsKey
 import com.jtech.zemer.constants.LyricsProviderOrderKey
+import com.jtech.zemer.constants.MusixmatchLastStatusKey
 import com.jtech.zemer.constants.EnableMusixmatchKey
 import com.jtech.zemer.constants.LanguageCodeToName
 import com.jtech.zemer.constants.QuickPicks
@@ -191,6 +192,7 @@ fun ContentSettings(
     val (enableLrclib, onEnableLrclibChange) = rememberPreference(key = EnableLrcLibKey, defaultValue = true)
     val (enableYouTubeLyrics, onEnableYouTubeLyricsChange) = rememberPreference(key = EnableYouTubeLyricsKey, defaultValue = true)
     val (enableMusixmatch, onEnableMusixmatchChange) = rememberPreference(key = EnableMusixmatchKey, defaultValue = true)
+    val (musixmatchStatus, _) = rememberPreference(key = MusixmatchLastStatusKey, defaultValue = "")
     val (lyricsProviderOrder, onLyricsProviderOrderChange) = rememberPreference(key = LyricsProviderOrderKey, defaultValue = "")
     var showProviderSelectionDialog by rememberSaveable { mutableStateOf(false) }
     var showProviderPriorityDialog by rememberSaveable { mutableStateOf(false) }
@@ -198,7 +200,7 @@ fun ContentSettings(
         LyricsProviderToggle(listOf("Zemer"), R.string.enable_zemer_lyrics, R.string.enable_zemer_lyrics_desc, enableZemerLyrics, onEnableZemerLyricsChange),
         LyricsProviderToggle(listOf("SimpMusic"), R.string.enable_simpmusic, R.string.enable_simpmusic_desc, enableSimpMusic, onEnableSimpMusicChange),
         LyricsProviderToggle(listOf("LrcLib"), R.string.enable_lrclib, R.string.enable_lrclib_desc, enableLrclib, onEnableLrclibChange),
-        LyricsProviderToggle(listOf("Musixmatch"), R.string.enable_musixmatch, R.string.enable_musixmatch_desc, enableMusixmatch, onEnableMusixmatchChange),
+        LyricsProviderToggle(listOf("Musixmatch"), R.string.enable_musixmatch, R.string.enable_musixmatch_desc, enableMusixmatch, onEnableMusixmatchChange, status = musixmatchStatus),
         LyricsProviderToggle(listOf("YouTubeSubtitle", "YouTube"), R.string.enable_youtube_lyrics, R.string.enable_youtube_lyrics_desc, enableYouTubeLyrics, onEnableYouTubeLyricsChange),
     )
     if (showProviderSelectionDialog) LyricsProviderSelectionDialog(lyricsProviderToggles) { showProviderSelectionDialog = false }
