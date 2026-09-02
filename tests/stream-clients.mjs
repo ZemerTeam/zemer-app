@@ -163,6 +163,13 @@ export function parseStreamClients(text) {
   const skipped = [];
   const seen = new Set();
   for (const [i, entry] of root.clients.entries()) {
+    // Duplicate keys reject the FILE whether or not the rows are usable (app parity: a benched
+    // twin of a live key would make the only writer unable to act on that key).
+    const rawKey = entry && typeof entry === "object" && typeof entry.key === "string" && KEY_RE.test(entry.key) ? entry.key : null;
+    if (rawKey !== null) {
+      req(!seen.has(rawKey), `duplicate client key '${rawKey}'`);
+      seen.add(rawKey);
+    }
     let parsed;
     try {
       parsed = parseEntry(entry, `clients[${i}]`);
@@ -176,8 +183,6 @@ export function parseStreamClients(text) {
       skipped.push(entry?.key ?? `clients[${i}]`);
       continue;
     }
-    req(!seen.has(parsed.key), `duplicate client key '${parsed.key}'`);
-    seen.add(parsed.key);
     clients.push(parsed);
   }
   req(clients.length > 0, "no usable client entries (never-zero-clients invariant)");
