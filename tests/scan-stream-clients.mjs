@@ -13,6 +13,8 @@
 //   ONLY_KEYS=WEB_REMIX,VISIONOS   restrict the roster (candidate-table verification of one entry)
 //   SKIP_RETIRED=1                 drain only the table's live + benched entries (the retired clients
 //                                  feed the "works again" alert only; one slot covering them is enough)
+//   SCAN_PASSES=concurrent|sequential  run the progressive and SABR passes at once (faster) or one
+//                                  after the other (gentler on a tunnelled egress); default sequential
 //   YT_COOKIE / YT_VISITOR_DATA / YT_DATASYNC_ID (env) or innertube_cookie.txt supply the session.
 //
 // stdout: JSON { table, videos, cookie, conclusive, sabrConclusive, clients:[{key, family, role, main,
@@ -74,7 +76,7 @@ const clients = scanned.map(({ def, role, main }) => ({
 
 // The two transports drain CONCURRENTLY on separate contexts (their own cipher + pot minter):
 // they share nothing but the table, so the scan takes the longer of the two, not the sum.
-const progressivePass = (async () => {
+const progressivePass = () => (async () => {
   const ctx = await createDrainContext();
   for (const videoId of [...new Set(videos)]) {
     const video = await ctx.forVideo(videoId);
@@ -91,7 +93,7 @@ const progressivePass = (async () => {
 })();
 
 // SABR pass: only entries that carry a `sabr` object (live or SABR-benched), same videos.
-const sabrPass = (async () => {
+const sabrPass = () => (async () => {
   const sabrTargets = clients.map((c, i) => [c, scanned[i].def]).filter(([c]) => c.sabr);
   if (!sabrTargets.length) return;
   const sctx = await createSabrContext();
@@ -114,17 +116,19 @@ const guard = (name, p, fill) => p.catch((e) => {
   fill(String(e?.cause?.message || e?.message || e).slice(0, 80));
 });
 const videosList = [...new Set(videos)];
-await Promise.all([
-  guard("progressive", progressivePass, (msg) => { for (const c of clients) for (const v of videosList) if (!c.results.some((r) => r.video === v)) c.results.push({ video: v, kind: "error", reason: `pass failed: ${msg}` }); }),
-  guard("sabr", sabrPass, (msg) => { for (const c of clients) if (c.sabr) for (const v of videosList) if (!c.sabrResults.some((r) => r.video === v)) c.sabrResults.push({ video: v, kind: "error", reason: `pass failed: ${msg}` }); }),
-]);
+const concurrent = process.env.SCAN_PASSES === "concurrent";
+const passes = [
+  () => guard("progressive", progressivePass(), (msg) => { for (const c of clients) for (const v of videosList) if (!c.results.some((r) => r.video === v)) c.results.push({ video: v, kind: "error", reason: `pass failed: ${msg}` }); }),
+  () => guard("sabr", sabrPass(), (msg) => { for (const c of clients) if (c.sabr) for (const v of videosList) if (!c.sabrResults.some((r) => r.video === v)) c.sabrResults.push({ video: v, kind: "error", reason: `pass failed: ${msg}` }); }),
+];
+if (concurrent) await Promise.all(passes.map((p) => p())); else for (const p of passes) await p();
 const hasCookie = Boolean((await (await import("./cred.mjs")).getCred()).cookie);
 
 const conclusive = clients.some((c) => c.results.some((r) => r.kind === "whole"));
 const sabrConclusive = clients.some((c) => c.sabrResults.some((r) => r.kind === "whole"));
 const mainHealthy = Boolean(clients.find((c) => c.main)?.results.some((r) => r.kind === "whole"));
 process.stdout.write(JSON.stringify({
-  table: STREAM_CLIENTS_PATH, videos: [...new Set(videos)], cookie: hasCookie, conclusive, sabrConclusive, mainHealthy, clients,
+  table: STREAM_CLIENTS_PATH, videos: [...new Set(videos)], cookie: hasCookie, conclusive, sabrConclusive, mainHealthy, clients, passes: concurrent ? "concurrent" : "sequential",
   roles: { live: table.clients.length, benched: table.benched.length, retired: roster.filter((c) => c.role === "retired").length },
   only,
 }, null, 2) + "\n");
