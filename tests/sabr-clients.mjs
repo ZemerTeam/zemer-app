@@ -169,7 +169,9 @@ export async function drainClientSabr(ctx, c, { videoId, videoPot }) {
     if (http !== 200) return { ...row, kind: "http-error", reason: `player HTTP ${http}` };
     if (row.status !== "OK") {
       const reason = `${row.status}${j?.playabilityStatus?.reason ? ": " + j.playabilityStatus.reason : ""}`;
-      return { ...row, kind: /confirm you.re not a bot/i.test(j?.playabilityStatus?.reason || "") ? "bot-gated" : "not-ok", reason };
+      if (/confirm you.re not a bot/i.test(j?.playabilityStatus?.reason || "")) return { ...row, kind: "bot-gated", reason };
+      if (c.auth && ctx.hasCookie && (row.status === "LOGIN_REQUIRED" || /sign in/i.test(j?.playabilityStatus?.reason || ""))) return { ...row, kind: "auth-failed", reason };
+      return { ...row, kind: "not-ok", reason };
     }
     const sd = j?.streamingData || {};
     const ustB64 = j?.playerConfig?.mediaCommonConfig?.mediaUstreamerRequestConfig?.videoPlaybackUstreamerConfig;

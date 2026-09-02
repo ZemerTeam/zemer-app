@@ -11,6 +11,8 @@
 //
 //   VALIDATION_VIDEO_IDS="id1,id2" node tests/scan-stream-clients.mjs [videoId ...]
 //   ONLY_KEYS=WEB_REMIX,VISIONOS   restrict the roster (candidate-table verification of one entry)
+//   SKIP_RETIRED=1                 drain only the table's live + benched entries (the retired clients
+//                                  feed the "works again" alert only; one slot covering them is enough)
 //   YT_COOKIE / YT_VISITOR_DATA / YT_DATASYNC_ID (env) or innertube_cookie.txt supply the session.
 //
 // stdout: JSON { table, videos, cookie, conclusive, sabrConclusive, clients:[{key, family, role, main,
@@ -61,43 +63,51 @@ if (!isMain) {
 } else {
 const table = loadStreamClientsIncludingBenched();
 const only = (process.env.ONLY_KEYS || "").split(/[\s,]+/).filter(Boolean);
-const roster = buildRoster(table, RETIRED);
-const scanned = buildRoster(table, RETIRED, only);
-const ctx = await createDrainContext();
+const retiredDefs = process.env.SKIP_RETIRED === "1" ? [] : RETIRED;
+const roster = buildRoster(table, retiredDefs);
+const scanned = buildRoster(table, retiredDefs, only);
 const clients = scanned.map(({ def, role, main }) => ({
   key: def.key, family: def.family ?? def.clientName, role, main, loginRequired: Boolean(def.loginRequired), loginSupported: Boolean(def.loginSupported),
   sabr: def.sabr ? (def.sabr.enabled === false ? "benched" : "live") : null,
   results: [], sabrResults: [],
 }));
 
-for (const videoId of [...new Set(videos)]) {
-  const video = await ctx.forVideo(videoId);
-  console.error(`video=${videoId}`);
-  for (const [i, entry] of clients.entries()) {
-    const r = await drainClient(ctx, scanned[i].def, video);
-    console.error(`${formatRow(r)}${entry.role === "live" ? "" : "   [" + entry.role + "]"}`);
-    entry.results.push({ video: videoId, kind: r.kind, http: r.http, status: r.status, itag: r.itag, clen: r.clen, read: r.read, reason: r.reason });
+// The two transports drain CONCURRENTLY on separate contexts (their own cipher + pot minter):
+// they share nothing but the table, so the scan takes the longer of the two, not the sum.
+const progressivePass = (async () => {
+  const ctx = await createDrainContext();
+  for (const videoId of [...new Set(videos)]) {
+    const video = await ctx.forVideo(videoId);
+    const lines = [`video=${videoId}`];
+    for (const [i, entry] of clients.entries()) {
+      const r = await drainClient(ctx, scanned[i].def, video);
+      lines.push(`${formatRow(r)}${entry.role === "live" ? "" : "   [" + entry.role + "]"}`);
+      entry.results.push({ video: videoId, kind: r.kind, http: r.http, status: r.status, itag: r.itag, clen: r.clen, read: r.read, reason: r.reason });
+    }
+    console.error(lines.join("\n") + "\n");
   }
-  console.error("");
-}
-ctx.close();
+  ctx.close();
+  return ctx;
+})();
 
 // SABR pass: only entries that carry a `sabr` object (live or SABR-benched), same videos.
-const sabrTargets = clients.map((c, i) => [c, scanned[i].def]).filter(([c]) => c.sabr);
-if (sabrTargets.length) {
+const sabrPass = (async () => {
+  const sabrTargets = clients.map((c, i) => [c, scanned[i].def]).filter(([c]) => c.sabr);
+  if (!sabrTargets.length) return;
   const sctx = await createSabrContext();
   for (const videoId of [...new Set(videos)]) {
     const video = await sctx.forVideo(videoId);
-    console.error(`video=${videoId} [SABR]`);
+    const lines = [`video=${videoId} [SABR]`];
     for (const [entry, def] of sabrTargets) {
       const r = await drainClientSabr(sctx, toSabrDef(def), video);
-      console.error(`${formatSabrRow(r)}${entry.sabr === "benched" ? "   [sabr benched]" : ""}`);
+      lines.push(`${formatSabrRow(r)}${entry.sabr === "benched" ? "   [sabr benched]" : ""}`);
       entry.sabrResults.push({ video: videoId, kind: r.kind, http: r.http, status: r.status, itag: r.itag, segs: r.segs, endSeg: r.endSeg, reason: r.reason });
     }
-    console.error("");
+    console.error(lines.join("\n") + "\n");
   }
   sctx.close();
-}
+})();
+const [ctx] = await Promise.all([progressivePass, sabrPass]);
 
 const conclusive = clients.some((c) => c.results.some((r) => r.kind === "whole"));
 const sabrConclusive = clients.some((c) => c.sabrResults.some((r) => r.kind === "whole"));

@@ -107,8 +107,12 @@ regress:
   yt-dlp's values drains a whole song on every validation video (`apply-bump.mjs`); VISIONOS_0_1
   carries no `mirrors` and is pinned. "Sign in to confirm you're not a bot" on an anonymous request
   is `bot-gated` = inconclusive (GitHub runner IPs get it on every login-less client) — the
-  `SCAN_PROXY` secret routes the harness through a residential egress so the scan sees what the app
-  sees. The rules live in cipher `tools/clients/decide.mjs` (never the main, `MIN_LIVE_FALLBACKS`
+  the scan runs as four parallel WARP egress slots (IPv6-pinned, each verified with a `/player` plus
+  a CDN range before and after its drains; verified slots are MERGED) so the scan sees what the app
+  sees. Inconclusive, never a kill: `bot-gated`, `auth-failed` (a sign-in demand although the cookie
+  was sent = the cookie's problem, alerted as "cookie expired or revoked"), transport errors (redone),
+  and "every anonymous client failed while every cookie client is whole" (an egress artifact).
+  The progressive and SABR passes drain concurrently. The rules live in cipher `tools/clients/decide.mjs` (never the main, `MIN_LIVE_FALLBACKS`
   live fallbacks kept); `apply-bench.mjs` / `apply-bump.mjs` are the only writers (one entry,
   re-parsed). Both bundled-asset tests accept a benched entry and a bumped identity but refuse a
   reorder, an addition, a changed protocol/flag or a benched main, so the auto changes pass the

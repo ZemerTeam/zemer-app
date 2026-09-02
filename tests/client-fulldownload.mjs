@@ -98,6 +98,9 @@ export async function createDrainContext() {
  *         | "bot-gated"     ("Sign in to confirm you're not a bot" on an anonymous request: the
  *                            RUNNER's IP is gated, not the client — datacenter IPs get this on
  *                            every login-less client; INCONCLUSIVE, never a kill signal)
+ *         | "auth-failed"   (LOGIN_REQUIRED / "sign in" for a client that WAS sent the cookie:
+ *                            the session expired or was revoked — the cookie's problem, not the
+ *                            client's; INCONCLUSIVE, and the plan raises COOKIE SUSPECT)
  * Only "whole" is success; "partial"/"sabr-only"/"no-format"/"not-ok"/"http-error" are definitive
  * failures the app would also see; "error", "skipped-login" and "bot-gated" are inconclusive.
  */
@@ -130,7 +133,11 @@ async function drainClientOnce(ctx, c, { videoId, potVideo }) {
     if (row.status !== "OK") {
       const reason = `${row.status}${j?.playabilityStatus?.reason ? ": " + j.playabilityStatus.reason : ""}`;
       const botGate = /confirm you.re not a bot/i.test(j?.playabilityStatus?.reason || "");
-      return { ...row, kind: botGate ? "bot-gated" : "not-ok", reason };
+      const sentCookie = Boolean(c.loginSupported && ctx.hasCookie);
+      const signIn = row.status === "LOGIN_REQUIRED" || /sign in/i.test(j?.playabilityStatus?.reason || "");
+      if (botGate) return { ...row, kind: "bot-gated", reason };
+      if (sentCookie && signIn) return { ...row, kind: "auth-failed", reason };
+      return { ...row, kind: "not-ok", reason };
     }
     const fmt = findFormat(j);
     if (!fmt) return { ...row, kind: "no-format", reason: "no original audio format" };
@@ -161,6 +168,7 @@ export function formatRow(r) {
   const result = r.kind === "whole" ? "✓ WHOLE SONG"
     : r.kind === "skipped-login" ? "skipped (login required, no cookie)"
     : r.kind === "bot-gated" ? `? bot-gated (${r.reason}) — runner IP, not the client`
+    : r.kind === "auth-failed" ? `? auth-failed (${r.reason}) — the cookie, not the client`
     : r.kind === "no-format" ? `no format${r.reason ? " (" + r.reason + ")" : ""}`
     : `✗ ${r.reason}`;
   return [

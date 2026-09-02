@@ -100,6 +100,15 @@ test("not-ok: a playability rejection is definitive; the bot gate is NOT", async
   assert.equal((await drainClient(ctx(), direct, video)).kind, "bot-gated");
 });
 
+test("auth-failed: a sign-in demand for a client that was sent the cookie is the cookie's problem, not the client's", async () => {
+  fakeFetch({ player: { json: player("LOGIN_REQUIRED", { reason: "Please sign in" }) } });
+  const r = await drainClient(ctx(true), loginReq, video, { transportRetries: 0 });
+  assert.equal(r.kind, "auth-failed"); assert.match(formatRow(r), /auth-failed/);
+  // The same status on an anonymous client (no cookie sent) stays a plain not-ok verdict.
+  const a = await drainClient(ctx(true), direct, video, { transportRetries: 0 });
+  assert.equal(a.kind, "not-ok");
+});
+
 test("http-error: a non-200 /player is definitive; transport errors are inconclusive and retried", async () => {
   fakeFetch({ player: { status: 400, json: {} } });
   const r = await drainClient(ctx(), web, video, { transportRetries: 0 });
