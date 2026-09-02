@@ -195,7 +195,7 @@ object MusixmatchLyrics {
             val fresh = token(context, forceNew = true)
             out = if (fresh != null) fetch(fresh, title, artist, duration) else out
         }
-        record(context, "${out.status} — $artist / $title")
+        record(context, out.status)
         return (out as? Outcome.Hit)?.judged
     }
 

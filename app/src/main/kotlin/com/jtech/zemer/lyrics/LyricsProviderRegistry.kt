@@ -12,10 +12,14 @@ import com.jtech.zemer.lyrics.zemer.ZemerLyricsProvider
  */
 object LyricsProviderRegistry {
     private val providerMap = linkedMapOf<String, LyricsProvider>(
+        // Accuracy first, then coverage on THIS catalog: Zemer is the only cross-verified source; SimpMusic
+        // matches the exact YouTube videoId (can't mismatch); Musixmatch outranks LrcLib because on the Jewish
+        // catalog Musixmatch matched ~50% of recognised tracks (most synced) while LrcLib hit ~1/120; YouTube's
+        // tab is lower trust, tried last. The chain stops at the first provider that returns lyrics.
         "Zemer" to ZemerLyricsProvider,
         "SimpMusic" to SimpMusicLyricsProvider,
-        "LrcLib" to LrcLibLyricsProvider,
         "Musixmatch" to MusixmatchLyricsProvider,
+        "LrcLib" to LrcLibLyricsProvider,
         "YouTubeSubtitle" to YouTubeSubtitleLyricsProvider,
         "YouTube" to YouTubeLyricsProvider,
     )

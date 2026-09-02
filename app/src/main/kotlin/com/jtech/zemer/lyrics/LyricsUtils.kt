@@ -20,6 +20,9 @@ object LyricsUtils {
     /** True when at least one line carries `<mm:ss.xx>` word tags. */
     fun isWordSynced(lyrics: String): Boolean = WORD_TIME_REGEX.containsMatchIn(lyrics)
 
+    /** True when the body has measured line timings (`[mm:ss.xx]`), i.e. it can scroll in time with the song. */
+    fun isSynced(lyrics: String): Boolean = TIME_REGEX.containsMatchIn(lyrics)
+
     /**
      * The lyrics with any word tags removed and spacing normalised, for places that show the raw
      * LRC body (the provider picker preview). Line timestamps are kept.

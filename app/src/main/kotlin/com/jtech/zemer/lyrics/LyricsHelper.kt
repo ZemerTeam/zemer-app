@@ -65,34 +65,39 @@ constructor(
 
         val scope = CoroutineScope(SupervisorJob())
         val deferred = scope.async {
+            // Prefer a SYNCED body: walk providers in trust order and return the first synced result, since a
+            // scrolling lyric beats a static one. Every provider gates its sync to the same recording, so a
+            // synced hit is already accuracy-checked. Only when no provider has sync do we serve the first
+            // (most-trusted) plain body we saw.
+            var firstPlain: Fetched? = null
             for (provider in lyricsProviders) {
-                if (provider.isEnabled(context)) {
-                    try {
-                        val result = provider.getLabeledLyrics(
-                            videoId,
-                            mediaMetadata.title,
-                            mediaMetadata.artists.joinToString { it.name },
-                            mediaMetadata.duration,
-                            mediaMetadata.album?.title,
-                        )
-                        result.onSuccess { labeled ->
-                            return@async Fetched(labeled.lyrics, labeled.label)
-                        }.onFailure {
-                            // Don't return LYRICS_NOT_FOUND here - continue to next provider
-                            // Only report non-lyrics exceptions
-                            if (it !is LyricsUnavailableException &&
-                                !(it is IllegalStateException && it.message?.contains("Lyrics") == true)) {
-                                reportException(it)
-                            }
-                            // Continue to next provider
+                if (!provider.isEnabled(context)) continue
+                try {
+                    val result = provider.getLabeledLyrics(
+                        videoId,
+                        mediaMetadata.title,
+                        mediaMetadata.artists.joinToString { it.name },
+                        mediaMetadata.duration,
+                        mediaMetadata.album?.title,
+                    )
+                    result.onSuccess { labeled ->
+                        if (labeled.lyrics.isNotBlank() && labeled.lyrics != LYRICS_NOT_FOUND) {
+                            if (LyricsUtils.isSynced(labeled.lyrics)) return@async Fetched(labeled.lyrics, labeled.label)
+                            if (firstPlain == null) firstPlain = Fetched(labeled.lyrics, labeled.label)
                         }
-                    } catch (e: Exception) {
-                        // Catch network-related exceptions like UnresolvedAddressException
-                        reportException(e)
+                    }.onFailure {
+                        // Not found here is normal — keep looking. Report only unexpected exceptions.
+                        if (it !is LyricsUnavailableException &&
+                            !(it is IllegalStateException && it.message?.contains("Lyrics") == true)) {
+                            reportException(it)
+                        }
                     }
+                } catch (e: Exception) {
+                    // Catch network-related exceptions like UnresolvedAddressException
+                    reportException(e)
                 }
             }
-            return@async Fetched(LYRICS_NOT_FOUND, null)
+            return@async firstPlain ?: Fetched(LYRICS_NOT_FOUND, null)
         }
 
         val lyrics = deferred.await()
