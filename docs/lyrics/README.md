@@ -16,9 +16,10 @@ the provider label is persisted in `LyricsEntity.provider` (nullable; Room `Auto
   Both parsers are byte-identical ports of the server's, pinned by golden files under
   `app/src/test/resources/lyrics/` (`JyricsParserGoldenTest`, `JkaraokeLrcGoldenTest`, `SyncIntegrationTest`).
   Provider label: `Zemer · <source>[ ✓]` (✓ = two independent sources agreed).
-* **SimpMusic**: keyed by videoId; prefers `richSyncLyrics` (word tags) > `syncedLyrics` > `plainLyric`.
+* **SimpMusic**: keyed by videoId; prefers `richSyncLyrics` (word tags) > `syncedLyrics` > `plainLyric`, but a synced/word
+  body is used only when the source track is within `SYNC_TOLERANCE_SEC` (1 s) of ours — otherwise plain text.
 * **LrcLib**: title/artist keyed. `LrcLib.identityMatches` requires title ≥ 0.75 AND artist ≥ 0.75 similarity AND
-  duration within 3 s — a duration-only match served a Japanese song for a Baruch Levine track before this gate
+  duration within 3 s (synced bodies within 1 s) — a duration-only match served a Japanese song for a Baruch Levine track before this gate
   (`lrclib/src/test/.../LrcLibIdentityTest.kt`).
 
 ## Sync rendering (`lyrics/LyricsUtils.kt`, `ui/component/Lyrics.kt`)

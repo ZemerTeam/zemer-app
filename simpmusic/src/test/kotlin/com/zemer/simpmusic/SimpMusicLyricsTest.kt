@@ -1,5 +1,6 @@
 package com.zemer.simpmusic
 
+import com.metrolist.simpmusic.SimpMusicLyrics
 import com.metrolist.simpmusic.firstNonBlankLyrics
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -43,5 +44,10 @@ class SimpMusicLyricsTest {
         assertEquals("[00:01.00] <00:01.00>rich", firstNonBlankLyrics("[00:01.00] <00:01.00>rich", "[00:01.00] synced", "plain"))
         assertEquals("[00:01.00] synced", firstNonBlankLyrics("", "[00:01.00] synced", "plain"))
         assertEquals("plain", firstNonBlankLyrics(null, "", "plain"))
+    }
+
+    @Test
+    fun `sync tolerance is one second`() {
+        assertEquals(1, SimpMusicLyrics.SYNC_TOLERANCE_SEC)
     }
 }

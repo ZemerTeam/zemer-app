@@ -19,6 +19,9 @@ import kotlin.math.abs
 object SimpMusicLyrics {
     private const val BASE_URL = "https://api-lyrics.simpmusic.org/v1/"
 
+    /** Synced/word-synced bodies are used only when the source track is within this many seconds of ours. */
+    const val SYNC_TOLERANCE_SEC = 1
+
     private val client by lazy {
         HttpClient(CIO) {
             install(ContentNegotiation) {
@@ -81,7 +84,11 @@ object SimpMusicLyrics {
             tracks.firstOrNull()
         }
 
-        val lyrics = firstNonBlankLyrics(bestMatch?.richSyncLyrics, bestMatch?.syncedLyrics, bestMatch?.plainLyrics)
+        // Timings are only trustworthy for the SAME recording: within 1 s of the track we are playing
+        // (SYNC_TOLERANCE_SEC). Otherwise the words are still fine — serve plain, never a drifting sync.
+        val syncOk = bestMatch != null && (duration <= 0 || abs((bestMatch.duration ?: 0) - duration) <= SYNC_TOLERANCE_SEC)
+        val lyrics = (if (syncOk) firstNonBlankLyrics(bestMatch?.richSyncLyrics, bestMatch?.syncedLyrics, bestMatch?.plainLyrics)
+                      else firstNonBlankLyrics(bestMatch?.plainLyrics))
             ?: throw IllegalStateException("Lyrics unavailable")
 
         lyrics
@@ -105,12 +112,12 @@ object SimpMusicLyrics {
         sortedTracks.forEach { track ->
             if (count <= 4) {
                 val rich = track.richSyncLyrics
-                if (!rich.isNullOrBlank() && abs((track.duration ?: 0) - duration) <= 5) {
+                if (!rich.isNullOrBlank() && abs((track.duration ?: 0) - duration) <= SYNC_TOLERANCE_SEC) {
                     count++
                     callback(rich)
                 }
                 val synced = track.syncedLyrics
-                if (!synced.isNullOrBlank() && abs((track.duration ?: 0) - duration) <= 5) {
+                if (!synced.isNullOrBlank() && abs((track.duration ?: 0) - duration) <= SYNC_TOLERANCE_SEC) {
                     count++
                     callback(synced)
                 }

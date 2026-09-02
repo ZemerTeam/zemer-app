@@ -144,8 +144,10 @@ object LrcLib {
         val cleanedArtist = cleanArtist(artist)
 
         val candidates = tracks.filter { identityMatches(it.trackName, it.artistName, title, artist, it.duration, duration) }
-        val res = (candidates.firstOrNull { it.syncedLyrics != null } ?: candidates.firstOrNull())
-            ?.let { it.syncedLyrics ?: it.plainLyrics }?.let(LrcLib::Lyrics)
+        // A synced body is served only for the same recording (within 1 s); otherwise plain text.
+        val syncable = { t: Track -> t.syncedLyrics != null && (duration == -1 || abs(t.duration.toInt() - duration) <= 1) }
+        val res = (candidates.firstOrNull(syncable) ?: candidates.firstOrNull())
+            ?.let { if (syncable(it)) it.syncedLyrics else it.plainLyrics ?: it.syncedLyrics }?.let(LrcLib::Lyrics)
 
         if (res != null) {
             return@runCatching res.text
@@ -174,7 +176,7 @@ object LrcLib {
         sortedTracks.forEach { track ->
             currentCoroutineContext().ensureActive() // Corrected usage
             if (count <= 4) {
-                if (track.syncedLyrics != null) { count++; track.syncedLyrics.let(callback) }
+                if (track.syncedLyrics != null && (duration == -1 || abs(track.duration.toInt() - duration) <= 1)) { count++; track.syncedLyrics.let(callback) }
                 if (track.plainLyrics != null && plain == 0) { count++; plain++; track.plainLyrics.let(callback) }
             }
         }
