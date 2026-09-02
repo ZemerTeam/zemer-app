@@ -51,3 +51,19 @@ class MusixmatchGatesTest {
         assertNull(judge(tr(), body = "one\ntwo"))
     }
 }
+
+class MusixmatchParseTest {
+    private fun res(name: String) = javaClass.classLoader!!.getResourceAsStream("lyrics/$name")!!.readBytes().toString(Charsets.UTF_8)
+
+    @Test
+    fun `a matched track without a lyrics body yields nothing`() {
+        // Real replies (2026-09-02): Musixmatch knows both tracks from Spotify metadata but holds no lyrics for them.
+        for ((file, want) in listOf("musixmatch-0.json" to "Thank You Hashem", "musixmatch-1.json" to "Lehodos")) {
+            val (track, ly, sub) = MusixmatchLyrics.parseMacro(res(file))!!
+            assertEquals(want, track!!.trackName)
+            assertNull(ly.body); assertNull(sub)
+            assertNull(MusixmatchLyrics.judge(track, ly.body, ly.instrumental, ly.restricted, sub, want, null, track.artistName, null, track.trackLength))
+        }
+        assertNull(MusixmatchLyrics.parseMacro("{\"message\":{\"header\":{\"status_code\":401,\"hint\":\"captcha\"}}}"))
+    }
+}

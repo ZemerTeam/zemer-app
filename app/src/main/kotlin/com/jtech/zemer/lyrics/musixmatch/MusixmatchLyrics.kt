@@ -16,6 +16,7 @@ import io.ktor.http.HttpHeaders
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
@@ -157,23 +158,26 @@ object MusixmatchLyrics {
             context.dataStore.edit { it.remove(MusixmatchTokenKey); it[MusixmatchCooldownUntilKey] = System.currentTimeMillis() + COOLDOWN_MS }
             return null
         }
-        val calls = j.body()?.get("macro_calls")?.jsonObject ?: return null
-        val tr = calls["matcher.track.get"]?.jsonObject.body()?.get("track")?.let { runCatching { it.jsonObject }.getOrNull() }
-        val ly = calls["track.lyrics.get"]?.jsonObject.body()?.get("lyrics")?.let { runCatching { it.jsonObject }.getOrNull() }
-        val st = calls["track.subtitles.get"]?.jsonObject.body()?.get("subtitle_list")?.let { runCatching { it.jsonArrayFirstSubtitle() }.getOrNull() }
+        return parseMacro(j)?.let { (track, ly, st) -> judge(track, ly.body, ly.instrumental, ly.restricted, st, title, null, artist, null, duration) }
+    }
+
+    class LyricsPayload(val body: String?, val instrumental: Boolean, val restricted: Boolean)
+
+    /** The three macro calls of a `macro.subtitles.get` reply (fixture-tested): matched track, lyrics payload, first LRC subtitle body. */
+    fun parseMacro(j: JsonObject): Triple<Track?, LyricsPayload, String?>? {
+        val calls = j.body()?.get("macro_calls")?.let { runCatching { it.jsonObject }.getOrNull() } ?: return null
+        val tr = calls["matcher.track.get"]?.let { runCatching { it.jsonObject }.getOrNull() }.body()?.get("track")?.let { runCatching { it.jsonObject }.getOrNull() }
+        val ly = calls["track.lyrics.get"]?.let { runCatching { it.jsonObject }.getOrNull() }.body()?.get("lyrics")?.let { runCatching { it.jsonObject }.getOrNull() }
+        val st = calls["track.subtitles.get"]?.let { runCatching { it.jsonObject }.getOrNull() }.body()?.get("subtitle_list")
+            ?.let { runCatching { it.jsonArray.firstOrNull()?.jsonObject?.get("subtitle")?.jsonObject?.get("subtitle_body")?.jsonPrimitive?.contentOrNull }.getOrNull() }
         val track = tr?.let {
             Track(
                 it["track_name"]?.jsonPrimitive?.contentOrNull ?: "", it["artist_name"]?.jsonPrimitive?.contentOrNull ?: "",
                 it["track_length"]?.jsonPrimitive?.intOrNull ?: 0, it["commontrack_id"]?.jsonPrimitive?.longOrNull ?: 0L, it["track_id"]?.jsonPrimitive?.longOrNull ?: 0L,
             )
         }
-        return judge(
-            track, ly?.get("lyrics_body")?.jsonPrimitive?.contentOrNull,
-            (ly?.get("instrumental")?.jsonPrimitive?.intOrNull ?: 0) == 1, (ly?.get("restricted")?.jsonPrimitive?.intOrNull ?: 0) == 1,
-            st, title, null, artist, null, duration,
-        )
+        return Triple(track, LyricsPayload(ly?.get("lyrics_body")?.jsonPrimitive?.contentOrNull, (ly?.get("instrumental")?.jsonPrimitive?.intOrNull ?: 0) == 1, (ly?.get("restricted")?.jsonPrimitive?.intOrNull ?: 0) == 1), st)
     }
 
-    private fun kotlinx.serialization.json.JsonElement.jsonArrayFirstSubtitle(): String? =
-        kotlinx.serialization.json.JsonArray::class.java.cast(this).firstOrNull()?.jsonObject?.get("subtitle")?.jsonObject?.get("subtitle_body")?.jsonPrimitive?.contentOrNull
+    fun parseMacro(raw: String): Triple<Track?, LyricsPayload, String?>? = runCatching { parseMacro(json.parseToJsonElement(raw).jsonObject) }.getOrNull()
 }

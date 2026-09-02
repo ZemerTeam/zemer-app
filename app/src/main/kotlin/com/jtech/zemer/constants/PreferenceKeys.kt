@@ -88,7 +88,11 @@ enum class RefreshRateMode(@StringRes val labelRes: Int) {
 
 const val SYSTEM_DEFAULT = "SYSTEM_DEFAULT"
 val AppLanguageKey = stringPreferencesKey("appLanguage")
+val EnableZemerLyricsKey = booleanPreferencesKey("enableZemerLyrics")     // the Zemer resolver (first in the chain)
+val EnableSimpMusicKey = booleanPreferencesKey("enableSimpMusic")
 val EnableLrcLibKey = booleanPreferencesKey("enableLrclib")
+val EnableYouTubeLyricsKey = booleanPreferencesKey("enableYouTubeLyrics")
+val LyricsProviderOrderKey = stringPreferencesKey("lyricsProviderOrder")   // comma-separated LyricsProviderRegistry names; blank = default order   // YouTube subtitles + the Music lyrics tab (lower trust, last)
 val EnableMusixmatchKey = booleanPreferencesKey("enableMusixmatch")
 val MusixmatchTokenKey = stringPreferencesKey("musixmatchToken")          // one desktop-API token per device (lyrics/musixmatch)
 val MusixmatchCooldownUntilKey = longPreferencesKey("musixmatchCooldownUntil") // epoch ms; set after a captcha-gated reply

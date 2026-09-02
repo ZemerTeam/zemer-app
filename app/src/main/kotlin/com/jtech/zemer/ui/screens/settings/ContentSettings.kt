@@ -24,6 +24,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarScrollBehavior
 import androidx.compose.runtime.Composable
@@ -61,6 +62,10 @@ import com.jtech.zemer.constants.BlockPodcastsKey
 import com.jtech.zemer.constants.AppLanguageKey
 import com.jtech.zemer.constants.EnableContentFiltersKey
 import com.jtech.zemer.constants.EnableLrcLibKey
+import com.jtech.zemer.constants.EnableSimpMusicKey
+import com.jtech.zemer.constants.EnableYouTubeLyricsKey
+import com.jtech.zemer.constants.EnableZemerLyricsKey
+import com.jtech.zemer.constants.LyricsProviderOrderKey
 import com.jtech.zemer.constants.EnableMusixmatchKey
 import com.jtech.zemer.constants.LanguageCodeToName
 import com.jtech.zemer.constants.QuickPicks
@@ -181,8 +186,23 @@ fun ContentSettings(
     // Used only before Android 13
     val (appLanguage, onAppLanguageChange) = rememberPreference(key = AppLanguageKey, defaultValue = SYSTEM_DEFAULT)
 
+    val (enableZemerLyrics, onEnableZemerLyricsChange) = rememberPreference(key = EnableZemerLyricsKey, defaultValue = true)
+    val (enableSimpMusic, onEnableSimpMusicChange) = rememberPreference(key = EnableSimpMusicKey, defaultValue = true)
     val (enableLrclib, onEnableLrclibChange) = rememberPreference(key = EnableLrcLibKey, defaultValue = true)
+    val (enableYouTubeLyrics, onEnableYouTubeLyricsChange) = rememberPreference(key = EnableYouTubeLyricsKey, defaultValue = true)
     val (enableMusixmatch, onEnableMusixmatchChange) = rememberPreference(key = EnableMusixmatchKey, defaultValue = true)
+    val (lyricsProviderOrder, onLyricsProviderOrderChange) = rememberPreference(key = LyricsProviderOrderKey, defaultValue = "")
+    var showProviderSelectionDialog by rememberSaveable { mutableStateOf(false) }
+    var showProviderPriorityDialog by rememberSaveable { mutableStateOf(false) }
+    val lyricsProviderToggles = listOf(
+        LyricsProviderToggle(listOf("Zemer"), R.string.enable_zemer_lyrics, R.string.enable_zemer_lyrics_desc, enableZemerLyrics, onEnableZemerLyricsChange),
+        LyricsProviderToggle(listOf("SimpMusic"), R.string.enable_simpmusic, R.string.enable_simpmusic_desc, enableSimpMusic, onEnableSimpMusicChange),
+        LyricsProviderToggle(listOf("LrcLib"), R.string.enable_lrclib, R.string.enable_lrclib_desc, enableLrclib, onEnableLrclibChange),
+        LyricsProviderToggle(listOf("Musixmatch"), R.string.enable_musixmatch, R.string.enable_musixmatch_desc, enableMusixmatch, onEnableMusixmatchChange),
+        LyricsProviderToggle(listOf("YouTubeSubtitle", "YouTube"), R.string.enable_youtube_lyrics, R.string.enable_youtube_lyrics_desc, enableYouTubeLyrics, onEnableYouTubeLyricsChange),
+    )
+    if (showProviderSelectionDialog) LyricsProviderSelectionDialog(lyricsProviderToggles) { showProviderSelectionDialog = false }
+    if (showProviderPriorityDialog) LyricsProviderPriorityDialog(lyricsProviderToggles, lyricsProviderOrder, onLyricsProviderOrderChange) { showProviderPriorityDialog = false }
     val (lengthTop, onLengthTopChange) = rememberPreference(key = TopSize, defaultValue = "50")
     val (quickPicks, onQuickPicksChange) = rememberEnumPreference(key = QuickPicksKey, defaultValue = QuickPicks.QUICK_PICKS)
     val (enableContentFilters, onEnableContentFiltersChange) = rememberPreference(key = EnableContentFiltersKey, defaultValue = true)
@@ -269,19 +289,19 @@ fun ContentSettings(
             title = stringResource(R.string.lyrics),
             rows = listOf(
                 {
-                    SwitchPreference(
-                        title = { Text(stringResource(R.string.enable_lrclib)) },
+                    PreferenceEntry(
+                        title = { Text(stringResource(R.string.lyrics_provider_selection)) },
+                        description = stringResource(R.string.lyrics_provider_selection_desc),
                         icon = { Icon(painterResource(R.drawable.lyrics), null) },
-                        checked = enableLrclib,
-                        onCheckedChange = onEnableLrclibChange,
+                        onClick = { showProviderSelectionDialog = true },
                     )
                 },
                 {
-                    SwitchPreference(
-                        title = { Text(stringResource(R.string.enable_musixmatch)) },
+                    PreferenceEntry(
+                        title = { Text(stringResource(R.string.lyrics_provider_priority)) },
+                        description = stringResource(R.string.lyrics_provider_priority_desc),
                         icon = { Icon(painterResource(R.drawable.lyrics), null) },
-                        checked = enableMusixmatch,
-                        onCheckedChange = onEnableMusixmatchChange,
+                        onClick = { showProviderPriorityDialog = true },
                     )
                 },
             ),

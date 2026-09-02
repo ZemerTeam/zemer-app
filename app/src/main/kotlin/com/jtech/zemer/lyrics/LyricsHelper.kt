@@ -6,7 +6,9 @@ import android.content.Context
 import android.util.LruCache
 import com.jtech.zemer.db.entities.LyricsEntity.Companion.LYRICS_NOT_FOUND
 import com.jtech.zemer.lyrics.model.LyricsUnavailableException
-import com.jtech.zemer.lyrics.zemer.ZemerLyricsProvider
+import com.jtech.zemer.constants.LyricsProviderOrderKey
+import com.jtech.zemer.utils.dataStore
+import com.jtech.zemer.utils.get
 import com.jtech.zemer.models.MediaMetadata
 import com.jtech.zemer.utils.NetworkConnectivityObserver
 import com.jtech.zemer.utils.reportException
@@ -25,15 +27,9 @@ constructor(
     @ApplicationContext private val context: Context,
     private val networkConnectivity: NetworkConnectivityObserver,
 ) {
-    private val lyricsProviders =
-        listOf(
-            ZemerLyricsProvider,
-            SimpMusicLyricsProvider,
-            LrcLibLyricsProvider,
-            MusixmatchLyricsProvider,
-            YouTubeSubtitleLyricsProvider,
-            YouTubeLyricsProvider
-        )
+    /** The user's chain order (Content settings → Lyrics provider priority), read per fetch; blank = default. */
+    private val lyricsProviders: List<LyricsProvider>
+        get() = LyricsProviderRegistry.getOrderedProviders(context.dataStore[LyricsProviderOrderKey].orEmpty())
 
     private val cache = LruCache<String, List<LyricsResult>>(MAX_CACHE_SIZE)
     private var currentLyricsJob: Job? = null
