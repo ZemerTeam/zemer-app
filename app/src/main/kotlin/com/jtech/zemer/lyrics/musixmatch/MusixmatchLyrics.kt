@@ -138,7 +138,9 @@ object MusixmatchLyrics {
 
     private suspend fun token(context: Context, forceNew: Boolean = false): String? {
         val cooldown = context.dataStore[MusixmatchCooldownUntilKey] ?: 0L
-        if (cooldown > System.currentTimeMillis()) return null
+        // A cooldown further out than we ever set is a leftover from the old 6 h rule — drop it.
+        if (cooldown > System.currentTimeMillis() + COOLDOWN_MS) context.dataStore.edit { it.remove(MusixmatchCooldownUntilKey) }
+        else if (cooldown > System.currentTimeMillis()) return null
         if (!forceNew) context.dataStore[MusixmatchTokenKey]?.takeIf { it.isNotBlank() }?.let { return it }
         val j = getJson("${BASE}token.get?app_id=$APP")
         val tok = j.body()?.get("user_token")?.jsonPrimitive?.contentOrNull
