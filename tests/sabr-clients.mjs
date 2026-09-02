@@ -102,7 +102,13 @@ async function drainSabr(c, sd, ust, fmt, pot, urlPot, xform) {
   while (iter < 120 && dry < 4) {
     iter++;
     const ranges = lastSeq ? [{ endMs: bufEndMs, endSeg: lastSeq }] : [];
-    const res = await fetch(url, { method: "POST", headers: { "User-Agent": c.ua, "Content-Type": "application/x-protobuf" }, body: buildAbrRequest(ust, fmt, pot, c, ptMs, ranges, cookie, lastSeq > 0, [...ctxByType.values()]) });
+    let res = await fetch(url, { method: "POST", headers: { "User-Agent": c.ua, "Content-Type": "application/x-protobuf" }, body: buildAbrRequest(ust, fmt, pot, c, ptMs, ranges, cookie, lastSeq > 0, [...ctxByType.values()]) });
+    // A 403/5xx MID-SESSION (segments already flowing) is usually a transient throttle on the
+    // egress: retry the same request twice with a pause before calling the session capped.
+    for (let retry = 0; res.status >= 400 && lastSeq > 0 && retry < 2; retry++) {
+      await new Promise((r) => setTimeout(r, 2000 * (retry + 1)));
+      res = await fetch(url, { method: "POST", headers: { "User-Agent": c.ua, "Content-Type": "application/x-protobuf" }, body: buildAbrRequest(ust, fmt, pot, c, ptMs, ranges, cookie, lastSeq > 0, [...ctxByType.values()]) });
+    }
     if (res.status >= 400) return { http: res.status, segs, endSeg, clen, err: `HTTP ${res.status}` };
     const parts = parseUmp(Buffer.from(await res.arrayBuffer()));
     const hdr = {}; let newSeg = false, redirect = null, sabrErr = false;
