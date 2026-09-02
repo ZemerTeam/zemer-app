@@ -105,6 +105,7 @@ import com.jtech.zemer.constants.PersistentQueueKey
 import com.jtech.zemer.constants.StopMusicOnTaskClearKey
 import com.jtech.zemer.constants.PlayerVolumeKey
 import com.jtech.zemer.constants.RepeatModeKey
+import com.jtech.zemer.constants.LyricsCachePurgeDoneKey
 import com.jtech.zemer.constants.ShowLyricsKey
 import com.jtech.zemer.constants.SkipSilenceKey
 import com.jtech.zemer.db.MusicDatabase
@@ -698,6 +699,15 @@ class MusicService :
                 if (remotePlaying) startWidgetTicker() else updateWidget()
             }
 
+        // One-time, data-only cleanup (no schema change): drop cached lyrics that were stored before provider
+        // tracking or by LrcLib's old duration-only match, so they are re-fetched through the gated chain.
+        scope.launch {
+            if (dataStore.data.first()[LyricsCachePurgeDoneKey] != true) {
+                database.query { purgeUntrustedLyrics() }
+                dataStore.edit { it[LyricsCachePurgeDoneKey] = true }
+            }
+        }
+
         combine(
             currentMediaMetadata.distinctUntilChangedBy { it?.id },
             dataStore.data.map { it[ShowLyricsKey] ?: false }.distinctUntilChanged(),
@@ -706,15 +716,17 @@ class MusicService :
         }.collectLatest(scope) { (mediaMetadata, showLyrics) ->
             // Podcast episodes have no lyrics (the player hides the lyrics affordance for them) —
             // skip the provider fetch instead of storing a junk LyricsEntity per episode.
-            if (showLyrics && mediaMetadata != null && !mediaMetadata.isEpisode && database.lyrics(mediaMetadata.id)
-                    .first() == null
-            ) {
-                val lyrics = lyricsHelper.getLyrics(mediaMetadata)
+            // Fetch when nothing is cached, or when the cached row predates provider tracking (provider ==
+            // null): those rows came from the old chain and are re-resolved once so provenance is known.
+            val cachedLyrics = if (mediaMetadata != null) database.lyrics(mediaMetadata.id).first() else null
+            if (showLyrics && mediaMetadata != null && !mediaMetadata.isEpisode && (cachedLyrics == null || cachedLyrics.provider == null)) {
+                val fetched = lyricsHelper.getLyrics(mediaMetadata)
                 database.query {
                     upsert(
                         LyricsEntity(
                             id = mediaMetadata.id,
-                            lyrics = lyrics,
+                            lyrics = fetched.lyrics,
+                            provider = fetched.provider,
                         ),
                     )
                 }

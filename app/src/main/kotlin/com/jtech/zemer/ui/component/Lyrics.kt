@@ -76,6 +76,10 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextAlign
@@ -96,12 +100,15 @@ import com.jtech.zemer.constants.DarkModeKey
 import com.jtech.zemer.constants.LyricsClickKey
 import com.jtech.zemer.constants.LyricsScrollKey
 import com.jtech.zemer.constants.LyricsTextPositionKey
+import com.jtech.zemer.constants.LyricsWordSyncKey
+import com.jtech.zemer.constants.LyricsSyncOffsetKey
 import com.jtech.zemer.constants.PlayerBackgroundStyle
 import com.jtech.zemer.constants.PlayerBackgroundStyleKey
 import com.jtech.zemer.db.entities.LyricsEntity.Companion.LYRICS_NOT_FOUND
 import com.jtech.zemer.lyrics.LyricsEntry
 import com.jtech.zemer.lyrics.LyricsUtils.findCurrentLineIndex
 import com.jtech.zemer.lyrics.LyricsUtils.parseLyrics
+import com.jtech.zemer.lyrics.LyricsUtils.sungWordCount
 import com.jtech.zemer.ui.screens.settings.DarkMode
 import com.jtech.zemer.ui.screens.settings.LyricsPosition
 import com.jtech.zemer.ui.utils.fadingEdge
@@ -117,6 +124,9 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlin.time.Duration.Companion.seconds
+
+/** Fraction of the pane height at which the active synced line is held. */
+private const val ACTIVE_LINE_ANCHOR = 0.3f
 
 @RequiresApi(Build.VERSION_CODES.M)
 @OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
@@ -137,6 +147,8 @@ fun Lyrics(
     val lyricsTextPosition by rememberEnumPreference(LyricsTextPositionKey, LyricsPosition.CENTER)
     val changeLyrics by rememberPreference(LyricsClickKey, true)
     val scrollLyrics by rememberPreference(LyricsScrollKey, true)
+    val wordSyncLyrics by rememberPreference(LyricsWordSyncKey, true)
+    val syncOffsetMs by rememberPreference(LyricsSyncOffsetKey, 0)
     val scope = rememberCoroutineScope()
 
     val mediaMetadata by playerConnection.mediaMetadata.collectAsState()
@@ -183,6 +195,10 @@ fun Lyrics(
 
     var currentLineIndex by remember {
         mutableIntStateOf(-1)
+    }
+    // Only the active line reads this, so the 50ms tick recomposes just that one item.
+    var currentPositionMs by remember {
+        mutableLongStateOf(0L)
     }
     // Because LaunchedEffect has delay, which leads to inconsistent with current line color and scroll animation,
     // we use deferredCurrentLineIndex when user is scrolling
@@ -285,10 +301,9 @@ fun Lyrics(
             delay(50)
             val sliderPosition = sliderPositionProvider()
             isSeeking = sliderPosition != null
-            currentLineIndex = findCurrentLineIndex(
-                lines,
-                sliderPosition ?: playerConnection.currentPositionMs()
-            )
+            val position = (sliderPosition ?: playerConnection.currentPositionMs()) + syncOffsetMs
+            currentPositionMs = position
+            currentLineIndex = findCurrentLineIndex(lines, position)
         }
     }
 
@@ -316,7 +331,9 @@ fun Lyrics(
                 if (itemInfo != null) {
                     // Item is visible, animate directly to center without sudden jumps
                     val viewportHeight = lazyListState.layoutInfo.viewportEndOffset - lazyListState.layoutInfo.viewportStartOffset
-                    val center = lazyListState.layoutInfo.viewportStartOffset + (viewportHeight / 2)
+                    // Anchor the active line in the upper part of the pane (not dead centre) so more of what
+                    // comes next is readable below it; the top content padding matches this fraction.
+                    val center = lazyListState.layoutInfo.viewportStartOffset + (viewportHeight * ACTIVE_LINE_ANCHOR).toInt()
                     val itemCenter = itemInfo.offset + itemInfo.size / 2
                     val offset = itemCenter - center
 
@@ -337,9 +354,12 @@ fun Lyrics(
         
         if((currentLineIndex == 0 && shouldScrollToFirstLine) || !initialScrollDone) {
             shouldScrollToFirstLine = false
-            // Initial scroll to center the first line with medium animation (600ms)
-            val initialCenterIndex = kotlin.math.max(0, currentLineIndex)
-            performSmoothPageScroll(initialCenterIndex, 800) // Initial scroll duration
+            if (currentLineIndex <= 0) {
+                // Before the first line is sung there is nothing to anchor: show the lyrics from the top.
+                lazyListState.scrollToItem(0)
+            } else {
+                performSmoothPageScroll(currentLineIndex, 800) // Initial scroll duration
+            }
             if(!isAppMinimized) {
                 initialScrollDone = true
             }
@@ -371,7 +391,12 @@ fun Lyrics(
             .padding(bottom = 12.dp)
     ) {
 
-        if (lyrics == LYRICS_NOT_FOUND) {
+        if (lyrics == null) {
+            // Still fetching: a centred indicator, not a list item pinned to the top padding.
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                ZemerLoadingSection()
+            }
+        } else if (lyrics == LYRICS_NOT_FOUND) {
             Box(
                 modifier = Modifier.fillMaxSize(),
                 contentAlignment = Alignment.Center
@@ -388,9 +413,11 @@ fun Lyrics(
         } else {
             LazyColumn(
             state = lazyListState,
+            // Lyrics start at the top in both modes. Synced lyrics get a large bottom padding so the active
+            // line can be held at ACTIVE_LINE_ANCHOR once there is content above it to scroll away.
             contentPadding = WindowInsets.systemBars
                 .only(WindowInsetsSides.Top)
-                .add(WindowInsets(top = maxHeight / 3, bottom = maxHeight / 2))
+                .add(WindowInsets(top = 8.dp, bottom = if (isSynced) maxHeight / 2 else 24.dp))
                 .asPaddingValues(),
             modifier = Modifier
                 .fadingEdge(vertical = 64.dp)
@@ -422,11 +449,7 @@ fun Lyrics(
             val displayedCurrentLineIndex =
                 if (isSeeking || isSelectionModeActive) deferredCurrentLineIndex else currentLineIndex
 
-            if (lyrics == null) {
-                item {
-                    ZemerLoadingSection()
-                }
-            } else {
+            run {
                 itemsIndexed(
                     items = lines,
                     key = { index, item -> "$index-${item.time}" } // Add stable key
@@ -534,8 +557,23 @@ fun Lyrics(
                             LyricsPosition.RIGHT -> Alignment.End
                         }
                     ) {
+                        val isActiveLine = index == displayedCurrentLineIndex && isSynced
+                        val lineText = if (isActiveLine && wordSyncLyrics && item.words.isNotEmpty()) {
+                            val sung = sungWordCount(item.words, currentPositionMs)
+                            val unsungColor = textColor.copy(alpha = 0.35f)
+                            buildAnnotatedString {
+                                item.words.forEachIndexed { wordIndex, word ->
+                                    if (wordIndex > 0) append(' ')
+                                    withStyle(SpanStyle(color = if (wordIndex < sung) textColor else unsungColor)) {
+                                        append(word.text)
+                                    }
+                                }
+                            }
+                        } else {
+                            AnnotatedString(item.text)
+                        }
                         Text(
-                            text = item.text,
+                            text = lineText,
                             style = MaterialTheme.typography.headlineSmall, // Uniform size for all lines matching latest enh version
                             color = if (index == displayedCurrentLineIndex && isSynced) {
                                 textColor // Full color for active line

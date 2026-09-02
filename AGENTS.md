@@ -580,7 +580,22 @@ The rules that must not regress:
   Stations) sits under Quick Picks, hidden/restored via a Settings → Appearance switch
   (`ShowHomeGenresKey`). App↔server field changes travel as handoff docs, never as zemer-search edits.
 
+### Lyrics (the provider chain, the Zemer resolver, sync) — `docs/lyrics/README.md`
+
+`lyrics/LyricsHelper.kt` runs the providers in order: **Zemer resolver first** (`lyrics/zemer/`; the search
+server's `/lyrics/resolve` returns source POINTERS, the app fetches Jyrics/jkaraoke itself through
+golden-pinned parser ports — never change `JyricsParser`/`JkaraokeLrc` without regenerating the golden files
+from the server), then SimpMusic (videoId-keyed), LrcLib (identity-gated: title + artist + duration; a
+duration-only match once served a Japanese song), YouTube subtitles, YouTube lyrics tab. Rules: accuracy over
+coverage; provider label persisted in `LyricsEntity.provider` and shown as "Lyrics from …"; NO estimated
+timings (word sync renders only measured `<mm:ss.xx>` tags); lyrics start at the top, active synced line held at
+30%; `LyricsSyncOffsetKey` user offset. Lyrics are a MODE of the full player (`showInlineLyrics` swaps the art slot for
+`InlineLyrics`), never a separate screen — reuse the player's components. Do not add DB migrations for lyrics (the 35→36 `provider` column is the
+one that exists).
+
 ### Shared UI components (componentized - import, don't re-roll)
+
+- `ui/component/lyrics/InlineLyrics.kt`: `InlineLyrics` (the Player's lyrics mode, rendered in the art slot) + `LyricsSourceHeader`. There is no separate lyrics screen — the Player's own title row, slider and transport are reused.
 
 A componentization pass extracted the app's repeated composables into `ui/component/`; reuse them
 instead of hand-rolling: `BackNavigationIcon` / `BackTopAppBar` (top-bar back button), `MoreVertMenuButton`

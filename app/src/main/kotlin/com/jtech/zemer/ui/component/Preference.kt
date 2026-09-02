@@ -291,6 +291,8 @@ fun SliderPreference(
     value: Float,
     onValueChange: (Float) -> Unit,
     isEnabled: Boolean = true,
+    valueRange: ClosedFloatingPointRange<Float> = 15f..60f,
+    steps: Int = 0,
 ) {
     var showDialog by remember {
         mutableStateOf(false)
@@ -343,7 +345,8 @@ fun SliderPreference(
                     Slider(
                         value = sliderValue,
                         onValueChange = { sliderValue = it },
-                        valueRange = 15f..60f,
+                        valueRange = valueRange,
+                        steps = steps,
                         modifier = Modifier.fillMaxWidth()
                     )
                 }

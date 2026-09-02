@@ -449,8 +449,6 @@
     <string name="video_playback_error">Playback error</string>
 
     <!-- Accessibility content descriptions -->
-    <string name="cd_repeat">Repeat</string>
-    <string name="cd_play_pause">Play/Pause</string>
     <string name="cd_fetch_from_ytm">Fetch from YouTube Music</string>
     <string name="cd_suggestions_available">Suggestions available</string>
 

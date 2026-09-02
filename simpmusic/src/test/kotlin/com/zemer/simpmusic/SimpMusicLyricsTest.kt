@@ -13,28 +13,35 @@ import org.junit.Test
 class SimpMusicLyricsTest {
     @Test
     fun `blank synced falls through to plain`() {
-        assertEquals("plain words", firstNonBlankLyrics(synced = "", plain = "plain words"))
+        assertEquals("plain words", firstNonBlankLyrics("", "plain words"))
     }
 
     @Test
     fun `non-blank synced wins over plain`() {
-        assertEquals("[00:00] synced", firstNonBlankLyrics(synced = "[00:00] synced", plain = "plain"))
+        assertEquals("[00:00] synced", firstNonBlankLyrics("[00:00] synced", "plain"))
     }
 
     @Test
     fun `null synced falls through to plain`() {
-        assertEquals("plain", firstNonBlankLyrics(synced = null, plain = "plain"))
+        assertEquals("plain", firstNonBlankLyrics(null, "plain"))
     }
 
     @Test
     fun `whitespace-only synced falls through to plain`() {
-        assertEquals("plain", firstNonBlankLyrics(synced = "   \n", plain = "plain"))
+        assertEquals("plain", firstNonBlankLyrics("   \n", "plain"))
     }
 
     @Test
     fun `both blank or null gives null`() {
-        assertNull(firstNonBlankLyrics(synced = "", plain = ""))
-        assertNull(firstNonBlankLyrics(synced = null, plain = null))
-        assertNull(firstNonBlankLyrics(synced = "  ", plain = null))
+        assertNull(firstNonBlankLyrics("", ""))
+        assertNull(firstNonBlankLyrics(null, null))
+        assertNull(firstNonBlankLyrics("  ", null))
+    }
+
+    @Test
+    fun `word-synced wins over line-synced, and blank word-synced falls through`() {
+        assertEquals("[00:01.00] <00:01.00>rich", firstNonBlankLyrics("[00:01.00] <00:01.00>rich", "[00:01.00] synced", "plain"))
+        assertEquals("[00:01.00] synced", firstNonBlankLyrics("", "[00:01.00] synced", "plain"))
+        assertEquals("plain", firstNonBlankLyrics(null, "", "plain"))
     }
 }

@@ -97,7 +97,7 @@ class MusicDatabase(
         SortedSongAlbumMap::class,
         PlaylistSongMapPreview::class,
     ],
-    version = 35,
+    version = 36,
     exportSchema = true,
     autoMigrations = [
         AutoMigration(from = 2, to = 3),
@@ -125,7 +125,9 @@ class MusicDatabase(
         AutoMigration(from = 24, to = 25),
         AutoMigration(from = 25, to = 26),
         // Additive: adds the recognition_history table only (no changes to existing tables).
-        AutoMigration(from = 32, to = 33)
+        AutoMigration(from = 32, to = 33),
+        // Additive: nullable lyrics.provider (which lyrics provider answered).
+        AutoMigration(from = 35, to = 36),
     ],
 )
 @TypeConverters(Converters::class)

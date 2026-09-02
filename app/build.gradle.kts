@@ -40,6 +40,10 @@ android {
         // mirror so every content read goes straight to Firebase (debug force-Firebase / A-B).
         val contentMirrorUrl = (project.findProperty("contentMirrorUrl") as String?) ?: "https://content.zemer.io"
         buildConfigField("String", "CONTENT_MIRROR_URL", "\"$contentMirrorUrl\"")
+        // Zemer lyrics resolver (the search server's /lyrics/resolve). Override with
+        // -PzemerLyricsBaseUrl=http://10.0.2.2:7700 (emulator) or http://127.0.0.1:7700 + `adb reverse tcp:7700 tcp:7700`.
+        val zemerLyricsBaseUrl = (project.findProperty("zemerLyricsBaseUrl") as String?) ?: "https://search.zemer.io"
+        buildConfigField("String", "ZEMER_LYRICS_BASE_URL", "\"$zemerLyricsBaseUrl\"")
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables.useSupportLibrary = true

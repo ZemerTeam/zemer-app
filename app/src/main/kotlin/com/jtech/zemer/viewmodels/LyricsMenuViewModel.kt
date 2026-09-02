@@ -90,7 +90,7 @@ constructor(
                 runBlocking {
                     lyricsHelper.getLyrics(mediaMetadata)
                 }
-            upsert(LyricsEntity(mediaMetadata.id, lyrics))
+            upsert(LyricsEntity(mediaMetadata.id, lyrics.lyrics, lyrics.provider))
         }
     }
 }

@@ -6,6 +6,7 @@ import android.content.Context
 import android.util.LruCache
 import com.jtech.zemer.db.entities.LyricsEntity.Companion.LYRICS_NOT_FOUND
 import com.jtech.zemer.lyrics.model.LyricsUnavailableException
+import com.jtech.zemer.lyrics.zemer.ZemerLyricsProvider
 import com.jtech.zemer.models.MediaMetadata
 import com.jtech.zemer.utils.NetworkConnectivityObserver
 import com.jtech.zemer.utils.reportException
@@ -26,6 +27,7 @@ constructor(
 ) {
     private val lyricsProviders =
         listOf(
+            ZemerLyricsProvider,
             SimpMusicLyricsProvider,
             LrcLibLyricsProvider,
             YouTubeSubtitleLyricsProvider,
@@ -35,14 +37,17 @@ constructor(
     private val cache = LruCache<String, List<LyricsResult>>(MAX_CACHE_SIZE)
     private var currentLyricsJob: Job? = null
 
-    suspend fun getLyrics(mediaMetadata: MediaMetadata): String {
+    /** Lyrics body plus the provider label to persist/show ("Zemer · jkaraoke", "SimpMusic", …). */
+    data class Fetched(val lyrics: String, val provider: String?)
+
+    suspend fun getLyrics(mediaMetadata: MediaMetadata): Fetched {
         currentLyricsJob?.cancel()
 
         val videoId = mediaMetadata.setVideoId ?: mediaMetadata.id
 
         val cached = cache.get(mediaMetadata.id)?.firstOrNull()
         if (cached != null) {
-            return cached.lyrics
+            return Fetched(cached.lyrics, cached.providerName)
         }
 
         // Check network connectivity before making network requests
@@ -56,7 +61,7 @@ constructor(
         
         if (!isNetworkAvailable) {
             // Still proceed but return not found to avoid hanging
-            return LYRICS_NOT_FOUND
+            return Fetched(LYRICS_NOT_FOUND, null)
         }
 
         val scope = CoroutineScope(SupervisorJob())
@@ -72,7 +77,7 @@ constructor(
                             mediaMetadata.album?.title,
                         )
                         result.onSuccess { lyrics ->
-                            return@async lyrics
+                            return@async Fetched(lyrics, providerLabel(provider, videoId))
                         }.onFailure {
                             // Don't return LYRICS_NOT_FOUND here - continue to next provider
                             // Only report non-lyrics exceptions
@@ -88,7 +93,7 @@ constructor(
                     }
                 }
             }
-            return@async LYRICS_NOT_FOUND
+            return@async Fetched(LYRICS_NOT_FOUND, null)
         }
 
         val lyrics = deferred.await()
@@ -149,6 +154,10 @@ constructor(
 
         currentLyricsJob?.join()
     }
+
+    /** "Zemer · jkaraoke" for the resolver (its sub-source matters for provenance), else the provider name. */
+    private fun providerLabel(provider: LyricsProvider, videoId: String): String =
+        if (provider === ZemerLyricsProvider) ZemerLyricsProvider.sourceLabel(videoId)?.let { "Zemer · $it" } ?: "Zemer" else provider.name
 
     companion object {
         private const val MAX_CACHE_SIZE = 3

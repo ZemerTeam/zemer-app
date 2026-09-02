@@ -81,7 +81,7 @@ object SimpMusicLyrics {
             tracks.firstOrNull()
         }
 
-        val lyrics = firstNonBlankLyrics(bestMatch?.syncedLyrics, bestMatch?.plainLyrics)
+        val lyrics = firstNonBlankLyrics(bestMatch?.richSyncLyrics, bestMatch?.syncedLyrics, bestMatch?.plainLyrics)
             ?: throw IllegalStateException("Lyrics unavailable")
 
         lyrics
@@ -104,6 +104,11 @@ object SimpMusicLyrics {
 
         sortedTracks.forEach { track ->
             if (count <= 4) {
+                val rich = track.richSyncLyrics
+                if (!rich.isNullOrBlank() && abs((track.duration ?: 0) - duration) <= 5) {
+                    count++
+                    callback(rich)
+                }
                 val synced = track.syncedLyrics
                 if (!synced.isNullOrBlank() && abs((track.duration ?: 0) - duration) <= 5) {
                     count++
@@ -121,10 +126,13 @@ object SimpMusicLyrics {
 }
 
 /**
- * The first non-blank lyrics body, preferring synced over plain. SimpMusic returns syncedLyrics = ""
- * (empty, not null) for plain-only tracks, so a plain elvis on syncedLyrics took the empty string and
- * left the pane permanently blank. Blank entries are skipped so plain is used, or null if neither has
- * content.
+ * The first non-blank lyrics body in preference order (word-synced, line-synced, plain). SimpMusic
+ * returns syncedLyrics = "" (empty, not null) for plain-only tracks, so a plain elvis on syncedLyrics
+ * took the empty string and left the pane permanently blank. Blank entries are skipped, or null if
+ * none has content.
+ *
+ * richSyncLyrics is enhanced LRC: each line keeps its `[mm:ss.xx]` timestamp and adds `<mm:ss.xx>`
+ * tags before every word, so any plain-LRC consumer still parses it as line-synced lyrics.
  */
-internal fun firstNonBlankLyrics(synced: String?, plain: String?): String? =
-    synced?.takeIf { it.isNotBlank() } ?: plain?.takeIf { it.isNotBlank() }
+internal fun firstNonBlankLyrics(vararg candidates: String?): String? =
+    candidates.firstOrNull { !it.isNullOrBlank() }

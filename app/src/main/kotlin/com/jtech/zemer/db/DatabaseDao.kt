@@ -567,6 +567,13 @@ interface DatabaseDao {
     @Query("SELECT * FROM lyrics WHERE id = :id")
     fun lyrics(id: String?): Flow<LyricsEntity?>
 
+    /**
+     * Cached lyrics rows that predate provider tracking (provider NULL) or came from LrcLib's old
+     * duration-only match (any same-length song could win) — untrustworthy; a one-time cleanup re-fetches them.
+     */
+    @Query("DELETE FROM lyrics WHERE provider IS NULL OR provider = 'LrcLib'")
+    fun purgeUntrustedLyrics(): Int
+
     @Transaction
     @SuppressWarnings(RoomWarnings.QUERY_MISMATCH)
     @Query("SELECT artist.*, (SELECT COUNT(1) FROM song_artist_map JOIN song ON song_artist_map.songId = song.id WHERE song_artist_map.artistId = artist.id AND song.inLibrary IS NOT NULL AND song.isEpisode = 0) AS songCount FROM artist INNER JOIN artist_whitelist ON artist.id = artist_whitelist.artistId WHERE songCount > 0 ORDER BY artist.rowId")

@@ -167,6 +167,8 @@
     <string name="player_slider_style">‎סגנון מחוון הנגן</string>
     <string name="default_">ברירת מחדל</string>
     <string name="lyrics_text_position">מיקום מילות השיר</string>
+    <string name="lyrics_word_sync">מילים מילה אחר מילה</string>
+    <string name="lyrics_word_sync_description">הדגשת כל מילה בזמן שהיא מושרת, כאשר מקור המילים מספק תזמון למילים</string>
     <string name="squiggly">מתפתל</string>
     <string name="misc">שונות</string>
     <string name="default_open_tab">‌כרטיסיית פתיחה כברירת מחדל</string>

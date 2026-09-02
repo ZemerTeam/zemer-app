@@ -12,11 +12,11 @@ Every tracked non-Kotlin path outside `docs/` is listed. Text files report line 
 | `.github/workflows/ui-audit.yml` | 56 lines | text `.yml` |
 | `.gitignore` | 117 lines | text `[none]` |
 | `.gitmodules` | 3 lines | text `[none]` |
-| `AGENTS.md` | 1824 lines | text `.md` |
+| `AGENTS.md` | 1838 lines | text `.md` |
 | `LICENSE` | 674 lines | text `[none]` |
 | `README.md` | 9 lines | text `.md` |
 | `app/.gitignore` | 1 lines | text `[none]` |
-| `app/build.gradle.kts` | 291 lines | text `.kts`; plugins `com.android.application, android, kotlin.serialization, hilt, kotlin.ksp, compose.compiler, google.gms.google.services, firebase.crashlytics, rikka.tools.refine` |
+| `app/build.gradle.kts` | 295 lines | text `.kts`; plugins `com.android.application, android, kotlin.serialization, hilt, kotlin.ksp, compose.compiler, google.gms.google.services, firebase.crashlytics, rikka.tools.refine` |
 | `app/lint.xml` | 12 lines | text `.xml`; XML root `lint` |
 | `app/proguard-rules.pro` | 255 lines | text `.pro` |
 | `app/schemas/com.jtech.zemer.db.InternalDatabase/1.json` | 297 lines | text `.json`; JSON keys `formatVersion, database` |
@@ -253,13 +253,13 @@ Every tracked non-Kotlin path outside `docs/` is listed. Text files report line 
 | `app/src/main/res/raw/welcome.lottie` | 2138 bytes | binary `.lottie` |
 | `app/src/main/res/resources.properties` | 1 lines | text `.properties` |
 | `app/src/main/res/values-iw/metrolist_strings.xml` | 32 lines | text `.xml`; XML root `resources` |
-| `app/src/main/res/values-iw/strings.xml` | 269 lines | text `.xml`; XML root `resources` |
+| `app/src/main/res/values-iw/strings.xml` | 271 lines | text `.xml`; XML root `resources` |
 | `app/src/main/res/values-night/colors.xml` | 6 lines | text `.xml`; XML root `resources` |
 | `app/src/main/res/values-v31/styles.xml` | 22 lines | text `.xml`; XML root `resources` |
 | `app/src/main/res/values/app_name.xml` | 4 lines | text `.xml`; XML root `resources` |
 | `app/src/main/res/values/colors.xml` | 9 lines | text `.xml`; XML root `resources` |
 | `app/src/main/res/values/metrolist_strings.xml` | 701 lines | text `.xml`; XML root `resources` |
-| `app/src/main/res/values/strings.xml` | 419 lines | text `.xml`; XML root `resources` |
+| `app/src/main/res/values/strings.xml` | 425 lines | text `.xml`; XML root `resources` |
 | `app/src/main/res/values/styles.xml` | 26 lines | text `.xml`; XML root `resources` |
 | `app/src/main/res/values/values.xml` | 8 lines | text `.xml`; XML root `resources` |
 | `app/src/main/res/xml-v25/shortcuts.xml` | 23 lines | text `.xml`; XML root `shortcuts` |

@@ -425,6 +425,9 @@ val ShowLyricsKey = booleanPreferencesKey("showLyrics")
 val LyricsTextPositionKey = stringPreferencesKey("lyricsTextPosition")
 val LyricsClickKey = booleanPreferencesKey("lyricsClick")
 val LyricsScrollKey = booleanPreferencesKey("lyricsScrollKey")
+val LyricsWordSyncKey = booleanPreferencesKey("lyricsWordSync")
+/** Milliseconds added to the playback position before picking the highlighted line/word (negative = highlight later). */
+val LyricsSyncOffsetKey = intPreferencesKey("lyricsSyncOffsetMs")
 
 val PlayerVolumeKey = floatPreferencesKey("playerVolume")
 val RepeatModeKey = intPreferencesKey("repeatMode")
@@ -441,6 +444,8 @@ val TrackingBackfillCursorKey = longPreferencesKey("trackingBackfillCursor")
 val TrackingBackfillBoundKey = longPreferencesKey("trackingBackfillBound")
 val TrackingBackfillDoneKey = booleanPreferencesKey("trackingBackfillDone")
 val TrackingActionBackfillDoneKey = booleanPreferencesKey("trackingActionBackfillDone")
+/** One-time cleanup of untrusted cached lyrics (pre-provider rows, old LrcLib matches) done. */
+val LyricsCachePurgeDoneKey = booleanPreferencesKey("lyricsCachePurgeDone")
 val TrackingActionBackfillSentKey = longPreferencesKey("trackingActionBackfillSent")
 val VisitorDataKey = stringPreferencesKey("visitorData")
 val DataSyncIdKey = stringPreferencesKey("dataSyncId")

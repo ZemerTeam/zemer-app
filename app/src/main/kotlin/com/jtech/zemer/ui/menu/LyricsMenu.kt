@@ -49,6 +49,7 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.jtech.zemer.LocalDatabase
 import com.jtech.zemer.R
 import com.jtech.zemer.db.entities.LyricsEntity
+import com.jtech.zemer.lyrics.LyricsUtils
 import com.jtech.zemer.models.MediaMetadata
 import com.jtech.zemer.ui.component.DefaultDialog
 import com.jtech.zemer.ui.component.ZemerLoadingIndicator
@@ -88,6 +89,7 @@ fun LyricsMenu(
                         LyricsEntity(
                             id = mediaMetadataProvider().id,
                             lyrics = it,
+                            provider = "manual",
                         ),
                     )
                 }
@@ -240,6 +242,7 @@ fun LyricsMenu(
                                     LyricsEntity(
                                         id = searchMediaMetadataId,
                                         lyrics = result.lyrics,
+                                        provider = result.providerName,
                                     ),
                                 )
                             }
@@ -251,7 +254,7 @@ fun LyricsMenu(
                         modifier = Modifier.weight(1f),
                     ) {
                         Text(
-                            text = result.lyrics,
+                            text = remember(result.lyrics) { LyricsUtils.stripWordTags(result.lyrics) },
                             style = MaterialTheme.typography.bodyMedium,
                             maxLines = if (index == expandedItemIndex) Int.MAX_VALUE else 2,
                             overflow = TextOverflow.Ellipsis,

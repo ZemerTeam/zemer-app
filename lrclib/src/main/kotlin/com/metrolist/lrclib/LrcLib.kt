@@ -1,8 +1,6 @@
 package com.metrolist.lrclib
 
 import com.metrolist.lrclib.models.Track
-import com.metrolist.lrclib.models.bestMatchingFor
-import com.metrolist.lrclib.models.bestMatchingForRelaxed
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.engine.cio.CIO
@@ -145,19 +143,9 @@ object LrcLib {
         val cleanedTitle = cleanTitle(title)
         val cleanedArtist = cleanArtist(artist)
 
-        val res = when {
-            duration == -1 -> {
-                tracks.bestMatchingFor(duration, cleanedTitle, cleanedArtist)?.let { track ->
-                    track.syncedLyrics ?: track.plainLyrics
-                }?.let(LrcLib::Lyrics)
-            }
-            else -> {
-                // Try with relaxed duration matching (±5 seconds instead of ±2)
-                tracks.bestMatchingForRelaxed(duration)?.let { track ->
-                    track.syncedLyrics ?: track.plainLyrics
-                }?.let(LrcLib::Lyrics)
-            }
-        }
+        val candidates = tracks.filter { identityMatches(it.trackName, it.artistName, title, artist, it.duration, duration) }
+        val res = (candidates.firstOrNull { it.syncedLyrics != null } ?: candidates.firstOrNull())
+            ?.let { it.syncedLyrics ?: it.plainLyrics }?.let(LrcLib::Lyrics)
 
         if (res != null) {
             return@runCatching res.text
@@ -179,44 +167,29 @@ object LrcLib {
         var count = 0
         var plain = 0
 
-        val sortedTracks = when {
-            duration == -1 -> {
-                tracks.sortedByDescending { track ->
-                    var score = 0.0
-
-                    if (track.syncedLyrics != null) score += 1.0
-
-                    val titleSimilarity = calculateStringSimilarity(cleanedTitle, track.trackName)
-                    val artistSimilarity = calculateStringSimilarity(cleanedArtist, track.artistName)
-                    score += (titleSimilarity + artistSimilarity) / 2.0
-                    
-                    score
-                }
-            }
-            else -> {
-                tracks.sortedBy { abs(it.duration.toInt() - duration) }
-            }
-        }
+        // Only identity-gated candidates are ever offered, synced first.
+        val sortedTracks = tracks.filter { identityMatches(it.trackName, it.artistName, title, artist, it.duration, duration) }
+            .sortedByDescending { track -> (if (track.syncedLyrics != null) 1.0 else 0.0) + (calculateStringSimilarity(cleanedTitle, track.trackName) + calculateStringSimilarity(cleanedArtist, track.artistName)) / 2.0 }
 
         sortedTracks.forEach { track ->
             currentCoroutineContext().ensureActive() // Corrected usage
             if (count <= 4) {
-                if (track.syncedLyrics != null && duration == -1) {
-                    count++
-                    track.syncedLyrics.let(callback)
-                } else {
-                    if (track.syncedLyrics != null && abs(track.duration.toInt() - duration) <= 2) {
-                        count++
-                        track.syncedLyrics.let(callback)
-                    }
-                    if (track.plainLyrics != null && abs(track.duration.toInt() - duration) <= 2 && plain == 0) {
-                        count++
-                        plain++
-                        track.plainLyrics.let(callback)
-                    }
-                }
+                if (track.syncedLyrics != null) { count++; track.syncedLyrics.let(callback) }
+                if (track.plainLyrics != null && plain == 0) { count++; plain++; track.plainLyrics.let(callback) }
             }
         }
+    }
+
+    /**
+     * Identity gate: an LRCLIB track may be used only if BOTH its title and artist agree with what we asked for
+     * (similarity >= 0.75 each, after the same cleanup) and, when the player knows the duration, it is within
+     * 3 s. Duration alone is never enough — a random song of the same length is a wrong song.
+     */
+    internal fun identityMatches(trackName: String, artistName: String, wantTitle: String, wantArtist: String, trackDuration: Double, wantDuration: Int): Boolean {
+        val t = calculateStringSimilarity(cleanTitle(wantTitle), cleanTitle(trackName))
+        val a = calculateStringSimilarity(cleanArtist(wantArtist), cleanArtist(artistName))
+        val d = wantDuration == -1 || abs(trackDuration.toInt() - wantDuration) <= 3
+        return t >= 0.75 && a >= 0.75 && d
     }
 
     private fun calculateStringSimilarity(str1: String, str2: String): Double {
