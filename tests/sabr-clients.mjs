@@ -21,19 +21,27 @@
 // Bottom line: SABR is a proven whole-song transport for the app's real clients (WEB_REMIX +
 // TVHTML5_SIMPLY + VISIONOS) - the fallback for when progressive gets walled for them too.
 
+import "./egress.mjs"; // FIRST: routes every fetch through SCAN_PROXY when set
 import crypto from "node:crypto";
+import { pathToFileURL } from "node:url";
 import { getCred, describeCred } from "./cred.mjs";
+import { loadStreamClientsIncludingBenched } from "./stream-clients.mjs";
+import { RETIRED } from "./clients-retired.mjs";
 import { createMinter } from "./potoken.mjs";
 import { createCipher } from "./cipher.mjs";
 
-const VIDEO_ID = process.argv[2] || "JTF9fLJvniI";
+const CLI_VIDEO_ID = process.argv[2] || "JTF9fLJvniI";
 const dec = (s) => { try { return s && /%[0-9A-Fa-f]{2}/.test(s) ? decodeURIComponent(s) : s; } catch { return s; } };
 const ORIGIN = "https://music.youtube.com";
 const PLAYER_URL = ORIGIN + "/youtubei/v1/player?prettyPrint=false";
 const WEB_UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36";
 
+// Module + CLI: drainClientSabr / createSabrContext are what the unattended client monitor runs
+// (tests/scan-stream-clients.mjs, SABR pass) — exactly this drain, never a second copy of "whole".
+// The CLI roster is DYNAMIC: the table's live + benched entries and every retired client, plus the
+// research-only defs below that no table ever carried (WEB, ANDROID_MUSIC, IOS_MUSIC, ...).
 // clientName/clientVersion/clientId + os fields; flags: web (send web pot+sts in /player), auth (send cookie).
-const ROSTER = [
+const RESEARCH_EXTRAS = [
   { key: "WEB", clientName: "WEB", clientVersion: "2.20260213.00.00", clientId: 1, ua: WEB_UA, web: 1 },
   { key: "WEB_REMIX", clientName: "WEB_REMIX", clientVersion: "1.20260213.01.00", clientId: 67, ua: WEB_UA, web: 1, auth: 1 },
   { key: "WEB_CREATOR", clientName: "WEB_CREATOR", clientVersion: "1.20260213.00.00", clientId: 62, ua: WEB_UA, web: 1, auth: 1 },
@@ -71,11 +79,11 @@ const N = (x) => (x == null ? 0 : Number(x));
 function timeRangeMs(buf) { if (!buf) return { startMs: 0, durMs: 0 }; const t = readProto(buf); const ts = N(t[3]?.[0]) || 1000; return { startMs: (N(t[1]?.[0]) / ts) * 1000, durMs: (N(t[2]?.[0]) / ts) * 1000 }; }
 
 function sapisidHash(cookie) { const m = cookie.match(/(?:^|; )SAPISID=([^;]+)/); if (!m) return null; const ts = Math.floor(Date.now() / 1000); return `SAPISIDHASH ${ts}_${crypto.createHash("sha1").update(`${ts} ${m[1]} ${ORIGIN}`).digest("hex")}`; }
-async function playerRequest(c, visitorData, cred, webPot, sts) {
+async function playerRequest(c, videoId, visitorData, cred, webPot, sts) {
   const client = { clientName: c.clientName, clientVersion: c.clientVersion, hl: "en", gl: "US", visitorData };
   for (const k of ["osName", "osVersion", "deviceMake", "deviceModel"]) if (c[k]) client[k] = c[k];
   if (c.androidSdkVersion) client.androidSdkVersion = String(c.androidSdkVersion);
-  const body = { context: { client }, videoId: VIDEO_ID, contentCheckOk: true, racyCheckOk: true };
+  const body = { context: { client }, videoId, contentCheckOk: true, racyCheckOk: true };
   if (c.auth && cred.dataSyncId) body.context.user = { onBehalfOfUser: cred.dataSyncId };
   if (c.web && sts) body.playbackContext = { contentPlaybackContext: { signatureTimestamp: Number(sts) } };
   if (c.web && webPot) body.serviceIntegrityDimensions = { poToken: webPot };
@@ -118,36 +126,94 @@ async function drainSabr(c, sd, ust, fmt, pot, urlPot, xform) {
   return { segs, endSeg, clen, initBytes, whole: endSeg > 0 && segs.size === endSeg && initBytes + sum === clen, secs: Math.round(bufEndMs / 1000) };
 }
 
-(async () => {
+
+/** A table/retired def -> the shape this harness drains: ua, web (cipher + pots), auth (cookie). */
+export function toSabrDef(c) {
+  const web = c.protocol ? c.protocol === "web_cipher_pot" : Boolean(c.useWebPoTokens);
+  const d = { key: c.key, clientName: c.clientName, clientVersion: c.clientVersion, clientId: Number(c.clientId), ua: c.userAgent, web: web ? 1 : 0, auth: c.loginSupported ? 1 : 0 };
+  // The SABR streamerContext identity: the entry's `sabr` overrides win over its own fields.
+  for (const k of ["osName", "osVersion", "deviceMake", "deviceModel", "androidSdkVersion"]) {
+    const v = (c.sabr && c.sabr[k]) ?? c[k];
+    if (v !== undefined && v !== null) d[k] = v;
+  }
+  return d;
+}
+
+export async function createSabrContext() {
   const cred = await getCred();
   const visitorData = dec(cred.visitorData);
-  console.log(describeCred(cred), `\nvideo=${VIDEO_ID}\n`);
   const cipher = await createCipher({});
   const minter = await createMinter(visitorData);
   const webPot = await minter.mint(visitorData);
-  const videoPot = await minter.mint(VIDEO_ID);
   const potBytes = Buffer.from(webPot.replace(/-/g, "+").replace(/_/g, "/"), "base64");
-  console.log("client".padEnd(16), "play".padEnd(7), "sabr".padEnd(5), "cfg".padEnd(4), "itag".padEnd(5), "result");
+  return {
+    cred, visitorData, cipher, minter, webPot, potBytes, hasCookie: Boolean(cred.cookie),
+    forVideo: async (videoId) => ({ videoId, videoPot: await minter.mint(videoId) }),
+    close: () => cipher._close?.(),
+  };
+}
+
+/**
+ * Drain [c] (a toSabrDef shape) over SABR for one video. Verdict `kind` mirrors the progressive
+ * drain: "whole" | "partial" (capped) | "sabr-error" | "no-sabr" (no serverAbrStreamingUrl /
+ * ustreamer config: the client has no SABR path) | "no-format" | "not-ok" | "http-error" |
+ * "bot-gated" | "skipped-login" | "error". Definitive failures: partial, sabr-error, no-sabr,
+ * no-format, not-ok, http-error. Inconclusive: bot-gated, skipped-login, error.
+ */
+export async function drainClientSabr(ctx, c, { videoId, videoPot }) {
+  const row = { key: c.key, video: videoId, transport: "sabr", http: null, status: "-", itag: null, segs: null, endSeg: null, kind: "error", reason: "" };
+  if (c.auth && !ctx.hasCookie) return { ...row, kind: "skipped-login", reason: "login required, no cookie" };
+  try {
+    const { http, j } = await playerRequest(c, videoId, ctx.visitorData, ctx.cred, ctx.webPot, ctx.cipher.sts);
+    row.http = http; row.status = j?.playabilityStatus?.status || "-";
+    if (http !== 200) return { ...row, kind: "http-error", reason: `player HTTP ${http}` };
+    if (row.status !== "OK") {
+      const reason = `${row.status}${j?.playabilityStatus?.reason ? ": " + j.playabilityStatus.reason : ""}`;
+      return { ...row, kind: /confirm you.re not a bot/i.test(j?.playabilityStatus?.reason || "") ? "bot-gated" : "not-ok", reason };
+    }
+    const sd = j?.streamingData || {};
+    const ustB64 = j?.playerConfig?.mediaCommonConfig?.mediaUstreamerRequestConfig?.videoPlaybackUstreamerConfig;
+    if (!sd.serverAbrStreamingUrl || !ustB64) return { ...row, kind: "no-sabr", reason: !sd.serverAbrStreamingUrl ? "no serverAbrStreamingUrl" : "no ustreamer config" };
+    const fmt = bestAudio(j);
+    if (!fmt) return { ...row, kind: "no-format", reason: "no original audio format" };
+    row.itag = fmt.itag;
+    const r = await drainSabr(c, sd, Buffer.from(ustB64, "base64"), fmt, ctx.potBytes, c.web ? videoPot : null, c.web ? ((u) => ctx.cipher.transformNParamInUrl(u)) : ((u) => u));
+    row.segs = r.segs.size; row.endSeg = r.endSeg;
+    if (r.err) return { ...row, kind: r.err.startsWith("HTTP") ? "partial" : "sabr-error", reason: `${r.err} (${r.segs.size}/${r.endSeg})` };
+    return r.whole ? { ...row, kind: "whole", reason: "" } : { ...row, kind: "partial", reason: `capped ${r.segs.size}/${r.endSeg} (~${r.secs}s)` };
+  } catch (e) {
+    return { ...row, kind: "error", reason: String(e.message).slice(0, 80) };
+  }
+}
+
+export function formatSabrRow(r) {
+  const result = r.kind === "whole" ? `✓ WHOLE SONG (${r.segs}/${r.endSeg})`
+    : r.kind === "skipped-login" ? "skipped (login required, no cookie)"
+    : r.kind === "bot-gated" ? `? bot-gated (${r.reason}) — runner IP, not the client`
+    : `✗ ${r.kind}${r.reason ? " " + r.reason : ""}`;
+  return [r.key.padEnd(20), String(r.status).padEnd(14), String(r.itag ?? "-").padEnd(5), result].join(" ");
+}
+
+const isMain = process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href;
+if (isMain) (async () => {
+  const table = loadStreamClientsIncludingBenched();
+  const known = new Set([...table.clients, ...table.benched].map((c) => c.key));
+  const roster = [
+    ...table.clients.map(toSabrDef), ...table.benched.map(toSabrDef),
+    ...RETIRED.filter((c) => !known.has(c.key)).map(toSabrDef),
+    ...RESEARCH_EXTRAS.filter((c) => !known.has(c.key) && !RETIRED.some((r) => r.key === c.key)),
+  ];
+  const ctx = await createSabrContext();
+  console.log(describeCred(ctx.cred), `\nvideo=${CLI_VIDEO_ID}\n`);
+  const video = await ctx.forVideo(CLI_VIDEO_ID);
+  console.log("client".padEnd(20), "play".padEnd(14), "itag".padEnd(5), "result");
   const usable = [];
-  for (const c of ROSTER) {
-    let line;
-    try {
-      const { http, j } = await playerRequest(c, visitorData, cred, webPot, cipher.sts);
-      const ps = j?.playabilityStatus?.status || `HTTP${http}`;
-      const sd = j?.streamingData || {};
-      const hasSabr = !!sd.serverAbrStreamingUrl;
-      const ustB64 = j?.playerConfig?.mediaCommonConfig?.mediaUstreamerRequestConfig?.videoPlaybackUstreamerConfig;
-      const fmt = bestAudio(j);
-      if (ps !== "OK" || !hasSabr || !ustB64 || !fmt) {
-        line = [c.key.padEnd(16), ps.padEnd(7), (hasSabr ? "yes" : "no").padEnd(5), (ustB64 ? "yes" : "no").padEnd(4), String(fmt?.itag ?? "-").padEnd(5), ps !== "OK" ? `not playable (${j?.playabilityStatus?.reason?.slice(0, 40) || ""})` : "no SABR inputs"];
-      } else {
-        const r = await drainSabr(c, sd, Buffer.from(ustB64, "base64"), fmt, potBytes, c.web ? videoPot : null, c.web ? ((u) => cipher.transformNParamInUrl(u)) : ((u) => u));
-        const verdict = r.err ? `✗ ${r.err} (${r.segs.size}/${r.endSeg})` : r.whole ? `✓ WHOLE SONG (${r.segs.size}/${r.endSeg})` : `✗ capped ${r.segs.size}/${r.endSeg} (~${r.secs}s)`;
-        if (r.whole) usable.push(c.key + (c.auth ? " (auth)" : ""));
-        line = [c.key.padEnd(16), ps.padEnd(7), "yes".padEnd(5), "yes".padEnd(4), String(fmt.itag).padEnd(5), verdict];
-      }
-    } catch (e) { line = [c.key.padEnd(16), "ERR".padEnd(7), "".padEnd(5), "".padEnd(4), "".padEnd(5), e.message.slice(0, 50)]; }
-    console.log(...line);
+  for (const c of roster) {
+    const r = await drainClientSabr(ctx, c, video);
+    console.log(formatSabrRow(r));
+    if (r.kind === "whole") usable.push(c.key + (c.auth ? " (auth)" : ""));
   }
   console.log(`\nUSABLE over SABR (whole song, app's bgutils pot): ${usable.length ? usable.join(", ") : "none"}`);
+  ctx.close();
+  process.exit(0);
 })();

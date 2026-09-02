@@ -47,6 +47,15 @@ class StreamClientTableTest {
         assertTrue(StreamClientTable.fromConfig(
             StreamClientParser.StreamClientConfig(listOf(def("MAIN"), def("A")), emptyMap()),
         ).sabrRoster.isEmpty())
+        // A benched SABR capability drops the entry from the roster but not from the chain.
+        val benched = StreamClientTable.fromConfig(
+            StreamClientParser.StreamClientConfig(
+                listOf(def("MAIN", sabr = info), def("B", sabr = StreamClientParser.StreamClientDef.SabrInfo(enabled = false))),
+                emptyMap(),
+            ),
+        )
+        assertEquals(listOf("MAIN"), benched.sabrRoster.map { it.key })
+        assertEquals(listOf("B"), benched.fallbacks.map { it.key })
     }
 
     @Test

@@ -32,7 +32,11 @@ class BundledStreamClientsAssetTest {
         val result = StreamClientParser.parse(assetFile().readText())
         assertTrue("bundled asset must parse: $result", result is StreamClientParser.ParseResult.Success)
         val config = (result as StreamClientParser.ParseResult.Success).config
-        assertTrue("bundled asset must skip nothing", result.skippedEntries.isEmpty())
+        // The only legitimate skips are BENCHED entries (`enabled: false`, the client-monitor's
+        // unattended kill switch); any other skip is a typo that would drop a client fleet-wide.
+        val benched = Regex(""""key":\s*"([A-Z0-9_]+)"[^{}]*"enabled":\s*false""")
+            .findAll(assetFile().readText()).map { it.groupValues[1] }.toList()
+        assertEquals("skipped entries must be exactly the benched ones", benched, result.skippedEntries)
 
         val fromAsset = StreamClientTable.fromConfig(config)
         val compiled = StreamClientTable.COMPILED_TABLE
@@ -52,11 +56,15 @@ class BundledStreamClientsAssetTest {
         )
     }
 
-    /** The entry with its bumpable identity blanked - what a version/UA bump may NOT change. */
+    /**
+     * The entry with its bumpable identity blanked and the SABR kill switch lifted - what a
+     * version/UA bump or a SABR bench may NOT change.
+     */
     private fun StreamClient.structural() = copy(
         client = client.copy(
             clientVersion = "", userAgent = "", osName = null, osVersion = null,
             deviceMake = null, deviceModel = null, androidSdkVersion = null,
         ),
+        sabr = sabr?.copy(enabled = true),
     )
 }

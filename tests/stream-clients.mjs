@@ -108,6 +108,12 @@ function parseEntry(obj, label) {
       androidSdkVersion: sub("androidSdkVersion", (v) => VERSIONISH_RE.test(v)),
     };
     sabr = Object.fromEntries(Object.entries(s).filter(([, v]) => v !== undefined));
+    // `enabled`: absent/null/true = enabled; strict false = the SABR capability is benched (the
+    // entry keeps its identity overrides); anything else is malformed — app parity.
+    if ("enabled" in o && o.enabled !== null && o.enabled !== undefined) {
+      if (typeof o.enabled !== "boolean") bad("sabr.enabled");
+      if (o.enabled === false) sabr.enabled = false;
+    }
   }
 
   // `mirrors`: the yt-dlp INNERTUBE_CLIENTS key this entry mirrors (harness-only metadata — the
@@ -239,7 +245,12 @@ export function loadStreamClientsIncludingBenched(path = STREAM_CLIENTS_PATH) {
  * Scripts probing SABR against "the app's clients" must take this, not a hand-kept list.
  */
 export function sabrRoster(clients) {
-  return clients.filter((c) => c.sabr);
+  return clients.filter((c) => c.sabr && c.sabr.enabled !== false);
+}
+
+/** Entries whose SABR capability is benched (`sabr.enabled: false`) — probed for revival. */
+export function sabrBenched(clients) {
+  return clients.filter((c) => c.sabr && c.sabr.enabled === false);
 }
 
 /** True iff parse() rejects the whole file (the parity-fixture verdict). */

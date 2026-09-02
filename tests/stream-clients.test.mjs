@@ -11,7 +11,7 @@ import assert from "node:assert/strict";
 import { readFileSync, readdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
-import { loadStreamClients, loadStreamClientsIncludingBenched, parseStreamClients, fileVerdictRejects, sabrRoster } from "./stream-clients.mjs";
+import { loadStreamClients, loadStreamClientsIncludingBenched, parseStreamClients, fileVerdictRejects, sabrRoster, sabrBenched } from "./stream-clients.mjs";
 import { writeFileSync, mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 
@@ -79,9 +79,14 @@ test("sabr: absent/null = not SABR-usable, object = usable, anything else is mal
   assert.equal(one({ sabr: null }).sabr, undefined);
   assert.deepEqual(one({ sabr: {} }).sabr, {});
   assert.deepEqual(one({ sabr: { osName: "Windows", deviceMake: null } }).sabr, { osName: "Windows" });
-  for (const bad of [true, "yes", [], { osName: 1 }, { osVersion: "bad version!" }]) {
+  for (const bad of [true, "yes", [], { osName: 1 }, { osVersion: "bad version!" }, { enabled: "false" }, { enabled: 0 }]) {
     assert.throws(() => one({ sabr: bad }), `sabr=${JSON.stringify(bad)} must be malformed`);
   }
+  // sabr.enabled: false benches the SABR capability only; the identity overrides survive.
+  const benched = one({ sabr: { osName: "Windows", enabled: false } });
+  assert.deepEqual(benched.sabr, { osName: "Windows", enabled: false });
+  assert.deepEqual(sabrRoster([benched]), []); assert.deepEqual(sabrBenched([benched]).map((c) => c.key), ["MAIN"]);
+  assert.deepEqual(one({ sabr: { enabled: true } }).sabr, {}); assert.deepEqual(one({ sabr: { enabled: null } }).sabr, {});
 });
 
 test("loadStreamClientsIncludingBenched surfaces benched entries parsed with the live rules", () => {

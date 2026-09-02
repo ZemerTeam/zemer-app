@@ -13,8 +13,13 @@
 //   ONLY_KEYS=WEB_REMIX,VISIONOS   restrict the roster (candidate-table verification of one entry)
 //   YT_COOKIE / YT_VISITOR_DATA / YT_DATASYNC_ID (env) or innertube_cookie.txt supply the session.
 //
-// stdout: JSON { table, videos, cookie, conclusive, clients:[{key, family, main, loginRequired,
-//               results:[{video, kind, http, status, itag, clen, read, reason}]}] }
+// stdout: JSON { table, videos, cookie, conclusive, sabrConclusive, clients:[{key, family, role, main,
+//               loginRequired, sabr: "live"|"benched"|null,
+//               results:[{video, kind, ...}], sabrResults:[{video, kind, ...}]}] }
+// The SABR pass drains every entry that carries a `sabr` object (live capability, or benched via
+// `sabr.enabled: false` — probed for revival) over serverAbrStreamingUrl with the app's pot; it is
+// the same drain tests/sabr-clients.mjs runs by hand. `sabrConclusive` = some entry drained whole
+// over SABR (the SABR-side runner canary).
 // stderr: the human table, one block per video.
 // Exit 0 normally; exit 1 only when the table itself is invalid (devices would reject it).
 //
@@ -30,6 +35,7 @@ import "./egress.mjs"; // FIRST: routes every fetch through SCAN_PROXY when set
 import { STREAM_CLIENTS_PATH, loadStreamClientsIncludingBenched } from "./stream-clients.mjs";
 import { RETIRED } from "./clients-retired.mjs";
 import { createDrainContext, drainClient, formatRow } from "./client-fulldownload.mjs";
+import { createSabrContext, drainClientSabr, formatSabrRow, toSabrDef } from "./sabr-clients.mjs";
 
 const videos = [
   ...process.argv.slice(2),
@@ -59,7 +65,9 @@ const roster = buildRoster(table, RETIRED);
 const scanned = buildRoster(table, RETIRED, only);
 const ctx = await createDrainContext();
 const clients = scanned.map(({ def, role, main }) => ({
-  key: def.key, family: def.family ?? def.clientName, role, main, loginRequired: Boolean(def.loginRequired), results: [],
+  key: def.key, family: def.family ?? def.clientName, role, main, loginRequired: Boolean(def.loginRequired),
+  sabr: def.sabr ? (def.sabr.enabled === false ? "benched" : "live") : null,
+  results: [], sabrResults: [],
 }));
 
 for (const videoId of [...new Set(videos)]) {
@@ -74,10 +82,28 @@ for (const videoId of [...new Set(videos)]) {
 }
 ctx.close();
 
+// SABR pass: only entries that carry a `sabr` object (live or SABR-benched), same videos.
+const sabrTargets = clients.map((c, i) => [c, scanned[i].def]).filter(([c]) => c.sabr);
+if (sabrTargets.length) {
+  const sctx = await createSabrContext();
+  for (const videoId of [...new Set(videos)]) {
+    const video = await sctx.forVideo(videoId);
+    console.error(`video=${videoId} [SABR]`);
+    for (const [entry, def] of sabrTargets) {
+      const r = await drainClientSabr(sctx, toSabrDef(def), video);
+      console.error(`${formatSabrRow(r)}${entry.sabr === "benched" ? "   [sabr benched]" : ""}`);
+      entry.sabrResults.push({ video: videoId, kind: r.kind, http: r.http, status: r.status, itag: r.itag, segs: r.segs, endSeg: r.endSeg, reason: r.reason });
+    }
+    console.error("");
+  }
+  sctx.close();
+}
+
 const conclusive = clients.some((c) => c.results.some((r) => r.kind === "whole"));
+const sabrConclusive = clients.some((c) => c.sabrResults.some((r) => r.kind === "whole"));
 const mainHealthy = Boolean(clients.find((c) => c.main)?.results.some((r) => r.kind === "whole"));
 process.stdout.write(JSON.stringify({
-  table: STREAM_CLIENTS_PATH, videos: [...new Set(videos)], cookie: ctx.hasCookie, conclusive, mainHealthy, clients,
+  table: STREAM_CLIENTS_PATH, videos: [...new Set(videos)], cookie: ctx.hasCookie, conclusive, sabrConclusive, mainHealthy, clients,
   roles: { live: table.clients.length, benched: table.benched.length, retired: roster.filter((c) => c.role === "retired").length },
   only,
 }, null, 2) + "\n");

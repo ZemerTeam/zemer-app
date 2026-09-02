@@ -499,7 +499,7 @@ Every tracked Kotlin file is listed with hard metadata extracted from the file t
 | `app/src/main/kotlin/com/jtech/zemer/utils/RankedContentGate.kt` | 32 | `com.jtech.zemer.utils` | no | 0 | 6 |  |
 | `app/src/main/kotlin/com/jtech/zemer/utils/RefreshRateSelection.kt` | 72 | `com.jtech.zemer.utils` | no | 2 | 10 | kotlin.math |
 | `app/src/main/kotlin/com/jtech/zemer/utils/StreamClientChain.kt` | 41 | `com.jtech.zemer.utils` | no | 1 | 7 |  |
-| `app/src/main/kotlin/com/jtech/zemer/utils/StreamClientTable.kt` | 107 | `com.jtech.zemer.utils` | no | 9 | 16 | com.zemer |
+| `app/src/main/kotlin/com/jtech/zemer/utils/StreamClientTable.kt` | 110 | `com.jtech.zemer.utils` | no | 9 | 16 | com.zemer |
 | `app/src/main/kotlin/com/jtech/zemer/utils/StreamSourcePrefs.kt` | 115 | `com.jtech.zemer.utils` | no | 14 | 20 | androidx.datastore, kotlinx.coroutines |
 | `app/src/main/kotlin/com/jtech/zemer/utils/StringUtils.kt` | 23 | `com.jtech.zemer.utils` | no | 0 | 6 |  |
 | `app/src/main/kotlin/com/jtech/zemer/utils/SyncUtils.kt` | 1162 | `com.jtech.zemer.utils` | no | 49 | 131 | android.content, android.util, androidx.datastore, dagger.hilt, java.time, javax.inject, kotlinx.coroutines, timber.log |
@@ -708,7 +708,7 @@ Every tracked Kotlin file is listed with hard metadata extracted from the file t
 | `app/src/test/kotlin/com/jtech/zemer/utils/ArtistThumbResolverTest.kt` | 140 | `com.jtech.zemer.utils` | no | 5 | 8 | org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/utils/BlockedIdsCacheTest.kt` | 62 | `com.jtech.zemer.utils` | no | 5 | 7 | org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/utils/BottomNavItemsTest.kt` | 46 | `com.jtech.zemer.utils` | no | 2 | 8 | org.junit |
-| `app/src/test/kotlin/com/jtech/zemer/utils/BundledStreamClientsAssetTest.kt` | 62 | `com.jtech.zemer.utils` | no | 5 | 10 | com.zemer, java.io, org.junit |
+| `app/src/test/kotlin/com/jtech/zemer/utils/BundledStreamClientsAssetTest.kt` | 70 | `com.jtech.zemer.utils` | no | 5 | 11 | com.zemer, java.io, org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/utils/CrashReportingTreeTest.kt` | 64 | `com.jtech.zemer.utils` | no | 6 | 6 | org.junit, timber.log |
 | `app/src/test/kotlin/com/jtech/zemer/utils/LogBufferTreeTest.kt` | 77 | `com.jtech.zemer.utils` | no | 6 | 7 | org.junit, timber.log |
 | `app/src/test/kotlin/com/jtech/zemer/utils/LogExportTest.kt` | 100 | `com.jtech.zemer.utils` | no | 6 | 21 | java.time, org.junit |
@@ -719,7 +719,7 @@ Every tracked Kotlin file is listed with hard metadata extracted from the file t
 | `app/src/test/kotlin/com/jtech/zemer/utils/RankedContentGateTest.kt` | 52 | `com.jtech.zemer.utils` | no | 4 | 3 | org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/utils/RefreshRateSelectionTest.kt` | 90 | `com.jtech.zemer.utils` | no | 4 | 11 | org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/utils/StreamClientChainTest.kt` | 96 | `com.jtech.zemer.utils` | no | 6 | 17 | org.junit |
-| `app/src/test/kotlin/com/jtech/zemer/utils/StreamClientTableTest.kt` | 123 | `com.jtech.zemer.utils` | no | 6 | 11 | com.zemer, org.junit |
+| `app/src/test/kotlin/com/jtech/zemer/utils/StreamClientTableTest.kt` | 132 | `com.jtech.zemer.utils` | no | 6 | 12 | com.zemer, org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/utils/StreamSourcePrefsTest.kt` | 126 | `com.jtech.zemer.utils` | no | 12 | 9 | androidx.datastore, com.zemer, org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/utils/VideoLinkBuilderTest.kt` | 49 | `com.jtech.zemer.utils` | no | 2 | 1 | org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/utils/YTPlayerUtilsConsumableFormatsTest.kt` | 38 | `com.jtech.zemer.utils` | no | 4 | 3 | org.junit |

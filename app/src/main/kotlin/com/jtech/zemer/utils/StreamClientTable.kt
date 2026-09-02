@@ -35,8 +35,11 @@ data class StreamClient(
 object StreamClientTable {
 
     data class Table(val main: StreamClient, val fallbacks: List<StreamClient>) {
-        /** The SABR roster: every sabr-capable entry, main first, in table order. */
-        val sabrRoster: List<StreamClient> get() = (listOf(main) + fallbacks).filter { it.sabr != null }
+        /**
+         * The SABR roster: every sabr-capable entry whose capability is not benched
+         * (`sabr.enabled: false` — the monitor's SABR-only kill switch), main first, in table order.
+         */
+        val sabrRoster: List<StreamClient> get() = (listOf(main) + fallbacks).filter { it.sabr?.enabled == true }
     }
 
     /** Maps a validated config entry onto the innertube request-builder model. */

@@ -96,7 +96,10 @@ regress:
   drain as a module, one verdict per client per validation video) and `tests/scan-client-versions.mjs`
   (yt-dlp version drift, alert only). A live entry that fails everywhere on two consecutive runs is
   BENCHED (`enabled: false`) and deployed; a benched one that drains again is un-benched; a retired
-  client that works again only opens an issue. An entry whose identity (clientVersion, userAgent,
+  client that works again only opens an issue. The same scan drains every `sabr`-capable entry over
+  SABR (`tests/sabr-clients.mjs` as a module): a SABR-side kill benches the capability alone
+  (`sabr.enabled: false`, read by both parsers; `StreamClientTable.Table.sabrRoster` skips it) and a
+  revival un-benches it, on the same two-run quorum. An entry whose identity (clientVersion, userAgent,
   os/device fields) is behind the yt-dlp key it `mirrors` is BUMPED once a candidate table with
   yt-dlp's values drains a whole song on every validation video (`apply-bump.mjs`); VISIONOS_0_1
   carries no `mirrors` and is pinned. "Sign in to confirm you're not a bot" on an anonymous request
