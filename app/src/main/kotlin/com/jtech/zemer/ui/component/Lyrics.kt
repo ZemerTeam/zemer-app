@@ -20,18 +20,15 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.add
-import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -414,11 +411,10 @@ fun Lyrics(
             LazyColumn(
             state = lazyListState,
             // Lyrics start at the top in both modes. Synced lyrics get a large bottom padding so the active
-            // line can be held at ACTIVE_LINE_ANCHOR once there is content above it to scroll away.
-            contentPadding = WindowInsets.systemBars
-                .only(WindowInsetsSides.Top)
-                .add(WindowInsets(top = 8.dp, bottom = if (isSynced) maxHeight / 2 else 24.dp))
-                .asPaddingValues(),
+            // line can be held at ACTIVE_LINE_ANCHOR once there is content above it to scroll away. The host
+            // (LyricsScreen) already pads the system bars around the whole column, so no inset is added here:
+            // adding it again opened a status-bar-sized gap between the source header and the first line.
+            contentPadding = PaddingValues(top = 8.dp, bottom = if (isSynced) maxHeight / 2 else 24.dp),
             modifier = Modifier
                 .fadingEdge(vertical = 64.dp)
                 .nestedScroll(remember {
