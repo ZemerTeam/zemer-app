@@ -1,9 +1,13 @@
 package com.zemer.simpmusic
 
 import com.metrolist.simpmusic.SimpMusicLyrics
+import com.metrolist.simpmusic.durationDelta
 import com.metrolist.simpmusic.firstNonBlankLyrics
+import com.metrolist.simpmusic.syncAllowed
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
@@ -49,5 +53,30 @@ class SimpMusicLyricsTest {
     @Test
     fun `sync tolerance is one second`() {
         assertEquals(1, SimpMusicLyrics.SYNC_TOLERANCE_SEC)
+    }
+
+    /**
+     * Regression: a missing durationSeconds was treated as a 0 s track, so any song with a known player
+     * duration failed the 1 s gate and silently lost its synced body (served plain, or nothing).
+     */
+    @Test
+    fun `unknown source duration is accepted, not treated as zero`() {
+        assertTrue(syncAllowed(null, 213))
+        assertTrue(syncAllowed(213, 0))
+        assertTrue(syncAllowed(null, 0))
+    }
+
+    @Test
+    fun `known durations must agree within the tolerance`() {
+        assertTrue(syncAllowed(213, 213))
+        assertTrue(syncAllowed(214, 213))
+        assertFalse(syncAllowed(215, 213))
+        assertEquals(1, SimpMusicLyrics.SYNC_TOLERANCE_SEC)
+    }
+
+    @Test
+    fun `unknown durations rank last when picking the best match`() {
+        assertEquals(2, durationDelta(211, 213))
+        assertEquals(Int.MAX_VALUE, durationDelta(null, 213))
     }
 }

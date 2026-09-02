@@ -44,6 +44,12 @@ class LyricsUtilsTest {
     }
 
     @Test
+    fun `stripWordTags leaves plain and line-synced bodies untouched`() {
+        assertEquals("[00:09.73] The club\n[00:18.59] We're no", LyricsUtils.stripWordTags("[00:09.73] The club\n[00:18.59] We're no"))
+        assertEquals("just words\nmore words", LyricsUtils.stripWordTags("just words\nmore words"))
+    }
+
+    @Test
     fun `sungWordCount counts words started by position`() {
         val words = listOf(LyricsWord(1000L, "a"), LyricsWord(2000L, "b"), LyricsWord(3000L, "c"))
         assertEquals(0, LyricsUtils.sungWordCount(words, 500L))

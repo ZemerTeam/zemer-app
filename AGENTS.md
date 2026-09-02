@@ -589,13 +589,16 @@ from the server), then SimpMusic (videoId-keyed), LrcLib (identity-gated: title 
 duration-only match once served a Japanese song), YouTube subtitles, YouTube lyrics tab. Rules: accuracy over
 coverage; provider label persisted in `LyricsEntity.provider` and shown as "Lyrics from …"; NO estimated
 timings (word sync renders only measured `<mm:ss.xx>` tags); lyrics start at the top, active synced line held at
-30%; `LyricsSyncOffsetKey` user offset. Lyrics are a MODE of the full player (`showInlineLyrics` swaps the art slot for
-`InlineLyrics`), never a separate screen — reuse the player's components. Do not add DB migrations for lyrics (the 35→36 `provider` column is the
-one that exists).
+30%; `LyricsSyncOffsetKey` user offset. The lyrics view (`ui/player/LyricsScreen.kt`, hosted by `Player.kt`, toggled by the
+`ShowLyricsKey`/`showLyrics` preference) reuses the player's own transport, slider and identity row via the shared
+components in `ui/component/lyrics/LyricsComponents.kt`; never re-roll them. Cache policy lives in `LyricsEntity`
+(`needsFetch`/`resolved`): a not-found row is a negative cache, a pre-provider row with a body is re-resolved once
+and kept (stamped `legacy`) if nothing answers — never deleted, it may be a manual entry. Do not add DB migrations
+for lyrics (the 35→36 `provider` column is the one that exists).
 
 ### Shared UI components (componentized - import, don't re-roll)
 
-- `ui/component/lyrics/InlineLyrics.kt`: `InlineLyrics` (the Player's lyrics mode, rendered in the art slot) + `LyricsSourceHeader`. There is no separate lyrics screen — the Player's own title row, slider and transport are reused.
+- `ui/component/lyrics/LyricsComponents.kt`: `LyricsSourceHeader` ("Lyrics from X · synced"; a `legacy` stamp shows as unknown) + `LyricsNowPlayingBar`, used by `ui/player/LyricsScreen.kt`, which reuses the Player's transport and slider.
 
 A componentization pass extracted the app's repeated composables into `ui/component/`; reuse them
 instead of hand-rolling: `BackNavigationIcon` / `BackTopAppBar` (top-bar back button), `MoreVertMenuButton`

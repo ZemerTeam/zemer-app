@@ -63,6 +63,7 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import com.metrolist.innertube.utils.ResilientDns
 import com.metrolist.innertube.YouTube
+import com.jtech.zemer.lyrics.LyricsUtils
 import com.metrolist.simpmusic.SimpMusicLyrics
 import timber.log.Timber
 
@@ -627,10 +628,12 @@ constructor(
                 if (!videoDownload && CoverArtEmbedder.supportsEmbedding(saveExtension)) {
                     // Lyrics are embedded ONLY when identity-exact: the SimpMusic lookup is keyed by
                     // this videoId (plus its duration sanity check), so the text is the song's by
-                    // construction. The fuzzy metadata-search providers never qualify.
+                    // construction. The fuzzy metadata-search providers never qualify. SimpMusic may
+                    // answer with enhanced LRC (<mm:ss.xx> word tags); external players render those
+                    // literally, so the tag holds the line-synced form.
                     val exactLyrics = runCatching {
                         SimpMusicLyrics.getLyrics(song.id, effectiveDurationSec).getOrNull()
-                    }.getOrNull()
+                    }.getOrNull()?.let(LyricsUtils::stripWordTags)
                     CoverArtEmbedder.embedMetadataIntoFile(
                         context = context,
                         audioFile = tempFile,

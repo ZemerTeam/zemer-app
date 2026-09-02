@@ -64,6 +64,7 @@ import com.jtech.zemer.constants.SliderStyle
 import com.jtech.zemer.constants.SliderStyleKey
 import com.jtech.zemer.db.entities.LyricsEntity
 import com.jtech.zemer.di.LyricsHelperEntryPoint
+import com.jtech.zemer.extensions.repeatModeContentDescriptionRes
 import com.jtech.zemer.extensions.repeatModeIconRes
 import com.jtech.zemer.extensions.shuffleIconRes
 import com.jtech.zemer.extensions.toggleRepeatMode
@@ -224,7 +225,7 @@ fun LyricsScreen(
                 Spacer(Modifier.height(4.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(24.dp)) {
                     IconButton(onClick = { if (!isStationBroadcast) playerConnection.player.toggleRepeatMode() }) {
-                        Icon(painterResource(repeatModeIconRes(repeatMode)), contentDescription = stringResource(R.string.repeat_mode_off), tint = if (repeatMode == Player.REPEAT_MODE_OFF) textColor.copy(alpha = 0.4f) else textColor)
+                        Icon(painterResource(repeatModeIconRes(repeatMode)), contentDescription = stringResource(repeatModeContentDescriptionRes(repeatMode)), tint = if (repeatMode == Player.REPEAT_MODE_OFF) textColor.copy(alpha = 0.4f) else textColor)
                     }
                     IconButton(onClick = { if (!isStationBroadcast) playerConnection.player.shuffleModeEnabled = !shuffleModeEnabled }) {
                         Icon(painterResource(shuffleIconRes(shuffleModeEnabled)), contentDescription = stringResource(R.string.shuffle), tint = if (shuffleModeEnabled) textColor else textColor.copy(alpha = 0.4f))

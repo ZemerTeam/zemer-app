@@ -77,16 +77,14 @@ object SimpMusicLyrics {
         }
 
         val bestMatch = if (duration > 0 && tracks.size > 1) {
-            tracks.minByOrNull { track ->
-                abs((track.duration ?: 0) - duration)
-            }
+            tracks.minByOrNull { track -> durationDelta(track.duration, duration) }
         } else {
             tracks.firstOrNull()
         }
 
         // Timings are only trustworthy for the SAME recording: within 1 s of the track we are playing
         // (SYNC_TOLERANCE_SEC). Otherwise the words are still fine — serve plain, never a drifting sync.
-        val syncOk = bestMatch != null && (duration <= 0 || abs((bestMatch.duration ?: 0) - duration) <= SYNC_TOLERANCE_SEC)
+        val syncOk = bestMatch != null && syncAllowed(bestMatch.duration, duration)
         val lyrics = (if (syncOk) firstNonBlankLyrics(bestMatch?.richSyncLyrics, bestMatch?.syncedLyrics, bestMatch?.plainLyrics)
                       else firstNonBlankLyrics(bestMatch?.plainLyrics))
             ?: throw IllegalStateException("Lyrics unavailable")
@@ -104,7 +102,7 @@ object SimpMusicLyrics {
         var plain = 0
 
         val sortedTracks = if (duration > 0) {
-            tracks.sortedBy { abs((it.duration ?: 0) - duration) }
+            tracks.sortedBy { durationDelta(it.duration, duration) }
         } else {
             tracks
         }
@@ -112,17 +110,17 @@ object SimpMusicLyrics {
         sortedTracks.forEach { track ->
             if (count <= 4) {
                 val rich = track.richSyncLyrics
-                if (!rich.isNullOrBlank() && abs((track.duration ?: 0) - duration) <= SYNC_TOLERANCE_SEC) {
+                if (!rich.isNullOrBlank() && syncAllowed(track.duration, duration)) {
                     count++
                     callback(rich)
                 }
                 val synced = track.syncedLyrics
-                if (!synced.isNullOrBlank() && abs((track.duration ?: 0) - duration) <= SYNC_TOLERANCE_SEC) {
+                if (!synced.isNullOrBlank() && syncAllowed(track.duration, duration)) {
                     count++
                     callback(synced)
                 }
                 val plainLyrics = track.plainLyrics
-                if (!plainLyrics.isNullOrBlank() && abs((track.duration ?: 0) - duration) <= 5 && plain == 0) {
+                if (!plainLyrics.isNullOrBlank() && durationDelta(track.duration, duration) <= 5 && plain == 0) {
                     count++
                     plain++
                     callback(plainLyrics)
@@ -131,6 +129,20 @@ object SimpMusicLyrics {
         }
     }
 }
+
+/**
+ * Whether a synced/word-synced body from a SimpMusic track of [trackDuration] seconds may be shown for a
+ * song of [duration] seconds. The lookup is keyed by videoId, so the entry is the same recording by
+ * construction; the duration check only guards against an upload made against a different cut. An
+ * unknown duration on either side (null, or 0 for ours) is therefore accepted, not treated as a 0 s track
+ * that fails the 1 s gate for every real song.
+ */
+internal fun syncAllowed(trackDuration: Int?, duration: Int): Boolean =
+    duration <= 0 || trackDuration == null || abs(trackDuration - duration) <= SimpMusicLyrics.SYNC_TOLERANCE_SEC
+
+/** Distance in seconds between a track and ours for ranking; unknown durations sort last. */
+internal fun durationDelta(trackDuration: Int?, duration: Int): Int =
+    if (trackDuration == null) Int.MAX_VALUE else abs(trackDuration - duration)
 
 /**
  * The first non-blank lyrics body in preference order (word-synced, line-synced, plain). SimpMusic

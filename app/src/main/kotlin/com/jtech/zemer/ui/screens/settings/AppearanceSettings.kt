@@ -723,12 +723,15 @@ fun AppearanceSettings(
                 {
                     // -1500..+1500 ms in 50 ms steps. Positive = highlight earlier, negative = later.
                     SliderPreference(
-                        title = { Text(stringResource(R.string.lyrics_sync_offset, lyricsSyncOffset)) },
+                        title = { Text(stringResource(R.string.lyrics_sync_offset_title)) },
                         icon = { Icon(painterResource(R.drawable.lyrics), null) },
                         value = lyricsSyncOffset / 1000f,
-                        onValueChange = { onLyricsSyncOffsetChange((Math.round(it * 20f) * 50)) },
+                        onValueChange = { onLyricsSyncOffsetChange(lyricsSyncOffsetMs(it)) },
                         valueRange = -1.5f..1.5f,
                         steps = 59,
+                        resetValue = 0f,
+                        dialogTitle = { stringResource(R.string.lyrics_sync_offset_title) },
+                        valueLabel = { stringResource(R.string.lyrics_sync_offset, lyricsSyncOffsetMs(it)) },
                     )
                 },
             ),
@@ -1122,3 +1125,6 @@ enum class LyricsPosition {
     CENTER,
     RIGHT,
 }
+
+/** Slider seconds (-1.5..1.5) to the stored offset: whole 50 ms steps, so -1.5f is -1500 and 0f is 0. */
+internal fun lyricsSyncOffsetMs(seconds: Float): Int = Math.round(seconds * 20f) * 50

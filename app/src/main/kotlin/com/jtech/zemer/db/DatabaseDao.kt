@@ -568,10 +568,13 @@ interface DatabaseDao {
     fun lyrics(id: String?): Flow<LyricsEntity?>
 
     /**
-     * Cached lyrics rows that predate provider tracking (provider NULL) or came from LrcLib's old
-     * duration-only match (any same-length song could win) — untrustworthy; a one-time cleanup re-fetches them.
+     * One-time cleanup of cached lyrics rows that are safe to drop: LrcLib rows from its old duration-only
+     * match (any same-length song could win) and not-found rows that predate provider tracking (so the song
+     * is tried once through the new chain). Rows with a body and no provider are NOT deleted: pre-provider
+     * manual entries look exactly like them, and deleting would silently discard user-entered lyrics. Those
+     * are re-resolved once by the playback path instead (see [LyricsEntity.resolved]).
      */
-    @Query("DELETE FROM lyrics WHERE provider IS NULL OR provider = 'LrcLib'")
+    @Query("DELETE FROM lyrics WHERE provider = 'LrcLib' OR (provider IS NULL AND lyrics = 'LYRICS_NOT_FOUND')")
     fun purgeUntrustedLyrics(): Int
 
     @Transaction

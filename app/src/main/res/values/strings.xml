@@ -222,6 +222,7 @@
     <string name="player">Player</string>
     <string name="lyrics_text_position">Lyrics text position</string>
     <string name="lyrics_word_sync">Word-by-word lyrics</string>
+    <string name="lyrics_sync_offset_title">Lyrics timing offset</string>
     <string name="lyrics_sync_offset">Lyrics timing offset: %1$d ms</string>
     <string name="lyrics_word_sync_description">Highlight each word as it is sung when the lyrics source provides word timings</string>
     <string name="left">Left</string>

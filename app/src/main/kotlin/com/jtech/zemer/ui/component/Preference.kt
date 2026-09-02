@@ -293,6 +293,12 @@ fun SliderPreference(
     isEnabled: Boolean = true,
     valueRange: ClosedFloatingPointRange<Float> = 15f..60f,
     steps: Int = 0,
+    /** Value the dialog's Reset button returns to; must lie inside [valueRange]. */
+    resetValue: Float = 30f,
+    /** Dialog title; defaults to the history-duration wording this control was first built for. */
+    dialogTitle: @Composable () -> String = { stringResource(R.string.history_duration) },
+    /** Human-readable rendering of a value, used for the row summary and the dialog's live readout. */
+    valueLabel: @Composable (Float) -> String = { pluralStringResource(R.plurals.seconds, it.roundToInt(), it.roundToInt()) },
 ) {
     var showDialog by remember {
         mutableStateOf(false)
@@ -310,7 +316,7 @@ fun SliderPreference(
                     horizontalArrangement = Arrangement.Center
                 ) {
                     Text(
-                        text = stringResource(R.string.history_duration),
+                        text = dialogTitle(),
                         overflow = TextOverflow.Ellipsis,
                         maxLines = 1,
                         style = MaterialTheme.typography.headlineSmall,
@@ -327,16 +333,12 @@ fun SliderPreference(
                 showDialog = false
             },
             onReset = {
-                sliderValue = 30f // Default value or any reset value you prefer
+                sliderValue = resetValue
             },
             content = {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(
-                        text = pluralStringResource(
-                            R.plurals.seconds,
-                            sliderValue.roundToInt(),
-                            sliderValue.roundToInt()
-                        ),
+                        text = valueLabel(sliderValue),
                         style = MaterialTheme.typography.bodyLarge,
                     )
 
@@ -357,7 +359,7 @@ fun SliderPreference(
     PreferenceEntry(
         modifier = modifier,
         title = title,
-        description = value.roundToInt().toString(),
+        description = valueLabel(value),
         icon = icon,
         onClick = { showDialog = true },
         isEnabled = isEnabled,

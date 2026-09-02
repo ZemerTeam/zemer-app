@@ -1,6 +1,7 @@
 package com.jtech.zemer.lyrics.zemer
 
 import android.content.Context
+import com.jtech.zemer.lyrics.LabeledLyrics
 import com.jtech.zemer.lyrics.LyricsProvider
 import com.jtech.zemer.lyrics.model.LyricsUnavailableException
 
@@ -17,18 +18,19 @@ object ZemerLyricsProvider : LyricsProvider {
 
     override fun isEnabled(context: Context) = true
 
-    private val lastSource = java.util.concurrent.ConcurrentHashMap<String, String>()
-
-    /** Sub-source ("jkaraoke"/"jyrics"/"booklet") that answered the last getLyrics for [videoId], if any. */
-    fun sourceLabel(videoId: String): String? = lastSource[videoId]
-
-    /** Bodies in preference order for a resolved entry (fetchers injected for tests). */
+    /**
+     * Bodies in preference order for a resolved entry (fetchers injected for tests). With [firstOnly] the
+     * walk stops at the first source that yields a body, so the auto-fetch path does not download and
+     * parse every source when only the best one is shown.
+     */
     suspend fun bodies(
         resolved: ZemerLyricsClient.Resolved,
         fetch: suspend (String) -> String? = ZemerLyricsClient::fetchText,
+        firstOnly: Boolean = false,
     ): List<Pair<String, String>> {
         val out = ArrayList<Pair<String, String>>()
         for (s in resolved.sources.sortedBy { rank(it) }) {
+            if (firstOnly && out.isNotEmpty()) break
             val body = when (s.type) {
                 "jkaraoke" -> s.feedUrl?.let { fetch(it) }?.let { page -> s.songId?.let { id -> JkaraokeLrc.fromFeedPage(page, id)?.synced } }
                 "jyrics" -> s.url?.let { fetch(it) }?.let { JyricsParser.parse(it).plain.takeIf { p -> p.lines().count { l -> l.isNotBlank() } >= 4 } }
@@ -42,15 +44,24 @@ object ZemerLyricsProvider : LyricsProvider {
 
     private fun rank(s: ZemerLyricsClient.Source) = when (s.type) { "jkaraoke" -> 0; "jyrics" -> 1; "booklet" -> 2; "manual" -> 2; "canonical" -> 3; else -> 9 }
 
-    override suspend fun getLyrics(id: String, title: String, artist: String, duration: Int, album: String?): Result<String> = runCatching {
+    /** "Zemer · jkaraoke ✓": the sub-source matters for provenance; ✓ = the server cross-checked two sources. */
+    fun label(source: String, verified: Boolean): String = "$name · $source" + (if (verified) " ✓" else "")
+
+    override suspend fun getLyrics(id: String, title: String, artist: String, duration: Int, album: String?): Result<String> =
+        getLabeledLyrics(id, title, artist, duration, album).map { it.lyrics }
+
+    override suspend fun getLabeledLyrics(id: String, title: String, artist: String, duration: Int, album: String?): Result<LabeledLyrics> = runCatching {
         val resolved = ZemerLyricsClient.resolve(id) ?: throw LyricsUnavailableException
-        val best = bodies(resolved).firstOrNull() ?: throw LyricsUnavailableException
-        lastSource[id] = best.first + (if (resolved.verified) " ✓" else "")
-        best.second
+        val best = bodies(resolved, firstOnly = true).firstOrNull() ?: throw LyricsUnavailableException
+        LabeledLyrics(label(best.first, resolved.verified), best.second)
     }
 
     override suspend fun getAllLyrics(id: String, title: String, artist: String, duration: Int, album: String?, callback: (String) -> Unit) {
+        getAllLabeledLyrics(id, title, artist, duration, album) { callback(it.lyrics) }
+    }
+
+    override suspend fun getAllLabeledLyrics(id: String, title: String, artist: String, duration: Int, album: String?, callback: (LabeledLyrics) -> Unit) {
         val resolved = ZemerLyricsClient.resolve(id) ?: return
-        bodies(resolved).forEach { callback(it.second) }
+        bodies(resolved).forEach { callback(LabeledLyrics(label(it.first, resolved.verified), it.second)) }
     }
 }

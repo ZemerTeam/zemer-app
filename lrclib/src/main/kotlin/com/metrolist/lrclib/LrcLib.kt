@@ -144,10 +144,7 @@ object LrcLib {
         val cleanedArtist = cleanArtist(artist)
 
         val candidates = tracks.filter { identityMatches(it.trackName, it.artistName, title, artist, it.duration, duration) }
-        // A synced body is served only for the same recording (within 1 s); otherwise plain text.
-        val syncable = { t: Track -> t.syncedLyrics != null && (duration == -1 || abs(t.duration.toInt() - duration) <= 1) }
-        val res = (candidates.firstOrNull(syncable) ?: candidates.firstOrNull())
-            ?.let { if (syncable(it)) it.syncedLyrics else it.plainLyrics ?: it.syncedLyrics }?.let(LrcLib::Lyrics)
+        val res = pickBody(candidates, duration)?.let(LrcLib::Lyrics)
 
         if (res != null) {
             return@runCatching res.text
@@ -176,10 +173,25 @@ object LrcLib {
         sortedTracks.forEach { track ->
             currentCoroutineContext().ensureActive() // Corrected usage
             if (count <= 4) {
-                if (track.syncedLyrics != null && (duration == -1 || abs(track.duration.toInt() - duration) <= 1)) { count++; track.syncedLyrics.let(callback) }
+                if (syncable(track, duration)) { count++; track.syncedLyrics!!.let(callback) }
                 if (track.plainLyrics != null && plain == 0) { count++; plain++; track.plainLyrics.let(callback) }
             }
         }
+    }
+
+    /** A synced body is usable only for the same recording: non-blank and within 1 s of the player's duration. */
+    internal fun syncable(track: Track, duration: Int): Boolean =
+        !track.syncedLyrics.isNullOrBlank() && (duration == -1 || abs(track.duration.toInt() - duration) <= 1)
+
+    /**
+     * The body to serve from identity-gated [candidates]: the first syncable track's synced lyrics, else the
+     * first candidate's plain text. A candidate inside the 3 s identity gate but outside the 1 s sync gate
+     * NEVER yields its synced lyrics, even when it has no plain text: a drifting sync is worse than nothing.
+     */
+    internal fun pickBody(candidates: List<Track>, duration: Int): String? {
+        val synced = candidates.firstOrNull { syncable(it, duration) }
+        if (synced != null) return synced.syncedLyrics
+        return candidates.firstNotNullOfOrNull { it.plainLyrics?.takeIf { p -> p.isNotBlank() } }
     }
 
     /**

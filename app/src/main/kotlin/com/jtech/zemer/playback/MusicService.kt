@@ -118,6 +118,7 @@ import com.jtech.zemer.di.PlayerCache
 import com.jtech.zemer.extensions.SilentHandler
 import com.jtech.zemer.extensions.collect
 import com.jtech.zemer.extensions.collectLatest
+import com.jtech.zemer.extensions.repeatModeContentDescriptionRes
 import com.jtech.zemer.extensions.cookieHasSession
 import com.jtech.zemer.extensions.currentMetadata
 import com.jtech.zemer.extensions.findNextMediaItemById
@@ -699,8 +700,9 @@ class MusicService :
                 if (remotePlaying) startWidgetTicker() else updateWidget()
             }
 
-        // One-time, data-only cleanup (no schema change): drop cached lyrics that were stored before provider
-        // tracking or by LrcLib's old duration-only match, so they are re-fetched through the gated chain.
+        // One-time, data-only cleanup (no schema change): drop cached rows that are known to be untrustworthy
+        // (LrcLib's old duration-only match) or worthless (legacy not-found), so they go through the gated
+        // chain once. Legacy rows with a body are kept: they may be manual entries (see LyricsEntity.resolved).
         scope.launch {
             if (dataStore.data.first()[LyricsCachePurgeDoneKey] != true) {
                 database.query { purgeUntrustedLyrics() }
@@ -715,20 +717,16 @@ class MusicService :
             mediaMetadata to showLyrics
         }.collectLatest(scope) { (mediaMetadata, showLyrics) ->
             // Podcast episodes have no lyrics (the player hides the lyrics affordance for them) —
-            // skip the provider fetch instead of storing a junk LyricsEntity per episode.
-            // Fetch when nothing is cached, or when the cached row predates provider tracking (provider ==
-            // null): those rows came from the old chain and are re-resolved once so provenance is known.
-            val cachedLyrics = if (mediaMetadata != null) database.lyrics(mediaMetadata.id).first() else null
-            if (showLyrics && mediaMetadata != null && !mediaMetadata.isEpisode && (cachedLyrics == null || cachedLyrics.provider == null)) {
-                val fetched = lyricsHelper.getLyrics(mediaMetadata)
-                database.query {
-                    upsert(
-                        LyricsEntity(
-                            id = mediaMetadata.id,
-                            lyrics = fetched.lyrics,
-                            provider = fetched.provider,
-                        ),
-                    )
+            // skip the provider fetch instead of storing a junk LyricsEntity per episode. The cache is
+            // consulted only past the guard, so a hidden pane costs no Room query per song change.
+            if (showLyrics && mediaMetadata != null && !mediaMetadata.isEpisode) {
+                val cachedLyrics = database.lyrics(mediaMetadata.id).first()
+                // See LyricsEntity.needsFetch: nothing cached, or a legacy row re-resolved once for provenance.
+                if (LyricsEntity.needsFetch(cachedLyrics)) {
+                    val fetched = lyricsHelper.getLyrics(mediaMetadata)
+                    database.query {
+                        upsert(LyricsEntity.resolved(mediaMetadata.id, cachedLyrics, fetched.lyrics, fetched.provider))
+                    }
                 }
             }
         }
@@ -1062,12 +1060,7 @@ class MusicService :
                     .Builder()
                     .setDisplayName(
                         getString(
-                            when (player.repeatMode) {
-                                REPEAT_MODE_OFF -> R.string.repeat_mode_off
-                                REPEAT_MODE_ONE -> R.string.repeat_mode_one
-                                REPEAT_MODE_ALL -> R.string.repeat_mode_all
-                                else -> throw IllegalStateException()
-                            },
+                            repeatModeContentDescriptionRes(player.repeatMode),
                         ),
                     ).setIconResId(repeatModeIconRes(player.repeatMode))
                     .setSessionCommand(CommandToggleRepeatMode)

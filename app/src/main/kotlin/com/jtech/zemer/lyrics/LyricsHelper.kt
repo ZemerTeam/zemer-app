@@ -43,7 +43,9 @@ constructor(
     suspend fun getLyrics(mediaMetadata: MediaMetadata): Fetched {
         currentLyricsJob?.cancel()
 
-        val videoId = mediaMetadata.setVideoId ?: mediaMetadata.id
+        // The resolver and SimpMusic are keyed by the YouTube videoId. setVideoId is the playlist-entry
+        // token of the queue item, not a video identifier, so it must never be used as the key.
+        val videoId = mediaMetadata.id
 
         val cached = cache.get(mediaMetadata.id)?.firstOrNull()
         if (cached != null) {
@@ -69,15 +71,15 @@ constructor(
             for (provider in lyricsProviders) {
                 if (provider.isEnabled(context)) {
                     try {
-                        val result = provider.getLyrics(
+                        val result = provider.getLabeledLyrics(
                             videoId,
                             mediaMetadata.title,
                             mediaMetadata.artists.joinToString { it.name },
                             mediaMetadata.duration,
                             mediaMetadata.album?.title,
                         )
-                        result.onSuccess { lyrics ->
-                            return@async Fetched(lyrics, providerLabel(provider, videoId))
+                        result.onSuccess { labeled ->
+                            return@async Fetched(labeled.lyrics, labeled.label)
                         }.onFailure {
                             // Don't return LYRICS_NOT_FOUND here - continue to next provider
                             // Only report non-lyrics exceptions
@@ -138,8 +140,8 @@ constructor(
             lyricsProviders.forEach { provider ->
                 if (provider.isEnabled(context)) {
                     try {
-                        provider.getAllLyrics(mediaId, songTitle, songArtists, duration, album) { lyrics ->
-                            val result = LyricsResult(provider.name, lyrics)
+                        provider.getAllLabeledLyrics(mediaId, songTitle, songArtists, duration, album) { labeled ->
+                            val result = LyricsResult(labeled.label, lyrics = labeled.lyrics)
                             allResult += result
                             callback(result)
                         }
@@ -154,10 +156,6 @@ constructor(
 
         currentLyricsJob?.join()
     }
-
-    /** "Zemer · jkaraoke" for the resolver (its sub-source matters for provenance), else the provider name. */
-    private fun providerLabel(provider: LyricsProvider, videoId: String): String =
-        if (provider === ZemerLyricsProvider) ZemerLyricsProvider.sourceLabel(videoId)?.let { "Zemer · $it" } ?: "Zemer" else provider.name
 
     companion object {
         private const val MAX_CACHE_SIZE = 3

@@ -27,13 +27,14 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import com.jtech.zemer.R
+import com.jtech.zemer.db.entities.LyricsEntity
 import com.jtech.zemer.models.MediaMetadata
 
 /** "Lyrics from <provider> · synced" — provenance is part of the UI, not hidden. */
 @Composable
 fun LyricsSourceHeader(provider: String?, synced: Boolean, color: Color, modifier: Modifier = Modifier) {
     Text(
-        text = stringResource(R.string.lyrics_from, provider ?: stringResource(R.string.unknown)) + " · " +
+        text = stringResource(R.string.lyrics_from, provider?.takeUnless { it == LyricsEntity.PROVIDER_LEGACY } ?: stringResource(R.string.unknown)) + " · " +
             stringResource(if (synced) R.string.lyrics_synced else R.string.lyrics_plain),
         style = MaterialTheme.typography.labelMedium,
         color = color.copy(alpha = 0.6f),
