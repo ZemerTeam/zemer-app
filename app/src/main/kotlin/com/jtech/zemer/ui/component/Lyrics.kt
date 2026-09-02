@@ -125,6 +125,9 @@ import kotlin.time.Duration.Companion.seconds
 /** Fraction of the pane height at which the active synced line is held. */
 private const val ACTIVE_LINE_ANCHOR = 0.3f
 
+/** Height of the fade at the top of the list; the list's top padding matches it so line 1 is never faded. */
+private val LYRICS_TOP_FADE = 24.dp
+
 @RequiresApi(Build.VERSION_CODES.M)
 @OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
 @SuppressLint("UnusedBoxWithConstraintsScope", "StringFormatInvalid", "ObsoleteSdkInt",
@@ -414,9 +417,10 @@ fun Lyrics(
             // line can be held at ACTIVE_LINE_ANCHOR once there is content above it to scroll away. The host
             // (LyricsScreen) already pads the system bars around the whole column, so no inset is added here:
             // adding it again opened a status-bar-sized gap between the source header and the first line.
-            contentPadding = PaddingValues(top = 8.dp, bottom = if (isSynced) maxHeight / 2 else 24.dp),
+            // The top padding clears the top fade (LYRICS_TOP_FADE) so the first line is read at full strength.
+            contentPadding = PaddingValues(top = LYRICS_TOP_FADE, bottom = if (isSynced) maxHeight / 2 else 24.dp),
             modifier = Modifier
-                .fadingEdge(vertical = 64.dp)
+                .fadingEdge(top = LYRICS_TOP_FADE, bottom = 64.dp)
                 .nestedScroll(remember {
                     object : NestedScrollConnection {
                         override fun onPostScroll(
