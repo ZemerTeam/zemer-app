@@ -160,7 +160,18 @@ export async function createSabrContext() {
  * "bot-gated" | "skipped-login" | "error". Definitive failures: partial, sabr-error, no-sabr,
  * no-format, not-ok, http-error. Inconclusive: bot-gated, skipped-login, error.
  */
-export async function drainClientSabr(ctx, c, { videoId, videoPot }) {
+export async function drainClientSabr(ctx, c, video, { transportRetries = 2 } = {}) {
+  // A transport error mid-session (a tunnel termination, a reset) says nothing about the client:
+  // redo the whole SABR drain a couple of times before reporting it as inconclusive.
+  let r = await drainClientSabrOnce(ctx, c, video);
+  for (let i = 0; i < transportRetries && r.kind === "error"; i++) {
+    await new Promise((res) => setTimeout(res, 3000 * (i + 1)));
+    r = await drainClientSabrOnce(ctx, c, video);
+  }
+  return r;
+}
+
+async function drainClientSabrOnce(ctx, c, { videoId, videoPot }) {
   const row = { key: c.key, video: videoId, transport: "sabr", http: null, status: "-", itag: null, segs: null, endSeg: null, kind: "error", reason: "" };
   if (c.auth && !ctx.hasCookie) return { ...row, kind: "skipped-login", reason: "login required, no cookie" };
   try {
