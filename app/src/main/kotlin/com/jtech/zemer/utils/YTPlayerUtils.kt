@@ -7,20 +7,14 @@ import com.jtech.zemer.constants.AudioQuality
 import com.jtech.zemer.playback.VideoDecoderCaps
 import com.jtech.zemer.playback.VideoQualityLogic
 import com.jtech.zemer.playback.VideoQualityRung
-import com.jtech.zemer.constants.StreamSourceTVHTML5Key
-import com.jtech.zemer.constants.StreamSourceWebRemixKey
-import kotlinx.coroutines.flow.first
-
 import timber.log.Timber
 import com.metrolist.innertube.YouTube
 import com.zemer.cipher.CipherDeobfuscator
+import com.zemer.cipher.StreamClientStore
 import com.zemer.cipher.potoken.PoTokenGenerator
 import com.zemer.cipher.potoken.PoTokenResult
+import com.metrolist.innertube.models.StreamProtocol
 import com.metrolist.innertube.models.YouTubeClient
-import com.metrolist.innertube.models.YouTubeClient.Companion.VISIONOS
-import com.metrolist.innertube.models.YouTubeClient.Companion.VISIONOS_0_1
-import com.metrolist.innertube.models.YouTubeClient.Companion.TVHTML5_SIMPLY
-import com.metrolist.innertube.models.YouTubeClient.Companion.WEB_CREATOR
 import com.metrolist.innertube.models.YouTubeClient.Companion.WEB_REMIX
 import com.metrolist.innertube.models.response.PlayerResponse
 import com.metrolist.innertube.utils.ResilientDns
@@ -43,23 +37,24 @@ object YTPlayerUtils {
 
     private val poTokenGenerator = PoTokenGenerator()
 
-    // Track videoIds where WEB_REMIX stream URLs 403 on ExoPlayer GET, so the next
-    // resolution falls through to TVHTML5/VISIONOS instead of looping.
-    private val webRemixFailedIds = java.util.Collections.newSetFromMap(
+    // Track videoIds where the MAIN client's stream URLs (whose HEAD validation is skipped —
+    // see skipHeadValidation) 403 on ExoPlayer GET, so the next resolution falls through to the
+    // fallback clients instead of looping.
+    private val mainClientFailedIds = java.util.Collections.newSetFromMap(
         java.util.concurrent.ConcurrentHashMap<String, Boolean>()
     )
 
-    fun markWebRemixFailed(videoId: String) {
-        webRemixFailedIds.add(videoId)
+    fun markMainClientFailed(videoId: String) {
+        mainClientFailedIds.add(videoId)
     }
 
     /**
      * Cleared when the cipher recovers (player config refreshed after a stream rejection): the
-     * prior WEB_REMIX failures were caused by the stale cipher, so let resolution try WEB_REMIX
-     * again instead of staying pinned to a lower fallback client for the rest of the process.
+     * prior main-client failures were caused by the stale cipher, so let resolution try the main
+     * client again instead of staying pinned to a lower fallback client for the rest of the process.
      */
-    fun clearWebRemixFailures() {
-        webRemixFailedIds.clear()
+    fun clearMainClientFailures() {
+        mainClientFailedIds.clear()
     }
 
     // Fire-and-forget scope for the cipher config self-heal triggered when a cipher client fails
@@ -70,30 +65,41 @@ object YTPlayerUtils {
     // refresh never blocks falling through to the next client.
     private val cipherRefreshScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
-    /** Client names disabled by the user in Settings → Stream sources. Updated by MusicService. */
-    var disabledStreamClients: Set<String> = emptySet()
+    /** Family ids disabled by the user in Settings → Stream sources. Updated by MusicService. */
+    var disabledStreamFamilies: Set<String> = emptySet()
 
-    private val MAIN_CLIENT: YouTubeClient = WEB_REMIX
+    // One in-flight table refresh at a time. The store is single-flight on its own mutex, but
+    // without this every failing resolution would QUEUE another coroutine behind it — and on a
+    // filtered network (where the config host is unreachable and each attempt runs to its connect
+    // timeout) those pile up faster than they drain.
+    private val tableRefreshInFlight = java.util.concurrent.atomic.AtomicBoolean(false)
 
-    private val ALL_FALLBACK_CLIENTS: Array<YouTubeClient> = arrayOf(
-        // VISIONOS first: its CDN URL has no `spc` gate, so it streams the whole song with no
-        // poToken and no cipher (HEAD 200) — the most reliable fallback, ahead of the
-        // TVHTML5 client. (The proven-dead clients were removed: the ANDROID_VR family (incl. the
-        // last-living 1.65.10) 403s after 0 bytes on a whole-song drain; the pre-1.65 VR
-        // variants were also version-bot-gated; MOBILE 400s authenticated / SABR-only anonymous; WEB,
-        // IOS and IPADOS are SABR-only or 403-wall past the 1 MiB free window.)
-        VISIONOS,
-        // The previous visionOS config as its second chance behind the current 1.02.
-        VISIONOS_0_1,
-        WEB_CREATOR,
-        // The one TV cipher client, governed by the "TVHTML5" stream-source toggle (7.x TVHTML5 and
-        // tv_downgraded were both removed as proven dead: 7.x is SABR-only, tv_downgraded 403-walls
-        // even yt-dlp-master-exact — re-add from clients-retired.mjs only if YouTube reverts them).
-        TVHTML5_SIMPLY,
-    )
-
-    private val STREAM_FALLBACK_CLIENTS: Array<YouTubeClient>
-        get() = ALL_FALLBACK_CLIENTS.filter { it.clientName !in disabledStreamClients }.toTypedArray()
+    /**
+     * Every client failed to produce a usable STREAM for this resolution — the shape a
+     * YouTube-side client kill takes. Ask the remote stream-client table to refresh (cooldown-
+     * gated, single-flight, off this coroutine): if a corrected table was pushed, the NEXT
+     * resolution snapshots it and recovers mid-session with no APK. Fire-and-forget — the failure
+     * still surfaces to the caller.
+     *
+     * Deliberately NOT called for per-VIDEO failures, which are not a client-kill signal and which
+     * every client legitimately reports: a playability rejection (removed / region-blocked /
+     * age-gated) and an explicit-itag quality switch finding no client carrying that rung. Firing
+     * there would spam the config host on ordinary unavailable videos.
+     */
+    private fun onAllClientsFailed() {
+        if (!tableRefreshInFlight.compareAndSet(false, true)) return
+        cipherRefreshScope.launch {
+            try {
+                runCatching {
+                    if (StreamClientStore.refreshAfterResolutionFailure()) {
+                        Timber.tag(TAG).i("Stream-client table changed after total resolution failure")
+                    }
+                }
+            } finally {
+                tableRefreshInFlight.set(false)
+            }
+        }
+    }
 
     // A stable video id used only to warm the local BotGuard token generator; the token is
     // discarded. PoToken generation is a local WebView computation (no YouTube /player call), so
@@ -119,7 +125,7 @@ object YTPlayerUtils {
      */
     suspend fun prewarmPoToken() {
         val sessionId = YouTube.visitorData
-        if (MAIN_CLIENT.useWebPoTokens && sessionId != null) {
+        if (StreamClientTable.current().main.client.useWebPoTokens && sessionId != null) {
             runCatching {
                 withContext(Dispatchers.IO) {
                     poTokenGenerator.getWebClientPoToken(POTOKEN_WARMUP_VIDEO_ID, sessionId)
@@ -190,13 +196,13 @@ object YTPlayerUtils {
         videoItag: Int? = null,
         videoQualityTarget: String? = null,
     ): Result<PlaybackData> = runCatching {
-        val mainClient = if (MAIN_CLIENT.clientName in disabledStreamClients) {
-            STREAM_FALLBACK_CLIENTS.firstOrNull()
-                ?: throw PlaybackException("All stream sources are disabled", null, PlaybackException.ERROR_CODE_REMOTE_ERROR)
-        } else {
-            MAIN_CLIENT
-        }
-        val fallbackClients = STREAM_FALLBACK_CLIENTS.filter { it.clientName != mainClient.clientName }.toTypedArray()
+        // ONE table snapshot per resolution (remote/bundled via StreamClientStore, compiled floor
+        // otherwise) — a remote refresh landing mid-resolution must not switch tables under the loop.
+        val table = StreamClientTable.current()
+        val chain = StreamClientChain.resolve(table.main, table.fallbacks, disabledStreamFamilies)
+            ?: throw PlaybackException("All stream sources are disabled", null, PlaybackException.ERROR_CODE_REMOTE_ERROR)
+        val mainClient = chain.main
+        val fallbackClients = chain.fallbacks
 
         Timber.tag(TAG).d( "=== Stream resolution START for videoId=$videoId ===")
         Timber.tag(TAG).d( "Main client: ${mainClient.clientName}, audioQuality=$audioQuality, preferVideo=$preferVideo")
@@ -253,6 +259,12 @@ object YTPlayerUtils {
         var streamPlayerResponse: PlayerResponse? = null
         var successClient: String? = null
         var successClientObj: YouTubeClient? = null
+        // Whether ANY OK response carried a format the progressive path can consume (a direct url
+        // or a signatureCipher). Distinguishes "no format matched THIS request" (audio-only upload
+        // asked for video, quality mismatch — a per-video outcome) from the SABR-only client-kill
+        // shape (every client OK, but nothing but serverAbrStreamingUrl), which is the one
+        // format==null case that is a stream-client-table signal.
+        var sawConsumableFormat = false
 
         for (clientIndex in (-1 until fallbackClients.size)) {
             // reset for each client
@@ -304,6 +316,7 @@ object YTPlayerUtils {
                 // carry playable URLs; web clients are deciphered per-format by the Zemer
                 // cipher in findUrlOrNull (sig) + transformNParamInUrl (n) below.
                 val responseToUse = streamPlayerResponse
+                if (hasConsumableFormats(responseToUse.streamingData)) sawConsumableFormat = true
 
                 // An EXPLICIT quality-rung streaming resolution (videoItag) must come from a WEB client
                 // only: a non-web fallback (VISIONOS) can carry the itag, but its pot-bound URL
@@ -376,15 +389,15 @@ object YTPlayerUtils {
                     break
                 }
 
-                // WEB_REMIX authenticated CDN URLs 403 on HEAD but serve correctly
-                // on the actual byte-range GET that ExoPlayer makes. Skip HEAD validation
-                // for streaming UNLESS this videoId already failed on GET (tracked in
-                // webRemixFailedIds), in which case fall through to TVHTML5/VISIONOS.
-                // For downloads, always fall through — WEB_REMIX signed URLs don't support
-                // the &range= query-param download pattern.
-                if (client.clientName == "WEB_REMIX" && clientIndex == -1
-                    && !forDownload && !webRemixFailedIds.contains(videoId)) {
-                    Timber.tag(TAG).d("WEB_REMIX — skipping HEAD validation, letting ExoPlayer try directly")
+                // A skipHeadValidation client's (WEB_REMIX's) authenticated CDN URLs 403 on HEAD
+                // but serve correctly on the actual byte-range GET that ExoPlayer makes. Skip HEAD
+                // validation for streaming in the MAIN slot UNLESS this videoId already failed on
+                // GET (tracked in mainClientFailedIds), in which case fall through to the fallback
+                // clients. For downloads, always fall through — the signed URLs don't support the
+                // &range= query-param download pattern.
+                if (client.skipHeadValidation && clientIndex == -1
+                    && !forDownload && !mainClientFailedIds.contains(videoId)) {
+                    Timber.tag(TAG).d("${client.clientName} — skipping HEAD validation, letting ExoPlayer try directly")
                     successClient = client.clientName
                     successClientObj = client
                     break
@@ -406,7 +419,7 @@ object YTPlayerUtils {
                     // app restart. This is what covers WEB_CREATOR/TVHTML5/WEB-only users.
                     if (needsNTransform) {
                         cipherRefreshScope.launch {
-                            if (CipherDeobfuscator.onStreamRejected()) clearWebRemixFailures()
+                            if (CipherDeobfuscator.onStreamRejected()) clearMainClientFailures()
                         }
                     }
                 }
@@ -417,6 +430,7 @@ object YTPlayerUtils {
 
         if (streamPlayerResponse == null) {
             Timber.tag(TAG).e( "All clients failed for $videoId")
+            onAllClientsFailed()
             throw PlaybackException(
                 "All clients failed for $videoId",
                 null,
@@ -426,6 +440,8 @@ object YTPlayerUtils {
 
         if (streamPlayerResponse.playabilityStatus.status != "OK") {
             val errorReason = streamPlayerResponse.playabilityStatus.reason
+            // Per-VIDEO rejection (removed / region-blocked / age-gated), not a client kill — no
+            // table refresh.
             Timber.tag(TAG).e( "Playability not OK: $errorReason")
             throw PlaybackException(
                 errorReason,
@@ -436,6 +452,12 @@ object YTPlayerUtils {
 
         if (format == null) {
             Timber.tag(TAG).e( "No playable format found for $videoId")
+            // Only the SABR-only client-kill shape is a table signal: every client answered OK
+            // but none served a single consumable format. A response that DID carry consumable
+            // formats which merely did not match this request (audio-only upload with
+            // preferVideo, an explicit quality rung no client carries) is a per-video outcome —
+            // firing there would spam the config host on ordinary videos.
+            if (videoItag == null && !sawConsumableFormat) onAllClientsFailed()
             throw PlaybackException(
                 "No playable format found",
                 null,
@@ -444,6 +466,8 @@ object YTPlayerUtils {
         }
 
         if (streamUrl == null) {
+            // Deciphering/URL resolution failed, which is the CIPHER's domain (it runs its own
+            // config self-heal via onStreamRejected) — not a stream-client-table signal.
             Timber.tag(TAG).e( "No stream URL found for $videoId")
             throw PlaybackException(
                 "No stream URL found",
@@ -555,8 +579,19 @@ object YTPlayerUtils {
         return YouTube.player(videoId, playlistId, client = WEB_REMIX) // non-web fallbacks do not work with history
     }
 
+    /**
+     * True when [streamingData] offers at least one format the progressive path can consume — a
+     * direct `url` or a `signatureCipher` — in either the muxed or the adaptive list. A response
+     * with formats but none of these is SABR-only (media only behind serverAbrStreamingUrl).
+     */
+    internal fun hasConsumableFormats(streamingData: PlayerResponse.StreamingData?): Boolean {
+        if (streamingData == null) return false
+        val all = streamingData.formats.orEmpty() + streamingData.adaptiveFormats
+        return all.any { it.url != null || it.signatureCipher != null }
+    }
+
     private fun clientNeedsNTransform(client: YouTubeClient): Boolean =
-        client.useWebPoTokens || client.clientName in listOf("WEB", "WEB_REMIX", "WEB_CREATOR", "TVHTML5")
+        client.protocol == StreamProtocol.WEB_CIPHER_POT
 
     /**
      * The shared web-client URL finalization (n-transform first, then `pot=`) — one implementation

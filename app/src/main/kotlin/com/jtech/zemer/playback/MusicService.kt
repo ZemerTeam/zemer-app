@@ -82,9 +82,6 @@ import com.jtech.zemer.constants.AudioNormalizationKey
 import com.jtech.zemer.constants.PlaybackMode
 import com.jtech.zemer.constants.PlaybackModeKey
 import com.jtech.zemer.constants.StreamSabrKey
-import com.jtech.zemer.constants.StreamSabrWebRemixKey
-import com.jtech.zemer.constants.StreamSabrVisionOSKey
-import com.jtech.zemer.constants.StreamSabrTVHTML5Key
 import com.jtech.zemer.playback.relay.RelayDataSourceFactory
 import com.jtech.zemer.playback.relay.RelayDeviceId
 import com.jtech.zemer.constants.AudioOffload
@@ -639,15 +636,14 @@ class MusicService :
             }
         }
 
-        // Keep YTPlayerUtils in sync with the stream source toggles
+        // Keep YTPlayerUtils in sync with the per-family stream source toggles. The one-time
+        // legacy-key migration (DIRECT and SABR keys) runs first so a pre-family install's choices
+        // carry over before the first collect emission publishes the disabled set.
         scope.launch {
+            com.jtech.zemer.utils.StreamSourcePrefs.migrateLegacyToggles(dataStore)
             dataStore.data.collect { prefs ->
-                val disabled = mutableSetOf<String>()
-                if (prefs[com.jtech.zemer.constants.StreamSourceWebRemixKey] == false) disabled += "WEB_REMIX"
-                if (prefs[com.jtech.zemer.constants.StreamSourceTVHTML5Key]   == false) disabled += setOf("TVHTML5", "TVHTML5_SIMPLY")
-                if (prefs[com.jtech.zemer.constants.StreamSourceVisionOSKey]  == false) disabled += "VISIONOS"
-                if (prefs[com.jtech.zemer.constants.StreamSourceWebCreatorKey] == false) disabled += "WEB_CREATOR"
-                YTPlayerUtils.disabledStreamClients = disabled
+                YTPlayerUtils.disabledStreamFamilies =
+                    com.jtech.zemer.utils.StreamSourcePrefs.disabledFamilies(prefs)
             }
         }
 
@@ -1989,20 +1985,20 @@ class MusicService :
     private fun handleExpiredUrlError() {
         val mediaId = player.currentMediaItem?.mediaId
         if (mediaId != null) {
-            // If this was a WEB_REMIX stream that 403d on GET, mark it so the next
-            // resolution skips WEB_REMIX and falls through to the fallback-client chain.
-            YTPlayerUtils.markWebRemixFailed(mediaId)
+            // If this was a main-client (WEB_REMIX) stream that 403d on GET, mark it so the next
+            // resolution skips the main client and falls through to the fallback chain.
+            YTPlayerUtils.markMainClientFailed(mediaId)
             // Clear the cached URL so it will be refreshed on next request
             DownloadUtil.invalidateUrl(mediaId)
-            Timber.d("Cleared cached URL for $mediaId, marked WEB_REMIX as failed")
+            Timber.d("Cleared cached URL for $mediaId, marked main client as failed")
             // A 403 can also mean the cipher produced a wrong-but-non-throwing signature from a
             // stale/wrong player config. Ask the cipher to re-fetch its config (rate-limited); if
             // that corrects the table, the cipher rebuilds its WebView on the next decipher, so we
-            // clear the WEB_REMIX failure set to let playback return to WEB_REMIX — no app restart.
+            // clear the failure set to let playback return to the main client — no app restart.
             scope.launch {
                 if (CipherDeobfuscator.onStreamRejected()) {
-                    Timber.d("Player config changed after stream rejection — restoring WEB_REMIX")
-                    YTPlayerUtils.clearWebRemixFailures()
+                    Timber.d("Player config changed after stream rejection — restoring main client")
+                    YTPlayerUtils.clearMainClientFailures()
                 }
             }
         }
@@ -2394,11 +2390,16 @@ class MusicService :
     fun sabrCpnFor(videoId: String): String =
         watchTimeReporter.mediaCpnFor(VideoRendition.baseVideoId(videoId))
 
-    /** The enabled SABR clients from settings (read off the main thread, e.g. a resolver coroutine). */
-    fun sabrEnabledClients(): Set<String> = buildSet {
-        if (dataStore.get(StreamSabrWebRemixKey, true)) add(com.jtech.zemer.playback.sabr.SabrPlayerResolver.KEY_WEB_REMIX)
-        if (dataStore.get(StreamSabrVisionOSKey, true)) add(com.jtech.zemer.playback.sabr.SabrPlayerResolver.KEY_VISIONOS)
-        if (dataStore.get(StreamSabrTVHTML5Key, true)) add(com.jtech.zemer.playback.sabr.SabrPlayerResolver.KEY_TVHTML5_SIMPLY)
+    /**
+     * The enabled SABR client FAMILIES from settings: the current table's SABR roster minus the
+     * per-family off switches (read off the main thread, e.g. a resolver coroutine — the blocking
+     * DataStore snapshot is the same one the legacy per-key reads made).
+     */
+    fun sabrEnabledClients(): Set<String> {
+        val prefs = kotlinx.coroutines.runBlocking(kotlinx.coroutines.Dispatchers.IO) { dataStore.data.first() }
+        return com.jtech.zemer.utils.StreamSourcePrefs.enabledSabrFamilies(
+            prefs, com.jtech.zemer.utils.StreamClientTable.current(),
+        )
     }
 
     // The last-resolved audio itag per `videoaudio:<id>` merge key, and the last-resolved video itag

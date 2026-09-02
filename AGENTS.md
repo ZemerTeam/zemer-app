@@ -38,13 +38,94 @@ Zemer is a "Kosher" YouTube Music client for Android (Kotlin, Jetpack Compose, M
 ### The streaming pipeline (the core; where things break)
 
 `app/.../utils/YTPlayerUtils.kt` `playerResponseForPlayback()` is the heart of the app. It:
-1. Tries `WEB_REMIX` (main client), then the `STREAM_FALLBACK_CLIENTS` list - exactly `VISIONOS (1.02)` → `VISIONOS_0_1` (the old config as its second chance) → `WEB_CREATOR` → `TVHTML5_SIMPLY` - enable-state settable per client family in the Stream Sources setting (whose displayed order the array must keep matching). The 2026-08-15 validation pass (whole-song drains via `tests/client-fulldownload.mjs`, yt-dlp-master-exact configs, on-device confirmation) **removed every proven-dead client**: the ANDROID_VR family - the pre-1.65 variants (version-keyed “confirm you’re not a bot” gate) then, 2026-08-25, the last-living 1.65.10 eureka build itself (resolves a URL but 403s after 0 bytes on a whole-song drain), MOBILE/ANDROID (HTTP 400 with auth, SABR-only without), WEB-as-stream-fallback (SABR-only; the def stays for InnerTube next/transcript), IOS/IPADOS (403 past the 1-MiB wall), ANDROID_CREATOR, TVHTML5_SIMPLY_EMBEDDED_PLAYER (server-killed), and the 7.x TVHTML5 itself (SABR-only; the "TVHTML5" toggle now governs TVHTML5_SIMPLY). Retired configs + verdicts live in `tests/clients-retired.mjs`. `MWEB` was REMOVED (2026-09) from both the DIRECT chain and the SABR roster: it is attestation-walled on gated content on BOTH transports (progressive 403 at the 1-MiB wall; SABR STREAM_PROTECTION_STATUS=2 after a ~28% free window) and only ever served ungated videos the other clients already cover. See `tests/MWEB-INVESTIGATION.md`.
+1. Tries the MAIN client (`WEB_REMIX`), then the fallback chain - currently `VISIONOS (1.02)` → `VISIONOS_0_1` (the old config as its second chance) → `WEB_CREATOR` → `TVHTML5_SIMPLY`. **The chain is REMOTE data, not code** (see §Remote stream-client config below): `YTPlayerUtils` snapshots `StreamClientTable.current()` once per resolution - the zemer-cipher `stream_clients.json` table (entry 0 = main, rest = fallbacks in order), with the compiled `YouTubeClient` constants only as the floor when neither the bundled asset nor a cached remote copy loads. Enable-state is per client FAMILY in the Stream Sources setting, whose rows/order now derive from the same table (`StreamSourceUiModel`), so the displayed order matches the chain structurally. The 2026-08-15 validation pass (whole-song drains via `tests/client-fulldownload.mjs`, yt-dlp-master-exact configs, on-device confirmation) **removed every proven-dead client**: the ANDROID_VR family - the pre-1.65 variants (version-keyed “confirm you’re not a bot” gate) then, 2026-08-25, the last-living 1.65.10 eureka build itself (resolves a URL but 403s after 0 bytes on a whole-song drain), MOBILE/ANDROID (HTTP 400 with auth, SABR-only without), WEB-as-stream-fallback (SABR-only; the def stays for InnerTube next/transcript), IOS/IPADOS (403 past the 1-MiB wall), ANDROID_CREATOR, TVHTML5_SIMPLY_EMBEDDED_PLAYER (server-killed), and the 7.x TVHTML5 itself (SABR-only; the "TVHTML5" toggle now governs TVHTML5_SIMPLY). Retired configs + verdicts live in `tests/clients-retired.mjs`. `MWEB` was REMOVED (2026-09) from both the DIRECT chain and the SABR roster: it is attestation-walled on gated content on BOTH transports (progressive 403 at the 1-MiB wall; SABR STREAM_PROTECTION_STATUS=2 after a ~28% free window) and only ever served ungated videos the other clients already cover. See `tests/MWEB-INVESTIGATION.md`. A dead client is removed from the TABLE (cipher `stream_clients.json` + the compiled floor in `StreamClientTable`), not from a Kotlin array.
 2. For web clients, deciphers the `signatureCipher` (sig + n-transform) via the **`cipher` submodule**, then appends a BotGuard `pot=` token.
 3. Validates, then hands the URL to ExoPlayer in `MusicService`.
 
 Two hard-won facts that govern this area - always verify against the live CDN via `tests/`, never reason from convention (the convention was wrong here):
 - **googlevideo serves the first 1 MiB of a stream free, then 403s every new connection** unless the URL's `&pot=` is bound to the **videoId** (not visitorData). Clients whose attestation the web poToken can't satisfy (IOS/IPADOS and MWEB - all three since removed for this reason) 403 past the wall under every binding.
 - **`validateStatus` does a HEAD that false-negatives** (403 on URLs that GET fine), so WEB_REMIX intentionally skips it.
+
+### Remote stream-client config (`stream_clients.json` - clients are data, pushed like cipher configs)
+
+The stream-client chain rides the SAME remote-config model as the player cipher table: one JSON
+file in the zemer-cipher repo, bundled in the APK as the offline default and fetched from raw
+`master` at runtime, so a YouTube-side client kill/rotation is fixed fleet-wide with a push - no
+APK. Full design + failure-mode matrix: `remote-stream-clients-plan.md`. The rules that must not
+regress:
+
+- **DATA not CODE (the load-bearing safety rule).** The file may add/remove/reorder clients, change
+  versions/UAs/device fields/flags, and PICK a `protocol` from the closed compiled-in enum
+  (`web_cipher_pot` = cipher sig + n-transform + pot; `direct` = URL used AS-IS). It can NEVER
+  carry request logic, headers, endpoints, or anything evaluated as code - the API origin stays
+  hardcoded, auth is attached by compiled code, and every field is regex/printable-ASCII locked
+  (no CR/LF = no header injection). A genuinely NEW protocol (SABR, new attestation) is a code
+  change + APK; unknown protocol slugs are SKIPPED so future files coexist with old apps.
+- **The pieces:** cipher-lib `StreamClientParser` (pure JVM validation) + `StreamClientStore`
+  (bundled floor, 6h TTL + ETag, cooldowns, epoch) - initialized inside `ZemerCipher.initialize`;
+  app-side `StreamClientTable` (def→`YouTubeClient` mapping + the compiled floor-below-the-floor)
+  and `StreamClientChain` (pure family-disable/main-promotion, JVM-tested). `YouTubeClient`'s
+  `useSignatureTimestamp`/`useWebPoTokens` are DERIVED from its `protocol` - one source of truth;
+  `skipHeadValidation` (a WEB_REMIX CDN quirk) is its own flag, honored only in the main slot.
+- **Wholesale REPLACE, never merge** (deliberate divergence from `PlayerConfigStore`): removal and
+  reordering are primary use cases; a per-key merge would resurrect removed clients. Anything
+  invalid keeps the last-good table; the parser REJECTS a file with zero usable clients or an
+  invalid/disabled/unknown-protocol MAIN entry (entry 0) - never-zero-clients is parser-enforced.
+  A per-entry `"enabled": false` kill switch benches a client while its row stays in the file.
+  **The cached remote copy carries a 14-day staleness cap** (the offline-subset precedent):
+  because REPLACE lets a cache mask newer BUNDLED tables from APK updates, a device that synced
+  once and then can never reach raw.githubusercontent again (a filter that blocks it) must not
+  keep that frozen table forever - past the cap the cache is dropped and bundled wins.
+- **Self-heal trigger:** when a resolution exhausts EVERY client, `onAllClientsFailed()` fires a
+  cooldown-gated (5 min, single-flight) `StreamClientStore.refreshAfterResolutionFailure()` - the
+  client-kill recovery path, independent of the 6h TTL. The cooldown only arms when the server was
+  actually reached, and all wall-clock windows are backward-clock-step safe (`withinWindow`).
+- **Toggles are per-FAMILY** (`family` field - the VISIONOS 1.02/0.1 pair shares one toggle,
+  TVHTML5_SIMPLY's family is "TVHTML5"): dynamic DataStore keys `streamSourceFamily_<id>` (absent =
+  enabled, so a remotely-added family is ON until toggled), derived by prefix scan
+  (`StreamSourcePrefs.disabledFamilies` - no app-side registry). The four legacy per-client keys (the retired ANDROID_VR/MWEB ones have no family to land on) are
+  migrated ONCE (`migrateLegacyToggles`, only explicit-false copied) and left in place for
+  rollback. Settings rows/groups/chip-order all derive from the table (`StreamSourceUiModel`);
+  known families keep bespoke localized strings, a remotely-added one renders its config `title`
+  (English, server-driven precedent) + a generic description. The SABR client list is the same
+  table's `sabr`-capable entries (§SABR below): its rows, order and per-family toggles
+  (`streamSabrFamily_<id>`) derive from the table exactly like the DIRECT rows.
+- **The unattended monitor** (zemer-cipher `.github/workflows/client-monitor.yml`, every 3 h): drains a
+  whole song through EVERY known client — the table's live and benched entries plus
+  `tests/clients-retired.mjs` — via `tests/scan-stream-clients.mjs` (the `client-fulldownload.mjs`
+  drain as a module, one verdict per client per validation video) and `tests/scan-client-versions.mjs`
+  (yt-dlp version drift, alert only). A live entry that fails everywhere on two consecutive runs is
+  BENCHED (`enabled: false`) and deployed; a benched one that drains again is un-benched; a retired
+  client that works again only opens an issue. The same scan drains every `sabr`-capable entry over
+  SABR (`tests/sabr-clients.mjs` as a module): a SABR-side kill benches the capability alone
+  (`sabr.enabled: false`, read by both parsers; `StreamClientTable.Table.sabrRoster` skips it) and a
+  revival un-benches it, on the same two-run quorum. Dead = fails on EVERY validation video;
+  revived / works-again = whole on EVERY video (an ungated video like `dQw4w9WgXcQ` streams whole
+  even for the retired IOS/MWEB/ANDROID_VR - the validation set must include gated content, the
+  default `JTF9fLJvniI` is). An entry whose identity (clientVersion, userAgent,
+  os/device fields) is behind the yt-dlp key it `mirrors` is BUMPED once a candidate table with
+  yt-dlp's values drains a whole song on every validation video (`apply-bump.mjs`); VISIONOS_0_1
+  carries no `mirrors` and is pinned. "Sign in to confirm you're not a bot" on an anonymous request
+  is `bot-gated` = inconclusive (GitHub runner IPs get it on every login-less client) — the
+  the scan runs as four parallel WARP egress slots (IPv6-pinned, each verified with a `/player` plus
+  a CDN range before and after its drains; verified slots are MERGED) so the scan sees what the app
+  sees. Inconclusive, never a kill: `bot-gated`, `auth-failed` (a sign-in demand although the cookie
+  was sent = the cookie's problem, alerted as "cookie expired or revoked"), transport errors (redone),
+  and "every anonymous client failed while every cookie client is whole" (an egress artifact).
+  The progressive and SABR passes drain concurrently. The rules live in cipher `tools/clients/decide.mjs` (never the main, `MIN_LIVE_FALLBACKS`
+  live fallbacks kept); `apply-bench.mjs` / `apply-bump.mjs` are the only writers (one entry,
+  re-parsed). Both bundled-asset tests accept a benched entry and a bumped identity but refuse a
+  reorder, an addition, a changed protocol/flag or a benched main, so the auto changes pass the
+  parity gates while the compiled `YouTubeClient` constants stay the floor only.
+- **The deploy gate:** `node tests/validate-stream-clients.mjs [file]` = schema validation + a
+  whole-song CDN drain per client (`client-fulldownload.mjs` against the CANDIDATE file via
+  `STREAM_CLIENTS_JSON`) - push to zemer-cipher `master` ONLY after it passes, then bump the
+  submodule pointer (cipher first, then pointer). `tests/clients.mjs` is now a LOADER of the same
+  file (WEB stays hand-defined - it is not a stream client); file-level accept/reject verdicts are
+  pinned by shared parity fixtures (`stream-clients-parity/`) run by BOTH the Kotlin tests and
+  `node --test tests/stream-clients.test.mjs` - a validation-rule change must update both readers
+  AND the fixtures. Rollout observability: play events carry `client`, so the tracking dashboard's
+  client split shows a push taking effect.
 
 ### RELAY playback mode (`playback/relay/` - the filtered-device bypass)
 
@@ -164,10 +245,15 @@ byte-for-byte unchanged. The engine is a faithful Kotlin port of the proven Node
   duration/position, and the session polls it on every info change INCLUDING restore - one bad value would
   crash-loop the app on launch with no recovery short of clearing data. Never let a buffered-percentage
   read crash the session, for any source. This is a general hardening, not SABR-specific.
-- **The resolver is a roster of SABR-USABLE clients only** (`SabrPlayerResolver`): WEB_REMIX (main),
-  VISIONOS, TVHTML5_SIMPLY - each toggleable (`StreamSabr{WebRemix,VisionOS,TVHTML5}Key`),
-  tried in that order, first-working wins. Only clients validated to deliver a WHOLE song over SABR with
-  the app's pot (`tests/sabr-clients.mjs`) are offered; ANDROID_VR/IOS/IPADOS/WEB_CREATOR are throttled to
+- **The resolver's roster is TABLE data** (`SabrRoster` ← `StreamClientTable.current().sabrRoster`):
+  the `stream_clients.json` entries carrying a `sabr` object, in table order - currently WEB_REMIX
+  (main), VISIONOS, TVHTML5_SIMPLY - each toggleable per FAMILY (`StreamSourcePrefs.sabrFamilyKey`,
+  absent = on; the three legacy `StreamSabr*Key`s migrate once, like the DIRECT keys), first-working
+  wins. Adding/removing a SABR client is a config push, not an APK. The `sabr` object's os/device
+  fields override the entry's identity for the SABR streamerContext ONLY (WEB_REMIX announces
+  Windows 10.0 there while its `/player` context stays OS-less); an empty `{}` inherits the entry's
+  own. Only clients validated to deliver a WHOLE song over SABR with the app's pot
+  (`tests/sabr-clients.mjs`) may carry a `sabr` object; ANDROID_VR/IOS/IPADOS/WEB_CREATOR are throttled to
   ~60s on most content and are NOT in the roster. Reuses the app's `/player`, the `PoTokenGenerator`
   WebView pot, and the `CipherDeobfuscator` n-transform. The pick mirrors DIRECT: bitrate weighted by the
   quality preference with the opus/webm bonus, and `opusAllowed=false` for a COMPATIBLE / pre-API-29
@@ -1798,7 +1884,7 @@ Node ≥20 scripts (deps vendored in `tests/node_modules`, no install needed) th
 
 - Run one: `node tests/cipher.mjs` (live player health), `node tests/validate-player-config.mjs <hash>`, `node tests/web-remix-stream.mjs`. Pin a player with `PLAYER_HASH=<hash>`.
 - `tests/README.md` + `tests/INVESTIGATION.md` are the methodology and the symptom-indexed runbook - read them first when streaming breaks.
-- The harness mirrors app constants on purpose; when `YouTubeClient.kt` / `PoTokenGenerator.kt` change, update the matching mirror (`clients.mjs` / `potoken.mjs`). Player configs are **not** mirrored - `tests/player-configs.mjs` reads the same `player_configs.json` the app bundles (requires the cipher submodule checked out; if missing, scripts fail with an actionable message).
+- The harness mirrors app constants on purpose; when `PoTokenGenerator.kt` changes, update the matching mirror (`potoken.mjs`). Stream clients are **not** mirrored anymore - `tests/clients.mjs` loads the same `stream_clients.json` the app bundles (cipher submodule; `stream-clients.mjs` is the loader, WEB alone stays hand-defined as a browse-only client). Player configs are **not** mirrored - `tests/player-configs.mjs` reads the same `player_configs.json` the app bundles (requires the cipher submodule checked out; if missing, scripts fail with an actionable message).
 - Loader unit tests (no cookie or network needed): `node --test tests/player-configs.test.mjs` - validation rules, collision rejection, the `config-covers.mjs` CLI, and the cross-language parity fixtures shared with the cipher repo's Kotlin tests.
 - **`tests/search/`** is the same idea for the *search* path: a faithful Node port of the app's ONE remaining InnerTube search function - `search(filter)`×6, still called by `RecognitionResolver`, the Android Auto voice search, and the add-to-playlist online search - run against live YouTube Music: `node tests/search/run.mjs [query...]`. (The `searchSuggestions`/`searchSummary`/`searchContinuation` ports were retired with their app functions when the YouTube search engine was removed - Zemer serves the search UI.) It reproduces the app's exact request (WEB_REMIX, `setLogin=false` → visitorData only, no cookie/auth) and reports any error: a strict-deserialization break (a non-null field YouTube dropped → whole response fails → "No results"), a parser drop (with the exact field), or an empty result. `node --test tests/search/self-test.mjs` proves the checker catches breaks (no network). The kotlinx strict-field table in `tests/search/schema.mjs` is transcribed from the innertube models - keep it in sync when their nullability changes. Zemer's artist-whitelist filter runs *after* this function (needs the app DB) and is the next suspect when it's healthy but a caller still comes up empty. See `tests/search/README.md`.
 

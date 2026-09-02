@@ -1,49 +1,31 @@
-// YouTube client definitions — mirrors
-// innertube/src/main/kotlin/com/metrolist/innertube/models/YouTubeClient.kt
-// Keep in sync with that file.
+// YouTube client definitions for the harness.
+//
+// The STREAM chain (main + fallbacks, in order) is LOADED from the single source of truth the
+// app bundles and devices fetch remotely:
+//   cipher/library/src/main/assets/stream_clients.json   (see stream-clients.mjs)
+// so the harness always tests exactly the chain a device runs — the old hand-maintained mirror
+// of YouTubeClient.kt is gone.
+//
+// WEB stays hand-defined here: it is NOT a stream client (InnerTube next/transcript only) and
+// deliberately lives outside the remote table; its definition mirrors YouTubeClient.WEB.
+
+import { loadStreamClients } from "./stream-clients.mjs";
 
 export const USER_AGENT_WEB =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:140.0) Gecko/20100101 Firefox/140.0";
 
-export const CLIENTS = [
-  { key: "WEB", clientName: "WEB", clientVersion: "2.20260213.00.00", clientId: "1",
-    userAgent: USER_AGENT_WEB, loginSupported: false, useSignatureTimestamp: false },
+// Browse-only client (mirrors YouTubeClient.WEB — keep in sync with that one definition).
+const WEB = {
+  key: "WEB", clientName: "WEB", clientVersion: "2.20260213.00.00", clientId: "1",
+  userAgent: USER_AGENT_WEB, loginSupported: false,
+  useSignatureTimestamp: false, useWebPoTokens: false,
+};
 
-  { key: "WEB_REMIX", clientName: "WEB_REMIX", clientVersion: "1.20260213.01.00", clientId: "67",
-    userAgent: USER_AGENT_WEB, loginSupported: true, useSignatureTimestamp: true, useWebPoTokens: true },
+/** The stream chain in table order — entry 0 is the app's main client. */
+export const STREAM_CLIENTS = loadStreamClients().clients;
 
-  { key: "WEB_CREATOR", clientName: "WEB_CREATOR", clientVersion: "1.20260213.00.00", clientId: "62",
-    userAgent: USER_AGENT_WEB, loginSupported: true, loginRequired: true, useSignatureTimestamp: true, useWebPoTokens: true },
-
-  { key: "MWEB", clientName: "MWEB", clientVersion: "2.20260708.05.00", clientId: "2",
-    userAgent: "Mozilla/5.0 (iPad; CPU OS 16_7_10 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1,gzip(gfe)",
-    loginSupported: true, loginRequired: true, useSignatureTimestamp: true, useWebPoTokens: true },
-
-
-  { key: "TVHTML5_SIMPLY", clientName: "TVHTML5_SIMPLY", clientVersion: "1.0", clientId: "75",
-    userAgent: "Mozilla/5.0 (ChromiumStylePlatform) Cobalt/25.lts.30.1034943-gold (unlike Gecko), Unknown_TV_Unknown_0/Unknown (Unknown, Unknown)",
-    loginSupported: false, useSignatureTimestamp: true, useWebPoTokens: true },
-
-
-
-
-
-
-
-
-
-
-  { key: "VISIONOS", clientName: "VISIONOS", clientVersion: "1.02", clientId: "101",
-    userAgent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 15_7_3) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.0 Safari/605.1.15",
-    osName: "visionOS", osVersion: "26.5.23O471", deviceMake: "Apple", deviceModel: "RealityDevice17,1",
-    loginSupported: false, useSignatureTimestamp: false },
-
-  { key: "VISIONOS_0_1", clientName: "VISIONOS", clientVersion: "0.1", clientId: "101",
-    userAgent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Safari/605.1.15",
-    osName: "visionOS", osVersion: "1.3.21O771", deviceMake: "Apple", deviceModel: "RealityDevice14,1",
-    loginSupported: false, useSignatureTimestamp: false },
-
-];
+/** All clients scripts may reference by key: WEB + the stream chain. */
+export const CLIENTS = [WEB, ...STREAM_CLIENTS];
 
 export const ORIGIN = "https://music.youtube.com";
 export const PLAYER_URL = ORIGIN + "/youtubei/v1/player?prettyPrint=false";

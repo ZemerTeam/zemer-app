@@ -6,7 +6,6 @@ import com.jtech.zemer.playback.VideoDecoderCaps
 import com.jtech.zemer.playback.VideoQualityLogic
 import com.jtech.zemer.playback.VideoQualityRung
 import com.metrolist.innertube.YouTube
-import com.metrolist.innertube.models.YouTubeClient
 import com.zemer.cipher.CipherDeobfuscator
 import com.zemer.cipher.potoken.PoTokenGenerator
 import com.zemer.cipher.potoken.PoTokenResult
@@ -29,25 +28,8 @@ object SabrVideoResolver {
     private const val AUTO_HEIGHT = 720 // SABR must pin an itag even for AUTO — cap the automatic pick here
     private val poTokenGenerator = PoTokenGenerator()
 
-    private class Spec(
-        val key: String,
-        val client: YouTubeClient,
-        val label: String,
-        val web: Boolean,
-        val osName: String? = null,
-        val osVersion: String? = null,
-        val deviceMake: String? = null,
-        val deviceModel: String? = null,
-        val androidSdk: Int? = null,
-    )
-
-    // Same roster + priority as SabrPlayerResolver (the video+audio usable set is identical — proven in
-    // tests/sabr-video-clients.mjs), keyed off the same SabrPlayerResolver.KEY_* toggles.
-    private val ROSTER = listOf(
-        Spec(SabrPlayerResolver.KEY_WEB_REMIX, YouTubeClient.WEB_REMIX, "WEB_REMIX (SABR)", web = true, osName = "Windows", osVersion = "10.0"),
-        Spec(SabrPlayerResolver.KEY_VISIONOS, YouTubeClient.VISIONOS, "VISIONOS (SABR)", web = false, osName = "visionOS", osVersion = "26.5.23O471", deviceMake = "Apple", deviceModel = "RealityDevice17,1"),
-        Spec(SabrPlayerResolver.KEY_TVHTML5_SIMPLY, YouTubeClient.TVHTML5_SIMPLY, "TVHTML5_SIMPLY (SABR)", web = true),
-    )
+    // Same roster + priority as SabrPlayerResolver: the table's SABR entries (SabrRoster) — the
+    // video+audio usable set is identical (proven in tests/sabr-video-clients.mjs).
 
     private fun decodeBase64(s: String): ByteArray {
         val normalized = s.trim().replace('-', '+').replace('_', '/')
@@ -279,9 +261,7 @@ object SabrVideoResolver {
         }
         // Stall fallback (shared with the audio resolver): a client that drained this id incomplete is
         // deprioritized, so a replay advances the roster instead of truncating identically forever.
-        val stalled = SabrPlayerResolver.stalledFor(videoId)
-        val order = ROSTER.filter { it.key in enabled && it.key !in stalled } +
-            ROSTER.filter { it.key in enabled && it.key in stalled }
+        val order = SabrRoster.order(enabled, SabrPlayerResolver.stalledFor(videoId))
         for (spec in order) {
             val built = build(spec, videoId, pot, sts, targetLabel, maxAutoBitrateKbps)
             if (built != null) return built
@@ -311,7 +291,7 @@ object SabrVideoResolver {
             ?: pool.minByOrNull { it.height }
     }
 
-    private suspend fun build(spec: Spec, videoId: String, pot: PoTokenResult, sts: Int?, targetLabel: String, maxAutoBitrateKbps: Int?): Built? {
+    private suspend fun build(spec: SabrClientSpec, videoId: String, pot: PoTokenResult, sts: Int?, targetLabel: String, maxAutoBitrateKbps: Int?): Built? {
         return try {
             val response = YouTube.player(
                 videoId,

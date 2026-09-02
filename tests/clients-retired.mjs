@@ -70,6 +70,12 @@ export const RETIRED = [
   { key: "TVHTML5_SIMPLY_EMBEDDED_PLAYER", clientName: "TVHTML5_SIMPLY_EMBEDDED_PLAYER", clientVersion: "2.0", clientId: "85",
     userAgent: "Mozilla/5.0 (PlayStation; PlayStation 4/12.02) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.4 Safari/605.1.15",
     loginSupported: true, useSignatureTimestamp: true, isEmbedded: true },
+  // REMOVED 2026-09 (with the SABR work): attestation-walled on gated content on BOTH transports —
+  // progressive 403 at the 1-MiB wall, SABR STREAM_PROTECTION_STATUS=2 after a ~28% free window.
+  // Only ever served ungated videos the other clients already cover. See tests/MWEB-INVESTIGATION.md.
+  { key: "MWEB", clientName: "MWEB", clientVersion: "2.20260708.05.00", clientId: "2",
+    userAgent: "Mozilla/5.0 (iPad; CPU OS 16_7_10 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1,gzip(gfe)",
+    loginSupported: true, loginRequired: true, useSignatureTimestamp: true, useWebPoTokens: true },
 ];
 
 // Live registry + retired records, for scripts that probe historical clients.

@@ -20,7 +20,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarScrollBehavior
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -38,14 +37,7 @@ import com.jtech.zemer.R
 import com.jtech.zemer.constants.InnerTubeCookieKey
 import com.jtech.zemer.constants.PlaybackMode
 import com.jtech.zemer.constants.PlaybackModeKey
-import com.jtech.zemer.constants.StreamSourceVisionOSKey
 import com.jtech.zemer.constants.StreamSabrKey
-import com.jtech.zemer.constants.StreamSabrWebRemixKey
-import com.jtech.zemer.constants.StreamSabrVisionOSKey
-import com.jtech.zemer.constants.StreamSabrTVHTML5Key
-import com.jtech.zemer.constants.StreamSourceTVHTML5Key
-import com.jtech.zemer.constants.StreamSourceWebCreatorKey
-import com.jtech.zemer.constants.StreamSourceWebRemixKey
 import com.jtech.zemer.ui.component.AppBarTitle
 import com.jtech.zemer.ui.component.BackNavigationIcon
 import com.jtech.zemer.ui.component.RequestInitialDpadFocus
@@ -53,10 +45,46 @@ import com.jtech.zemer.ui.component.SettingsCardGroup
 import com.jtech.zemer.ui.component.SettingsScreenTopSpacing
 import com.jtech.zemer.ui.component.SwitchPreference
 import com.jtech.zemer.ui.component.zemerTopAppBarColors
-import com.jtech.zemer.ui.utils.backToMain
+import com.jtech.zemer.utils.StreamClientTable
+import com.jtech.zemer.utils.StreamSourcePrefs
 import com.jtech.zemer.utils.rememberEnumPreference
 import com.jtech.zemer.utils.rememberPreference
 import com.jtech.zemer.extensions.cookieHasSession
+import com.zemer.cipher.StreamClientStore
+
+/**
+ * The hybrid string map (owner decision, 2026-08-16): the known families keep their bespoke
+ * localized title + description; a remotely-added family renders its config title (English,
+ * server-driven — the genres/home-rows precedent) with the generic description.
+ */
+private data class FamilyStrings(val titleRes: Int, val descRes: Int)
+
+private val KNOWN_FAMILY_STRINGS = mapOf(
+    "WEB_REMIX" to FamilyStrings(R.string.stream_source_web_remix, R.string.stream_source_web_remix_desc),
+    "TVHTML5" to FamilyStrings(R.string.stream_source_tvhtml5, R.string.stream_source_tvhtml5_desc),
+    "VISIONOS" to FamilyStrings(R.string.stream_source_visionos, R.string.stream_source_visionos_desc),
+    "WEB_CREATOR" to FamilyStrings(R.string.stream_source_web_creator, R.string.stream_source_web_creator_desc),
+)
+
+/** SABR-specific descriptions for the known families; a remotely-added one gets the generic line. */
+private val KNOWN_SABR_FAMILY_DESC = mapOf(
+    "WEB_REMIX" to R.string.stream_source_sabr_web_remix_desc,
+    "VISIONOS" to R.string.stream_source_sabr_visionos_desc,
+    "TVHTML5" to R.string.stream_source_sabr_tvhtml5_desc,
+)
+
+private fun groupTitleRes(group: String): Int = when (group) {
+    StreamSourceUiModel.GROUP_WEB -> R.string.stream_source_web_clients
+    StreamSourceUiModel.GROUP_NATIVE -> R.string.stream_source_native_clients
+    StreamSourceUiModel.GROUP_CREATOR -> R.string.stream_source_creator_clients
+    else -> R.string.stream_source_other_clients
+}
+
+@Composable
+private fun familyTitle(family: StreamSourceUiModel.Family): String =
+    KNOWN_FAMILY_STRINGS[family.id]?.let { stringResource(it.titleRes) }
+        ?: family.configTitle
+        ?: family.id
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -64,14 +92,45 @@ fun StreamSourceSettings(
     navController: NavController,
     scrollBehavior: TopAppBarScrollBehavior,
 ) {
-    val (webRemixEnabled, onWebRemixChange)     = rememberPreference(StreamSourceWebRemixKey,   defaultValue = true)
-    val (tvhtml5Enabled, onTVHTML5Change)       = rememberPreference(StreamSourceTVHTML5Key,    defaultValue = true)
-    val (visionosEnabled, onVisionOSChange)     = rememberPreference(StreamSourceVisionOSKey,   defaultValue = true)
-    val (webCreatorEnabled, onWebCreatorChange) = rememberPreference(StreamSourceWebCreatorKey, defaultValue = true)
-    val (sabrEnabled, onSabrChange)             = rememberPreference(StreamSabrKey,             defaultValue = false)
-    val (sabrWebRemix, onSabrWebRemixChange)    = rememberPreference(StreamSabrWebRemixKey,     defaultValue = true)
-    val (sabrVisionOS, onSabrVisionOSChange)    = rememberPreference(StreamSabrVisionOSKey,     defaultValue = true)
-    val (sabrTVHTML5, onSabrTVHTML5Change)      = rememberPreference(StreamSabrTVHTML5Key,      defaultValue = true)
+    // Both toggle lists (DIRECT chain, SABR roster) derive from the CURRENT client table
+    // (remote/bundled via the store, compiled floor otherwise), so the screen always matches what
+    // the resolvers run. Snapshot once per screen-open — a remote refresh shows on the next open.
+    val (families, sabrFamilies) = remember {
+        val table = StreamClientTable.current()
+        val meta = StreamClientStore.config()?.families.orEmpty()
+        StreamSourceUiModel.families(table, meta) to StreamSourceUiModel.sabrFamilies(table, meta)
+    }
+
+    // When the client table last synced with the deploy channel (200 applied or 304 unchanged);
+    // 0 = never synced this install (offline / file not published yet) — the line is hidden then.
+    val lastSyncedText = remember {
+        StreamClientStore.lastSyncedMs.takeIf { it > 0L }?.let {
+            java.text.DateFormat.getDateTimeInstance(
+                java.text.DateFormat.SHORT, java.text.DateFormat.SHORT,
+            ).format(java.util.Date(it))
+        }
+    }
+
+    // One dynamic boolean preference per family (absent = enabled). The map is keyed in chain
+    // order; families is stable for the composition, so the loop order is too.
+    val familyStates = families.associate { family ->
+        val (enabled, setEnabled) = rememberPreference(
+            StreamSourcePrefs.familyKey(family.id),
+            defaultValue = true,
+        )
+        family.id to Pair(enabled, setEnabled)
+    }
+    val disabled = familyStates.filterValues { !it.first }.keys
+
+    val (sabrEnabled, onSabrChange) = rememberPreference(StreamSabrKey, defaultValue = false)
+    // One dynamic SABR preference per SABR-roster family (absent = enabled), like the DIRECT rows.
+    val sabrFamilyStates = sabrFamilies.associate { family ->
+        val (enabled, setEnabled) = rememberPreference(
+            StreamSourcePrefs.sabrFamilyKey(family.id),
+            defaultValue = true,
+        )
+        family.id to Pair(enabled, setEnabled)
+    }
 
     // RELAY playback mode: stream audio through the Zemer relay instead of resolving YouTube on-device.
     // Off (DIRECT) for every normal user. When ON, the per-client fallback list below is bypassed entirely.
@@ -87,22 +146,12 @@ fun StreamSourceSettings(
     // point), not here — a screen-local reset stranded users who logged in elsewhere and also flashed an
     // empty settings screen with no focused row.
 
-    // Effective stream order shown to the user: WEB_REMIX is the primary client; the rest mirror
-    // YTPlayerUtils.ALL_FALLBACK_CLIENTS. Only enabled toggles appear.
-    val streamOrder = listOf(
-        "WEB_REMIX" to webRemixEnabled,
-        "visionOS" to visionosEnabled,
-        "WEB_CREATOR" to webCreatorEnabled,
-        "TVHTML5" to tvhtml5Enabled,
-    ).filter { it.second }.map { it.first }
-
     val backFocus = remember { FocusRequester() }
     val firstFocus = remember { FocusRequester() }
 
     // firstFocus is attached to whichever first row is visible (the relay toggle for a login-less session,
-    // the web-remix toggle otherwise). Keyed on the visibility inputs so it re-requests once a row is
-    // actually composed (e.g. after the global relay reset makes the client list appear); guarded in case
-    // neither is composed yet.
+    // the first family toggle otherwise). Keyed on the visibility inputs so it re-requests once a row is
+    // actually composed; guarded in case neither is composed yet.
     RequestInitialDpadFocus(firstFocus, keys = arrayOf(loggedInNormally, relayEnabled))
 
     Column(
@@ -147,19 +196,29 @@ fun StreamSourceSettings(
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+            lastSyncedText?.let { synced ->
+                Spacer(Modifier.height(2.dp))
+                Text(
+                    text = stringResource(R.string.stream_sources_updated, synced),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
             Spacer(Modifier.height(8.dp))
             Row(
                 horizontalArrangement = Arrangement.spacedBy(6.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.horizontalScroll(rememberScrollState()),
             ) {
-                streamOrder.forEach { name ->
+                // Effective stream order: the chain order with disabled families dropped — derived
+                // from the same table as the toggles, so the two can never drift.
+                StreamSourceUiModel.enabledOrder(families, disabled).forEach { family ->
                     Surface(
                         shape = RoundedCornerShape(50),
                         color = MaterialTheme.colorScheme.secondaryContainer,
                     ) {
                         Text(
-                            text = name,
+                            text = familyTitle(family),
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSecondaryContainer,
                             modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
@@ -169,61 +228,32 @@ fun StreamSourceSettings(
             }
         }
 
-        SettingsCardGroup(
-            title = stringResource(R.string.stream_source_web_clients),
-            rows = listOf(
-                {
-                    SwitchPreference(
-                        title = { Text(stringResource(R.string.stream_source_web_remix)) },
-                        description = stringResource(R.string.stream_source_web_remix_desc),
-                        icon = { Icon(painterResource(R.drawable.play), null) },
-                        checked = webRemixEnabled,
-                        onCheckedChange = onWebRemixChange,
-                        // When the relay group is hidden (a normal login), this is the first row, so it takes focus.
-                        modifier = if (loggedInNormally) Modifier.focusRequester(firstFocus) else Modifier,
-                    )
+        StreamSourceUiModel.grouped(families).forEachIndexed { groupIndex, (group, groupFamilies) ->
+            SettingsCardGroup(
+                title = stringResource(groupTitleRes(group)),
+                rows = groupFamilies.mapIndexed { familyIndex, family ->
+                    {
+                        val (enabled, setEnabled) = familyStates.getValue(family.id)
+                        SwitchPreference(
+                            title = { Text(familyTitle(family)) },
+                            description = KNOWN_FAMILY_STRINGS[family.id]?.let { stringResource(it.descRes) }
+                                ?: stringResource(R.string.stream_source_generic_desc),
+                            icon = { Icon(painterResource(R.drawable.play), null) },
+                            checked = enabled,
+                            onCheckedChange = setEnabled,
+                            // When the relay group is hidden (a normal login), the first family row
+                            // takes the initial D-pad focus.
+                            modifier = if (loggedInNormally && groupIndex == 0 && familyIndex == 0) {
+                                Modifier.focusRequester(firstFocus)
+                            } else {
+                                Modifier
+                            },
+                        )
+                    }
                 },
-                {
-                    SwitchPreference(
-                        title = { Text(stringResource(R.string.stream_source_tvhtml5)) },
-                        description = stringResource(R.string.stream_source_tvhtml5_desc),
-                        icon = { Icon(painterResource(R.drawable.play), null) },
-                        checked = tvhtml5Enabled,
-                        onCheckedChange = onTVHTML5Change,
-                    )
-                },
-            ),
-        )
+            )
+        }
 
-        SettingsCardGroup(
-            title = stringResource(R.string.stream_source_native_clients),
-            rows = listOf(
-                {
-                    SwitchPreference(
-                        title = { Text(stringResource(R.string.stream_source_visionos)) },
-                        description = stringResource(R.string.stream_source_visionos_desc),
-                        icon = { Icon(painterResource(R.drawable.play), null) },
-                        checked = visionosEnabled,
-                        onCheckedChange = onVisionOSChange,
-                    )
-                },
-            ),
-        )
-
-        SettingsCardGroup(
-            title = stringResource(R.string.stream_source_creator_clients),
-            rows = listOf(
-                {
-                    SwitchPreference(
-                        title = { Text(stringResource(R.string.stream_source_web_creator)) },
-                        description = stringResource(R.string.stream_source_web_creator_desc),
-                        icon = { Icon(painterResource(R.drawable.play), null) },
-                        checked = webCreatorEnabled,
-                        onCheckedChange = onWebCreatorChange,
-                    )
-                },
-            ),
-        )
         SettingsCardGroup(
             title = stringResource(R.string.stream_source_experimental),
             rows = listOf(
@@ -240,39 +270,23 @@ fun StreamSourceSettings(
         )
 
         // The SABR client list — shown when SABR streaming is on. Mirrors the DIRECT client list above:
-        // a header + one toggle per available SABR client, tried in the listed order until one delivers.
-        if (sabrEnabled) {
+        // one toggle per SABR-roster family, in TABLE order (the order the resolvers try them).
+        if (sabrEnabled && sabrFamilies.isNotEmpty()) {
             SettingsCardGroup(
                 title = stringResource(R.string.stream_source_sabr_clients),
-                rows = listOf(
+                rows = sabrFamilies.map { family ->
                     {
+                        val (enabled, setEnabled) = sabrFamilyStates.getValue(family.id)
                         SwitchPreference(
-                            title = { Text(stringResource(R.string.stream_source_web_remix)) },
-                            description = stringResource(R.string.stream_source_sabr_web_remix_desc),
+                            title = { Text(familyTitle(family)) },
+                            description = KNOWN_SABR_FAMILY_DESC[family.id]?.let { stringResource(it) }
+                                ?: stringResource(R.string.stream_source_generic_desc),
                             icon = { Icon(painterResource(R.drawable.play), null) },
-                            checked = sabrWebRemix,
-                            onCheckedChange = onSabrWebRemixChange,
+                            checked = enabled,
+                            onCheckedChange = setEnabled,
                         )
-                    },
-                    {
-                        SwitchPreference(
-                            title = { Text(stringResource(R.string.stream_source_visionos)) },
-                            description = stringResource(R.string.stream_source_sabr_visionos_desc),
-                            icon = { Icon(painterResource(R.drawable.play), null) },
-                            checked = sabrVisionOS,
-                            onCheckedChange = onSabrVisionOSChange,
-                        )
-                    },
-                    {
-                        SwitchPreference(
-                            title = { Text(stringResource(R.string.stream_source_tvhtml5)) },
-                            description = stringResource(R.string.stream_source_sabr_tvhtml5_desc),
-                            icon = { Icon(painterResource(R.drawable.play), null) },
-                            checked = sabrTVHTML5,
-                            onCheckedChange = onSabrTVHTML5Change,
-                        )
-                    },
-                ),
+                    }
+                },
             )
         }
         } // end if (!relayEnabled): DIRECT-only client list

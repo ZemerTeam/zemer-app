@@ -20,6 +20,7 @@
 
 import crypto from "node:crypto";
 import { CLIENTS, USER_AGENT_WEB, ORIGIN, PLAYER_URL } from "./clients.mjs";
+import { needsWebTransforms } from "./stream-clients.mjs";
 import { CLIENTS_WITH_RETIRED } from "./clients-retired.mjs"; // historical probes: retired clients live there
 import { getCred, describeCred } from "./cred.mjs";
 import { mintWebPoTokens } from "./potoken.mjs";
@@ -137,7 +138,7 @@ async function resolveAppUrl(c, { cipher, tokens, cred }) {
   if (fmt) {
     if (fmt.url) url = fmt.url;
     else if (fmt.signatureCipher) { url = cipher.deobfuscateStreamUrl(fmt.signatureCipher); sigUsed = true; }
-    const isWeb = c.useWebPoTokens || ["WEB", "WEB_REMIX", "WEB_CREATOR", "TVHTML5"].includes(c.clientName);
+    const isWeb = needsWebTransforms(c);
     if (url && isWeb) {
       const before = url;
       url = cipher.transformNParamInUrl(url);
