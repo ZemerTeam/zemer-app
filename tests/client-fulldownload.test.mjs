@@ -100,16 +100,24 @@ test("not-ok: a playability rejection is definitive; the bot gate is NOT", async
   assert.equal((await drainClient(ctx(), direct, video)).kind, "bot-gated");
 });
 
-test("http-error: a non-200 /player is definitive; transport errors are inconclusive", async () => {
+test("http-error: a non-200 /player is definitive; transport errors are inconclusive and retried", async () => {
   fakeFetch({ player: { status: 400, json: {} } });
-  const r = await drainClient(ctx(), web, video);
+  const r = await drainClient(ctx(), web, video, { transportRetries: 0 });
   assert.equal(r.kind, "http-error"); assert.equal(r.http, 400);
   fakeFetch({ player: { json: player("OK") }, cdnThrow: true });
-  const e = await drainClient(ctx(), web, video);
+  const e = await drainClient(ctx(), web, video, { transportRetries: 0 });
   assert.equal(e.kind, "error"); assert.match(e.reason, /ECONNRESET/);
   globalThis.fetch = async () => { throw new Error("getaddrinfo ENOTFOUND"); };
-  const n = await drainClient(ctx(), web, video);
+  const n = await drainClient(ctx(), web, video, { transportRetries: 0 });
   assert.equal(n.kind, "error"); assert.match(n.reason, /ENOTFOUND/);
+  // A transport error on the first drain is redone; the second drain's whole song wins.
+  let calls = 0;
+  const plan = { player: { json: player("OK") } };
+  const calls0 = fakeFetch(plan);
+  const orig = globalThis.fetch;
+  globalThis.fetch = async (url, opts) => { if (String(url).includes("/player")) return orig(url, opts); calls++; if (calls === 1) throw new Error("ECONNRESET"); return orig(url, opts); };
+  const w = await drainClient(ctx(), web, video, { transportRetries: 2 });
+  assert.equal(w.kind, "whole"); assert.ok(calls0.length >= 2);
 });
 
 test("skipped-login: a login-required client without a cookie never reaches the network", async () => {

@@ -101,7 +101,18 @@ export async function createDrainContext() {
  * Only "whole" is success; "partial"/"sabr-only"/"no-format"/"not-ok"/"http-error" are definitive
  * failures the app would also see; "error", "skipped-login" and "bot-gated" are inconclusive.
  */
-export async function drainClient(ctx, c, { videoId, potVideo }) {
+export async function drainClient(ctx, c, video, { transportRetries = 2 } = {}) {
+  // A transport error (a mid-stream reset through a tunnel, a DNS blip) says nothing about the
+  // client: redo the whole drain a couple of times before reporting it as inconclusive.
+  let r = await drainClientOnce(ctx, c, video);
+  for (let i = 0; i < transportRetries && r.kind === "error"; i++) {
+    await new Promise((res) => setTimeout(res, 3000 * (i + 1)));
+    r = await drainClientOnce(ctx, c, video);
+  }
+  return r;
+}
+
+async function drainClientOnce(ctx, c, { videoId, potVideo }) {
   const row = { key: c.key, video: videoId, http: null, status: "-", itag: null, clen: null, read: 0, secs: null, kind: "error", reason: "" };
   if (c.loginRequired && !ctx.hasCookie) return { ...row, kind: "skipped-login", reason: "login required, no cookie" };
   try {
