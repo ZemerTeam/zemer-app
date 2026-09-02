@@ -7,23 +7,26 @@
 //
 //   SCAN_PROXY=http://user:pass@host:port   (or socks5://...) — a residential/mobile egress
 
-//   FORCE_IPV4=1   - connect over IPv4 only (a WARP/proxy egress hands out IPv6 by default, and
-//                    YouTube's bot gate scores v6 pools differently from v4 ones)
+//   FORCE_IPV4=1 / FORCE_IPV6=1 - pin the address family. On WARP this matters: its IPv6 pool
+//                    passes YouTube's gate and CDN, its shared IPv4 pool does not (UNPLAYABLE /
+//                    walled drains), and node's happy-eyeballs may otherwise pick v4.
 import { Agent, ProxyAgent, setGlobalDispatcher } from "undici";
 
 const url = process.env.SCAN_PROXY;
 const v4 = process.env.FORCE_IPV4 === "1";
+const v6 = process.env.FORCE_IPV6 === "1";
 // A tunnelled egress (WARP, a proxy) adds latency and flaps: undici's 10 s connect timeout tripped
 // on the very first youtube.com fetch of a CI drain. 30 s to connect, and every fetch retries a
 // NETWORK-class failure (connect timeout, reset, DNS hiccup) a few times with backoff — a /player
 // POST and a CDN range GET are both safe to repeat; nothing here retries an HTTP status.
-const connect = { timeout: 30000, ...(v4 ? { family: 4 } : {}) };
+const connect = { timeout: 30000, ...(v4 ? { family: 4 } : v6 ? { family: 6 } : {}) };
 if (url) {
   setGlobalDispatcher(new ProxyAgent({ uri: url, connect }));
   console.error(`egress: via proxy ${url.replace(/\/\/.*@/, "//<credentials>@")}`);
 } else {
   setGlobalDispatcher(new Agent({ connect }));
   if (v4) console.error("egress: IPv4 only");
+  if (v6) console.error("egress: IPv6 only");
 }
 
 const NETWORK_ERR = /UND_ERR_CONNECT_TIMEOUT|ECONNRESET|ECONNREFUSED|EAI_AGAIN|ENOTFOUND|ETIMEDOUT|EHOSTUNREACH|ENETUNREACH|socket hang up|fetch failed|other side closed/i;
