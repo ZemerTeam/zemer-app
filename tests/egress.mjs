@@ -7,10 +7,16 @@
 //
 //   SCAN_PROXY=http://user:pass@host:port   (or socks5://...) — a residential/mobile egress
 
-import { ProxyAgent, setGlobalDispatcher } from "undici";
+//   FORCE_IPV4=1   - connect over IPv4 only (a WARP/proxy egress hands out IPv6 by default, and
+//                    YouTube's bot gate scores v6 pools differently from v4 ones)
+import { Agent, ProxyAgent, setGlobalDispatcher } from "undici";
 
 const url = process.env.SCAN_PROXY;
+const v4 = process.env.FORCE_IPV4 === "1";
 if (url) {
   setGlobalDispatcher(new ProxyAgent(url));
   console.error(`egress: via proxy ${url.replace(/\/\/.*@/, "//<credentials>@")}`);
+} else if (v4) {
+  setGlobalDispatcher(new Agent({ connect: { family: 4 } }));
+  console.error("egress: IPv4 only");
 }
