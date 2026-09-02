@@ -454,6 +454,13 @@ fun Lyrics(
                     items = lines,
                     key = { index, item -> "$index-${item.time}" } // Add stable key
                 ) { index, item ->
+                    // The synced list starts with HEAD_LYRICS_ENTRY, a text-less entry that stands for "before
+                    // the first line" in the index math. It must take no space: laid out as a normal item it
+                    // rendered an empty line plus padding, an unexplained gap above the first real line.
+                    if (item === LyricsEntry.HEAD_LYRICS_ENTRY) {
+                        Box(modifier = Modifier.fillMaxWidth().height(0.dp))
+                        return@itemsIndexed
+                    }
                     val isSelected = selectedIndices.contains(index)
                     val itemModifier = Modifier
                         .fillMaxWidth()
