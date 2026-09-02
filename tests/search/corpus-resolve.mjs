@@ -8,7 +8,7 @@ const require = createRequire("/home/asternheim/zemer-search/package.json");
 const Database = require("better-sqlite3");
 const db = new Database("/home/asternheim/zemer-search/data/corpus.db", { readonly: true });
 import { titleForms, norm } from "./jyrics-common.mjs";
-import { sameSongScore } from "/home/asternheim/zemer-search/corpus/lyrics.mjs";
+import { sameSongScore, hebKey, latKey } from "/home/asternheim/zemer-search/corpus/lyrics.mjs";
 const S = process.env.S;
 // transliteration-tolerant key: lowercase, strip niqqud/punct, collapse common Ashkenazi/Sephardi and
 // spelling variants so "Achas Shoalti"/"Achat Sha'alti", "Kel Elyon"/"Keil Elyon" meet.
@@ -47,7 +47,12 @@ for (const [art, v] of Object.entries(tree)) {
     if (!fn.toLowerCase().endsWith(".pdf")) continue; b.pdfs++;
     if (!aid) { unmatchedArtists.add(art); continue; } b.artistMatched++;
     let title = fn.split("/").pop().replace(/\.pdf$/i, "").replace(/^\s*(19|20)\d\d\s*-\s*/, ""); const an = art.replace(/_/g, " "); if (title.startsWith(an)) title = title.slice(an.length).replace(/^\s*[-–]\s*/, "");
-    const { best, score } = bestTitle(albumsByArtist.all(aid).map((x) => ({ ...x, altTitle: null })), title);
+    const albumCands = albumsByArtist.all(aid).map((x) => ({ ...x, altTitle: null }));
+    let { best, score } = bestTitle(albumCands, title);
+    if (!best || score < 0.85) { // artist-gated cross-script fallback for short Hebrew album titles ("חזק" ~ "Chazak!")
+      const forms = title.split(/\s*[\(\)]\s*/).map((x) => x.trim()).filter(Boolean);
+      for (const c of albumCands) for (const f of forms) { const heb = /[\u05d0-\u05ea]/.test(f), lat = /[a-z]/i.test(c.title); if (heb && lat) { const hk = hebKey(f), lk = latKey(c.title.replace(/\(.*?\)|\[.*?\]|!/g, "")); if (hk.length >= 4 && hk === lk) { best = c; score = 0.85; } } }
+    }
     if (best && score >= 0.85) { b.albumResolved++; bout.push({ artist: art, artistId: aid, fn, albumId: best.id, album: best.title, score }); }
   }
 }

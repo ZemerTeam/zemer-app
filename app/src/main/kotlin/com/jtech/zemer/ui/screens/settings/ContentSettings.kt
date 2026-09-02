@@ -61,6 +61,7 @@ import com.jtech.zemer.constants.BlockPodcastsKey
 import com.jtech.zemer.constants.AppLanguageKey
 import com.jtech.zemer.constants.EnableContentFiltersKey
 import com.jtech.zemer.constants.EnableLrcLibKey
+import com.jtech.zemer.constants.EnableMusixmatchKey
 import com.jtech.zemer.constants.LanguageCodeToName
 import com.jtech.zemer.constants.QuickPicks
 import com.jtech.zemer.constants.QuickPicksKey
@@ -181,6 +182,7 @@ fun ContentSettings(
     val (appLanguage, onAppLanguageChange) = rememberPreference(key = AppLanguageKey, defaultValue = SYSTEM_DEFAULT)
 
     val (enableLrclib, onEnableLrclibChange) = rememberPreference(key = EnableLrcLibKey, defaultValue = true)
+    val (enableMusixmatch, onEnableMusixmatchChange) = rememberPreference(key = EnableMusixmatchKey, defaultValue = true)
     val (lengthTop, onLengthTopChange) = rememberPreference(key = TopSize, defaultValue = "50")
     val (quickPicks, onQuickPicksChange) = rememberEnumPreference(key = QuickPicksKey, defaultValue = QuickPicks.QUICK_PICKS)
     val (enableContentFilters, onEnableContentFiltersChange) = rememberPreference(key = EnableContentFiltersKey, defaultValue = true)
@@ -272,6 +274,14 @@ fun ContentSettings(
                         icon = { Icon(painterResource(R.drawable.lyrics), null) },
                         checked = enableLrclib,
                         onCheckedChange = onEnableLrclibChange,
+                    )
+                },
+                {
+                    SwitchPreference(
+                        title = { Text(stringResource(R.string.enable_musixmatch)) },
+                        icon = { Icon(painterResource(R.drawable.lyrics), null) },
+                        checked = enableMusixmatch,
+                        onCheckedChange = onEnableMusixmatchChange,
                     )
                 },
             ),

@@ -311,6 +311,7 @@
     <string name="clear_search_history">Clear search history</string>
     <string name="clear_search_history_confirm">Are you sure you want to clear all search history?</string>
     <string name="enable_lrclib">Enable LrcLib lyrics provider</string>
+    <string name="enable_musixmatch">Enable Musixmatch lyrics provider</string>
 
     <string name="backup_restore">Backup and restore</string>
     <string name="action_backup">Backup</string>

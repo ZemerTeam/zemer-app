@@ -30,6 +30,7 @@ constructor(
             ZemerLyricsProvider,
             SimpMusicLyricsProvider,
             LrcLibLyricsProvider,
+            MusixmatchLyricsProvider,
             YouTubeSubtitleLyricsProvider,
             YouTubeLyricsProvider
         )

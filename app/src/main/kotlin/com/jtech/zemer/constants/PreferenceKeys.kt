@@ -89,6 +89,9 @@ enum class RefreshRateMode(@StringRes val labelRes: Int) {
 const val SYSTEM_DEFAULT = "SYSTEM_DEFAULT"
 val AppLanguageKey = stringPreferencesKey("appLanguage")
 val EnableLrcLibKey = booleanPreferencesKey("enableLrclib")
+val EnableMusixmatchKey = booleanPreferencesKey("enableMusixmatch")
+val MusixmatchTokenKey = stringPreferencesKey("musixmatchToken")          // one desktop-API token per device (lyrics/musixmatch)
+val MusixmatchCooldownUntilKey = longPreferencesKey("musixmatchCooldownUntil") // epoch ms; set after a captcha-gated reply
 val YtmSyncKey = booleanPreferencesKey("ytmSync")
 // Persisted snapshot of the server's blockedContentIds list (newline-joined), loaded at startup so the
 // blocklist is active before the first sync of the session and survives offline launches.

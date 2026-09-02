@@ -8,7 +8,7 @@ import com.jtech.zemer.lyrics.model.LyricsUnavailableException
 /**
  * First provider in the chain. Resolves the videoId through the Zemer server, then fetches the text from
  * the sources the server vouches for — in this preference order:
- *   jkaraoke (line-synced LRC, timings gated by duration on the server) > jyrics (curated plain) >
+ *   jkaraoke (line-synced LRC, timings gated by duration on the server) > jyrics / shironet (curated plain) >
  *   operator-hosted booklet/manual text.
  * Every body goes through the same parser the server used to verify it (golden-pinned ports), so what the
  * user sees is exactly what was cross-checked.
@@ -34,6 +34,7 @@ object ZemerLyricsProvider : LyricsProvider {
             val body = when (s.type) {
                 "jkaraoke" -> s.feedUrl?.let { fetch(it) }?.let { page -> s.songId?.let { id -> JkaraokeLrc.fromFeedPage(page, id)?.synced } }
                 "jyrics" -> s.url?.let { fetch(it) }?.let { JyricsParser.parse(it).plain.takeIf { p -> p.lines().count { l -> l.isNotBlank() } >= 4 } }
+                "shironet" -> s.url?.let { fetch(it) }?.let { ShironetParser.parse(it).plain.takeIf { p -> p.lines().count { l -> l.isNotBlank() } >= 4 } }
                 "booklet", "manual", "canonical" -> s.syncedLrc?.takeIf { it.isNotBlank() } ?: s.plain?.takeIf { it.isNotBlank() }
                 else -> null
             }
@@ -42,7 +43,7 @@ object ZemerLyricsProvider : LyricsProvider {
         return out
     }
 
-    private fun rank(s: ZemerLyricsClient.Source) = when (s.type) { "jkaraoke" -> 0; "jyrics" -> 1; "booklet" -> 2; "manual" -> 2; "canonical" -> 3; else -> 9 }
+    private fun rank(s: ZemerLyricsClient.Source) = when (s.type) { "jkaraoke" -> 0; "jyrics" -> 1; "shironet" -> 1; "booklet" -> 2; "manual" -> 2; "canonical" -> 3; else -> 9 }
 
     /** "Zemer · jkaraoke ✓": the sub-source matters for provenance; ✓ = the server cross-checked two sources. */
     fun label(source: String, verified: Boolean): String = "$name · $source" + (if (verified) " ✓" else "")
