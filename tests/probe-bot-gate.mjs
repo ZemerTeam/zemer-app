@@ -48,6 +48,19 @@ const cred = await getCred();
 const visitorData = dec(cred.visitorData);
 const { clients } = loadStreamClients();
 const anon = clients.filter((c) => !c.loginSupported);
+
+// QUICK=1: one app-exact /player for the first anonymous DIRECT client (no cipher, no pot needed).
+// Exit 0 = this network is NOT bot-gated for anonymous clients, 1 = gated, 2 = other failure.
+// The monitor's egress step uses it to verify (and re-roll) the egress before the drains.
+if (process.env.QUICK) {
+  const c = anon.find((x) => !needsWebTransforms(x)) || anon[0];
+  if (!c) { console.log("QUICK: no anonymous client in the table"); process.exit(2); }
+  try {
+    const r = await player(c, { visitorData });
+    console.log(`QUICK ${c.key}: ${r.gated ? "BOT-GATED" : r.usable ? "OK (consumable)" : r.st}`);
+    process.exit(r.gated ? 1 : r.usable ? 0 : 2);
+  } catch (e) { console.log(`QUICK ${c.key}: ERR ${e.message}`); process.exit(2); }
+}
 const minter = await createMinter(visitorData);
 const sessionPot = await minter.mint(visitorData);
 const cipher = await createCipher({});
