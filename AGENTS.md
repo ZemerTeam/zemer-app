@@ -584,7 +584,9 @@ The rules that must not regress:
 
 `lyrics/LyricsHelper.kt` runs the providers in order: **Zemer resolver first** (`lyrics/zemer/`; the search
 server's `/lyrics/resolve` returns source POINTERS, the app fetches Jyrics/Shironet/jkaraoke itself through
-golden-pinned parser ports of the server's parsers — `JyricsParser`, `ShironetParser`, `JkaraokeLrc`), then
+golden-pinned parser ports of the server's parsers — `JyricsParser`, `ShironetParser`, `JkaraokeLrc` — and an
+audio-verified LRCLIB record by id, `ZemerLyricsClient.lrclibBody`, which the server hands out only for rows its
+audio check confirmed; ranked with the plain sources, below jkaraoke), then
 SimpMusic (videoId-keyed; synced bodies only within 1 s), LrcLib (identity-gated: title AND artist must agree; a
 duration-only match once served a Japanese song), **Musixmatch on-device** (`lyrics/musixmatch/MusixmatchLyrics.kt`:
 the catalog behind Spotify's lyrics, reached with one desktop-API token per phone — the server stores none of its

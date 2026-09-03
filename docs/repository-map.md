@@ -268,8 +268,8 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/main/kotlin/com/jtech/zemer/lyrics/zemer/JyricsParser.kt` | 47 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/lyrics/zemer/LyricsFeedback.kt` | 36 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/lyrics/zemer/ShironetParser.kt` | 39 lines | `.kt` |
-| `app/src/main/kotlin/com/jtech/zemer/lyrics/zemer/ZemerLyricsClient.kt` | 112 lines | `.kt` |
-| `app/src/main/kotlin/com/jtech/zemer/lyrics/zemer/ZemerLyricsProvider.kt` | 71 lines | `.kt` |
+| `app/src/main/kotlin/com/jtech/zemer/lyrics/zemer/ZemerLyricsClient.kt` | 122 lines | `.kt` |
+| `app/src/main/kotlin/com/jtech/zemer/lyrics/zemer/ZemerLyricsProvider.kt` | 72 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/lyrics/zemer/ZingParser.kt` | 33 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/models/DpadDirection.kt` | 27 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/models/ItemsPage.kt` | 8 lines | `.kt` |
@@ -987,7 +987,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/test/kotlin/com/jtech/zemer/lyrics/zemer/ShironetParserGoldenTest.kt` | 35 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/lyrics/zemer/SyncIntegrationTest.kt` | 38 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/lyrics/zemer/ZemerLyricsClientParseTest.kt` | 43 lines | `.kt` |
-| `app/src/test/kotlin/com/jtech/zemer/lyrics/zemer/ZemerLyricsProviderTest.kt` | 57 lines | `.kt` |
+| `app/src/test/kotlin/com/jtech/zemer/lyrics/zemer/ZemerLyricsProviderTest.kt` | 70 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/lyrics/zemer/ZingParserGoldenTest.kt` | 28 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/models/MediaMetadataNavResolutionTest.kt` | 82 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/models/PersistPlayerStateCompatTest.kt` | 87 lines | `.kt` |

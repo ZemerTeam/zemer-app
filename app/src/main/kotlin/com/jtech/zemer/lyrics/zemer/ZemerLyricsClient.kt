@@ -14,6 +14,7 @@ import io.ktor.http.HttpStatusCode
 import io.ktor.serialization.kotlinx.json.json
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
+import com.jtech.zemer.lyrics.LyricsUtils
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.contentOrNull
@@ -45,6 +46,15 @@ object ZemerLyricsClient {
     data class Resolved(val videoId: String, val lang: String? = null, val verified: Boolean = false, val hasSynced: Boolean = false, val sources: List<Source> = emptyList())
 
     internal val json = Json { ignoreUnknownKeys = true; isLenient = true; explicitNulls = false }
+
+    /** One LRCLIB record (`https://lrclib.net/api/get/<id>`); the server hands out the id of a duration-matched row. */
+    @Serializable
+    data class LrcLibTrack(val id: Long = 0, val syncedLyrics: String? = null, val plainLyrics: String? = null, val instrumental: Boolean = false)
+
+    /** LRC when LRCLIB has line times, else the plain text; null for an instrumental or an empty record. */
+    fun lrclibBody(body: String): String? = runCatching { json.decodeFromString<LrcLibTrack>(body) }.getOrNull()
+        ?.takeUnless { it.instrumental }
+        ?.let { t -> t.syncedLyrics?.takeIf { it.isNotBlank() } ?: t.plainLyrics?.takeIf(LyricsUtils::hasLyricBody) }
 
     private val client by lazy {
         HttpClient(CIO) {

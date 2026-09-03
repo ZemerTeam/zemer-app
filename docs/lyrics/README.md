@@ -20,7 +20,9 @@ providers by `MediaMetadata.id` (never `setVideoId`, which is a playlist-entry t
   (BuildConfig; gradle `-PzemerLyricsBaseUrl=`; default `https://search.zemer.io`). The server returns SOURCE
   POINTERS, not third-party text; the app fetches each source itself: jkaraoke feed page → `JkaraokeLrc`
   (line-synced LRC, measured times), Jyrics page → `JyricsParser` (plain), Shironet page → `ShironetParser`
-  (plain), Zing track → `ZingParser` (plain), booklet/manual/canonical text inline. The page parsers are
+  (plain), Zing track → `ZingParser` (plain), LRCLIB record by id → `ZemerLyricsClient.lrclibBody` (the server
+  hands out `lrclib:<id>` only for rows its audio check confirmed; LRC preferred, plain as fallback, instrumental
+  or thin records yield nothing; `ZemerLyricsProviderTest`), booklet/manual/canonical text inline. The page parsers are
   byte-identical ports of the server's, pinned by golden files under `app/src/test/resources/lyrics/`
   (`JyricsParserGoldenTest`, `ShironetParserGoldenTest`, `ZingParserGoldenTest`, `JkaraokeLrcGoldenTest`,
   `SyncIntegrationTest`); they share `HtmlEntities.unescape` and the `LyricsUtils.hasLyricBody` body gate (four
