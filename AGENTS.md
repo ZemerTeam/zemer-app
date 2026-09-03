@@ -591,7 +591,10 @@ the catalog behind Spotify's lyrics, reached with one desktop-API token per phon
 text; gates mirror `harvester/lyrics-musixmatch.mjs`: artist consonant key with the Chaim/Haim fold, title
 identity, length ≤ 2 s for text / ≤ 1 s for the LRC, instrumental/restricted rejected, licence footer stripped;
 a captcha reply latches a 6 h cooldown; `EnableMusixmatchKey` toggle in Content settings), YouTube subtitles,
-YouTube lyrics tab.
+YouTube lyrics tab. The chain prefers a SYNCED body over a higher provider's plain. Users contribute
+through the lyrics menu: a saved edit is also POSTed to the server's submission queue and "Report wrong lyrics"
+POSTs a report (`ZemerLyricsClient.submitLyrics/reportLyrics`, device id from `RelayDeviceId`); the server admits
+a submission only when a second device agrees or the recording confirms it, and hides a row after two reports.
 coverage; provider label persisted in `LyricsEntity.provider` and shown as "Lyrics from …"; NO estimated
 timings (word sync renders only measured `<mm:ss.xx>` tags); lyrics start at the top, active synced line held at
 30%; `LyricsSyncOffsetKey` user offset. The lyrics view (`ui/player/LyricsScreen.kt`, hosted by `Player.kt`, toggled by the

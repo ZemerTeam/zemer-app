@@ -78,6 +78,29 @@ object ZemerLyricsClient {
         return j["heLyrics"]?.jsonPrimitive?.contentOrNull?.takeIf { it.isNotBlank() } ?: j["enLyrics"]?.jsonPrimitive?.contentOrNull
     }
 
+    /**
+     * Send a user's lyrics (an edit they saved) to the Zemer server's submission queue. The server never serves a
+     * submission on its own: it is admitted only when a second device agrees or the recording confirms it.
+     * Fire-and-forget: failures are silent, the local edit is already saved on the device.
+     */
+    suspend fun submitLyrics(videoId: String, text: String, device: String, lang: String? = null): Boolean = runCatching {
+        val body = buildString {
+            append("{\"videoId\":").append(Json.encodeToString(kotlinx.serialization.serializer<String>(), videoId))
+            append(",\"device\":").append(Json.encodeToString(kotlinx.serialization.serializer<String>(), device))
+            append(",\"text\":").append(Json.encodeToString(kotlinx.serialization.serializer<String>(), text))
+            if (lang != null) append(",\"lang\":").append(Json.encodeToString(kotlinx.serialization.serializer<String>(), lang))
+            append("}")
+        }
+        val r = client.post("$baseUrl/lyrics/submit") { header(HttpHeaders.ContentType, "application/json"); setBody(body) }
+        r.status == HttpStatusCode.OK
+    }.getOrDefault(false)
+
+    /** "Wrong lyrics" report: two distinct devices within 30 days make the server hide the row until re-verified. */
+    suspend fun reportLyrics(videoId: String, device: String): Boolean = runCatching {
+        val body = "{\"videoId\":" + Json.encodeToString(kotlinx.serialization.serializer<String>(), videoId) + ",\"device\":" + Json.encodeToString(kotlinx.serialization.serializer<String>(), device) + "}"
+        client.post("$baseUrl/lyrics/report") { header(HttpHeaders.ContentType, "application/json"); setBody(body) }.status == HttpStatusCode.OK
+    }.getOrDefault(false)
+
     @Serializable
     data class MusixmatchToken(val token: String, val issuedAt: Long = 0)
 

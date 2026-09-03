@@ -39,6 +39,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import com.jtech.zemer.lyrics.zemer.ZemerLyricsClient
+import com.jtech.zemer.playback.relay.RelayDeviceId
+import kotlinx.coroutines.launch
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.TextFieldValue
@@ -71,6 +75,7 @@ fun LyricsMenu(
 ) {
     val context = LocalContext.current
     val database = LocalDatabase.current
+    val submitScope = rememberCoroutineScope()
 
     var showEditDialog by rememberSaveable {
         mutableStateOf(false)
@@ -83,15 +88,22 @@ fun LyricsMenu(
             title = { Text(text = mediaMetadataProvider().title) },
             initialTextFieldValue = TextFieldValue(lyricsProvider()?.lyrics.orEmpty()),
             singleLine = false,
-            onDone = {
+            onDone = { edited ->
+                val id = mediaMetadataProvider().id
                 database.query {
                     upsert(
                         LyricsEntity(
-                            id = mediaMetadataProvider().id,
-                            lyrics = it,
+                            id = id,
+                            lyrics = edited,
                             provider = "manual",
                         ),
                     )
+                }
+                // A saved edit is also a submission to the Zemer queue: served to others only once a second
+                // device agrees or the recording confirms it (server-side gate), never on this edit alone.
+                submitScope.launch {
+                    val device = RelayDeviceId.get(context)
+                    if (device != null && ZemerLyricsClient.submitLyrics(id, edited, device)) context.toast(context.getString(R.string.lyrics_submitted))
                 }
             },
         )
@@ -374,6 +386,26 @@ fun LyricsMenu(
                         text = stringResource(R.string.search),
                         onClick = {
                             showSearchDialog = true
+                        }
+                    ),
+                    NewAction(
+                        icon = {
+                            Icon(
+                                painter = painterResource(R.drawable.warning),
+                                contentDescription = null,
+                                modifier = Modifier.size(28.dp),
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        },
+                        text = stringResource(R.string.lyrics_report_wrong),
+                        onClick = {
+                            // Two distinct devices reporting within 30 days make the server hide the row until re-verified.
+                            val id = mediaMetadataProvider().id
+                            onDismiss()
+                            submitScope.launch {
+                                val device = RelayDeviceId.get(context)
+                                if (device != null && ZemerLyricsClient.reportLyrics(id, device)) context.toast(context.getString(R.string.lyrics_reported))
+                            }
                         }
                     )
                 ),
