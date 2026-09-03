@@ -21,18 +21,12 @@ object JyricsParser {
     private val NAV = Regex("""^(Print|SHARE|Added by|admin)$""", RegexOption.IGNORE_CASE)
     private val LABEL = Regex("""^\(?\s*(verse|chorus|bridge|intro|outro|pre-?chorus|hook|refrain|interlude|פזמון|בית)\s*[\d\w]*\s*:?\s*\)?$""", RegexOption.IGNORE_CASE)
     private val CREDIT = Regex("""^\(?\s*(composed|arranged|written|lyrics|words|music|produced|recorded|later recorded|originally|from the album|album)\b[^\n]*\bby\b|^\(?\s*(composed|arranged|recorded)\b|^(מילים|לחן|עיבוד|הפקה)\s*:""", RegexOption.IGNORE_CASE)
-    private val ENTITY = Regex("""&#(\d+);""")
 
-    private fun unescape(s: String): String = s
-        .replace("&#8217;", "'").replace("&rsquo;", "'")
-        .replace("&#8211;", "–").replace("&ndash;", "–")
-        .replace("&amp;", "&").replace("&quot;", "\"").replace("&#039;", "'").replace("&nbsp;", " ")
-        .replace(ENTITY) { m -> m.groupValues[1].toInt().toChar().toString() }
 
     fun parse(html: String): Parsed {
         var art = Regex("""<article[\s\S]*?</article>""").find(html)?.value ?: html
         RELATED_CUT.find(art)?.let { art = art.substring(0, it.range.first) }
-        val text = unescape(
+        val text = HtmlEntities.unescape(
             art.replace(SCRIPT_STYLE, "").replace(BR, "\n").replace(P_END, "\n\n").replace(BLOCK_END, "\n").replace(TAG, ""),
         )
         val lines = text.split("\n").map { it.replace(SPACES, " ").trim() }

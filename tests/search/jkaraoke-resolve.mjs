@@ -2,10 +2,9 @@
 // artist (name/altName/Hebrew name exact), title (sameSongScore >= 0.9 on title/title_hebrew), duration
 // (|karaoke - corpus| <= DUR_TOL s), and text agreement with an existing Jyrics row when present.
 import fs from "node:fs";
-import { createRequire } from "node:module";
-const require = createRequire("/home/asternheim/zemer-search/package.json"); const Database = require("better-sqlite3");
-const db = new Database("/home/asternheim/zemer-search/data/corpus.db", { readonly: true });
-import { sameSongScore, normTitle, lyricsOverlap } from "/home/asternheim/zemer-search/corpus/lyrics.mjs";
+import { openCorpus, importZemerSearch } from "./jyrics-common.mjs";
+const db = openCorpus();
+const { sameSongScore, normTitle, lyricsOverlap } = await importZemerSearch("corpus/lyrics.mjs");
 const songs = JSON.parse(fs.readFileSync(`${process.env.S}/jk_all_songs.json`, "utf8")); const DUR_TOL = Number(process.env.DUR_TOL || 4);
 const artists = db.prepare("SELECT id,name,altName FROM artist").all(); const nameIdx = new Map();
 for (const a of artists) for (const n of [a.name, a.altName]) if (n) for (const p of n.split(/\s+-\s+|\s*\/\s*|\s*\|\s*/)) nameIdx.set(normTitle(p), a.id);

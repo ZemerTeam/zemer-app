@@ -3,6 +3,7 @@ package com.jtech.zemer.lyrics.zemer
 import com.jtech.zemer.constants.EnableZemerLyricsKey
 import com.jtech.zemer.lyrics.LabeledLyrics
 import com.jtech.zemer.lyrics.LyricsProvider
+import com.jtech.zemer.lyrics.LyricsUtils
 import com.jtech.zemer.lyrics.model.LyricsUnavailableException
 
 /**
@@ -34,9 +35,9 @@ object ZemerLyricsProvider : LyricsProvider {
             if (firstOnly && out.isNotEmpty()) break
             val body = when (s.type) {
                 "jkaraoke" -> s.feedUrl?.let { fetch(it) }?.let { page -> s.songId?.let { id -> JkaraokeLrc.fromFeedPage(page, id)?.synced } }
-                "jyrics" -> s.url?.let { fetch(it) }?.let { JyricsParser.parse(it).plain.takeIf { p -> p.lines().count { l -> l.isNotBlank() } >= 4 } }
-                "shironet" -> s.url?.let { fetch(it) }?.let { ShironetParser.parse(it).plain.takeIf { p -> p.lines().count { l -> l.isNotBlank() } >= 4 } }
-                "zingmusic" -> s.trackId?.let { zing(it) }?.let { ZingParser.toPlain(it).takeIf { p -> p.lines().count { l -> l.isNotBlank() } >= 4 } }
+                "jyrics" -> s.url?.let { fetch(it) }?.let { JyricsParser.parse(it).plain.takeIf(LyricsUtils::hasLyricBody) }
+                "shironet" -> s.url?.let { fetch(it) }?.let { ShironetParser.parse(it).plain.takeIf(LyricsUtils::hasLyricBody) }
+                "zingmusic" -> s.trackId?.let { zing(it) }?.let { ZingParser.toPlain(it).takeIf(LyricsUtils::hasLyricBody) }
                 "booklet", "manual", "canonical" -> s.syncedLrc?.takeIf { it.isNotBlank() } ?: s.plain?.takeIf { it.isNotBlank() }
                 else -> null
             }

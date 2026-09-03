@@ -91,8 +91,8 @@ val AppLanguageKey = stringPreferencesKey("appLanguage")
 val EnableZemerLyricsKey = booleanPreferencesKey("enableZemerLyrics")     // the Zemer resolver (first in the chain)
 val EnableSimpMusicKey = booleanPreferencesKey("enableSimpMusic")
 val EnableLrcLibKey = booleanPreferencesKey("enableLrclib")
-val EnableYouTubeLyricsKey = booleanPreferencesKey("enableYouTubeLyrics")
-val LyricsProviderOrderKey = stringPreferencesKey("lyricsProviderOrder")   // comma-separated LyricsProviderRegistry names; blank = default order   // YouTube subtitles + the Music lyrics tab (lower trust, last)
+val EnableYouTubeLyricsKey = booleanPreferencesKey("enableYouTubeLyrics")   // YouTube subtitles + the Music lyrics tab (low trust: served only when no trusted provider answered)
+val LyricsProviderOrderKey = stringPreferencesKey("lyricsProviderOrder")   // comma-separated LyricsProviderRegistry names; blank = default order
 val EnableMusixmatchKey = booleanPreferencesKey("enableMusixmatch")
 val MusixmatchTokenKey = stringPreferencesKey("musixmatchToken")          // one desktop-API token per device (lyrics/musixmatch)
 val MusixmatchLastStatusKey = stringPreferencesKey("musixmatchLastStatus")   // last lookup outcome, shown under the provider toggle
@@ -452,7 +452,7 @@ val TrackingBackfillCursorKey = longPreferencesKey("trackingBackfillCursor")
 val TrackingBackfillBoundKey = longPreferencesKey("trackingBackfillBound")
 val TrackingBackfillDoneKey = booleanPreferencesKey("trackingBackfillDone")
 val TrackingActionBackfillDoneKey = booleanPreferencesKey("trackingActionBackfillDone")
-/** One-time cleanup of untrusted cached lyrics (pre-provider rows, old LrcLib matches) done. */
+/** One-time cleanup of cached lyrics done: drops legacy not-found rows only (see DatabaseDao.purgeUntrustedLyrics). */
 val LyricsCachePurgeDoneKey = booleanPreferencesKey("lyricsCachePurgeDone")
 val TrackingActionBackfillSentKey = longPreferencesKey("trackingActionBackfillSent")
 val VisitorDataKey = stringPreferencesKey("visitorData")

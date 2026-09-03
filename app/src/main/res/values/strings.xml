@@ -328,6 +328,17 @@
     <string name="enable_musixmatch_desc">Spotify\'s catalog, fetched on-device</string>
     <string name="enable_youtube_lyrics_desc">Subtitles and the Music lyrics tab; tried last</string>
     <string name="lyrics_provider_youtube_note">YouTube lyrics are lower trust and are tried last by default</string>
+    <string name="musixmatch_status_hit">Last lookup: lyrics found</string>
+    <string name="musixmatch_status_hit_synced">Last lookup: synced lyrics found</string>
+    <string name="musixmatch_status_unauthorized">Last lookup: token quota reached, a new token is fetched next time</string>
+    <string name="musixmatch_status_network">Last lookup: network error</string>
+    <string name="musixmatch_status_no_match">Last lookup: no matching track</string>
+    <string name="musixmatch_status_no_lyrics">Last lookup: track known, no lyrics on file</string>
+    <string name="musixmatch_status_no_token">Last lookup: no token (issuance refused, retried in 30 minutes)</string>
+    <string name="musixmatch_status_rejected_artist">Last lookup: rejected, artist did not match (%1$s)</string>
+    <string name="musixmatch_status_rejected_title">Last lookup: rejected, title did not match (%1$s)</string>
+    <string name="musixmatch_status_rejected_length">Last lookup: rejected, length did not match (%1$s)</string>
+    <string name="musixmatch_status_rejected_unusable">Last lookup: rejected, instrumental or restricted (%1$s)</string>
 
     <string name="backup_restore">Backup and restore</string>
     <string name="action_backup">Backup</string>

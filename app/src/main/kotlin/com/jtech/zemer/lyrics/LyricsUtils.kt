@@ -23,6 +23,10 @@ object LyricsUtils {
     /** True when the body has measured line timings (`[mm:ss.xx]`), i.e. it can scroll in time with the song. */
     fun isSynced(lyrics: String): Boolean = TIME_REGEX.containsMatchIn(lyrics)
 
+    /** A body worth serving has at least [MIN_LYRIC_LINES] non-blank lines (a title echo or a one-line stub is not lyrics). */
+    const val MIN_LYRIC_LINES = 4
+    fun hasLyricBody(text: String): Boolean = text.lineSequence().count { it.isNotBlank() } >= MIN_LYRIC_LINES
+
     /**
      * The lyrics with any word tags removed and spacing normalised, for places that show the raw
      * LRC body (the provider picker preview). Line timestamps are kept.

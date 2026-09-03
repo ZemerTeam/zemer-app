@@ -5,9 +5,13 @@ Code-derived. Files: `lyrics/` (provider chain), `lyrics/zemer/` (Zemer resolver
 `ui/player/LyricsScreen.kt` (the lyrics view), `ui/player/Player.kt` (hosts it), `db/entities/LyricsEntity.kt`.
 
 ## Provider chain (`lyrics/LyricsHelper.kt`)
-Order: `ZemerLyricsProvider` → `SimpMusicLyricsProvider` → `LrcLibLyricsProvider` → `YouTubeSubtitleLyricsProvider`
-→ `YouTubeLyricsProvider`. The first success wins; `LyricsHelper.getLyrics` returns `Fetched(lyrics, provider)` and
-the provider label is persisted in `LyricsEntity.provider` (nullable; Room `AutoMigration(35, 36)`). The label is
+Default order (`LyricsProviderRegistry`, user-reorderable in Content settings): `ZemerLyricsProvider` →
+`SimpMusicLyricsProvider` → `MusixmatchLyricsProvider` → `LrcLibLyricsProvider` → `YouTubeSubtitleLyricsProvider`
+→ `YouTubeLyricsProvider`. The walk's pick rule is `SyncedFirstPicker` (below); `LyricsHelper.getLyrics` returns
+`Fetched(lyrics, provider)` and the provider label is persisted in `LyricsEntity.provider` (nullable; Room
+`AutoMigration(35, 36)`). Every fetch-and-persist goes through `lyrics/LyricsStore` (`ensure` = the cache
+decision + chain + row policy, `refetch` = the menu's explicit replace-in-place); the service prefetch, the lyrics
+screen and the menu call it, none of them re-implements the policy (`LyricsStoreTest`). The label is
 part of every provider result (`LyricsProvider.getLabeledLyrics`/`getAllLabeledLyrics` → `LabeledLyrics`), so the
 auto-fetch path and the picker persist the same string for the same source. `LyricsHelper` keys the videoId-based
 providers by `MediaMetadata.id` (never `setVideoId`, which is a playlist-entry token).
@@ -15,21 +19,35 @@ providers by `MediaMetadata.id` (never `setVideoId`, which is a playlist-entry t
 * **Zemer** (`lyrics/zemer/`): `ZemerLyricsClient.resolve(videoId)` → `GET {ZEMER_LYRICS_BASE_URL}/lyrics/resolve`
   (BuildConfig; gradle `-PzemerLyricsBaseUrl=`; default `https://search.zemer.io`). The server returns SOURCE
   POINTERS, not third-party text; the app fetches each source itself: jkaraoke feed page → `JkaraokeLrc`
-  (line-synced LRC, measured times), Jyrics page → `JyricsParser` (plain), booklet/canonical text inline.
-  Both parsers are byte-identical ports of the server's, pinned by golden files under
-  `app/src/test/resources/lyrics/` (`JyricsParserGoldenTest`, `JkaraokeLrcGoldenTest`, `SyncIntegrationTest`).
-  Provider label: `Zemer · <source>[ ✓]` (✓ = two independent sources agreed). `bodies(firstOnly = true)` stops at the
-  first source that yields text, so the auto-fetch path does not download every source.
+  (line-synced LRC, measured times), Jyrics page → `JyricsParser` (plain), Shironet page → `ShironetParser`
+  (plain), Zing track → `ZingParser` (plain), booklet/manual/canonical text inline. The page parsers are
+  byte-identical ports of the server's, pinned by golden files under `app/src/test/resources/lyrics/`
+  (`JyricsParserGoldenTest`, `ShironetParserGoldenTest`, `ZingParserGoldenTest`, `JkaraokeLrcGoldenTest`,
+  `SyncIntegrationTest`); they share `HtmlEntities.unescape` and the `LyricsUtils.hasLyricBody` body gate (four
+  non-blank lines, also Musixmatch's). Provider label: `Zemer · <source>` (verification is a server fact, not shown;
+  the lyrics header shows just "Zemer", the sub-source stays in the stored label for reports).
+  `bodies(firstOnly = true)` stops at the first source that yields text, so the auto-fetch path does not download
+  every source.
 * **SimpMusic**: keyed by videoId; prefers `richSyncLyrics` (word tags) > `syncedLyrics` > `plainLyric`, but a synced/word
   body is used only when the source track is within `SYNC_TOLERANCE_SEC` (1 s) of ours — otherwise plain text
   (`syncAllowed`; an unknown `durationSeconds` is accepted, the entry is the same recording by videoId). Downloads embed
   `LyricsUtils.stripWordTags(...)` of that body: plain LRC, never `<mm:ss.xx>` word tags.
+* **Musixmatch** (`lyrics/musixmatch/MusixmatchLyrics.kt`): on-device, one desktop-API token per phone brokered by
+  the Zemer server (`ZemerLyricsClient.musixmatchToken`, direct issuance as the fallback behind a 30 min cooldown);
+  gates mirror the server's (`MusixmatchGatesTest`), `cleanLrc` formats with `Locale.US`. The last lookup outcome is
+  stored as a `MusixmatchStatus` CODE in `MusixmatchLastStatusKey` and localised by the Content settings row
+  (`musixmatchStatusText`; `MusixmatchStatusTest`), never as display text.
 * **LrcLib**: title/artist keyed. `LrcLib.identityMatches` requires title ≥ 0.75 AND artist ≥ 0.75 similarity AND
   duration within 3 s — a duration-only match served a Japanese song for a Baruch Levine track before this gate
   (`lrclib/src/test/.../LrcLibIdentityTest.kt`). The artist side passes when ANY credited artist matches
   (`creditedArtists` splits the queue item's joined credit), since LRCLIB may catalogue a multi-credit recording
   under the second name. `LrcLib.pickBody` serves a synced body only from a `syncable` track
   (non-blank, within 1 s); a track inside the identity gate but outside the sync gate yields plain text or nothing.
+
+## Content settings (`ui/screens/settings/LyricsProviderDialogs.kt`)
+Provider selection = one shared `SwitchPreference` row per toggle (D-pad focusable); provider priority = the shared
+`ReorderableList` over the pure `LyricsProviderOrdering` (one row per toggle, enabled only, a drag keeps disabled
+providers behind the enabled ones; `LyricsProviderOrderingTest`, `LyricsProviderRegistryTest`).
 
 ## Sync rendering (`lyrics/LyricsUtils.kt`, `ui/component/Lyrics.kt`)
 * Line sync: LRC `[mm:ss.xx]`; `findCurrentLineIndex` with `LINE_LOOKAHEAD_MS = 150`.
@@ -57,13 +75,15 @@ Zemer plain body (`SyncedFirstPickerTest`).
 The menu sheet's own `rememberCoroutineScope` is cancelled the frame the sheet is dismissed, and the report action
 dismisses first, so a POST launched there never reached the server (`LyricsFeedbackTest`).
 
-## Cache hygiene (`LyricsEntity.needsFetch` / `LyricsEntity.resolved`)
-`LyricsScreen` (on open) and `MusicService` (past the `showLyrics`/`isEpisode` guard) run the chain only when
-`needsFetch`: nothing cached, or a legacy row (provider null) with a real body. A `LYRICS_NOT_FOUND` row is a
+## Cache hygiene (`LyricsEntity.needsFetch` / `LyricsEntity.resolved`, applied by `LyricsStore`)
+`LyricsScreen` (on open) and `MusicService` (past the `showLyrics` guard) call `LyricsStore.ensure`, which runs the
+chain only when `needsFetch`: nothing cached, or a legacy row (provider null) with a real body. A `LYRICS_NOT_FOUND` row is a
 negative cache and is never re-fetched. A legacy PLAIN body is always kept and stamped `provider = "legacy"`
 (shown as unknown provenance): pre-provider manual entries are indistinguishable from old auto-cached rows and
 must not be silently replaced — Refetch is the explicit way out. A legacy SYNCED body is replaced when the chain
-answers: nobody types timestamps, so it is an old ungated LrcLib match (`LyricsCachePolicyTest`).
+answers: nobody types timestamps, so it is an old ungated LrcLib match (`LyricsCachePolicyTest`). The menu's
+Refetch (`LyricsStore.refetch`) is the explicit override: it replaces the row in place with a fresh chain answer
+(no delete-first, which emptied the pane and re-triggered the screen's own fetch).
 The one-time purge (`DatabaseDao.purgeUntrustedLyrics`, flag `LyricsCachePurgeDoneKey`) deletes only legacy
 not-found rows; pre-provider rows carry no provider stamp, so a `provider = 'LrcLib'` clause could only ever hit
 NEW identity-gated rows and was removed. Hebrew strings under `values-iw/` are managed by the locale process and

@@ -55,7 +55,6 @@ import androidx.compose.ui.zIndex
 import androidx.media3.common.C
 import androidx.media3.common.Player
 import coil3.compose.AsyncImage
-import com.jtech.zemer.LocalDatabase
 import com.jtech.zemer.LocalPlayerConnection
 import com.jtech.zemer.R
 import com.jtech.zemer.constants.PlayerBackgroundStyle
@@ -64,7 +63,7 @@ import com.jtech.zemer.constants.SliderStyle
 import com.jtech.zemer.constants.SliderStyleKey
 import com.jtech.zemer.db.entities.LyricsEntity
 import com.jtech.zemer.lyrics.LyricsUtils
-import com.jtech.zemer.di.LyricsHelperEntryPoint
+import com.jtech.zemer.di.LyricsStoreEntryPoint
 import com.jtech.zemer.extensions.repeatModeContentDescriptionRes
 import com.jtech.zemer.extensions.repeatModeIconRes
 import com.jtech.zemer.extensions.shuffleIconRes
@@ -102,7 +101,6 @@ fun LyricsScreen(
     }
     val playerConnection = LocalPlayerConnection.current ?: return
     val menuState = LocalMenuState.current
-    val database = LocalDatabase.current
 
     val playbackState by playerConnection.playbackState.collectAsState()
     val isPlaying by playerConnection.isPlaying.collectAsState()
@@ -115,16 +113,14 @@ fun LyricsScreen(
     val currentLyrics by playerConnection.currentLyrics.collectAsState(initial = null)
 
     // Opening the screen fetches when nothing is cached, and re-resolves a legacy (pre-provider) row once so
-    // its provenance becomes known (LyricsEntity.needsFetch / resolved: the same policy as the service
-    // prefetch). Episodes have no lyrics — never fetch/store for them.
+    // its provenance becomes known. The decision + policy are LyricsStore's (one path with the service prefetch
+    // and Refetch); it skips episodes itself.
     val needsFetch = LyricsEntity.needsFetch(currentLyrics)
     LaunchedEffect(mediaMetadata.id, needsFetch) {
-        if (needsFetch && !mediaMetadata.isEpisode) {
+        if (needsFetch) {
             delay(500)
             try {
-                val cached = currentLyrics
-                val fetched = EntryPointAccessors.fromApplication(context.applicationContext, LyricsHelperEntryPoint::class.java).lyricsHelper().getLyrics(mediaMetadata)
-                database.query { upsert(LyricsEntity.resolved(mediaMetadata.id, cached, fetched.lyrics, fetched.provider)) }
+                EntryPointAccessors.fromApplication(context.applicationContext, LyricsStoreEntryPoint::class.java).lyricsStore().ensure(mediaMetadata)
             } catch (e: Exception) {
                 Timber.w(e, "lyrics fetch failed for ${mediaMetadata.id}")
             }

@@ -1,4 +1,14 @@
 import fs from "node:fs";
+import path from "node:path";
+import { createRequire } from "node:module";
+import { fileURLToPath, pathToFileURL } from "node:url";
+
+// The sibling zemer-search checkout these research probes read (corpus.db + corpus/lyrics.mjs). Override with
+// ZEMER_SEARCH=/path/to/zemer-search; the default is the workspace sibling of this repo. Never a machine path.
+export const ZEMER_SEARCH = path.resolve(process.env.ZEMER_SEARCH ?? path.join(path.dirname(fileURLToPath(import.meta.url)), "../../../zemer-search"));
+export const zemerSearchRequire = createRequire(path.join(ZEMER_SEARCH, "package.json"));
+export const openCorpus = () => new (zemerSearchRequire("better-sqlite3"))(path.join(ZEMER_SEARCH, "data/corpus.db"), { readonly: true });
+export const importZemerSearch = (rel) => import(pathToFileURL(path.join(ZEMER_SEARCH, rel)).href);
 export const norm = (s) => (s || "").normalize("NFKD").replace(/[֑-ׇ]/g, "").toLowerCase()
   .replace(/[’'`"״׳]/g, "").replace(/\(.*?\)|\[.*?\]/g, " ").replace(/[^a-z0-9א-ת ]+/g, " ").replace(/\s+/g, " ").trim();
 export const tokens = (s) => new Set(norm(s).split(" ").filter((t) => t.length > 1));

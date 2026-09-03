@@ -200,7 +200,7 @@ fun ContentSettings(
         LyricsProviderToggle(listOf("Zemer"), R.string.enable_zemer_lyrics, R.string.enable_zemer_lyrics_desc, enableZemerLyrics, onEnableZemerLyricsChange),
         LyricsProviderToggle(listOf("SimpMusic"), R.string.enable_simpmusic, R.string.enable_simpmusic_desc, enableSimpMusic, onEnableSimpMusicChange),
         LyricsProviderToggle(listOf("LrcLib"), R.string.enable_lrclib, R.string.enable_lrclib_desc, enableLrclib, onEnableLrclibChange),
-        LyricsProviderToggle(listOf("Musixmatch"), R.string.enable_musixmatch, R.string.enable_musixmatch_desc, enableMusixmatch, onEnableMusixmatchChange, status = musixmatchStatus),
+        LyricsProviderToggle(listOf("Musixmatch"), R.string.enable_musixmatch, R.string.enable_musixmatch_desc, enableMusixmatch, onEnableMusixmatchChange, statusCode = musixmatchStatus),
         LyricsProviderToggle(listOf("YouTubeSubtitle", "YouTube"), R.string.enable_youtube_lyrics, R.string.enable_youtube_lyrics_desc, enableYouTubeLyrics, onEnableYouTubeLyricsChange),
     )
     if (showProviderSelectionDialog) LyricsProviderSelectionDialog(lyricsProviderToggles) { showProviderSelectionDialog = false }

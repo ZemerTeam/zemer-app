@@ -1,10 +1,8 @@
 // How often is an exact-key Jyrics match ambiguous (>=2 distinct titles under the same artist share
 // the consonant key)? Ambiguous = cannot be trusted without review.
 import fs from "node:fs";
-import { createRequire } from "node:module";
-const require = createRequire("/home/asternheim/zemer-search/package.json"); const Database = require("better-sqlite3");
-const db = new Database("/home/asternheim/zemer-search/data/corpus.db", { readonly: true });
-import { titleForms, norm } from "./jyrics-common.mjs";
+import { titleForms, norm, openCorpus } from "./jyrics-common.mjs";
+const db = openCorpus();
 const key = (s) => norm(s).replace(/['’`]/g, "").replace(/\bh\b/g, "").replace(/ch|kh/g, "k").replace(/th/g, "t").replace(/ei|ai|ey|ay/g, "e").replace(/oi|oy/g, "o").replace(/ou|oo/g, "u").replace(/tz|ts|z/g, "s").replace(/w/g, "v").replace(/([a-z])\1/g, "$1").replace(/[aeiou]/g, "").replace(/\s+/g, " ").trim();
 const res = JSON.parse(fs.readFileSync(new URL("./.cache/jyrics-corpus-resolved.json", import.meta.url), "utf8")).filter((r) => r.score === 1);
 const wl = JSON.parse(fs.readFileSync(new URL("./.cache/whitelist.json", import.meta.url), "utf8")); const idByName = new Map(wl.map((a) => [a.name, a.id]));

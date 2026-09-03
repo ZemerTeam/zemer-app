@@ -131,7 +131,7 @@ import com.jtech.zemer.extensions.toMediaItem
 import com.jtech.zemer.extensions.toPersistQueue
 import com.jtech.zemer.extensions.toQueue
 import com.jtech.zemer.extensions.toast
-import com.jtech.zemer.lyrics.LyricsHelper
+import com.jtech.zemer.lyrics.LyricsStore
 import com.jtech.zemer.models.MediaMetadata
 import com.jtech.zemer.models.PersistPlayerState
 import com.jtech.zemer.models.PersistQueue
@@ -207,7 +207,7 @@ class MusicService :
         get() = databaseLazy.get()
 
     @Inject
-    lateinit var lyricsHelper: LyricsHelper
+    lateinit var lyricsStore: LyricsStore
 
     @Inject
     lateinit var syncUtils: SyncUtils
@@ -716,19 +716,9 @@ class MusicService :
         ) { mediaMetadata, showLyrics ->
             mediaMetadata to showLyrics
         }.collectLatest(scope) { (mediaMetadata, showLyrics) ->
-            // Podcast episodes have no lyrics (the player hides the lyrics affordance for them) —
-            // skip the provider fetch instead of storing a junk LyricsEntity per episode. The cache is
-            // consulted only past the guard, so a hidden pane costs no Room query per song change.
-            if (showLyrics && mediaMetadata != null && !mediaMetadata.isEpisode) {
-                val cachedLyrics = database.lyrics(mediaMetadata.id).first()
-                // See LyricsEntity.needsFetch: nothing cached, or a legacy row re-resolved once for provenance.
-                if (LyricsEntity.needsFetch(cachedLyrics)) {
-                    val fetched = lyricsHelper.getLyrics(mediaMetadata)
-                    database.query {
-                        upsert(LyricsEntity.resolved(mediaMetadata.id, cachedLyrics, fetched.lyrics, fetched.provider))
-                    }
-                }
-            }
+            // The cache decision, the chain and the row policy are LyricsStore's (one path with the lyrics
+            // screen and Refetch); it also skips episodes. A hidden pane costs no Room query per song change.
+            if (showLyrics && mediaMetadata != null) lyricsStore.ensure(mediaMetadata)
         }
 
         dataStore.data

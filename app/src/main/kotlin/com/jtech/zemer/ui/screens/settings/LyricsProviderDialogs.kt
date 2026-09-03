@@ -1,18 +1,11 @@
 package com.jtech.zemer.ui.screens.settings
 
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Switch
-import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -21,15 +14,16 @@ import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.jtech.zemer.R
-import com.jtech.zemer.lyrics.LyricsProviderRegistry
+import com.jtech.zemer.lyrics.LyricsProviderOrdering
+import com.jtech.zemer.lyrics.musixmatch.MusixmatchStatus
 import com.jtech.zemer.ui.component.DefaultDialog
-import com.jtech.zemer.ui.component.DraggableLyricsProviderItem
-import com.jtech.zemer.ui.component.DraggableLyricsProviderList
+import com.jtech.zemer.ui.component.PreferenceEntryDefaults
+import com.jtech.zemer.ui.component.ReorderableEntry
+import com.jtech.zemer.ui.component.ReorderableList
+import com.jtech.zemer.ui.component.SwitchPreference
 
 /** One lyrics provider as the settings dialogs see it: registry name(s), display strings, and its enable preference. */
 class LyricsProviderToggle(
@@ -38,10 +32,29 @@ class LyricsProviderToggle(
     val description: Int,
     val enabled: Boolean,
     val onEnabledChange: (Boolean) -> Unit,
-    val status: String? = null,      // last outcome line (Musixmatch), shown under the description
+    val statusCode: String? = null,   // last outcome code (Musixmatch, `MusixmatchStatus`), localised under the description
 )
 
-/** Content settings → Provider selection: one switch per provider, with what each source is. */
+/** The stored Musixmatch outcome code as user text; null for no/unknown code (older installs stored free text). */
+@Composable
+fun musixmatchStatusText(code: String?): String? = when (val s = MusixmatchStatus.parse(code)) {
+    null -> null
+    MusixmatchStatus.Hit -> stringResource(R.string.musixmatch_status_hit)
+    MusixmatchStatus.HitSynced -> stringResource(R.string.musixmatch_status_hit_synced)
+    MusixmatchStatus.Unauthorized -> stringResource(R.string.musixmatch_status_unauthorized)
+    MusixmatchStatus.Network -> stringResource(R.string.musixmatch_status_network)
+    MusixmatchStatus.NoMatch -> stringResource(R.string.musixmatch_status_no_match)
+    MusixmatchStatus.NoLyrics -> stringResource(R.string.musixmatch_status_no_lyrics)
+    MusixmatchStatus.NoToken -> stringResource(R.string.musixmatch_status_no_token)
+    is MusixmatchStatus.Rejected -> when (s.reason) {
+        MusixmatchStatus.REASON_ARTIST -> stringResource(R.string.musixmatch_status_rejected_artist, s.detail)
+        MusixmatchStatus.REASON_TITLE -> stringResource(R.string.musixmatch_status_rejected_title, s.detail)
+        MusixmatchStatus.REASON_LENGTH -> stringResource(R.string.musixmatch_status_rejected_length, s.detail)
+        else -> stringResource(R.string.musixmatch_status_rejected_unusable, s.detail)
+    }
+}
+
+/** Content settings → Provider selection: one switch row per provider (the shared `SwitchPreference`, D-pad focusable), with what each source is. */
 @Composable
 fun LyricsProviderSelectionDialog(providers: List<LyricsProviderToggle>, onDismiss: () -> Unit) {
     DefaultDialog(
@@ -50,41 +63,37 @@ fun LyricsProviderSelectionDialog(providers: List<LyricsProviderToggle>, onDismi
         horizontalAlignment = Alignment.Start,
         buttons = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.close)) } },
     ) {
-        Column(modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        // weight(fill = false): the list takes only what it needs but never pushes the buttons off a small screen;
+        // past the dialog's height cap it scrolls (the nav-drawer behaviour).
+        Column(modifier = Modifier.fillMaxWidth().weight(1f, fill = false).verticalScroll(rememberScrollState())) {
             providers.forEach { p ->
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                    Column(modifier = Modifier.weight(1f).padding(end = 12.dp)) {
-                        Text(stringResource(p.title), fontWeight = FontWeight.Bold)
-                        Text(stringResource(p.description), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        p.status?.takeIf { it.isNotBlank() }?.let { Text(it, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.tertiary) }
-                    }
-                    Switch(
-                        checked = p.enabled,
-                        onCheckedChange = p.onEnabledChange,
-                        thumbContent = { Icon(painterResource(if (p.enabled) R.drawable.check else R.drawable.close), null, Modifier.size(SwitchDefaults.IconSize)) },
-                    )
-                }
+                val status = musixmatchStatusText(p.statusCode)
+                SwitchPreference(
+                    title = { Text(stringResource(p.title)) },
+                    description = listOfNotNull(stringResource(p.description), status).joinToString("\n"),
+                    checked = p.enabled,
+                    onCheckedChange = p.onEnabledChange,
+                    contentPadding = PreferenceEntryDefaults.compactContentPadding,
+                )
             }
-            Text(stringResource(R.string.lyrics_provider_youtube_note), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 4.dp))
+            Text(stringResource(R.string.lyrics_provider_youtube_note), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(horizontal = 8.dp, vertical = 8.dp))
         }
     }
 }
 
 /**
  * Content settings → Lyrics provider priority: the ENABLED providers in the user's order, drag to reorder.
- * [order] is the serialised preference; the callback receives the new serialised order (disabled providers
- * keep their relative places after the enabled ones so re-enabling one is predictable).
+ * [order] is the serialised preference; the callback receives the new serialised order. The order math is the
+ * pure, tested `LyricsProviderOrdering`; the rows are the shared `ReorderableList`.
  */
 @Composable
 fun LyricsProviderPriorityDialog(providers: List<LyricsProviderToggle>, order: String, onOrderChange: (String) -> Unit, onDismiss: () -> Unit) {
-    val normalized = LyricsProviderRegistry.deserializeProviderOrder(order)
-    val byId = providers.flatMap { p -> p.ids.map { it to p } }.toMap()
     val enabledIds = providers.filter { it.enabled }.flatMap { it.ids }.toSet()
-    // One row per TOGGLE (YouTube's two registry entries collapse into one row), in the current order.
-    val rows = normalized.filter { it in enabledIds }.map { byId.getValue(it) }.distinct()
-    val items = remember { mutableStateListOf<DraggableLyricsProviderItem>() }
-    val titles = rows.associate { it.ids.first() to stringResource(it.title) }
-    LaunchedEffect(rows) { items.clear(); items.addAll(rows.map { DraggableLyricsProviderItem(it.ids.first(), titles.getValue(it.ids.first())) }) }
+    val byFirstId = providers.associateBy { it.ids.first() }
+    val rows = LyricsProviderOrdering.enabledGroups(order, providers.map { it.ids }, enabledIds)
+    val items = remember { mutableStateListOf<ReorderableEntry>() }
+    val titles = rows.associate { it.first() to stringResource(byFirstId.getValue(it.first()).title) }
+    LaunchedEffect(rows) { items.clear(); items.addAll(rows.map { ReorderableEntry(it.first(), titles.getValue(it.first())) }) }
 
     DefaultDialog(
         onDismiss = onDismiss,
@@ -92,16 +101,13 @@ fun LyricsProviderPriorityDialog(providers: List<LyricsProviderToggle>, order: S
         horizontalAlignment = Alignment.Start,
         buttons = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.close)) } },
     ) {
-        Column(modifier = Modifier.fillMaxWidth().height(320.dp)) {
+        Column(modifier = Modifier.fillMaxWidth().weight(1f, fill = false)) {
             Text(stringResource(R.string.lyrics_provider_priority_desc), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(bottom = 8.dp))
-            DraggableLyricsProviderList(
+            // The lazy list is bounded by the dialog's height cap and scrolls past it (the nav-drawer behaviour).
+            ReorderableList(
                 items = items,
-                onItemsReordered = { reordered ->
-                    val enabledOrder = reordered.flatMap { byId.getValue(it.id).ids }
-                    val disabledOrder = normalized.filter { it !in enabledIds }
-                    onOrderChange(LyricsProviderRegistry.serializeProviderOrder(enabledOrder + disabledOrder))
-                },
-                modifier = Modifier.fillMaxWidth().weight(1f),
+                onItemsReordered = { reordered -> onOrderChange(LyricsProviderOrdering.reordered(order, reordered.map { byFirstId.getValue(it.id).ids }, enabledIds)) },
+                modifier = Modifier.fillMaxWidth().weight(1f, fill = false),
             )
         }
     }

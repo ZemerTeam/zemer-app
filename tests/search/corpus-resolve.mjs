@@ -3,12 +3,9 @@
 // transliteration-tolerant forms. (b) Booklet PDFs -> corpus album: artist by Hebrew/English name
 // (artist.name / altName), album title by the same matcher.
 import fs from "node:fs";
-import { createRequire } from "node:module";
-const require = createRequire("/home/asternheim/zemer-search/package.json");
-const Database = require("better-sqlite3");
-const db = new Database("/home/asternheim/zemer-search/data/corpus.db", { readonly: true });
-import { titleForms, norm } from "./jyrics-common.mjs";
-import { sameSongScore, hebKey, latKey } from "/home/asternheim/zemer-search/corpus/lyrics.mjs";
+import { titleForms, norm, openCorpus, importZemerSearch } from "./jyrics-common.mjs";
+const db = openCorpus();
+const { sameSongScore, hebKey, latKey } = await importZemerSearch("corpus/lyrics.mjs");
 const S = process.env.S;
 // transliteration-tolerant key: lowercase, strip niqqud/punct, collapse common Ashkenazi/Sephardi and
 // spelling variants so "Achas Shoalti"/"Achat Sha'alti", "Kel Elyon"/"Keil Elyon" meet.

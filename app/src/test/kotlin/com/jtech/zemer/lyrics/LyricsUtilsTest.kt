@@ -57,4 +57,12 @@ class LyricsUtilsTest {
         assertEquals(2, LyricsUtils.sungWordCount(words, 1950L))
         assertEquals(3, LyricsUtils.sungWordCount(words, 9000L))
     }
+
+    /** The shared body gate (Zemer sources + Musixmatch): fewer than four non-blank lines is a stub, not lyrics. */
+    @Test
+    fun `hasLyricBody needs four non-blank lines`() {
+        assertTrue(LyricsUtils.hasLyricBody("a\nb\n\nc\nd"))
+        assertFalse(LyricsUtils.hasLyricBody("a\nb\nc"))
+        assertFalse(LyricsUtils.hasLyricBody("a\n \n\t\nb\nc"))
+    }
 }

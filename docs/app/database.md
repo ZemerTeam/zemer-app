@@ -6,22 +6,22 @@
 | --- | --- |
 | Database class | `MusicDatabase.InternalDatabase` |
 | Wrapper class | `MusicDatabase` delegates `DatabaseDao` to `delegate.dao` |
-| Schema version | `34` |
-| Identity hash | `34aedfb248fca6ea1217dc974399c622` |
-| Entity count in schema 34 | `19` |
-| Schema files tracked | `34` |
+| Schema version | `36` |
+| Identity hash | `e6157b9dfb31273b8dad37b1ca5af7d0` |
+| Entity count in schema 36 | `19` |
+| Schema files tracked | `36` |
 | DAO file | `app/src/main/kotlin/com/jtech/zemer/db/DatabaseDao.kt` |
-| DAO methods found by regex | `199` |
+| DAO methods found by regex | `220` |
 
 ## DAO annotation counts
 
 | Annotation | Count |
 | --- | ---: |
-| `@Query` | 143 |
-| `@Transaction` | 111 |
-| `@Insert` | 14 |
-| `@Delete` | 10 |
-| `@Upsert` | 5 |
+| `@Query` | 157 |
+| `@Transaction` | 110 |
+| `@Insert` | 16 |
+| `@Delete` | 11 |
+| `@Upsert` | 7 |
 | `@RewriteQueriesToDropUnusedColumns` | 1 |
 | `@RawQuery` | 1 |
 
@@ -54,6 +54,7 @@
 | 24 | 25 | `none` |
 | 25 | 26 | `none` |
 | 32 | 33 | `none` |
+| 35 | 36 | `none` |
 
 ## Manual migrations declared in `MusicDatabase.kt`
 
@@ -67,63 +68,60 @@
 | `MIGRATION_30_31` | 30 | 31 |
 | `MIGRATION_31_32` | 31 | 32 |
 | `MIGRATION_33_34` | 33 | 34 |
+| `MIGRATION_34_35` | 34 | 35 |
 
-## Schema 34 entities
+## Schema 36 entities
 
 ### `song`
 
 - Primary key columns: `id`
-- Field count: `23`
-- Indices: `4`
+- Field count: `25`
+- Indices: `5`
 
 | Field path | Column | Affinity | Not null | Default |
 | --- | --- | --- | --- | --- |
 | `id` | `id` | `TEXT` | `True` | `None` |
 | `title` | `title` | `TEXT` | `True` | `None` |
 | `duration` | `duration` | `INTEGER` | `True` | `None` |
-| `thumbnailUrl` | `thumbnailUrl` | `TEXT` | `None` | `None` |
-| `albumId` | `albumId` | `TEXT` | `None` | `None` |
-| `albumName` | `albumName` | `TEXT` | `None` | `None` |
+| `thumbnailUrl` | `thumbnailUrl` | `TEXT` | `False` | `None` |
+| `albumId` | `albumId` | `TEXT` | `False` | `None` |
+| `albumName` | `albumName` | `TEXT` | `False` | `None` |
 | `explicit` | `explicit` | `INTEGER` | `True` | `0` |
-| `year` | `year` | `INTEGER` | `None` | `None` |
-| `date` | `date` | `INTEGER` | `None` | `None` |
-| `dateModified` | `dateModified` | `INTEGER` | `None` | `None` |
+| `year` | `year` | `INTEGER` | `False` | `None` |
+| `date` | `date` | `INTEGER` | `False` | `None` |
+| `dateModified` | `dateModified` | `INTEGER` | `False` | `None` |
 | `liked` | `liked` | `INTEGER` | `True` | `None` |
-| `likedDate` | `likedDate` | `INTEGER` | `None` | `None` |
+| `likedDate` | `likedDate` | `INTEGER` | `False` | `None` |
 | `totalPlayTime` | `totalPlayTime` | `INTEGER` | `True` | `None` |
-| `inLibrary` | `inLibrary` | `INTEGER` | `None` | `None` |
-| `dateDownload` | `dateDownload` | `INTEGER` | `None` | `None` |
+| `lastPositionMs` | `lastPositionMs` | `INTEGER` | `True` | `0` |
+| `inLibrary` | `inLibrary` | `INTEGER` | `False` | `None` |
+| `dateDownload` | `dateDownload` | `INTEGER` | `False` | `None` |
 | `isLocal` | `isLocal` | `INTEGER` | `True` | `false` |
-| `libraryAddToken` | `libraryAddToken` | `TEXT` | `None` | `None` |
-| `libraryRemoveToken` | `libraryRemoveToken` | `TEXT` | `None` | `None` |
+| `libraryAddToken` | `libraryAddToken` | `TEXT` | `False` | `None` |
+| `libraryRemoveToken` | `libraryRemoveToken` | `TEXT` | `False` | `None` |
 | `romanizeLyrics` | `romanizeLyrics` | `INTEGER` | `True` | `true` |
 | `isDownloaded` | `isDownloaded` | `INTEGER` | `True` | `0` |
-| `mediaStoreUri` | `mediaStoreUri` | `TEXT` | `None` | `NULL` |
+| `mediaStoreUri` | `mediaStoreUri` | `TEXT` | `False` | `NULL` |
 | `isUploaded` | `isUploaded` | `INTEGER` | `True` | `false` |
 | `isVideo` | `isVideo` | `INTEGER` | `True` | `0` |
-
-| Index name | Unique | Columns | Orders |
-| --- | --- | --- | --- |
-| `index_song_albumId` | `False` | `albumId` | `` |
-| `index_song_inLibrary` | `False` | `inLibrary` | `` |
-| `index_song_liked` | `False` | `liked` | `` |
-| `index_song_isVideo` | `False` | `isVideo` | `` |
+| `isEpisode` | `isEpisode` | `INTEGER` | `True` | `0` |
 
 ### `artist`
 
 - Primary key columns: `id`
-- Field count: `7`
+- Field count: `8`
 - Indices: `0`
 
 | Field path | Column | Affinity | Not null | Default |
 | --- | --- | --- | --- | --- |
 | `id` | `id` | `TEXT` | `True` | `None` |
 | `name` | `name` | `TEXT` | `True` | `None` |
-| `thumbnailUrl` | `thumbnailUrl` | `TEXT` | `None` | `None` |
-| `channelId` | `channelId` | `TEXT` | `None` | `None` |
+| `thumbnailUrl` | `thumbnailUrl` | `TEXT` | `False` | `None` |
+| `channelId` | `channelId` | `TEXT` | `False` | `None` |
 | `lastUpdateTime` | `lastUpdateTime` | `INTEGER` | `True` | `None` |
-| `bookmarkedAt` | `bookmarkedAt` | `INTEGER` | `None` | `None` |
+| `bookmarkedAt` | `bookmarkedAt` | `INTEGER` | `False` | `None` |
 | `isLocal` | `isLocal` | `INTEGER` | `True` | `false` |
+| `isPodcastChannel` | `isPodcastChannel` | `INTEGER` | `True` | `0` |
 
 ### `album`
 
@@ -134,18 +132,18 @@
 | Field path | Column | Affinity | Not null | Default |
 | --- | --- | --- | --- | --- |
 | `id` | `id` | `TEXT` | `True` | `None` |
-| `playlistId` | `playlistId` | `TEXT` | `None` | `None` |
+| `playlistId` | `playlistId` | `TEXT` | `False` | `None` |
 | `title` | `title` | `TEXT` | `True` | `None` |
-| `year` | `year` | `INTEGER` | `None` | `None` |
-| `thumbnailUrl` | `thumbnailUrl` | `TEXT` | `None` | `None` |
-| `themeColor` | `themeColor` | `INTEGER` | `None` | `None` |
+| `year` | `year` | `INTEGER` | `False` | `None` |
+| `thumbnailUrl` | `thumbnailUrl` | `TEXT` | `False` | `None` |
+| `themeColor` | `themeColor` | `INTEGER` | `False` | `None` |
 | `songCount` | `songCount` | `INTEGER` | `True` | `None` |
 | `duration` | `duration` | `INTEGER` | `True` | `None` |
 | `explicit` | `explicit` | `INTEGER` | `True` | `0` |
 | `lastUpdateTime` | `lastUpdateTime` | `INTEGER` | `True` | `None` |
-| `bookmarkedAt` | `bookmarkedAt` | `INTEGER` | `None` | `None` |
-| `likedDate` | `likedDate` | `INTEGER` | `None` | `None` |
-| `inLibrary` | `inLibrary` | `INTEGER` | `None` | `None` |
+| `bookmarkedAt` | `bookmarkedAt` | `INTEGER` | `False` | `None` |
+| `likedDate` | `likedDate` | `INTEGER` | `False` | `None` |
+| `inLibrary` | `inLibrary` | `INTEGER` | `False` | `None` |
 | `isLocal` | `isLocal` | `INTEGER` | `True` | `false` |
 | `isUploaded` | `isUploaded` | `INTEGER` | `True` | `false` |
 
@@ -159,21 +157,21 @@
 | --- | --- | --- | --- | --- |
 | `id` | `id` | `TEXT` | `True` | `None` |
 | `name` | `name` | `TEXT` | `True` | `None` |
-| `browseId` | `browseId` | `TEXT` | `None` | `None` |
-| `createdAt` | `createdAt` | `INTEGER` | `None` | `None` |
-| `lastUpdateTime` | `lastUpdateTime` | `INTEGER` | `None` | `None` |
+| `browseId` | `browseId` | `TEXT` | `False` | `None` |
+| `createdAt` | `createdAt` | `INTEGER` | `False` | `None` |
+| `lastUpdateTime` | `lastUpdateTime` | `INTEGER` | `False` | `None` |
 | `isEditable` | `isEditable` | `INTEGER` | `True` | `true` |
-| `bookmarkedAt` | `bookmarkedAt` | `INTEGER` | `None` | `None` |
-| `remoteSongCount` | `remoteSongCount` | `INTEGER` | `None` | `None` |
-| `playEndpointParams` | `playEndpointParams` | `TEXT` | `None` | `None` |
-| `thumbnailUrl` | `thumbnailUrl` | `TEXT` | `None` | `None` |
-| `shuffleEndpointParams` | `shuffleEndpointParams` | `TEXT` | `None` | `None` |
-| `radioEndpointParams` | `radioEndpointParams` | `TEXT` | `None` | `None` |
+| `bookmarkedAt` | `bookmarkedAt` | `INTEGER` | `False` | `None` |
+| `remoteSongCount` | `remoteSongCount` | `INTEGER` | `False` | `None` |
+| `playEndpointParams` | `playEndpointParams` | `TEXT` | `False` | `None` |
+| `thumbnailUrl` | `thumbnailUrl` | `TEXT` | `False` | `None` |
+| `shuffleEndpointParams` | `shuffleEndpointParams` | `TEXT` | `False` | `None` |
+| `radioEndpointParams` | `radioEndpointParams` | `TEXT` | `False` | `None` |
 | `isLocal` | `isLocal` | `INTEGER` | `True` | `false` |
 
 ### `song_artist_map`
 
-- Primary key columns: `songId, artistId`
+- Primary key columns: `songId`, `artistId`
 - Field count: `3`
 - Indices: `2`
 
@@ -183,14 +181,9 @@
 | `artistId` | `artistId` | `TEXT` | `True` | `None` |
 | `position` | `position` | `INTEGER` | `True` | `None` |
 
-| Index name | Unique | Columns | Orders |
-| --- | --- | --- | --- |
-| `index_song_artist_map_songId` | `False` | `songId` | `` |
-| `index_song_artist_map_artistId` | `False` | `artistId` | `` |
-
 ### `song_album_map`
 
-- Primary key columns: `songId, albumId`
+- Primary key columns: `songId`, `albumId`
 - Field count: `3`
 - Indices: `2`
 
@@ -200,14 +193,9 @@
 | `albumId` | `albumId` | `TEXT` | `True` | `None` |
 | `index` | `index` | `INTEGER` | `True` | `None` |
 
-| Index name | Unique | Columns | Orders |
-| --- | --- | --- | --- |
-| `index_song_album_map_songId` | `False` | `songId` | `` |
-| `index_song_album_map_albumId` | `False` | `albumId` | `` |
-
 ### `album_artist_map`
 
-- Primary key columns: `albumId, artistId`
+- Primary key columns: `albumId`, `artistId`
 - Field count: `3`
 - Indices: `2`
 
@@ -216,11 +204,6 @@
 | `albumId` | `albumId` | `TEXT` | `True` | `None` |
 | `artistId` | `artistId` | `TEXT` | `True` | `None` |
 | `order` | `order` | `INTEGER` | `True` | `None` |
-
-| Index name | Unique | Columns | Orders |
-| --- | --- | --- | --- |
-| `index_album_artist_map_albumId` | `False` | `albumId` | `` |
-| `index_album_artist_map_artistId` | `False` | `artistId` | `` |
 
 ### `playlist_song_map`
 
@@ -234,12 +217,7 @@
 | `playlistId` | `playlistId` | `TEXT` | `True` | `None` |
 | `songId` | `songId` | `TEXT` | `True` | `None` |
 | `position` | `position` | `INTEGER` | `True` | `None` |
-| `setVideoId` | `setVideoId` | `TEXT` | `None` | `None` |
-
-| Index name | Unique | Columns | Orders |
-| --- | --- | --- | --- |
-| `index_playlist_song_map_playlistId` | `False` | `playlistId` | `` |
-| `index_playlist_song_map_songId` | `False` | `songId` | `` |
+| `setVideoId` | `setVideoId` | `TEXT` | `False` | `None` |
 
 ### `search_history`
 
@@ -251,10 +229,6 @@
 | --- | --- | --- | --- | --- |
 | `id` | `id` | `INTEGER` | `True` | `None` |
 | `query` | `query` | `TEXT` | `True` | `None` |
-
-| Index name | Unique | Columns | Orders |
-| --- | --- | --- | --- |
-| `index_search_history_query` | `True` | `query` | `` |
 
 ### `format`
 
@@ -269,22 +243,23 @@
 | `mimeType` | `mimeType` | `TEXT` | `True` | `None` |
 | `codecs` | `codecs` | `TEXT` | `True` | `None` |
 | `bitrate` | `bitrate` | `INTEGER` | `True` | `None` |
-| `sampleRate` | `sampleRate` | `INTEGER` | `None` | `None` |
+| `sampleRate` | `sampleRate` | `INTEGER` | `False` | `None` |
 | `contentLength` | `contentLength` | `INTEGER` | `True` | `None` |
-| `loudnessDb` | `loudnessDb` | `REAL` | `None` | `None` |
-| `playbackUrl` | `playbackUrl` | `TEXT` | `None` | `None` |
-| `streamClient` | `streamClient` | `TEXT` | `None` | `None` |
+| `loudnessDb` | `loudnessDb` | `REAL` | `False` | `None` |
+| `playbackUrl` | `playbackUrl` | `TEXT` | `False` | `None` |
+| `streamClient` | `streamClient` | `TEXT` | `False` | `None` |
 
 ### `lyrics`
 
 - Primary key columns: `id`
-- Field count: `2`
+- Field count: `3`
 - Indices: `0`
 
 | Field path | Column | Affinity | Not null | Default |
 | --- | --- | --- | --- | --- |
 | `id` | `id` | `TEXT` | `True` | `None` |
 | `lyrics` | `lyrics` | `TEXT` | `True` | `None` |
+| `provider` | `provider` | `TEXT` | `False` | `None` |
 
 ### `event`
 
@@ -299,11 +274,6 @@
 | `timestamp` | `timestamp` | `INTEGER` | `True` | `None` |
 | `playTime` | `playTime` | `INTEGER` | `True` | `None` |
 
-| Index name | Unique | Columns | Orders |
-| --- | --- | --- | --- |
-| `index_event_songId` | `False` | `songId` | `` |
-| `index_event_timestamp` | `False` | `timestamp` | `` |
-
 ### `related_song_map`
 
 - Primary key columns: `id`
@@ -316,11 +286,6 @@
 | `songId` | `songId` | `TEXT` | `True` | `None` |
 | `relatedSongId` | `relatedSongId` | `TEXT` | `True` | `None` |
 
-| Index name | Unique | Columns | Orders |
-| --- | --- | --- | --- |
-| `index_related_song_map_songId` | `False` | `songId` | `` |
-| `index_related_song_map_relatedSongId` | `False` | `relatedSongId` | `` |
-
 ### `set_video_id`
 
 - Primary key columns: `videoId`
@@ -330,11 +295,11 @@
 | Field path | Column | Affinity | Not null | Default |
 | --- | --- | --- | --- | --- |
 | `videoId` | `videoId` | `TEXT` | `True` | `None` |
-| `setVideoId` | `setVideoId` | `TEXT` | `None` | `None` |
+| `setVideoId` | `setVideoId` | `TEXT` | `False` | `None` |
 
 ### `playCount`
 
-- Primary key columns: `song, year, month`
+- Primary key columns: `song`, `year`, `month`
 - Field count: `4`
 - Indices: `0`
 
@@ -348,7 +313,7 @@
 ### `artist_whitelist`
 
 - Primary key columns: `artistId`
-- Field count: `10`
+- Field count: `12`
 - Indices: `0`
 
 | Field path | Column | Affinity | Not null | Default |
@@ -363,6 +328,57 @@
 | `isGenZ` | `isGenZ` | `INTEGER` | `True` | `None` |
 | `isKids` | `isKids` | `INTEGER` | `True` | `None` |
 | `isKidZone` | `isKidZone` | `INTEGER` | `True` | `None` |
+| `displayName` | `displayName` | `TEXT` | `False` | `None` |
+| `altName` | `altName` | `TEXT` | `False` | `None` |
+
+### `recognition_history`
+
+- Primary key columns: `id`
+- Field count: `7`
+- Indices: `2`
+
+| Field path | Column | Affinity | Not null | Default |
+| --- | --- | --- | --- | --- |
+| `id` | `id` | `INTEGER` | `True` | `None` |
+| `songId` | `songId` | `TEXT` | `True` | `None` |
+| `title` | `title` | `TEXT` | `True` | `None` |
+| `artist` | `artist` | `TEXT` | `True` | `None` |
+| `thumbnailUrl` | `thumbnailUrl` | `TEXT` | `False` | `None` |
+| `artistIds` | `artistIds` | `TEXT` | `True` | `None` |
+| `recognizedAt` | `recognizedAt` | `INTEGER` | `True` | `None` |
+
+### `podcast_whitelist`
+
+- Primary key columns: `channelId`
+- Field count: `8`
+- Indices: `0`
+
+| Field path | Column | Affinity | Not null | Default |
+| --- | --- | --- | --- | --- |
+| `channelId` | `channelId` | `TEXT` | `True` | `None` |
+| `name` | `name` | `TEXT` | `True` | `None` |
+| `thumbnailUrl` | `thumbnailUrl` | `TEXT` | `False` | `None` |
+| `isFemale` | `isFemale` | `INTEGER` | `True` | `None` |
+| `isKidZone` | `isKidZone` | `INTEGER` | `True` | `None` |
+| `isVerified` | `isVerified` | `INTEGER` | `True` | `None` |
+| `showCount` | `showCount` | `INTEGER` | `True` | `None` |
+| `lastSyncedAt` | `lastSyncedAt` | `INTEGER` | `True` | `None` |
+
+### `podcast`
+
+- Primary key columns: `id`
+- Field count: `7`
+- Indices: `0`
+
+| Field path | Column | Affinity | Not null | Default |
+| --- | --- | --- | --- | --- |
+| `id` | `id` | `TEXT` | `True` | `None` |
+| `title` | `title` | `TEXT` | `True` | `None` |
+| `author` | `author` | `TEXT` | `False` | `None` |
+| `thumbnailUrl` | `thumbnailUrl` | `TEXT` | `False` | `None` |
+| `channelId` | `channelId` | `TEXT` | `False` | `None` |
+| `bookmarkedAt` | `bookmarkedAt` | `INTEGER` | `False` | `None` |
+| `lastUpdateTime` | `lastUpdateTime` | `INTEGER` | `True` | `None` |
 
 ## DAO method inventory
 
@@ -413,6 +429,7 @@
 | `getSetVideoId` | `videoId: String` | `SetVideoIdEntity?` |
 | `format` | `id: String?` | `Flow<FormatEntity?>` |
 | `lyrics` | `id: String?` | `Flow<LyricsEntity?>` |
+| `purgeUntrustedLyrics` | `` | `Int` |
 | `artistsByCreateDateAsc` | `` | `Flow<List<Artist>>` |
 | `artistsByNameAsc` | `` | `Flow<List<Artist>>` |
 | `allWhitelistedArtistsByName` | `` | `Flow<List<Artist>>` |

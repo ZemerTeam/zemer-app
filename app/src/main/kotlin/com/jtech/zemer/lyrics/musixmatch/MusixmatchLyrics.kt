@@ -1,5 +1,6 @@
 package com.jtech.zemer.lyrics.musixmatch
 
+import com.jtech.zemer.lyrics.LyricsUtils
 import java.util.Locale
 import android.content.Context
 import androidx.datastore.preferences.core.edit
@@ -117,7 +118,7 @@ object MusixmatchLyrics {
         val d = if (track.trackLength > 0 && duration > 0) abs(track.trackLength - duration) else -1
         if (d > DUR_TOL) return null
         val plain = cleanLyrics(lyricsBody)
-        if (plain.lines().count { it.isNotBlank() } < 4) return null
+        if (!LyricsUtils.hasLyricBody(plain)) return null
         val synced = if (d in 0..SYNC_TOL) cleanLrc(subtitle) else null
         return Judged(plain, synced, "mxm:${track.commontrackId}@${track.trackId}")
     }
@@ -158,14 +159,14 @@ object MusixmatchLyrics {
         return tok
     }
 
-    /** Outcome of one lookup, also recorded in `MusixmatchLastStatusKey` so Content settings can show why a song had nothing. */
-    sealed class Outcome(val status: String) {
-        class Hit(val judged: Judged) : Outcome("ok" + if (judged.synced != null) " synced" else "")
-        object Unauthorized : Outcome("token quota reached (captcha)")
-        object Network : Outcome("network error")
-        object NoMatch : Outcome("no matching track")
-        object NoLyrics : Outcome("track known, no lyrics on file")
-        class Rejected(why: String) : Outcome("rejected: $why")
+    /** Outcome of one lookup; its [status] code is recorded in `MusixmatchLastStatusKey` so Content settings can show (localised) why a song had nothing. */
+    sealed class Outcome(val status: MusixmatchStatus) {
+        class Hit(val judged: Judged) : Outcome(if (judged.synced != null) MusixmatchStatus.HitSynced else MusixmatchStatus.Hit)
+        object Unauthorized : Outcome(MusixmatchStatus.Unauthorized)
+        object Network : Outcome(MusixmatchStatus.Network)
+        object NoMatch : Outcome(MusixmatchStatus.NoMatch)
+        object NoLyrics : Outcome(MusixmatchStatus.NoLyrics)
+        class Rejected(reason: String, detail: String) : Outcome(MusixmatchStatus.Rejected(reason, detail))
     }
 
     /** One gated lookup with an explicit token (pure network + gates; live-testable off-device). */
@@ -180,16 +181,16 @@ object MusixmatchLyrics {
         val (track, ly, st) = parseMacro(j) ?: return Outcome.Network
         if (track == null) return Outcome.NoMatch
         if (ly.body.isNullOrBlank()) return Outcome.NoLyrics
-        if (ly.instrumental || ly.restricted) return Outcome.Rejected(if (ly.instrumental) "instrumental" else "restricted")
-        if (!artistMatches(track.artistName, listOf(artist))) return Outcome.Rejected("artist ${track.artistName}")
-        if (!titleMatches(track.trackName, listOf(title))) return Outcome.Rejected("title ${track.trackName}")
-        val judged = judge(track, ly.body, ly.instrumental, ly.restricted, st, title, null, artist, null, duration) ?: return Outcome.Rejected("length ${track.trackLength}s vs ${duration}s")
+        if (ly.instrumental || ly.restricted) return Outcome.Rejected(if (ly.instrumental) MusixmatchStatus.REASON_INSTRUMENTAL else MusixmatchStatus.REASON_RESTRICTED, track.trackName)
+        if (!artistMatches(track.artistName, listOf(artist))) return Outcome.Rejected(MusixmatchStatus.REASON_ARTIST, track.artistName)
+        if (!titleMatches(track.trackName, listOf(title))) return Outcome.Rejected(MusixmatchStatus.REASON_TITLE, track.trackName)
+        val judged = judge(track, ly.body, ly.instrumental, ly.restricted, st, title, null, artist, null, duration) ?: return Outcome.Rejected(MusixmatchStatus.REASON_LENGTH, "${track.trackLength}s / ${duration}s")
         return Outcome.Hit(judged)
     }
 
     /** The gated body for this song: LRC when the recording length matched within 1 s, else plain text; null = not found. */
     suspend fun getLyrics(context: Context, title: String, artist: String, duration: Int): Judged? {
-        val tok = token(context) ?: run { record(context, "no token (issuance refused, retry in 30 min)"); return null }
+        val tok = token(context) ?: run { record(context, MusixmatchStatus.NoToken); return null }
         var out = fetch(tok, title, artist, duration)
         // A token is good for roughly a dozen lookups (measured 2026-09-02), then every reply is a 401 "captcha":
         // fetch a fresh token and retry once; when issuance is refused too, back off (never a 6 h blackout).
@@ -201,7 +202,7 @@ object MusixmatchLyrics {
         return (out as? Outcome.Hit)?.judged
     }
 
-    private suspend fun record(context: Context, status: String) { runCatching { context.dataStore.edit { it[MusixmatchLastStatusKey] = status } } }
+    private suspend fun record(context: Context, status: MusixmatchStatus) { runCatching { context.dataStore.edit { it[MusixmatchLastStatusKey] = status.code } } }
 
     class LyricsPayload(val body: String?, val instrumental: Boolean, val restricted: Boolean)
 

@@ -363,7 +363,7 @@ fun LyricsMenu(
                         text = stringResource(R.string.refetch),
                         onClick = {
                             onDismiss()
-                            viewModel.refetchLyrics(mediaMetadataProvider(), lyricsProvider())
+                            viewModel.refetchLyrics(mediaMetadataProvider())
                         }
                     ),
                     NewAction(

@@ -44,7 +44,7 @@ object ZemerLyricsClient {
     @Serializable
     data class Resolved(val videoId: String, val lang: String? = null, val verified: Boolean = false, val hasSynced: Boolean = false, val sources: List<Source> = emptyList())
 
-    private val json = Json { ignoreUnknownKeys = true; isLenient = true; explicitNulls = false }
+    internal val json = Json { ignoreUnknownKeys = true; isLenient = true; explicitNulls = false }
 
     private val client by lazy {
         HttpClient(CIO) {

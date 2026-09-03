@@ -1,9 +1,7 @@
 import fs from "node:fs";
 import { postSearch, cred, FILTERS } from "./lib.mjs";
-import { createRequire } from "node:module";
-const require = createRequire("/home/asternheim/zemer-search/package.json"); const Database = require("better-sqlite3");
-const db = new Database("/home/asternheim/zemer-search/data/corpus.db", { readonly: true });
-import { titleForms, norm } from "./jyrics-common.mjs";
+import { titleForms, norm, openCorpus } from "./jyrics-common.mjs";
+const db = openCorpus();
 const key = (s) => norm(s).replace(/['’`]/g, "").replace(/\bh\b/g, "").replace(/ch|kh/g, "k").replace(/th/g, "t").replace(/ei|ai|ey|ay/g, "e").replace(/oi|oy/g, "o").replace(/ou|oo/g, "u").replace(/tz|ts|z/g, "s").replace(/w/g, "v").replace(/([a-z])\1/g, "$1").replace(/[aeiou]/g, "").replace(/\s+/g, " ").trim();
 const S = process.env.S; const tree = JSON.parse(fs.readFileSync(`${S}/drive_tree.json`, "utf8"));
 const done = new Set(JSON.parse(fs.readFileSync(new URL("./.cache/booklets-corpus-resolved.json", import.meta.url), "utf8")).map((r) => r.artist));

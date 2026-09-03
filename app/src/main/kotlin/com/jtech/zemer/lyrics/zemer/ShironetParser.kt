@@ -17,21 +17,15 @@ object ShironetParser {
     private val TAG = Regex("""<[^>]+>""")
     private val SPACES = Regex("""[ \t ]+""")
     private val LABEL = Regex("""^\(?\s*(פזמון|בית|גשר|מעבר|סיום|פתיחה|verse|chorus|bridge|intro|outro)\s*[\d\w]*\s*:?\s*\)?$""", RegexOption.IGNORE_CASE)
-    private val ENTITY = Regex("""&#(\d+);""")
 
-    private fun unescape(s: String): String = s
-        .replace("&#8217;", "'").replace("&rsquo;", "'")
-        .replace("&#8211;", "–").replace("&ndash;", "–")
-        .replace("&amp;", "&").replace("&quot;", "\"").replace("&#039;", "'").replace("&nbsp;", " ")
-        .replace(ENTITY) { m -> m.groupValues[1].toInt().toChar().toString() }
 
     fun parse(html: String): Parsed {
-        val t = unescape(TITLE.find(html)?.groupValues?.get(1) ?: "")
+        val t = HtmlEntities.unescape(TITLE.find(html)?.groupValues?.get(1) ?: "")
         val k = t.lastIndexOf(" - ")
         val title = (if (k > 0) t.substring(0, k) else t).trim()
         val artist = (if (k > 0) t.substring(k + 3) else "").trim()
         val span = SPAN.find(html)?.groupValues?.get(1) ?: ""
-        val text = unescape(span.replace(BR, "\n").replace(TAG, ""))
+        val text = HtmlEntities.unescape(span.replace(BR, "\n").replace(TAG, ""))
         val out = ArrayList<String>()
         for (raw in text.split("\n")) {
             val l = raw.replace(SPACES, " ").trim()

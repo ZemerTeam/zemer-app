@@ -5,10 +5,9 @@ import androidx.compose.runtime.State
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.jtech.zemer.db.MusicDatabase
-import com.jtech.zemer.db.entities.LyricsEntity
 import com.jtech.zemer.db.entities.Song
 import com.jtech.zemer.lyrics.LyricsHelper
+import com.jtech.zemer.lyrics.LyricsStore
 import com.jtech.zemer.lyrics.LyricsResult
 import com.jtech.zemer.lyrics.zemer.LyricsFeedback
 import com.jtech.zemer.playback.relay.RelayDeviceId
@@ -23,7 +22,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
 import javax.inject.Inject
 
 @HiltViewModel
@@ -32,7 +30,7 @@ class LyricsMenuViewModel
 constructor(
     @ApplicationContext context: Context,
     private val lyricsHelper: LyricsHelper,
-    val database: MusicDatabase,
+    private val lyricsStore: LyricsStore,
     private val networkConnectivity: NetworkConnectivityObserver,
 ) : ViewModel() {
     private var job: Job? = null
@@ -87,17 +85,8 @@ constructor(
         job = null
     }
 
-    fun refetchLyrics(
-        mediaMetadata: MediaMetadata,
-        lyricsEntity: LyricsEntity?,
-    ) {
-        database.query {
-            lyricsEntity?.let(::delete)
-            val lyrics =
-                runBlocking {
-                    lyricsHelper.getLyrics(mediaMetadata)
-                }
-            upsert(LyricsEntity(mediaMetadata.id, lyrics.lyrics, lyrics.provider))
-        }
+    /** Refetch replaces the cached row in place (no delete-first: that emptied the pane and re-triggered the screen's own fetch). */
+    fun refetchLyrics(mediaMetadata: MediaMetadata) {
+        viewModelScope.launch(Dispatchers.IO) { lyricsStore.refetch(mediaMetadata) }
     }
 }
