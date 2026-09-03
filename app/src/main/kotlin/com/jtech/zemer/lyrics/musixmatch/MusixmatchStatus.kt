@@ -22,7 +22,12 @@ sealed class MusixmatchStatus(val code: String) {
         const val REASON_ARTIST = "artist"
         const val REASON_TITLE = "title"
         const val REASON_LENGTH = "length"
-        private val singletons = listOf(Hit, HitSynced, Unauthorized, Network, NoMatch, NoLyrics, NoToken)
+        /**
+         * LAZY, never an eager companion field: a nested object initialised first (a lookup recording its status
+         * before settings ever opened) runs the parent class init from inside its own constructor, and an eager
+         * list would capture that object as null - the first dialog open after install then NPEs in [parse].
+         */
+        private val singletons by lazy { listOf(Hit, HitSynced, Unauthorized, Network, NoMatch, NoLyrics, NoToken) }
 
         fun parse(code: String?): MusixmatchStatus? {
             if (code.isNullOrBlank()) return null
