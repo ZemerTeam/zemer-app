@@ -47,8 +47,10 @@
 | `com.jtech.zemer.db.entities` | 28 |
 | `com.jtech.zemer.di` | 6 |
 | `com.jtech.zemer.extensions` | 9 |
-| `com.jtech.zemer.lyrics` | 8 |
+| `com.jtech.zemer.lyrics` | 13 |
 | `com.jtech.zemer.lyrics.model` | 1 |
+| `com.jtech.zemer.lyrics.musixmatch` | 2 |
+| `com.jtech.zemer.lyrics.zemer` | 8 |
 | `com.jtech.zemer.models` | 5 |
 | `com.jtech.zemer.playback` | 9 |
 | `com.jtech.zemer.playback.queues` | 6 |
@@ -86,8 +88,10 @@
 | `com/jtech/zemer/db/entities` | 28 |
 | `com/jtech/zemer/di` | 6 |
 | `com/jtech/zemer/extensions` | 9 |
-| `com/jtech/zemer/lyrics` | 8 |
+| `com/jtech/zemer/lyrics` | 13 |
 | `com/jtech/zemer/lyrics/model` | 1 |
+| `com/jtech/zemer/lyrics/musixmatch` | 2 |
+| `com/jtech/zemer/lyrics/zemer` | 8 |
 | `com/jtech/zemer/models` | 5 |
 | `com/jtech/zemer/playback` | 9 |
 | `com/jtech/zemer/playback/queues` | 6 |
@@ -124,7 +128,7 @@
 | UI/navigation | `ui/screens/Screens.kt`, `ui/screens/NavigationBuilder.kt`, `ui/screens/**`, `ui/component/**`, `ui/menu/**`, `ui/theme/**` |
 | Preferences and sync | `constants/PreferenceKeys.kt`, `utils/DataStore.kt`, `sync/*.kt`, `sync/models/*.kt`, `utils/SyncUtils.kt` |
 | Auth | `auth/*.kt`, auth-related settings/onboarding screens |
-| Lyrics | `lyrics/*.kt`, `lyrics/model/*.kt`, `lrclib`, `simpmusic` modules |
+| Lyrics | `lyrics/*.kt`, `lyrics/model/*.kt`, `lyrics/zemer/*.kt` (Zemer resolver + parser ports), `lyrics/musixmatch/*.kt`, `ui/component/lyrics/*.kt`, `lrclib`, `simpmusic` modules |
 | Native/assets | `src/main/cpp/CMakeLists.txt`, app resources |
 
 See the `reference/` docs for per-file metadata.

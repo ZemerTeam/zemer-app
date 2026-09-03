@@ -130,6 +130,7 @@ import com.jtech.zemer.ui.component.BottomSheet
 import com.jtech.zemer.ui.component.BottomSheetState
 import com.jtech.zemer.ui.component.LocalBottomSheetPageState
 import com.jtech.zemer.ui.component.LocalMenuState
+import androidx.activity.compose.BackHandler
 import com.jtech.zemer.ui.component.PlayerSliderTrack
 import com.jtech.zemer.ui.component.ResizableIconButton
 import com.jtech.zemer.ui.component.rememberPopScale
@@ -731,114 +732,13 @@ fun BottomSheetPlayer(
 
             Spacer(Modifier.height(12.dp))
 
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = PlayerHorizontalPadding - 8.dp)
-            ) {
-                // A broadcast has no transport: the seek slider is replaced by the read-only LIVE
-                // bar (handoff par. 5 - no scrubbing); every non-station queue is untouched.
-                if (isStationBroadcast) StationLiveBar(
-                    position = position,
-                    duration = duration,
-                    accentColor = accentColor,
-                ) else when (sliderStyle) {
-                    SliderStyle.DEFAULT -> {
-                        Slider(
-                            value = (sliderPosition ?: position).toFloat(),
-                            valueRange = 0f..(if (duration == C.TIME_UNSET) 0f else duration.toFloat()),
-                            onValueChange = {
-                                sliderPosition = it.toLong()
-                            },
-                            onValueChangeFinished = {
-                                sliderPosition?.let {
-                                    playerConnection.seekTo(it)
-                                    position = it
-                                }
-                                sliderPosition = null
-                            },
-                            colors = PlayerSliderColors.defaultSliderColors(accentColor, playerBackground, useDarkTheme),
-                            modifier = Modifier.padding(horizontal = PlayerHorizontalPadding - 8.dp),
-                        )
-                    }
-
-                    SliderStyle.SQUIGGLY -> {
-                        SquigglySlider(
-                            value = (sliderPosition ?: position).toFloat(),
-                            valueRange = 0f..(if (duration == C.TIME_UNSET) 0f else duration.toFloat()),
-                            onValueChange = {
-                                sliderPosition = it.toLong()
-                            },
-                            onValueChangeFinished = {
-                                sliderPosition?.let {
-                                    playerConnection.seekTo(it)
-                                    position = it
-                                }
-                                sliderPosition = null
-                            },
-                            colors = PlayerSliderColors.squigglySliderColors(accentColor, playerBackground, useDarkTheme),
-                            modifier = Modifier.padding(horizontal = PlayerHorizontalPadding - 8.dp),
-                            squigglesSpec =
-                            SquigglySlider.SquigglesSpec(
-                                amplitude = if (isPlaying) (2.dp).coerceAtLeast(2.dp) else 0.dp,
-                                strokeWidth = 3.dp,
-                            ),
-                        )
-                    }
-
-                    SliderStyle.SLIM -> {
-                        Slider(
-                            value = (sliderPosition ?: position).toFloat(),
-                            valueRange = 0f..(if (duration == C.TIME_UNSET) 0f else duration.toFloat()),
-                            onValueChange = {
-                                sliderPosition = it.toLong()
-                            },
-                            onValueChangeFinished = {
-                                sliderPosition?.let {
-                                    playerConnection.seekTo(it)
-                                    position = it
-                                }
-                                sliderPosition = null
-                            },
-                            thumb = { Spacer(modifier = Modifier.size(0.dp)) },
-                            track = { sliderState ->
-                                PlayerSliderTrack(
-                                    sliderState = sliderState,
-                                    colors = PlayerSliderColors.slimSliderColors(accentColor, playerBackground, useDarkTheme)
-                                )
-                            },
-                            modifier = Modifier.padding(horizontal = PlayerHorizontalPadding - 8.dp)
-                        )
-                    }
-                }
-            }
-
-            Spacer(Modifier.height(4.dp))
-
-            Row(
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
-                modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = PlayerHorizontalPadding + 4.dp),
-            ) {
-                Text(
-                    text = makeTimeString(sliderPosition ?: position),
-                    style = MaterialTheme.typography.labelMedium,
-                    color = TextBackgroundColor,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-
-                Text(
-                    text = if (duration != C.TIME_UNSET) makeTimeString(duration) else "",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = TextBackgroundColor,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
+            PlayerSeekBar(
+                sliderStyle = sliderStyle, isStationBroadcast = isStationBroadcast, position = position, duration = duration,
+                sliderPosition = sliderPosition, isPlaying = isPlaying, accentColor = accentColor, textColor = TextBackgroundColor,
+                playerBackground = playerBackground, useDarkTheme = useDarkTheme,
+                onSliderPositionChange = { sliderPosition = it },
+                onSeek = { playerConnection.seekTo(it); position = it },
+            )
 
             Spacer(Modifier.height(12.dp))
 
@@ -865,108 +765,13 @@ fun BottomSheetPlayer(
                 Spacer(modifier = Modifier.weight(1f))
             }
 
-                // Spring-grow-on-press transport cluster: a wide, labelled play/pause button
-                // flanked by circular skips (see TransportSkipButton). Each grows while pressed.
-                val skipPrevInteraction = remember { MutableInteractionSource() }
-                val playPauseInteraction = remember { MutableInteractionSource() }
-                val skipNextInteraction = remember { MutableInteractionSource() }
-
-                val playPressed by playPauseInteraction.collectIsPressedAsState()
-
-                // Cap the play button to the width left after the two skip buttons (≤60.dp each
-                // while pressed) plus the two 16.dp gaps, so the cluster shrinks to fit instead of
-                // overflowing on narrow widths (split-screen, foldable cover, small phones).
-                BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
-                    val maxPlayButtonWidth = (maxWidth - (60.dp * 2 + 16.dp * 2)).coerceAtLeast(72.dp)
-                    val playButtonWidth by animateDpAsState(
-                        targetValue = (if (playPressed) 164.dp else 150.dp).coerceAtMost(maxPlayButtonWidth),
-                        animationSpec = spring(dampingRatio = 0.6f, stiffness = 500f),
-                        label = "play_width"
-                    )
-
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterHorizontally),
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-
-                        TransportSkipButton(
-                            iconRes = R.drawable.skip_previous,
-                            contentDescription = null,
-                            enabled = canSkipPrevious,
-                            interactionSource = skipPrevInteraction,
-                            accentColor = accentColor,
-                            containerColor = sideButtonContainerColor,
-                            contentColor = sideButtonContentColor,
-                            onSkip = playerConnection::seekToPrevious,
-                        )
-
-                        val playButtonFocused = remember { mutableStateOf(false) }
-                        val playButtonBorderColor = animateColorAsState(
-                            targetValue = if (playButtonFocused.value && focusVisualsEnabled()) accentColor else Color.Transparent,
-                            label = "play_button_focus"
-                        )
-                        FilledIconButton(
-                            onClick = {
-                                playerConnection.playPauseOrReplay(playbackState == STATE_ENDED)
-                            },
-                            interactionSource = playPauseInteraction,
-                            colors = IconButtonDefaults.filledIconButtonColors(
-                                containerColor = playButtonContainerColor,
-                                contentColor = playButtonContentColor
-                            ),
-                            modifier = Modifier
-                                .width(playButtonWidth)
-                                .height(68.dp)
-                                .clip(RoundedCornerShape(32.dp))
-                                .border(3.dp, playButtonBorderColor.value, RoundedCornerShape(32.dp))
-                                .focusable()
-                                .onFocusChanged { playButtonFocused.value = it.isFocused }
-                        ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.Center
-                            ) {
-                                Icon(
-                                    painter = painterResource(
-                                        when {
-                                            playbackState == STATE_ENDED -> R.drawable.replay
-                                            isPlaying -> R.drawable.pause
-                                            else -> R.drawable.play
-                                        }
-                                    ),
-                                    contentDescription = null,
-                                    modifier = Modifier.size(32.dp)
-                                )
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text(
-                                    // Label matches the icon's three states (replay/pause/play).
-                                    text = stringResource(
-                                        when {
-                                            playbackState == STATE_ENDED -> R.string.replay
-                                            isPlaying -> R.string.pause
-                                            else -> R.string.play
-                                        }
-                                    ),
-                                    style = MaterialTheme.typography.titleMedium,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
-                                )
-                            }
-                        }
-
-                        TransportSkipButton(
-                            iconRes = R.drawable.skip_next,
-                            contentDescription = null,
-                            enabled = canSkipNext,
-                            interactionSource = skipNextInteraction,
-                            accentColor = accentColor,
-                            containerColor = sideButtonContainerColor,
-                            contentColor = sideButtonContentColor,
-                            onSkip = playerConnection::seekToNext,
-                        )
-                    }
-                }
+                PlayerTransportRow(
+                    isPlaying = isPlaying, ended = playbackState == STATE_ENDED, canSkipPrevious = canSkipPrevious, canSkipNext = canSkipNext,
+                    accentColor = accentColor, playButtonContainerColor = playButtonContainerColor, playButtonContentColor = playButtonContentColor,
+                    sideButtonContainerColor = sideButtonContainerColor, sideButtonContentColor = sideButtonContentColor,
+                    onPlayPause = { playerConnection.playPauseOrReplay(playbackState == STATE_ENDED) },
+                    onPrevious = playerConnection::seekToPrevious, onNext = playerConnection::seekToNext, isStationBroadcast = isStationBroadcast,
+                )
         }
 
         when (LocalConfiguration.current.orientation) {
@@ -984,16 +789,16 @@ fun BottomSheetPlayer(
                     ) {
                         val screenWidth = LocalConfiguration.current.screenWidthDp
                         val thumbnailSize = (screenWidth * 0.4).dp
-                        Thumbnail(
-                            sliderPositionProvider = { sliderPosition },
-                            modifier = Modifier.size(thumbnailSize),
-                            isPlayerExpanded = state.isExpanded,
-                            showVideo = PlayerVideoUiLogic.showInlineVideo(isVideoMode, isFullscreen),
-                            onEnterFullscreen = { isFullscreen = true },
-                            showVideoToggle = videoModeAvailable,
-                            isVideoMode = isVideoMode,
-                            onToggleVideoMode = { playerConnection.setVideoMode(it) },
-                        )
+                                                    Thumbnail(
+                                sliderPositionProvider = { sliderPosition },
+                                modifier = Modifier.size(thumbnailSize),
+                                isPlayerExpanded = state.isExpanded,
+                                showVideo = PlayerVideoUiLogic.showInlineVideo(isVideoMode, isFullscreen),
+                                onEnterFullscreen = { isFullscreen = true },
+                                showVideoToggle = videoModeAvailable,
+                                isVideoMode = isVideoMode,
+                                onToggleVideoMode = { playerConnection.setVideoMode(it) },
+                            )
                     }
                     Column(
                         horizontalAlignment = Alignment.CenterHorizontally,
@@ -1022,16 +827,16 @@ fun BottomSheetPlayer(
                         contentAlignment = Alignment.Center,
                         modifier = Modifier.weight(1f),
                     ) {
-                        Thumbnail(
-                            sliderPositionProvider = { sliderPosition },
-                            modifier = Modifier.nestedScroll(state.preUpPostDownNestedScrollConnection),
-                            isPlayerExpanded = state.isExpanded,
-                            showVideo = PlayerVideoUiLogic.showInlineVideo(isVideoMode, isFullscreen),
-                            onEnterFullscreen = { isFullscreen = true },
-                            showVideoToggle = videoModeAvailable,
-                            isVideoMode = isVideoMode,
-                            onToggleVideoMode = { playerConnection.setVideoMode(it) },
-                        )
+                                                    Thumbnail(
+                                sliderPositionProvider = { sliderPosition },
+                                modifier = Modifier.nestedScroll(state.preUpPostDownNestedScrollConnection),
+                                isPlayerExpanded = state.isExpanded,
+                                showVideo = PlayerVideoUiLogic.showInlineVideo(isVideoMode, isFullscreen),
+                                onEnterFullscreen = { isFullscreen = true },
+                                showVideoToggle = videoModeAvailable,
+                                isVideoMode = isVideoMode,
+                                onToggleVideoMode = { playerConnection.setVideoMode(it) },
+                            )
                     }
 
                     mediaMetadata?.let {
@@ -1081,7 +886,6 @@ fun BottomSheetPlayer(
                     LyricsScreen(
                         mediaMetadata = metadata,
                         onBackClick = { lyricsSheetState.collapseSoft() },
-                        navController = navController,
                         backgroundAlpha = lyricsSheetState.progress.coerceIn(0f, 1f)
                     )
                 }
@@ -1164,79 +968,3 @@ private fun EpisodePlaybackControls(
  * adds the long press. Both are gated by [enabled], so a disabled skip cannot be triggered.
  * Extracted so prev and next share one definition instead of two ~48-line copies.
  */
-@Composable
-private fun TransportSkipButton(
-    iconRes: Int,
-    contentDescription: String?,
-    enabled: Boolean,
-    interactionSource: MutableInteractionSource,
-    accentColor: Color,
-    containerColor: Color,
-    contentColor: Color,
-    onSkip: () -> Unit,
-) {
-    val coroutineScope = rememberCoroutineScope()
-    var repeatJob by remember { mutableStateOf<Job?>(null) }
-    var focused by remember { mutableStateOf(false) }
-    val pressed by interactionSource.collectIsPressedAsState()
-    // Stop the long-press seek the moment the finger lifts: combinedClickable has no release
-    // callback, so without this the repeat loop would keep seeking until the next tap.
-    LaunchedEffect(pressed) {
-        if (!pressed) {
-            repeatJob?.cancel()
-            repeatJob = null
-        }
-    }
-    val borderColor by animateColorAsState(
-        targetValue = if (focused && focusVisualsEnabled()) accentColor else Color.Transparent,
-        label = "skip_focus",
-    )
-    val size by animateDpAsState(
-        targetValue = if (pressed) 60.dp else 56.dp,
-        animationSpec = spring(dampingRatio = 0.6f, stiffness = 500f),
-        label = "skip_size",
-    )
-    FilledTonalIconButton(
-        // The button's own onClick is the live tap handler; the combinedClickable below adds
-        // long-press-to-seek (its onClick mirrors this for the rare case it wins the gesture).
-        onClick = {
-            repeatJob?.cancel()
-            onSkip()
-        },
-        enabled = enabled,
-        interactionSource = interactionSource,
-        colors = IconButtonDefaults.filledTonalIconButtonColors(
-            containerColor = containerColor,
-            contentColor = contentColor,
-        ),
-        modifier = Modifier
-            .size(size)
-            .clip(RoundedCornerShape(32.dp))
-            .border(3.dp, borderColor, RoundedCornerShape(32.dp))
-            .focusable()
-            .onFocusChanged { focused = it.isFocused }
-            .combinedClickable(
-                enabled = enabled,
-                interactionSource = interactionSource,
-                indication = null,
-                onClick = {
-                    repeatJob?.cancel()
-                    onSkip()
-                },
-                onLongClick = {
-                    repeatJob = coroutineScope.launch {
-                        while (isActive) {
-                            onSkip()
-                            delay(200)
-                        }
-                    }
-                },
-            ),
-    ) {
-        Icon(
-            painter = painterResource(iconRes),
-            contentDescription = contentDescription,
-            modifier = Modifier.size(32.dp),
-        )
-    }
-}

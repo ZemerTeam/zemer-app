@@ -105,6 +105,7 @@ import com.jtech.zemer.constants.PersistentQueueKey
 import com.jtech.zemer.constants.StopMusicOnTaskClearKey
 import com.jtech.zemer.constants.PlayerVolumeKey
 import com.jtech.zemer.constants.RepeatModeKey
+import com.jtech.zemer.constants.LyricsCachePurgeDoneKey
 import com.jtech.zemer.constants.ShowLyricsKey
 import com.jtech.zemer.constants.SkipSilenceKey
 import com.jtech.zemer.db.MusicDatabase
@@ -117,6 +118,7 @@ import com.jtech.zemer.di.PlayerCache
 import com.jtech.zemer.extensions.SilentHandler
 import com.jtech.zemer.extensions.collect
 import com.jtech.zemer.extensions.collectLatest
+import com.jtech.zemer.extensions.repeatModeContentDescriptionRes
 import com.jtech.zemer.extensions.cookieHasSession
 import com.jtech.zemer.extensions.currentMetadata
 import com.jtech.zemer.extensions.findNextMediaItemById
@@ -129,7 +131,7 @@ import com.jtech.zemer.extensions.toMediaItem
 import com.jtech.zemer.extensions.toPersistQueue
 import com.jtech.zemer.extensions.toQueue
 import com.jtech.zemer.extensions.toast
-import com.jtech.zemer.lyrics.LyricsHelper
+import com.jtech.zemer.lyrics.LyricsStore
 import com.jtech.zemer.models.MediaMetadata
 import com.jtech.zemer.models.PersistPlayerState
 import com.jtech.zemer.models.PersistQueue
@@ -205,7 +207,7 @@ class MusicService :
         get() = databaseLazy.get()
 
     @Inject
-    lateinit var lyricsHelper: LyricsHelper
+    lateinit var lyricsStore: LyricsStore
 
     @Inject
     lateinit var syncUtils: SyncUtils
@@ -698,27 +700,25 @@ class MusicService :
                 if (remotePlaying) startWidgetTicker() else updateWidget()
             }
 
+        // One-time, data-only cleanup (no schema change): drop legacy not-found rows so those songs go through
+        // the gated chain once. Legacy rows with a body are kept: they may be manual entries and are
+        // re-resolved once when next opened (see LyricsEntity.resolved).
+        scope.launch {
+            if (dataStore.data.first()[LyricsCachePurgeDoneKey] != true) {
+                database.query { purgeUntrustedLyrics() }
+                dataStore.edit { it[LyricsCachePurgeDoneKey] = true }
+            }
+        }
+
         combine(
             currentMediaMetadata.distinctUntilChangedBy { it?.id },
             dataStore.data.map { it[ShowLyricsKey] ?: false }.distinctUntilChanged(),
         ) { mediaMetadata, showLyrics ->
             mediaMetadata to showLyrics
         }.collectLatest(scope) { (mediaMetadata, showLyrics) ->
-            // Podcast episodes have no lyrics (the player hides the lyrics affordance for them) —
-            // skip the provider fetch instead of storing a junk LyricsEntity per episode.
-            if (showLyrics && mediaMetadata != null && !mediaMetadata.isEpisode && database.lyrics(mediaMetadata.id)
-                    .first() == null
-            ) {
-                val lyrics = lyricsHelper.getLyrics(mediaMetadata)
-                database.query {
-                    upsert(
-                        LyricsEntity(
-                            id = mediaMetadata.id,
-                            lyrics = lyrics,
-                        ),
-                    )
-                }
-            }
+            // The cache decision, the chain and the row policy are LyricsStore's (one path with the lyrics
+            // screen and Refetch); it also skips episodes. A hidden pane costs no Room query per song change.
+            if (showLyrics && mediaMetadata != null) lyricsStore.ensure(mediaMetadata)
         }
 
         dataStore.data
@@ -1050,12 +1050,7 @@ class MusicService :
                     .Builder()
                     .setDisplayName(
                         getString(
-                            when (player.repeatMode) {
-                                REPEAT_MODE_OFF -> R.string.repeat_mode_off
-                                REPEAT_MODE_ONE -> R.string.repeat_mode_one
-                                REPEAT_MODE_ALL -> R.string.repeat_mode_all
-                                else -> throw IllegalStateException()
-                            },
+                            repeatModeContentDescriptionRes(player.repeatMode),
                         ),
                     ).setIconResId(repeatModeIconRes(player.repeatMode))
                     .setSessionCommand(CommandToggleRepeatMode)

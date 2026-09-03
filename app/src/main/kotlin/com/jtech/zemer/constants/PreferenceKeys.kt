@@ -88,7 +88,15 @@ enum class RefreshRateMode(@StringRes val labelRes: Int) {
 
 const val SYSTEM_DEFAULT = "SYSTEM_DEFAULT"
 val AppLanguageKey = stringPreferencesKey("appLanguage")
+val EnableZemerLyricsKey = booleanPreferencesKey("enableZemerLyrics")     // the Zemer resolver (first in the chain)
+val EnableSimpMusicKey = booleanPreferencesKey("enableSimpMusic")
 val EnableLrcLibKey = booleanPreferencesKey("enableLrclib")
+val EnableYouTubeLyricsKey = booleanPreferencesKey("enableYouTubeLyrics")   // YouTube subtitles + the Music lyrics tab (low trust: served only when no trusted provider answered)
+val LyricsProviderOrderKey = stringPreferencesKey("lyricsProviderOrder")   // comma-separated LyricsProviderRegistry names; blank = default order
+val EnableMusixmatchKey = booleanPreferencesKey("enableMusixmatch")
+val MusixmatchTokenKey = stringPreferencesKey("musixmatchToken")          // one desktop-API token per device (lyrics/musixmatch)
+val MusixmatchLastStatusKey = stringPreferencesKey("musixmatchLastStatus")   // last lookup outcome, shown under the provider toggle
+val MusixmatchCooldownUntilKey = longPreferencesKey("musixmatchCooldownUntil") // epoch ms; set after a captcha-gated reply
 val YtmSyncKey = booleanPreferencesKey("ytmSync")
 // Persisted snapshot of the server's blockedContentIds list (newline-joined), loaded at startup so the
 // blocklist is active before the first sync of the session and survives offline launches.
@@ -425,6 +433,9 @@ val ShowLyricsKey = booleanPreferencesKey("showLyrics")
 val LyricsTextPositionKey = stringPreferencesKey("lyricsTextPosition")
 val LyricsClickKey = booleanPreferencesKey("lyricsClick")
 val LyricsScrollKey = booleanPreferencesKey("lyricsScrollKey")
+val LyricsWordSyncKey = booleanPreferencesKey("lyricsWordSync")
+/** Milliseconds added to the playback position before picking the highlighted line/word (negative = highlight later). */
+val LyricsSyncOffsetKey = intPreferencesKey("lyricsSyncOffsetMs")
 
 val PlayerVolumeKey = floatPreferencesKey("playerVolume")
 val RepeatModeKey = intPreferencesKey("repeatMode")
@@ -441,6 +452,8 @@ val TrackingBackfillCursorKey = longPreferencesKey("trackingBackfillCursor")
 val TrackingBackfillBoundKey = longPreferencesKey("trackingBackfillBound")
 val TrackingBackfillDoneKey = booleanPreferencesKey("trackingBackfillDone")
 val TrackingActionBackfillDoneKey = booleanPreferencesKey("trackingActionBackfillDone")
+/** One-time cleanup of cached lyrics done: drops legacy not-found rows only (see DatabaseDao.purgeUntrustedLyrics). */
+val LyricsCachePurgeDoneKey = booleanPreferencesKey("lyricsCachePurgeDone")
 val TrackingActionBackfillSentKey = longPreferencesKey("trackingActionBackfillSent")
 val VisitorDataKey = stringPreferencesKey("visitorData")
 val DataSyncIdKey = stringPreferencesKey("dataSyncId")

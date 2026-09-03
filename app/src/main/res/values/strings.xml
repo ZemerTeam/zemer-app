@@ -186,6 +186,9 @@
 
     <!-- Player -->
     <string name="lyrics_not_found">Lyrics not found</string>
+    <string name="lyrics_from">Lyrics from %1$s</string>
+    <string name="lyrics_synced">synced</string>
+    <string name="lyrics_plain">not synced</string>
     <string name="sleep_timer">Sleep timer</string>
     <string name="end_of_song">End of song</string>
     <plurals name="minute">
@@ -218,6 +221,10 @@
     <string name="theme">Theme</string>
     <string name="player">Player</string>
     <string name="lyrics_text_position">Lyrics text position</string>
+    <string name="lyrics_word_sync">Word-by-word lyrics</string>
+    <string name="lyrics_sync_offset_title">Lyrics timing offset</string>
+    <string name="lyrics_sync_offset">Lyrics timing offset: %1$d ms</string>
+    <string name="lyrics_word_sync_description">Highlight each word as it is sung when the lyrics source provides word timings</string>
     <string name="left">Left</string>
     <string name="center">Center</string>
     <string name="right">Right</string>
@@ -303,7 +310,35 @@
     <string name="pause_search_history">Pause search history</string>
     <string name="clear_search_history">Clear search history</string>
     <string name="clear_search_history_confirm">Are you sure you want to clear all search history?</string>
-    <string name="enable_lrclib">Enable LrcLib lyrics provider</string>
+    <string name="enable_zemer_lyrics">Zemer</string>
+    <string name="enable_simpmusic">SimpMusic</string>
+    <string name="enable_lrclib">LrcLib</string>
+    <string name="enable_musixmatch">Musixmatch</string>
+    <string name="enable_youtube_lyrics">YouTube</string>
+    <string name="lyrics_report_wrong">Report</string>
+    <string name="lyrics_reported">Thanks, reported. Lyrics are hidden once a second listener agrees.</string>
+    <string name="lyrics_submitted">Lyrics saved and sent to Zemer for review</string>
+    <string name="lyrics_provider_selection">Provider selection</string>
+    <string name="lyrics_provider_selection_desc">Choose which lyrics providers are enabled</string>
+    <string name="lyrics_provider_priority">Lyrics provider priority</string>
+    <string name="lyrics_provider_priority_desc">Drag to reorder providers by preference. Higher position means higher priority</string>
+    <string name="enable_zemer_lyrics_desc">Curated Jewish-music sources, cross-verified</string>
+    <string name="enable_simpmusic_desc">Exact-track community lyrics</string>
+    <string name="enable_lrclib_desc">Community synced-lyrics database</string>
+    <string name="enable_musixmatch_desc">Spotify\'s catalog, fetched on-device</string>
+    <string name="enable_youtube_lyrics_desc">Subtitles and the Music lyrics tab; tried last</string>
+    <string name="lyrics_provider_youtube_note">YouTube lyrics are lower trust and are tried last by default</string>
+    <string name="musixmatch_status_hit">Last lookup: lyrics found</string>
+    <string name="musixmatch_status_hit_synced">Last lookup: synced lyrics found</string>
+    <string name="musixmatch_status_unauthorized">Last lookup: token quota reached, a new token is fetched next time</string>
+    <string name="musixmatch_status_network">Last lookup: network error</string>
+    <string name="musixmatch_status_no_match">Last lookup: no matching track</string>
+    <string name="musixmatch_status_no_lyrics">Last lookup: track known, no lyrics on file</string>
+    <string name="musixmatch_status_no_token">Last lookup: no token (issuance refused, retried in 30 minutes)</string>
+    <string name="musixmatch_status_rejected_artist">Last lookup: rejected, artist did not match (%1$s)</string>
+    <string name="musixmatch_status_rejected_title">Last lookup: rejected, title did not match (%1$s)</string>
+    <string name="musixmatch_status_rejected_length">Last lookup: rejected, length did not match (%1$s)</string>
+    <string name="musixmatch_status_rejected_unusable">Last lookup: rejected, instrumental or restricted (%1$s)</string>
 
     <string name="backup_restore">Backup and restore</string>
     <string name="action_backup">Backup</string>

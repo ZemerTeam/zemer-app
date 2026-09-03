@@ -7,6 +7,7 @@ import androidx.media3.common.Player.REPEAT_MODE_ALL
 import androidx.media3.common.Player.REPEAT_MODE_OFF
 import androidx.media3.common.Player.REPEAT_MODE_ONE
 import androidx.annotation.DrawableRes
+import androidx.annotation.StringRes
 import androidx.media3.common.Timeline
 import androidx.media3.common.TrackSelectionParameters
 import com.jtech.zemer.R
@@ -43,6 +44,18 @@ fun repeatModeIconRes(repeatMode: Int): Int =
         REPEAT_MODE_ONE -> R.drawable.repeat_one_on
         REPEAT_MODE_ALL -> R.drawable.repeat_on
         else -> R.drawable.repeat
+    }
+
+/**
+ * The accessibility label that goes with [repeatModeIconRes]: it names the CURRENT mode, so TalkBack never
+ * announces "Repeat mode off" over an icon that shows repeat on.
+ */
+@StringRes
+fun repeatModeContentDescriptionRes(repeatMode: Int): Int =
+    when (repeatMode) {
+        REPEAT_MODE_ONE -> R.string.repeat_mode_one
+        REPEAT_MODE_ALL -> R.string.repeat_mode_all
+        else -> R.string.repeat_mode_off
     }
 
 /**

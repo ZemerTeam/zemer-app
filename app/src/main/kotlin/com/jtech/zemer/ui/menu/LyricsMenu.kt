@@ -49,6 +49,7 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.jtech.zemer.LocalDatabase
 import com.jtech.zemer.R
 import com.jtech.zemer.db.entities.LyricsEntity
+import com.jtech.zemer.lyrics.LyricsUtils
 import com.jtech.zemer.models.MediaMetadata
 import com.jtech.zemer.ui.component.DefaultDialog
 import com.jtech.zemer.ui.component.ZemerLoadingIndicator
@@ -82,15 +83,20 @@ fun LyricsMenu(
             title = { Text(text = mediaMetadataProvider().title) },
             initialTextFieldValue = TextFieldValue(lyricsProvider()?.lyrics.orEmpty()),
             singleLine = false,
-            onDone = {
+            onDone = { edited ->
+                val id = mediaMetadataProvider().id
                 database.query {
                     upsert(
                         LyricsEntity(
-                            id = mediaMetadataProvider().id,
-                            lyrics = it,
+                            id = id,
+                            lyrics = edited,
+                            provider = "manual",
                         ),
                     )
                 }
+                // A saved edit is also a submission to the Zemer queue: served to others only once a second
+                // device agrees or the recording confirms it (server-side gate), never on this edit alone.
+                viewModel.feedback.submitEdit(id, edited) { context.toast(R.string.lyrics_submitted) }
             },
         )
     }
@@ -240,6 +246,7 @@ fun LyricsMenu(
                                     LyricsEntity(
                                         id = searchMediaMetadataId,
                                         lyrics = result.lyrics,
+                                        provider = result.providerName,
                                     ),
                                 )
                             }
@@ -251,7 +258,7 @@ fun LyricsMenu(
                         modifier = Modifier.weight(1f),
                     ) {
                         Text(
-                            text = result.lyrics,
+                            text = remember(result.lyrics) { LyricsUtils.stripWordTags(result.lyrics) },
                             style = MaterialTheme.typography.bodyMedium,
                             maxLines = if (index == expandedItemIndex) Int.MAX_VALUE else 2,
                             overflow = TextOverflow.Ellipsis,
@@ -267,7 +274,7 @@ fun LyricsMenu(
                                 color = MaterialTheme.colorScheme.secondary,
                                 maxLines = 1,
                             )
-                            if (result.lyrics.startsWith("[")) {
+                            if (LyricsUtils.isSynced(result.lyrics)) {
                                 Icon(
                                     painter = painterResource(R.drawable.sync),
                                     contentDescription = null,
@@ -356,7 +363,7 @@ fun LyricsMenu(
                         text = stringResource(R.string.refetch),
                         onClick = {
                             onDismiss()
-                            viewModel.refetchLyrics(mediaMetadataProvider(), lyricsProvider())
+                            viewModel.refetchLyrics(mediaMetadataProvider())
                         }
                     ),
                     NewAction(
@@ -372,8 +379,25 @@ fun LyricsMenu(
                         onClick = {
                             showSearchDialog = true
                         }
+                    ),
+                    NewAction(
+                        icon = {
+                            Icon(
+                                painter = painterResource(R.drawable.warning),
+                                contentDescription = null,
+                                modifier = Modifier.size(28.dp),
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        },
+                        text = stringResource(R.string.lyrics_report_wrong),
+                        onClick = {
+                            // Launched on the ViewModel's scope BEFORE dismissing: the sheet's scope dies with it.
+                            viewModel.feedback.reportWrong(mediaMetadataProvider().id) { context.toast(R.string.lyrics_reported) }
+                            onDismiss()
+                        }
                     )
                 ),
+                columns = 4, // four actions on one balanced row (Edit · Refetch · Search · Report)
                 modifier = Modifier.padding(horizontal = 4.dp, vertical = 16.dp)
             )
         }

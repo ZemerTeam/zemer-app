@@ -1,6 +1,6 @@
 # Non-Kotlin file reference
 
-Every tracked non-Kotlin path outside `docs/` is listed. Text files report line counts; binary files report byte counts; gitlinks are recorded as non-file tracked paths. Total paths: `388`.
+Every tracked non-Kotlin path outside `docs/` is listed. Text files report line counts; binary files report byte counts; gitlinks are recorded as non-file tracked paths. Total paths: `422`.
 
 | Path | Size/status | Type metadata |
 | --- | ---: | --- |
@@ -12,11 +12,11 @@ Every tracked non-Kotlin path outside `docs/` is listed. Text files report line 
 | `.github/workflows/ui-audit.yml` | 56 lines | text `.yml` |
 | `.gitignore` | 117 lines | text `[none]` |
 | `.gitmodules` | 3 lines | text `[none]` |
-| `AGENTS.md` | 1824 lines | text `.md` |
+| `AGENTS.md` | 1865 lines | text `.md` |
 | `LICENSE` | 674 lines | text `[none]` |
 | `README.md` | 9 lines | text `.md` |
 | `app/.gitignore` | 1 lines | text `[none]` |
-| `app/build.gradle.kts` | 291 lines | text `.kts`; plugins `com.android.application, android, kotlin.serialization, hilt, kotlin.ksp, compose.compiler, google.gms.google.services, firebase.crashlytics, rikka.tools.refine` |
+| `app/build.gradle.kts` | 295 lines | text `.kts`; plugins `com.android.application, android, kotlin.serialization, hilt, kotlin.ksp, compose.compiler, google.gms.google.services, firebase.crashlytics, rikka.tools.refine` |
 | `app/lint.xml` | 12 lines | text `.xml`; XML root `lint` |
 | `app/proguard-rules.pro` | 255 lines | text `.pro` |
 | `app/schemas/com.jtech.zemer.db.InternalDatabase/1.json` | 297 lines | text `.json`; JSON keys `formatVersion, database` |
@@ -48,6 +48,7 @@ Every tracked non-Kotlin path outside `docs/` is listed. Text files report line 
 | `app/schemas/com.jtech.zemer.db.InternalDatabase/33.json` | 1229 lines | text `.json`; JSON keys `formatVersion, database` |
 | `app/schemas/com.jtech.zemer.db.InternalDatabase/34.json` | 1368 lines | text `.json`; JSON keys `formatVersion, database` |
 | `app/schemas/com.jtech.zemer.db.InternalDatabase/35.json` | 1378 lines | text `.json`; JSON keys `formatVersion, database` |
+| `app/schemas/com.jtech.zemer.db.InternalDatabase/36.json` | 1383 lines | text `.json`; JSON keys `formatVersion, database` |
 | `app/schemas/com.jtech.zemer.db.InternalDatabase/4.json` | 744 lines | text `.json`; JSON keys `formatVersion, database` |
 | `app/schemas/com.jtech.zemer.db.InternalDatabase/5.json` | 748 lines | text `.json`; JSON keys `formatVersion, database` |
 | `app/schemas/com.jtech.zemer.db.InternalDatabase/6.json` | 712 lines | text `.json`; JSON keys `formatVersion, database` |
@@ -258,8 +259,8 @@ Every tracked non-Kotlin path outside `docs/` is listed. Text files report line 
 | `app/src/main/res/values-v31/styles.xml` | 22 lines | text `.xml`; XML root `resources` |
 | `app/src/main/res/values/app_name.xml` | 4 lines | text `.xml`; XML root `resources` |
 | `app/src/main/res/values/colors.xml` | 9 lines | text `.xml`; XML root `resources` |
-| `app/src/main/res/values/metrolist_strings.xml` | 701 lines | text `.xml`; XML root `resources` |
-| `app/src/main/res/values/strings.xml` | 419 lines | text `.xml`; XML root `resources` |
+| `app/src/main/res/values/metrolist_strings.xml` | 699 lines | text `.xml`; XML root `resources` |
+| `app/src/main/res/values/strings.xml` | 454 lines | text `.xml`; XML root `resources` |
 | `app/src/main/res/values/styles.xml` | 26 lines | text `.xml`; XML root `resources` |
 | `app/src/main/res/values/values.xml` | 8 lines | text `.xml`; XML root `resources` |
 | `app/src/main/res/xml-v25/shortcuts.xml` | 23 lines | text `.xml`; XML root `shortcuts` |
@@ -269,6 +270,18 @@ Every tracked non-Kotlin path outside `docs/` is listed. Text files report line 
 | `app/src/main/res/xml/data_extraction_rules.xml` | 29 lines | text `.xml`; XML root `data-extraction-rules` |
 | `app/src/main/res/xml/music_widget_info.xml` | 18 lines | text `.xml`; XML root `appwidget-provider` |
 | `app/src/main/res/xml/provider_paths.xml` | 12 lines | text `.xml`; XML root `paths` |
+| `app/src/test/resources/lyrics/jkaraoke-1971-golden.json` | 5 lines | text `.json`; JSON keys `songId, plain, synced` |
+| `app/src/test/resources/lyrics/jkaraoke-page28.json` | 1 lines | text `.json`; JSON keys `data, links, meta` |
+| `app/src/test/resources/lyrics/jyrics-0.html` | 721 lines | text `.html` |
+| `app/src/test/resources/lyrics/jyrics-1.html` | 706 lines | text `.html` |
+| `app/src/test/resources/lyrics/jyrics-2.html` | 751 lines | text `.html` |
+| `app/src/test/resources/lyrics/jyrics-golden.json` | 14 lines | text `.json`; JSON keys `jyrics-0.html, jyrics-1.html, jyrics-2.html` |
+| `app/src/test/resources/lyrics/musixmatch-0.json` | 1 lines | text `.json`; JSON keys `message` |
+| `app/src/test/resources/lyrics/musixmatch-1.json` | 1 lines | text `.json`; JSON keys `message` |
+| `app/src/test/resources/lyrics/musixmatch-hit.json` | 1 lines | text `.json`; JSON keys `message` |
+| `app/src/test/resources/lyrics/shironet-0.html` | 56 lines | text `.html` |
+| `app/src/test/resources/lyrics/shironet-golden.json` | 8 lines | text `.json` |
+| `app/src/test/resources/lyrics/zing-golden.json` | 20 lines | text `.json` |
 | `app/src/test/resources/persistqueue/persistent_queue_v37.bin` | 1642 bytes | binary `.bin` |
 | `app/universal/release/baselineProfiles/0/app-universal-release.dm` | 10017 bytes | binary `.dm` |
 | `app/universal/release/baselineProfiles/1/app-universal-release.dm` | 9981 bytes | binary `.dm` |
@@ -371,12 +384,33 @@ Every tracked non-Kotlin path outside `docs/` is listed. Text files report line 
 | `tests/sabr-watchtime.mjs` | 157 lines | text `.mjs` |
 | `tests/scan-live-players.mjs` | 124 lines | text `.mjs` |
 | `tests/scan-live-players.test.mjs` | 44 lines | text `.mjs` |
-| `tests/search/README.md` | 113 lines | text `.md` |
+| `tests/search/README.md` | 121 lines | text `.md` |
 | `tests/search/album-facet-probe.mjs` | 42 lines | text `.mjs` |
+| `tests/search/corpus-ambiguity.mjs` | 15 lines | text `.mjs` |
+| `tests/search/corpus-resolve.mjs` | 69 lines | text `.mjs` |
 | `tests/search/coverage.mjs` | 155 lines | text `.mjs` |
 | `tests/search/diag-auth.mjs` | 77 lines | text `.mjs` |
+| `tests/search/drive-album-resolve.mjs` | 35 lines | text `.mjs` |
+| `tests/search/drive-folder-resolve2.mjs` | 24 lines | text `.mjs` |
 | `tests/search/fetch-whitelist.mjs` | 59 lines | text `.mjs` |
+| `tests/search/jkaraoke-resolve.mjs` | 37 lines | text `.mjs` |
+| `tests/search/jyrics-artist-resolve.mjs` | 24 lines | text `.mjs` |
+| `tests/search/jyrics-catalog-match.mjs` | 13 lines | text `.mjs` |
+| `tests/search/jyrics-common.mjs` | 20 lines | text `.mjs` |
+| `tests/search/jyrics-crawl.mjs` | 42 lines | text `.mjs` |
+| `tests/search/jyrics-resolve-videos.mjs` | 41 lines | text `.mjs` |
+| `tests/search/jyrics-vs-youtube.mjs` | 20 lines | text `.mjs` |
 | `tests/search/lib.mjs` | 155 lines | text `.mjs` |
+| `tests/search/lyrics-avenues-probe.mjs` | 82 lines | text `.mjs` |
+| `tests/search/lyrics-coverage.mjs` | 67 lines | text `.mjs` |
+| `tests/search/lyrics-desc-scan.mjs` | 44 lines | text `.mjs` |
+| `tests/search/lyrics-genius-probe.mjs` | 21 lines | text `.mjs` |
+| `tests/search/lyrics-providers-probe.mjs` | 40 lines | text `.mjs` |
+| `tests/search/lyrics-recheck.mjs` | 44 lines | text `.mjs` |
+| `tests/search/lyrics-video-desc-probe.mjs` | 47 lines | text `.mjs` |
+| `tests/search/lyrics-youtube-fulltext.mjs` | 22 lines | text `.mjs` |
+| `tests/search/lyrics-youtube-probe.mjs` | 30 lines | text `.mjs` |
+| `tests/search/names-resolve-yt.mjs` | 26 lines | text `.mjs` |
 | `tests/search/parsers.mjs` | 80 lines | text `.mjs` |
 | `tests/search/pill-survival.mjs` | 101 lines | text `.mjs` |
 | `tests/search/run.mjs` | 169 lines | text `.mjs` |

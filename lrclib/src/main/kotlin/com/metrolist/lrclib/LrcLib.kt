@@ -1,8 +1,6 @@
 package com.metrolist.lrclib
 
 import com.metrolist.lrclib.models.Track
-import com.metrolist.lrclib.models.bestMatchingFor
-import com.metrolist.lrclib.models.bestMatchingForRelaxed
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.engine.cio.CIO
@@ -145,19 +143,8 @@ object LrcLib {
         val cleanedTitle = cleanTitle(title)
         val cleanedArtist = cleanArtist(artist)
 
-        val res = when {
-            duration == -1 -> {
-                tracks.bestMatchingFor(duration, cleanedTitle, cleanedArtist)?.let { track ->
-                    track.syncedLyrics ?: track.plainLyrics
-                }?.let(LrcLib::Lyrics)
-            }
-            else -> {
-                // Try with relaxed duration matching (±5 seconds instead of ±2)
-                tracks.bestMatchingForRelaxed(duration)?.let { track ->
-                    track.syncedLyrics ?: track.plainLyrics
-                }?.let(LrcLib::Lyrics)
-            }
-        }
+        val candidates = tracks.filter { identityMatches(it.trackName, it.artistName, title, artist, it.duration, duration) }
+        val res = pickBody(candidates, duration)?.let(LrcLib::Lyrics)
 
         if (res != null) {
             return@runCatching res.text
@@ -179,44 +166,54 @@ object LrcLib {
         var count = 0
         var plain = 0
 
-        val sortedTracks = when {
-            duration == -1 -> {
-                tracks.sortedByDescending { track ->
-                    var score = 0.0
-
-                    if (track.syncedLyrics != null) score += 1.0
-
-                    val titleSimilarity = calculateStringSimilarity(cleanedTitle, track.trackName)
-                    val artistSimilarity = calculateStringSimilarity(cleanedArtist, track.artistName)
-                    score += (titleSimilarity + artistSimilarity) / 2.0
-                    
-                    score
-                }
-            }
-            else -> {
-                tracks.sortedBy { abs(it.duration.toInt() - duration) }
-            }
-        }
+        // Only identity-gated candidates are ever offered, synced first.
+        val sortedTracks = tracks.filter { identityMatches(it.trackName, it.artistName, title, artist, it.duration, duration) }
+            .sortedByDescending { track -> (if (track.syncedLyrics != null) 1.0 else 0.0) + (calculateStringSimilarity(cleanedTitle, track.trackName) + calculateStringSimilarity(cleanedArtist, track.artistName)) / 2.0 }
 
         sortedTracks.forEach { track ->
             currentCoroutineContext().ensureActive() // Corrected usage
             if (count <= 4) {
-                if (track.syncedLyrics != null && duration == -1) {
-                    count++
-                    track.syncedLyrics.let(callback)
-                } else {
-                    if (track.syncedLyrics != null && abs(track.duration.toInt() - duration) <= 2) {
-                        count++
-                        track.syncedLyrics.let(callback)
-                    }
-                    if (track.plainLyrics != null && abs(track.duration.toInt() - duration) <= 2 && plain == 0) {
-                        count++
-                        plain++
-                        track.plainLyrics.let(callback)
-                    }
-                }
+                if (syncable(track, duration)) { count++; track.syncedLyrics!!.let(callback) }
+                if (track.plainLyrics != null && plain == 0) { count++; plain++; track.plainLyrics.let(callback) }
             }
         }
+    }
+
+    /** A synced body is usable only for the same recording: non-blank and within 1 s of the player's duration. */
+    internal fun syncable(track: Track, duration: Int): Boolean =
+        !track.syncedLyrics.isNullOrBlank() && (duration == -1 || abs(track.duration.toInt() - duration) <= 1)
+
+    /**
+     * The body to serve from identity-gated [candidates]: the first syncable track's synced lyrics, else the
+     * first candidate's plain text. A candidate inside the 3 s identity gate but outside the 1 s sync gate
+     * NEVER yields its synced lyrics, even when it has no plain text: a drifting sync is worse than nothing.
+     */
+    internal fun pickBody(candidates: List<Track>, duration: Int): String? {
+        val synced = candidates.firstOrNull { syncable(it, duration) }
+        if (synced != null) return synced.syncedLyrics
+        return candidates.firstNotNullOfOrNull { it.plainLyrics?.takeIf { p -> p.isNotBlank() } }
+    }
+
+    /** Every credited artist in a joined credit ("Shira Choir, Baruch Levine" / "A & B" / "A feat. B"), cleaned. */
+    internal fun creditedArtists(artist: String): List<String> {
+        var parts = listOf(artist.trim())
+        for (separator in artistSeparators) parts = parts.flatMap { it.split(separator, ignoreCase = true) }
+        return parts.map { it.trim() }.filter { it.isNotEmpty() }.ifEmpty { listOf(artist.trim()) }
+    }
+
+    /**
+     * Identity gate: an LRCLIB track may be used only if BOTH its title and artist agree with what we asked for
+     * (similarity >= 0.75 each, after the same cleanup) and, when the player knows the duration, it is within
+     * 3 s. Duration alone is never enough — a random song of the same length is a wrong song. The artist side
+     * passes when ANY credited artist matches: the queue item carries the comma-joined credit list, and LRCLIB
+     * may catalogue a multi-credit recording under the second name.
+     */
+    internal fun identityMatches(trackName: String, artistName: String, wantTitle: String, wantArtist: String, trackDuration: Double, wantDuration: Int): Boolean {
+        val t = calculateStringSimilarity(cleanTitle(wantTitle), cleanTitle(trackName))
+        val cleanedTrackArtist = cleanArtist(artistName)
+        val a = creditedArtists(wantArtist).maxOf { calculateStringSimilarity(it, cleanedTrackArtist) }
+        val d = wantDuration == -1 || abs(trackDuration.toInt() - wantDuration) <= 3
+        return t >= 0.75 && a >= 0.75 && d
     }
 
     private fun calculateStringSimilarity(str1: String, str2: String): Double {

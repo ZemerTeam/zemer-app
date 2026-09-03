@@ -44,6 +44,7 @@ import com.jtech.zemer.constants.AndroidAutoSectionsOrderKey
 import com.jtech.zemer.constants.AndroidAutoTargetPlaylistKey
 import com.jtech.zemer.constants.MediaSessionConstants
 import com.jtech.zemer.ui.component.PreferenceEntry
+import com.jtech.zemer.ui.component.ReorderDragHandle
 import com.jtech.zemer.ui.component.PreferenceGroupTitle
 import com.jtech.zemer.ui.component.SettingsCardGroup
 import com.jtech.zemer.ui.component.focusBorder
@@ -171,20 +172,11 @@ fun AndroidAutoSettings(
                     title = { Text(section.label()) },
                     trailingContent = {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(
-                                painter = painterResource(R.drawable.drag_handle),
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier
-                                    .size(24.dp)
-                                    .longPressDraggableHandle(
-                                        onDragStarted = {
-                                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                        },
-                                        onDragStopped = {
-                                            onSectionsChange(serializeSections(sections))
-                                        },
-                                    ),
+                            ReorderDragHandle(
+                                modifier = Modifier.longPressDraggableHandle(
+                                    onDragStarted = { haptic.performHapticFeedback(HapticFeedbackType.LongPress) },
+                                    onDragStopped = { onSectionsChange(serializeSections(sections)) },
+                                ),
                             )
                             Spacer(Modifier.width(12.dp))
                             Switch(

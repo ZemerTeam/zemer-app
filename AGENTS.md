@@ -580,7 +580,48 @@ The rules that must not regress:
   Stations) sits under Quick Picks, hidden/restored via a Settings → Appearance switch
   (`ShowHomeGenresKey`). App↔server field changes travel as handoff docs, never as zemer-search edits.
 
+### Lyrics (the provider chain, the Zemer resolver, sync) — `docs/lyrics/README.md`
+
+`lyrics/LyricsHelper.kt` runs the providers in order: **Zemer resolver first** (`lyrics/zemer/`; the search
+server's `/lyrics/resolve` returns source POINTERS, the app fetches Jyrics/Shironet/jkaraoke itself through
+golden-pinned parser ports of the server's parsers — `JyricsParser`, `ShironetParser`, `JkaraokeLrc`), then
+SimpMusic (videoId-keyed; synced bodies only within 1 s), LrcLib (identity-gated: title AND artist must agree; a
+duration-only match once served a Japanese song), **Musixmatch on-device** (`lyrics/musixmatch/MusixmatchLyrics.kt`:
+the catalog behind Spotify's lyrics, reached with one desktop-API token per phone — the server stores none of its
+text; gates mirror `harvester/lyrics-musixmatch.mjs`: artist consonant key with the Chaim/Haim fold, title
+identity, length ≤ 2 s for text / ≤ 1 s for the LRC, instrumental/restricted rejected, licence footer stripped;
+the token is brokered by the Zemer server (`ZemerLyricsClient.musixmatchToken`), with direct issuance as the fallback behind a 30 min cooldown when refused; the last lookup outcome lands in `MusixmatchLastStatusKey` as a `MusixmatchStatus` CODE that the Content settings row localises via `musixmatchStatusText` - never store display text in a preference; `EnableMusixmatchKey` toggle in Content settings, whose provider-selection rows are the shared `SwitchPreference` and whose priority dialog is the shared `ReorderableList` over the pure `LyricsProviderOrdering`), YouTube subtitles,
+YouTube lyrics tab. The pick rule is the pure, tested `lyrics/SyncedFirstPicker`: among TRUSTED providers a SYNCED
+body beats a higher provider's plain one, but the YouTube providers are `lowTrust` (an auto-caption transcript is
+timestamped but not identity-gated) and are served ONLY when no trusted provider answered — never over a curated
+Zemer plain body. `LrcLib.identityMatches` accepts ANY credited artist of a joined credit (`creditedArtists`), not
+just the first. The chain reads ONE DataStore snapshot per walk (`LyricsHelper.enabledProviders(prefs)`: order +
+every `LyricsProvider.enabledKey`), never a blocking read per provider. Musixmatch's `cleanLrc` formats with
+`Locale.US` (a comma-decimal locale produced LRC nothing could parse). Users contribute through the lyrics menu:
+a saved edit is also POSTed to the server's submission queue and "Report wrong lyrics" POSTs a report, both via
+`LyricsMenuViewModel.feedback` (`lyrics/zemer/LyricsFeedback` on `viewModelScope` — the sheet's own scope is
+cancelled the frame it is dismissed, which silently dropped every report; `ZemerLyricsClient.submitLyrics/reportLyrics`,
+device id from `RelayDeviceId`); the server admits a submission only when a second device agrees or the recording
+confirms it, and hides a row after two reports.
+coverage; provider label persisted in `LyricsEntity.provider` and shown as "Lyrics from …"; NO estimated
+timings (word sync renders only measured `<mm:ss.xx>` tags); lyrics start at the top, active synced line held at
+30%; `LyricsSyncOffsetKey` user offset. The lyrics view (`ui/player/LyricsScreen.kt`, hosted by `Player.kt`, toggled by the
+`ShowLyricsKey`/`showLyrics` preference) reuses the player's own transport, slider and identity row via the shared
+components in `ui/component/lyrics/LyricsComponents.kt`; never re-roll them. Cache policy lives in `LyricsEntity`
+(`needsFetch`/`resolved`), applied by the ONE fetch-and-persist path `lyrics/LyricsStore` (`ensure` for the
+`showLyrics`-gated service prefetch and `LyricsScreen`'s open-time fetch, `refetch` for the menu's explicit
+replace-in-place; JVM-tested with injected storage - never re-roll the decision per call site): a not-found row is
+a negative cache; a pre-provider row with a body is re-resolved once — a PLAIN legacy body is always kept
+(stamped `legacy`; it may be a manual entry, Refetch is the explicit way out), a SYNCED legacy body is replaced
+when the chain answers (nobody types timestamps: it is an old ungated LrcLib match). The one-time purge drops
+only legacy not-found rows (pre-provider rows carry no provider stamp, so a `provider = 'LrcLib'` clause could
+only ever hit NEW gated rows). Do not add DB migrations for lyrics (the 35→36 `provider` column is the one that exists).
+
 ### Shared UI components (componentized - import, don't re-roll)
+
+- `ui/component/Preference.kt`: `PreferenceEntry`/`SwitchPreference` take a `contentPadding` (`PreferenceEntryDefaults.contentPadding` for settings screens, `compactContentPadding` for rows inside a dialog list) - tighten a row through it, never by forking the row. A dialog list scrolls inside the dialog's height cap by giving its column `weight(1f, fill = false)` (the lyrics provider dialogs), so the buttons stay on a small screen.
+- `ui/component/ReorderableList.kt`: `ReorderableList` (drag-to-reorder named entries, every row the shared `PreferenceEntry` so it is D-pad focusable; the lyrics provider priority dialog) + `ReorderDragHandle` (the ONE drag-handle glyph; Android Auto's section rows pass their `longPressDraggableHandle`). Never hand-roll a `drag_handle` icon or a reorder row again.
+- `ui/component/lyrics/LyricsComponents.kt`: `LyricsSourceHeader` ("Lyrics from X · synced"; a `legacy` stamp shows as unknown) + `LyricsNowPlayingBar`, used by `ui/player/LyricsScreen.kt`, which reuses the Player's transport and slider.
 
 A componentization pass extracted the app's repeated composables into `ui/component/`; reuse them
 instead of hand-rolling: `BackNavigationIcon` / `BackTopAppBar` (top-bar back button), `MoreVertMenuButton`

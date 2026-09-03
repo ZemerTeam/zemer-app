@@ -49,6 +49,13 @@ import androidx.compose.ui.unit.dp
 import com.jtech.zemer.R
 import kotlin.math.roundToInt
 
+object PreferenceEntryDefaults {
+    /** The settings-screen row inset. */
+    val contentPadding = PaddingValues(horizontal = 16.dp, vertical = 16.dp)
+    /** A tighter inset for rows inside a dialog list (a phone-height dialog must fit its rows and scroll). */
+    val compactContentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp)
+}
+
 @Composable
 fun PreferenceEntry(
     modifier: Modifier = Modifier,
@@ -59,6 +66,8 @@ fun PreferenceEntry(
     trailingContent: (@Composable () -> Unit)? = null,
     onClick: (() -> Unit)? = null,
     isEnabled: Boolean = true,
+    /** Row inset; the settings default, or a tighter value for a dialog list (the lyrics provider dialogs). */
+    contentPadding: PaddingValues = PreferenceEntryDefaults.contentPadding,
 ) {
     var isFocused by remember { mutableStateOf(false) }
     val backgroundColor by animateColorAsState(
@@ -84,7 +93,7 @@ fun PreferenceEntry(
             .alpha(if (isEnabled) 1f else 0.5f)
             .background(backgroundColor)
             .border(width = 1.5.dp, color = borderColor, shape = RoundedCornerShape(8.dp))
-            .padding(horizontal = 16.dp, vertical = 16.dp),
+            .padding(contentPadding),
     ) {
         if (icon != null) {
             // The icon sits in a tinted 40dp tile (the settings-card language, upstream parity):
@@ -216,9 +225,11 @@ fun SwitchPreference(
     checked: Boolean,
     onCheckedChange: (Boolean) -> Unit,
     isEnabled: Boolean = true,
+    contentPadding: PaddingValues = PreferenceEntryDefaults.contentPadding,
 ) {
     PreferenceEntry(
         modifier = modifier,
+        contentPadding = contentPadding,
         title = title,
         description = description,
         icon = icon,
@@ -291,6 +302,14 @@ fun SliderPreference(
     value: Float,
     onValueChange: (Float) -> Unit,
     isEnabled: Boolean = true,
+    valueRange: ClosedFloatingPointRange<Float> = 15f..60f,
+    steps: Int = 0,
+    /** Value the dialog's Reset button returns to; must lie inside [valueRange]. */
+    resetValue: Float = 30f,
+    /** Dialog title; defaults to the history-duration wording this control was first built for. */
+    dialogTitle: @Composable () -> String = { stringResource(R.string.history_duration) },
+    /** Human-readable rendering of a value, used for the row summary and the dialog's live readout. */
+    valueLabel: @Composable (Float) -> String = { pluralStringResource(R.plurals.seconds, it.roundToInt(), it.roundToInt()) },
 ) {
     var showDialog by remember {
         mutableStateOf(false)
@@ -308,7 +327,7 @@ fun SliderPreference(
                     horizontalArrangement = Arrangement.Center
                 ) {
                     Text(
-                        text = stringResource(R.string.history_duration),
+                        text = dialogTitle(),
                         overflow = TextOverflow.Ellipsis,
                         maxLines = 1,
                         style = MaterialTheme.typography.headlineSmall,
@@ -325,16 +344,12 @@ fun SliderPreference(
                 showDialog = false
             },
             onReset = {
-                sliderValue = 30f // Default value or any reset value you prefer
+                sliderValue = resetValue
             },
             content = {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(
-                        text = pluralStringResource(
-                            R.plurals.seconds,
-                            sliderValue.roundToInt(),
-                            sliderValue.roundToInt()
-                        ),
+                        text = valueLabel(sliderValue),
                         style = MaterialTheme.typography.bodyLarge,
                     )
 
@@ -343,7 +358,8 @@ fun SliderPreference(
                     Slider(
                         value = sliderValue,
                         onValueChange = { sliderValue = it },
-                        valueRange = 15f..60f,
+                        valueRange = valueRange,
+                        steps = steps,
                         modifier = Modifier.fillMaxWidth()
                     )
                 }
@@ -354,7 +370,7 @@ fun SliderPreference(
     PreferenceEntry(
         modifier = modifier,
         title = title,
-        description = value.roundToInt().toString(),
+        description = valueLabel(value),
         icon = icon,
         onClick = { showDialog = true },
         isEnabled = isEnabled,

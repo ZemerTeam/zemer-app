@@ -85,6 +85,8 @@ import com.jtech.zemer.constants.LibraryFilter
 import com.jtech.zemer.constants.LyricsClickKey
 import com.jtech.zemer.constants.LyricsScrollKey
 import com.jtech.zemer.constants.LyricsTextPositionKey
+import com.jtech.zemer.constants.LyricsWordSyncKey
+import com.jtech.zemer.constants.LyricsSyncOffsetKey
 import com.jtech.zemer.constants.PlayerBackgroundStyle
 import com.jtech.zemer.constants.PlayerBackgroundStyleKey
 import com.jtech.zemer.constants.PlayerButtonsStyle
@@ -119,6 +121,7 @@ import com.jtech.zemer.ui.component.PreferenceEntry
 import com.jtech.zemer.ui.component.SettingsCardGroup
 import com.jtech.zemer.ui.component.SettingsScreenTopSpacing
 import com.jtech.zemer.ui.component.SwitchPreference
+import com.jtech.zemer.ui.component.SliderPreference
 import com.jtech.zemer.ui.component.TextFieldDialog
 import com.jtech.zemer.ui.component.focusBorder
 import com.jtech.zemer.ui.component.zemerTopAppBarColors
@@ -214,6 +217,8 @@ fun AppearanceSettings(
     )
     val (lyricsClick, onLyricsClickChange) = rememberPreference(LyricsClickKey, defaultValue = true)
     val (lyricsScroll, onLyricsScrollChange) = rememberPreference(LyricsScrollKey, defaultValue = true)
+    val (lyricsWordSync, onLyricsWordSyncChange) = rememberPreference(LyricsWordSyncKey, defaultValue = true)
+    val (lyricsSyncOffset, onLyricsSyncOffsetChange) = rememberPreference(LyricsSyncOffsetKey, defaultValue = 0)
 
     val (sliderStyle, onSliderStyleChange) = rememberEnumPreference(
         SliderStyleKey,
@@ -706,6 +711,29 @@ fun AppearanceSettings(
                         onCheckedChange = onLyricsScrollChange,
                     )
                 },
+                {
+                    SwitchPreference(
+                        title = { Text(stringResource(R.string.lyrics_word_sync)) },
+                        description = stringResource(R.string.lyrics_word_sync_description),
+                        icon = { Icon(painterResource(R.drawable.lyrics), null) },
+                        checked = lyricsWordSync,
+                        onCheckedChange = onLyricsWordSyncChange,
+                    )
+                },
+                {
+                    // -1500..+1500 ms in 50 ms steps. Positive = highlight earlier, negative = later.
+                    SliderPreference(
+                        title = { Text(stringResource(R.string.lyrics_sync_offset_title)) },
+                        icon = { Icon(painterResource(R.drawable.lyrics), null) },
+                        value = lyricsSyncOffset / 1000f,
+                        onValueChange = { onLyricsSyncOffsetChange(lyricsSyncOffsetMs(it)) },
+                        valueRange = -1.5f..1.5f,
+                        steps = 59,
+                        resetValue = 0f,
+                        dialogTitle = { stringResource(R.string.lyrics_sync_offset_title) },
+                        valueLabel = { stringResource(R.string.lyrics_sync_offset, lyricsSyncOffsetMs(it)) },
+                    )
+                },
             ),
         )
 
@@ -1097,3 +1125,6 @@ enum class LyricsPosition {
     CENTER,
     RIGHT,
 }
+
+/** Slider seconds (-1.5..1.5) to the stored offset: whole 50 ms steps, so -1.5f is -1500 and 0f is 0. */
+internal fun lyricsSyncOffsetMs(seconds: Float): Int = Math.round(seconds * 20f) * 50
