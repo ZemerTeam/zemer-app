@@ -1768,6 +1768,10 @@ Every download/progress affordance reads ONE path; do not re-implement per surfa
   play; (2) the file-open probe (`downloadedFileOpens`) returns false on **any** open failure
   (FileNotFound *or* SecurityException/other) so playback streams - handing ExoPlayer a URI we just
   failed to open only fails again.
+- **Every DAO `WHERE x IN (:list)` query goes through `db/SqliteBindLimit.chunks`** (a `@Query` `...Chunk`
+  method plus a default interface method that splits the list): Android below 11 binds at most 999 variables
+  per statement, and `getSongsByIds` over a heavy player cache killed the DB thread on an Android 8 device
+  ("too many SQL variables"). Never add a raw `IN (:ids)` query without the chunked wrapper (`SqliteBindLimitTest`).
 - **`database.query {}` is fire-and-forget** (it posts to an executor, doesn't suspend). NEVER split a
   single logical mutation across two `query {}` blocks that touch the same row - they race and the
   wrong one can land last. The download-mark bug was exactly this: `markSongAsDownloaded` upserted the

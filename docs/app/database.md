@@ -11,7 +11,7 @@
 | Entity count in schema 36 | `19` |
 | Schema files tracked | `36` |
 | DAO file | `app/src/main/kotlin/com/jtech/zemer/db/DatabaseDao.kt` |
-| DAO methods found by regex | `220` |
+| DAO methods found by regex | `228` |
 
 ## DAO annotation counts
 

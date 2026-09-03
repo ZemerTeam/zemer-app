@@ -470,7 +470,11 @@ interface DatabaseDao {
 
     @Transaction
     @Query("SELECT * FROM song WHERE id IN (:songIds)")
-    suspend fun getSongsByIds(songIds: List<String>): List<Song>
+    suspend fun getSongsByIdsChunk(songIds: List<String>): List<Song>
+
+    /** Any list length: split under the SQLite bind limit (see [SqliteBindLimit]). */
+    suspend fun getSongsByIds(songIds: List<String>): List<Song> =
+        SqliteBindLimit.chunks(songIds).flatMap { getSongsByIdsChunk(it) }
 
     @Transaction
     @Query("SELECT * FROM song WHERE isVideo = 1")
@@ -958,10 +962,10 @@ interface DatabaseDao {
     fun playlistByBrowseId(browseId: String): Flow<Playlist?>
 
     @Query("SELECT songId from playlist_song_map WHERE playlistId = :playlistId AND songId IN (:songIds)")
-    fun playlistDuplicates(
-        playlistId: String,
-        songIds: List<String>,
-    ): List<String>
+    fun playlistDuplicatesChunk(playlistId: String, songIds: List<String>): List<String>
+
+    fun playlistDuplicates(playlistId: String, songIds: List<String>): List<String> =
+        SqliteBindLimit.chunks(songIds).flatMap { playlistDuplicatesChunk(playlistId, it) }
 
     @Transaction
     fun addSongToPlaylist(playlist: Playlist, songIds: List<String>) {
@@ -1698,7 +1702,10 @@ interface DatabaseDao {
 
     // Sync variants for the album-open diagnostics (callable inside a transaction block).
     @Query("SELECT artistId FROM artist_whitelist WHERE artistId IN (:ids)")
-    fun whitelistedArtistIdsSync(ids: List<String>): List<String>
+    fun whitelistedArtistIdsSyncChunk(ids: List<String>): List<String>
+
+    fun whitelistedArtistIdsSync(ids: List<String>): List<String> =
+        SqliteBindLimit.chunks(ids).flatMap { whitelistedArtistIdsSyncChunk(it) }
 
     @Query("SELECT * FROM artist WHERE name = :name")
     fun artistsByNameSync(name: String): List<ArtistEntity>
@@ -1751,19 +1758,29 @@ interface DatabaseDao {
 
     // Batch operations for efficiency
     @Query("DELETE FROM playCount WHERE song IN (:songIds)")
-    suspend fun deletePlayCountBySongs(songIds: List<String>)
+    suspend fun deletePlayCountBySongsChunk(songIds: List<String>)
+
+    suspend fun deletePlayCountBySongs(songIds: List<String>) = SqliteBindLimit.chunks(songIds).forEach { deletePlayCountBySongsChunk(it) }
 
     @Query("DELETE FROM format WHERE id IN (:songIds)")
-    suspend fun deleteFormatBySongs(songIds: List<String>)
+    suspend fun deleteFormatBySongsChunk(songIds: List<String>)
+
+    suspend fun deleteFormatBySongs(songIds: List<String>) = SqliteBindLimit.chunks(songIds).forEach { deleteFormatBySongsChunk(it) }
 
     @Query("DELETE FROM lyrics WHERE id IN (:songIds)")
-    suspend fun deleteLyricsBySongs(songIds: List<String>)
+    suspend fun deleteLyricsBySongsChunk(songIds: List<String>)
+
+    suspend fun deleteLyricsBySongs(songIds: List<String>) = SqliteBindLimit.chunks(songIds).forEach { deleteLyricsBySongsChunk(it) }
 
     @Query("DELETE FROM song WHERE id IN (:songIds)")
-    suspend fun deleteSongsByIds(songIds: List<String>)
+    suspend fun deleteSongsByIdsChunk(songIds: List<String>)
+
+    suspend fun deleteSongsByIds(songIds: List<String>) = SqliteBindLimit.chunks(songIds).forEach { deleteSongsByIdsChunk(it) }
 
     @Query("DELETE FROM album WHERE id IN (:albumIds)")
-    suspend fun deleteAlbumsByIds(albumIds: List<String>)
+    suspend fun deleteAlbumsByIdsChunk(albumIds: List<String>)
+
+    suspend fun deleteAlbumsByIds(albumIds: List<String>) = SqliteBindLimit.chunks(albumIds).forEach { deleteAlbumsByIdsChunk(it) }
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     fun insertPodcastWhitelist(whitelistEntries: List<PodcastWhitelistEntity>)
