@@ -219,7 +219,7 @@ fun LyricsScreen(
                     accentColor = accentColor, playButtonContainerColor = textColor, playButtonContentColor = onTextColor,
                     sideButtonContainerColor = textColor.copy(alpha = 0.18f), sideButtonContentColor = textColor,
                     onPlayPause = { playerConnection.playPauseOrReplay(playbackState == Player.STATE_ENDED) },
-                    onPrevious = playerConnection::seekToPrevious, onNext = playerConnection::seekToNext,
+                    onPrevious = playerConnection::seekToPrevious, onNext = playerConnection::seekToNext, isStationBroadcast = isStationBroadcast,
                     modifier = Modifier.padding(horizontal = 24.dp),
                 )
                 Spacer(Modifier.height(4.dp))

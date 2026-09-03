@@ -56,5 +56,5 @@ None - metadata embedding is pure Kotlin
 | Module | Package | Plugins | Dependencies (`libs.*`) | Kotlin files |
 | --- | --- | --- | --- | --- |
 | `:innertube` | `com.metrolist.innertube` | `kotlin.serialization`, `jvm`; jvmToolchain `21` | `ktor.client.core`, `ktor.client.okhttp`, `ktor.client.content.negotiation`, `ktor.serialization.json`, `ktor.client.encoding`, `okhttp.dnsoverhttps`, `junit` | 88 files (see `reference/kotlin-files.md`) |
-| `:lrclib` | `com.metrolist.lrclib` | `kotlin.serialization`, `jvm`; jvmToolchain `21` | `ktor.client.core`, `ktor.client.cio`, `ktor.client.content.negotiation`, `ktor.serialization.json`, `junit` | `LrcLib.kt`, `models/Track.kt` |
+| `:lrclib` | `com.metrolist.lrclib` | `kotlin.serialization`, `jvm`; jvmToolchain `21` | `ktor.client.core`, `ktor.client.cio`, `ktor.client.content.negotiation`, `ktor.serialization.json`, `junit` | `../../../../../test/kotlin/com/metrolist/lrclib/LrcLibIdentityTest.kt`, `LrcLib.kt`, `models/Track.kt` |
 | `:simpmusic` | `com.metrolist.simpmusic` | `kotlin.serialization`, `jvm`; jvmToolchain `21` | `ktor.client.core`, `ktor.client.cio`, `ktor.client.content.negotiation`, `ktor.serialization.json`, `junit` | `../../../../../test/kotlin/com/zemer/simpmusic/SimpMusicLyricsTest.kt`, `SimpMusicLyrics.kt`, `models/LyricsResponse.kt` |

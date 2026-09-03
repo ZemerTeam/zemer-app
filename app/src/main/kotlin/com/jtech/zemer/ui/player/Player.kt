@@ -770,7 +770,7 @@ fun BottomSheetPlayer(
                     accentColor = accentColor, playButtonContainerColor = playButtonContainerColor, playButtonContentColor = playButtonContentColor,
                     sideButtonContainerColor = sideButtonContainerColor, sideButtonContentColor = sideButtonContentColor,
                     onPlayPause = { playerConnection.playPauseOrReplay(playbackState == STATE_ENDED) },
-                    onPrevious = playerConnection::seekToPrevious, onNext = playerConnection::seekToNext,
+                    onPrevious = playerConnection::seekToPrevious, onNext = playerConnection::seekToNext, isStationBroadcast = isStationBroadcast,
                 )
         }
 

@@ -139,6 +139,8 @@ fun Lyrics(
     modifier: Modifier = Modifier,
 ) {
     val playerConnection = LocalPlayerConnection.current ?: return
+    // Zemer Station: lyrics scrubs are a transport surface — no seek on line tap during a broadcast (docs/stations)
+    val isStationBroadcast by playerConnection.isStationBroadcast.collectAsState()
     LocalMenuState.current
     val density = LocalDensity.current
     val context = LocalContext.current
@@ -483,7 +485,7 @@ fun Lyrics(
                                             showMaxSelectionToast = true
                                         }
                                     }
-                                } else if (isSynced && changeLyrics) {
+                                } else if (isSynced && changeLyrics && !isStationBroadcast) {
                                     // Professional seek action with smooth animation
                                     playerConnection.seekTo(item.time)
                                     // Smooth slow scroll when clicking on lyrics (3 seconds)

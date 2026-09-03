@@ -142,6 +142,7 @@ fun PlayerTransportRow(
     onPlayPause: () -> Unit,
     onPrevious: () -> Unit,
     onNext: () -> Unit,
+    isStationBroadcast: Boolean = false, // Zemer Station: play/stop only — skips are shown disabled and no-op (docs/stations)
     modifier: Modifier = Modifier,
 ) {
     val skipPrevInteraction = remember { MutableInteractionSource() }
@@ -162,7 +163,7 @@ fun PlayerTransportRow(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier.fillMaxWidth(),
         ) {
-            TransportSkipButton(iconRes = R.drawable.skip_previous, contentDescription = null, enabled = canSkipPrevious, interactionSource = skipPrevInteraction, accentColor = accentColor, containerColor = sideButtonContainerColor, contentColor = sideButtonContentColor, onSkip = onPrevious)
+            TransportSkipButton(iconRes = R.drawable.skip_previous, contentDescription = null, enabled = canSkipPrevious && !isStationBroadcast, interactionSource = skipPrevInteraction, accentColor = accentColor, containerColor = sideButtonContainerColor, contentColor = sideButtonContentColor, onSkip = onPrevious)
             val playButtonFocused = remember { mutableStateOf(false) }
             val playButtonBorderColor = animateColorAsState(targetValue = if (playButtonFocused.value && focusVisualsEnabled()) accentColor else Color.Transparent, label = "play_button_focus")
             FilledIconButton(
@@ -183,7 +184,7 @@ fun PlayerTransportRow(
                     Text(text = stringResource(when { ended -> R.string.replay; isPlaying -> R.string.pause; else -> R.string.play }), style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
             }
-            TransportSkipButton(iconRes = R.drawable.skip_next, contentDescription = null, enabled = canSkipNext, interactionSource = skipNextInteraction, accentColor = accentColor, containerColor = sideButtonContainerColor, contentColor = sideButtonContentColor, onSkip = onNext)
+            TransportSkipButton(iconRes = R.drawable.skip_next, contentDescription = null, enabled = canSkipNext && !isStationBroadcast, interactionSource = skipNextInteraction, accentColor = accentColor, containerColor = sideButtonContainerColor, contentColor = sideButtonContentColor, onSkip = onNext)
         }
     }
 }
