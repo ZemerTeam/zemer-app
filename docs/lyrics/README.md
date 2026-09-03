@@ -10,8 +10,8 @@ Default order (`LyricsProviderRegistry`, user-reorderable in Content settings): 
 → `YouTubeLyricsProvider`. The walk's pick rule is `SyncedFirstPicker` (below); `LyricsHelper.getLyrics` returns
 `Fetched(lyrics, provider)` and the provider label is persisted in `LyricsEntity.provider` (nullable; Room
 `AutoMigration(35, 36)`). Every fetch-and-persist goes through `lyrics/LyricsStore` (`ensure` = the cache
-decision + chain + row policy, `refetch` = the menu's explicit replace-in-place); the service prefetch, the lyrics
-screen and the menu call it, none of them re-implements the policy (`LyricsStoreTest`). The label is
+decision + chain + row policy, `refetch` = the menu's explicit delete-then-refresh, single-flight per videoId);
+the service prefetch, the lyrics screen and the menu call it, none of them re-implements the policy (`LyricsStoreTest`). The label is
 part of every provider result (`LyricsProvider.getLabeledLyrics`/`getAllLabeledLyrics` → `LabeledLyrics`), so the
 auto-fetch path and the picker persist the same string for the same source. `LyricsHelper` keys the videoId-based
 providers by `MediaMetadata.id` (never `setVideoId`, which is a playlist-entry token).
@@ -82,8 +82,10 @@ negative cache and is never re-fetched. A legacy PLAIN body is always kept and s
 (shown as unknown provenance): pre-provider manual entries are indistinguishable from old auto-cached rows and
 must not be silently replaced — Refetch is the explicit way out. A legacy SYNCED body is replaced when the chain
 answers: nobody types timestamps, so it is an old ungated LrcLib match (`LyricsCachePolicyTest`). The menu's
-Refetch (`LyricsStore.refetch`) is the explicit override: it replaces the row in place with a fresh chain answer
-(no delete-first, which emptied the pane and re-triggered the screen's own fetch).
+Refetch (`LyricsStore.refetch`) is the explicit override: it DELETES the row first (the pane clears and reloads,
+the user's feedback that the button did something, even when the chain answers the same body) and stores a fresh
+chain answer. The cleared row makes the open lyrics screen call `ensure` too; fetches are single-flight per
+videoId, so both join one chain walk (`LyricsStoreTest`).
 The one-time purge (`DatabaseDao.purgeUntrustedLyrics`, flag `LyricsCachePurgeDoneKey`) deletes only legacy
 not-found rows; pre-provider rows carry no provider stamp, so a `provider = 'LrcLib'` clause could only ever hit
 NEW identity-gated rows and was removed. Hebrew strings under `values-iw/` are managed by the locale process and

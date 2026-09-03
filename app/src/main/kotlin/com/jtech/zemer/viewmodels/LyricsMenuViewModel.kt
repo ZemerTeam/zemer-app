@@ -85,7 +85,7 @@ constructor(
         job = null
     }
 
-    /** Refetch replaces the cached row in place (no delete-first: that emptied the pane and re-triggered the screen's own fetch). */
+    /** Refetch drops the cached row and stores a fresh chain answer; the pane reloads meanwhile (see LyricsStore.refetch). */
     fun refetchLyrics(mediaMetadata: MediaMetadata) {
         viewModelScope.launch(Dispatchers.IO) { lyricsStore.refetch(mediaMetadata) }
     }

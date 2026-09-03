@@ -610,7 +610,9 @@ timings (word sync renders only measured `<mm:ss.xx>` tags); lyrics start at the
 components in `ui/component/lyrics/LyricsComponents.kt`; never re-roll them. Cache policy lives in `LyricsEntity`
 (`needsFetch`/`resolved`), applied by the ONE fetch-and-persist path `lyrics/LyricsStore` (`ensure` for the
 `showLyrics`-gated service prefetch and `LyricsScreen`'s open-time fetch, `refetch` for the menu's explicit
-replace-in-place; JVM-tested with injected storage - never re-roll the decision per call site): a not-found row is
+delete-then-refresh - the delete lands FIRST so the pane visibly reloads even when the chain answers the same
+body, and fetches are single-flight per videoId so the screen's re-fetch joins the refetch's walk; JVM-tested with
+injected storage - never re-roll the decision per call site): a not-found row is
 a negative cache; a pre-provider row with a body is re-resolved once — a PLAIN legacy body is always kept
 (stamped `legacy`; it may be a manual entry, Refetch is the explicit way out), a SYNCED legacy body is replaced
 when the chain answers (nobody types timestamps: it is an old ungated LrcLib match). The one-time purge drops
