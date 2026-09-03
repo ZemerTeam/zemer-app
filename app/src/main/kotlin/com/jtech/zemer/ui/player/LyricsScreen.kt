@@ -63,6 +63,7 @@ import com.jtech.zemer.constants.PlayerBackgroundStyleKey
 import com.jtech.zemer.constants.SliderStyle
 import com.jtech.zemer.constants.SliderStyleKey
 import com.jtech.zemer.db.entities.LyricsEntity
+import com.jtech.zemer.lyrics.LyricsUtils
 import com.jtech.zemer.di.LyricsHelperEntryPoint
 import com.jtech.zemer.extensions.repeatModeContentDescriptionRes
 import com.jtech.zemer.extensions.repeatModeIconRes
@@ -113,14 +114,17 @@ fun LyricsScreen(
     val sliderStyle by rememberEnumPreference(SliderStyleKey, SliderStyle.DEFAULT)
     val currentLyrics by playerConnection.currentLyrics.collectAsState(initial = null)
 
-    // Opening the screen fetches when nothing is cached (MusicService only prefetches when the "show lyrics"
-    // preference is on). Episodes have no lyrics — never fetch/store for them.
-    LaunchedEffect(mediaMetadata.id, currentLyrics == null) {
-        if (currentLyrics == null && !mediaMetadata.isEpisode) {
+    // Opening the screen fetches when nothing is cached, and re-resolves a legacy (pre-provider) row once so
+    // its provenance becomes known (LyricsEntity.needsFetch / resolved: the same policy as the service
+    // prefetch). Episodes have no lyrics — never fetch/store for them.
+    val needsFetch = LyricsEntity.needsFetch(currentLyrics)
+    LaunchedEffect(mediaMetadata.id, needsFetch) {
+        if (needsFetch && !mediaMetadata.isEpisode) {
             delay(500)
             try {
+                val cached = currentLyrics
                 val fetched = EntryPointAccessors.fromApplication(context.applicationContext, LyricsHelperEntryPoint::class.java).lyricsHelper().getLyrics(mediaMetadata)
-                database.query { upsert(LyricsEntity(mediaMetadata.id, fetched.lyrics, fetched.provider)) }
+                database.query { upsert(LyricsEntity.resolved(mediaMetadata.id, cached, fetched.lyrics, fetched.provider)) }
             } catch (e: Exception) {
                 Timber.w(e, "lyrics fetch failed for ${mediaMetadata.id}")
             }
@@ -156,7 +160,7 @@ fun LyricsScreen(
     val accentColor = MaterialTheme.colorScheme.primary
     val lyricsBody = currentLyrics?.lyrics?.trim()
     val hasLyrics = !lyricsBody.isNullOrEmpty() && lyricsBody != LyricsEntity.LYRICS_NOT_FOUND
-    val lyricsSynced = hasLyrics && lyricsBody!!.startsWith("[")
+    val lyricsSynced = hasLyrics && LyricsUtils.isSynced(lyricsBody!!)
     val isLandscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
     val showLyricsMenu = { menuState.show { LyricsMenu(lyricsProvider = { currentLyrics }, mediaMetadataProvider = { mediaMetadata }, onDismiss = menuState::dismiss) } }
 

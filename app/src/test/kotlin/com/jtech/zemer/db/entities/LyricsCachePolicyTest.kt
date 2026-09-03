@@ -37,18 +37,41 @@ class LyricsCachePolicyTest {
     }
 
     @Test
-    fun `found body replaces the row with its provenance`() {
-        val row = LyricsEntity.resolved("v", LyricsEntity("v", "old words", null), "[00:01.00] new", "Zemer · jkaraoke")
-        assertEquals(LyricsEntity("v", "[00:01.00] new", "Zemer · jkaraoke"), row)
+    fun `found body with nothing cached is stored with its provenance`() {
+        assertEquals(LyricsEntity("v", "[00:01.00] new", "Zemer · jkaraoke"), LyricsEntity.resolved("v", null, "[00:01.00] new", "Zemer · jkaraoke"))
+    }
+
+    /** Regression: a legacy PLAIN body (possibly a pre-provider manual edit) was overwritten by any provider answer. */
+    @Test
+    fun `legacy plain body is kept even when a provider answers`() {
+        val manual = LyricsEntity("v", "typed by the user", provider = null)
+        val row = LyricsEntity.resolved("v", manual, "[00:01.00] new", "Zemer · jkaraoke")
+        assertEquals(LyricsEntity("v", "typed by the user", PROVIDER_LEGACY), row)
+        assertFalse(LyricsEntity.needsFetch(row))
+    }
+
+    /** A legacy SYNCED body is an old ungated LrcLib match (nobody types timestamps): replaced by the gated answer. */
+    @Test
+    fun `legacy synced body is replaced by a provider answer`() {
+        val stale = LyricsEntity("v", "[00:01.00] こいこいこい", provider = null)
+        assertEquals(LyricsEntity("v", "new words", "SimpMusic"), LyricsEntity.resolved("v", stale, "new words", "SimpMusic"))
+        assertEquals(LyricsEntity("v", "[00:01.00] new", "Zemer · jkaraoke"), LyricsEntity.resolved("v", stale, "[00:01.00] new", "Zemer · jkaraoke"))
+    }
+
+    @Test
+    fun `stamped rows are never re-resolved`() {
+        val kept = LyricsEntity("v", "old words", PROVIDER_LEGACY)
+        assertFalse(LyricsEntity.needsFetch(kept))
     }
 
     @Test
     fun `not found keeps a legacy body instead of overwriting it`() {
-        val manual = LyricsEntity("v", "typed by the user", provider = null)
-        val row = LyricsEntity.resolved("v", manual, LYRICS_NOT_FOUND, null)
-        assertEquals("typed by the user", row.lyrics)
-        assertEquals(PROVIDER_LEGACY, row.provider)
-        assertFalse("stamped rows leave the re-fetch loop", LyricsEntity.needsFetch(row))
+        for (body in listOf("typed by the user", "[00:01.00] synced legacy")) {
+            val row = LyricsEntity.resolved("v", LyricsEntity("v", body, provider = null), LYRICS_NOT_FOUND, null)
+            assertEquals(body, row.lyrics)
+            assertEquals(PROVIDER_LEGACY, row.provider)
+            assertFalse("stamped rows leave the re-fetch loop", LyricsEntity.needsFetch(row))
+        }
     }
 
     @Test

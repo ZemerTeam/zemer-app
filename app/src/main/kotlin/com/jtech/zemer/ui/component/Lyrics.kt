@@ -103,6 +103,7 @@ import com.jtech.zemer.constants.PlayerBackgroundStyle
 import com.jtech.zemer.constants.PlayerBackgroundStyleKey
 import com.jtech.zemer.db.entities.LyricsEntity.Companion.LYRICS_NOT_FOUND
 import com.jtech.zemer.lyrics.LyricsEntry
+import com.jtech.zemer.lyrics.LyricsUtils
 import com.jtech.zemer.lyrics.LyricsUtils.findCurrentLineIndex
 import com.jtech.zemer.lyrics.LyricsUtils.parseLyrics
 import com.jtech.zemer.lyrics.LyricsUtils.sungWordCount
@@ -171,7 +172,7 @@ fun Lyrics(
     val lines = remember(lyrics) {
         if (lyrics == null || lyrics == LYRICS_NOT_FOUND) {
             emptyList()
-        } else if (lyrics.startsWith("[")) {
+        } else if (LyricsUtils.isSynced(lyrics)) {
             parseLyrics(lyrics).let {
                 listOf(LyricsEntry.HEAD_LYRICS_ENTRY) + it
             }
@@ -183,7 +184,7 @@ fun Lyrics(
     }
     val isSynced =
         remember(lyrics) {
-            !lyrics.isNullOrEmpty() && lyrics.startsWith("[")
+            !lyrics.isNullOrEmpty() && LyricsUtils.isSynced(lyrics)
         }
 
     val textColor = when (playerBackground) {
@@ -295,7 +296,7 @@ fun Lyrics(
     }
 
     LaunchedEffect(lyrics) {
-        if (lyrics.isNullOrEmpty() || !lyrics.startsWith("[")) {
+        if (lyrics.isNullOrEmpty() || !LyricsUtils.isSynced(lyrics)) {
             currentLineIndex = -1
             return@LaunchedEffect
         }

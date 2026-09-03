@@ -1,15 +1,12 @@
 package com.jtech.zemer.lyrics
 
-import android.content.Context
 import com.jtech.zemer.constants.EnableSimpMusicKey
-import com.jtech.zemer.utils.dataStore
-import com.jtech.zemer.utils.get
 import com.metrolist.simpmusic.SimpMusicLyrics
 
 object SimpMusicLyricsProvider : LyricsProvider {
     override val name = "SimpMusic"
 
-    override fun isEnabled(context: Context): Boolean = context.dataStore[EnableSimpMusicKey] ?: true
+    override val enabledKey = EnableSimpMusicKey
 
     override suspend fun getLyrics(
         id: String,

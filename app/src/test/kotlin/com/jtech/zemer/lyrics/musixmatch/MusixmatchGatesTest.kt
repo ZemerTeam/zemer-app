@@ -30,6 +30,20 @@ class MusixmatchGatesTest {
         assertFalse(MusixmatchLyrics.titleMatches("Burn", listOf("Candles on the Sill")))
     }
 
+    /** Regression: cleanLrc formatted with the default locale, so de-DE wrote "[00:01,20]" and ar wrote Arabic digits: no LRC parser reads either. */
+    @Test
+    fun `LRC timestamps are locale-independent`() {
+        val saved = java.util.Locale.getDefault()
+        try {
+            for (locale in listOf(java.util.Locale.GERMANY, java.util.Locale.FRANCE, java.util.Locale("ar"), java.util.Locale("tr", "TR"))) {
+                java.util.Locale.setDefault(locale)
+                assertEquals(locale.toString(), "[00:01.20] a\n[00:02.50] b\n[00:03.00] c\n[00:04.00] d", MusixmatchLyrics.cleanLrc("[00:01.20] a\n[00:02.5] b\n[00:03.00] c\n[00:04.00] d"))
+            }
+        } finally {
+            java.util.Locale.setDefault(saved)
+        }
+    }
+
     @Test
     fun `footer stripped, LRC kept only when well-formed and monotonic`() {
         assertEquals("a\nb\n\nc", MusixmatchLyrics.cleanLyrics("a\nb\n\n\n\nc\n******* This Lyrics is NOT for Commercial use *******\n(1409623)\n"))

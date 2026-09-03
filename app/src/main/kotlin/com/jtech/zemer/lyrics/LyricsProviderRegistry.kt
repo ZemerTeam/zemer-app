@@ -15,7 +15,8 @@ object LyricsProviderRegistry {
         // Accuracy first, then coverage on THIS catalog: Zemer is the only cross-verified source; SimpMusic
         // matches the exact YouTube videoId (can't mismatch); Musixmatch outranks LrcLib because on the Jewish
         // catalog Musixmatch matched ~50% of recognised tracks (most synced) while LrcLib hit ~1/120; YouTube's
-        // tab is lower trust, tried last. The chain stops at the first provider that returns lyrics.
+        // tab is lower trust, tried last. The pick rule (synced-first among trusted providers, low-trust YouTube only
+        // when nothing else answered) is SyncedFirstPicker.
         "Zemer" to ZemerLyricsProvider,
         "SimpMusic" to SimpMusicLyricsProvider,
         "Musixmatch" to MusixmatchLyricsProvider,

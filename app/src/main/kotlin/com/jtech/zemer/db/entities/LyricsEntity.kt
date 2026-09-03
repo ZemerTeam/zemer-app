@@ -31,11 +31,21 @@ data class LyricsEntity(
 
         /**
          * The row to store after the chain answered [lyrics]/[provider] for a song whose cache held
-         * [cached]. A found body replaces the row with known provenance. Not found keeps a legacy body
-         * (stamped [PROVIDER_LEGACY]) instead of deleting or overwriting user-entered text.
+         * [cached]. A legacy PLAIN body is always kept (stamped [PROVIDER_LEGACY]): a pre-provider manual
+         * entry looks exactly like an old auto-cached plain row, and user-typed text must never be silently
+         * replaced (Refetch is the explicit way out). A legacy SYNCED body is replaced when the chain answers:
+         * nobody types timestamps, so it is an old ungated LrcLib match, the class of row that motivated the
+         * gated chain. Not found keeps any legacy body.
          */
-        fun resolved(id: String, cached: LyricsEntity?, lyrics: String, provider: String?): LyricsEntity =
-            if (lyrics == LYRICS_NOT_FOUND && cached != null && cached.lyrics != LYRICS_NOT_FOUND) cached.copy(provider = PROVIDER_LEGACY)
-            else LyricsEntity(id = id, lyrics = lyrics, provider = provider)
+        fun resolved(id: String, cached: LyricsEntity?, lyrics: String, provider: String?): LyricsEntity {
+            val legacyBody = cached != null && cached.provider == null && cached.lyrics != LYRICS_NOT_FOUND
+            if (legacyBody && (lyrics == LYRICS_NOT_FOUND || !isSyncedBody(cached!!.lyrics))) return cached.copy(provider = PROVIDER_LEGACY)
+            return LyricsEntity(id = id, lyrics = lyrics, provider = provider)
+        }
+
+        /** An LRC-style body: at least one `[mm:ss.xx]` line tag (no user types these). */
+        private fun isSyncedBody(lyrics: String): Boolean = LINE_TAG.containsMatchIn(lyrics)
+
+        private val LINE_TAG = Regex("\\[\\d\\d:\\d\\d\\.\\d{2,3}]")
     }
 }

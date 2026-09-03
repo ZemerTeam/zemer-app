@@ -568,13 +568,15 @@ interface DatabaseDao {
     fun lyrics(id: String?): Flow<LyricsEntity?>
 
     /**
-     * One-time cleanup of cached lyrics rows that are safe to drop: LrcLib rows from its old duration-only
-     * match (any same-length song could win) and not-found rows that predate provider tracking (so the song
-     * is tried once through the new chain). Rows with a body and no provider are NOT deleted: pre-provider
-     * manual entries look exactly like them, and deleting would silently discard user-entered lyrics. Those
-     * are re-resolved once by the playback path instead (see [LyricsEntity.resolved]).
+     * One-time cleanup of cached lyrics rows that are safe to drop: not-found rows that predate provider
+     * tracking (so the song is tried once through the new chain). Rows with a body and no provider are NOT
+     * deleted: pre-provider manual entries look exactly like old auto-cached rows (including LrcLib's old
+     * duration-only matches, which have no provider stamp either), and deleting would silently discard
+     * user-entered lyrics. Those are re-resolved once when their lyrics are next opened (see
+     * [LyricsEntity.resolved]: a synced legacy body is replaced, a plain one is kept). Rows stamped
+     * `LrcLib` are identity-gated matches from the new chain and are never purged.
      */
-    @Query("DELETE FROM lyrics WHERE provider = 'LrcLib' OR (provider IS NULL AND lyrics = 'LYRICS_NOT_FOUND')")
+    @Query("DELETE FROM lyrics WHERE provider IS NULL AND lyrics = 'LYRICS_NOT_FOUND'")
     fun purgeUntrustedLyrics(): Int
 
     @Transaction

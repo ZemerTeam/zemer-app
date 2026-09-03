@@ -700,9 +700,9 @@ class MusicService :
                 if (remotePlaying) startWidgetTicker() else updateWidget()
             }
 
-        // One-time, data-only cleanup (no schema change): drop cached rows that are known to be untrustworthy
-        // (LrcLib's old duration-only match) or worthless (legacy not-found), so they go through the gated
-        // chain once. Legacy rows with a body are kept: they may be manual entries (see LyricsEntity.resolved).
+        // One-time, data-only cleanup (no schema change): drop legacy not-found rows so those songs go through
+        // the gated chain once. Legacy rows with a body are kept: they may be manual entries and are
+        // re-resolved once when next opened (see LyricsEntity.resolved).
         scope.launch {
             if (dataStore.data.first()[LyricsCachePurgeDoneKey] != true) {
                 database.query { purgeUntrustedLyrics() }

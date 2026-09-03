@@ -194,14 +194,24 @@ object LrcLib {
         return candidates.firstNotNullOfOrNull { it.plainLyrics?.takeIf { p -> p.isNotBlank() } }
     }
 
+    /** Every credited artist in a joined credit ("Shira Choir, Baruch Levine" / "A & B" / "A feat. B"), cleaned. */
+    internal fun creditedArtists(artist: String): List<String> {
+        var parts = listOf(artist.trim())
+        for (separator in artistSeparators) parts = parts.flatMap { it.split(separator, ignoreCase = true) }
+        return parts.map { it.trim() }.filter { it.isNotEmpty() }.ifEmpty { listOf(artist.trim()) }
+    }
+
     /**
      * Identity gate: an LRCLIB track may be used only if BOTH its title and artist agree with what we asked for
      * (similarity >= 0.75 each, after the same cleanup) and, when the player knows the duration, it is within
-     * 3 s. Duration alone is never enough — a random song of the same length is a wrong song.
+     * 3 s. Duration alone is never enough — a random song of the same length is a wrong song. The artist side
+     * passes when ANY credited artist matches: the queue item carries the comma-joined credit list, and LRCLIB
+     * may catalogue a multi-credit recording under the second name.
      */
     internal fun identityMatches(trackName: String, artistName: String, wantTitle: String, wantArtist: String, trackDuration: Double, wantDuration: Int): Boolean {
         val t = calculateStringSimilarity(cleanTitle(wantTitle), cleanTitle(trackName))
-        val a = calculateStringSimilarity(cleanArtist(wantArtist), cleanArtist(artistName))
+        val cleanedTrackArtist = cleanArtist(artistName)
+        val a = creditedArtists(wantArtist).maxOf { calculateStringSimilarity(it, cleanedTrackArtist) }
         val d = wantDuration == -1 || abs(trackDuration.toInt() - wantDuration) <= 3
         return t >= 0.75 && a >= 0.75 && d
     }

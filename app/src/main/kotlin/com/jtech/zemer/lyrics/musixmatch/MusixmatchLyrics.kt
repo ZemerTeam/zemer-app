@@ -1,5 +1,6 @@
 package com.jtech.zemer.lyrics.musixmatch
 
+import java.util.Locale
 import android.content.Context
 import androidx.datastore.preferences.core.edit
 import com.jtech.zemer.constants.MusixmatchCooldownUntilKey
@@ -103,7 +104,8 @@ object MusixmatchLyrics {
             val t = m.groupValues[1].toInt() * 60 + m.groupValues[2].toDouble()
             if (t < last) return null
             last = t
-            rows.add("[%s:%05.2f] %s".format(m.groupValues[1].padStart(2, '0'), m.groupValues[2].toDouble(), m.groupValues[3].trim()))
+            // Locale.US: the default locale would print a comma decimal or non-ASCII digits, which no LRC parser reads.
+            rows.add(String.format(Locale.US, "[%s:%05.2f] %s", m.groupValues[1].padStart(2, '0'), m.groupValues[2].toDouble(), m.groupValues[3].trim()))
         }
         return if (rows.count { !it.endsWith("] ") && !it.endsWith("]") } >= 4) rows.joinToString("\n") else null
     }

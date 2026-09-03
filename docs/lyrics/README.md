@@ -26,7 +26,9 @@ providers by `MediaMetadata.id` (never `setVideoId`, which is a playlist-entry t
   `LyricsUtils.stripWordTags(...)` of that body: plain LRC, never `<mm:ss.xx>` word tags.
 * **LrcLib**: title/artist keyed. `LrcLib.identityMatches` requires title ≥ 0.75 AND artist ≥ 0.75 similarity AND
   duration within 3 s — a duration-only match served a Japanese song for a Baruch Levine track before this gate
-  (`lrclib/src/test/.../LrcLibIdentityTest.kt`). `LrcLib.pickBody` serves a synced body only from a `syncable` track
+  (`lrclib/src/test/.../LrcLibIdentityTest.kt`). The artist side passes when ANY credited artist matches
+  (`creditedArtists` splits the queue item's joined credit), since LRCLIB may catalogue a multi-credit recording
+  under the second name. `LrcLib.pickBody` serves a synced body only from a `syncable` track
   (non-blank, within 1 s); a track inside the identity gate but outside the sync gate yields plain text or nothing.
 
 ## Sync rendering (`lyrics/LyricsUtils.kt`, `ui/component/Lyrics.kt`)
@@ -43,11 +45,27 @@ from X · synced", only once a real body exists) + the lyrics menu + the shared 
 transport row and slider reused through `PlayerTransportRow` and the `ui/component/lyrics/LyricsComponents.kt`
 pieces. Its repeat button's content description follows `repeatModeContentDescriptionRes(repeatMode)`.
 
+## Pick rule (`lyrics/SyncedFirstPicker`, JVM-tested)
+Providers are walked in the user's order from ONE DataStore snapshot (`LyricsHelper.enabledProviders(prefs)`: the
+order key plus every provider's `enabledKey`). Among trusted providers the walk stops at the first SYNCED body and
+otherwise serves the first plain one. The YouTube providers are `lowTrust`: an auto-caption transcript is
+timestamped but not identity-gated, so it is served only when no trusted provider answered — never over a curated
+Zemer plain body (`SyncedFirstPickerTest`).
+
+## Feedback (`lyrics/zemer/LyricsFeedback`, JVM-tested)
+"Report wrong lyrics" and a saved edit POST through `LyricsMenuViewModel.feedback`, which rides `viewModelScope`.
+The menu sheet's own `rememberCoroutineScope` is cancelled the frame the sheet is dismissed, and the report action
+dismisses first, so a POST launched there never reached the server (`LyricsFeedbackTest`).
+
 ## Cache hygiene (`LyricsEntity.needsFetch` / `LyricsEntity.resolved`)
-`MusicService` runs the chain only past the `showLyrics`/`isEpisode` guard and only when `needsFetch`: nothing cached,
-or a legacy row (provider null) with a real body. A `LYRICS_NOT_FOUND` row is a negative cache and is never re-fetched.
-A legacy row that the chain cannot resolve is kept and stamped `provider = "legacy"` (shown as unknown provenance),
-because pre-provider manual entries are indistinguishable from old auto-cached rows and must not be discarded.
-The one-time purge (`DatabaseDao.purgeUntrustedLyrics`, flag `LyricsCachePurgeDoneKey`) deletes only `LrcLib` rows
-(old duration-only match) and legacy not-found rows.
+`LyricsScreen` (on open) and `MusicService` (past the `showLyrics`/`isEpisode` guard) run the chain only when
+`needsFetch`: nothing cached, or a legacy row (provider null) with a real body. A `LYRICS_NOT_FOUND` row is a
+negative cache and is never re-fetched. A legacy PLAIN body is always kept and stamped `provider = "legacy"`
+(shown as unknown provenance): pre-provider manual entries are indistinguishable from old auto-cached rows and
+must not be silently replaced — Refetch is the explicit way out. A legacy SYNCED body is replaced when the chain
+answers: nobody types timestamps, so it is an old ungated LrcLib match (`LyricsCachePolicyTest`).
+The one-time purge (`DatabaseDao.purgeUntrustedLyrics`, flag `LyricsCachePurgeDoneKey`) deletes only legacy
+not-found rows; pre-provider rows carry no provider stamp, so a `provider = 'LrcLib'` clause could only ever hit
+NEW identity-gated rows and was removed. Hebrew strings under `values-iw/` are managed by the locale process and
+are not edited here (project rule 3); new lyrics strings fall back to English until translated.
 No further DB migrations are to be added for lyrics without an explicit decision.

@@ -22,6 +22,16 @@ class LrcLibIdentityTest {
         assertTrue(LrcLib.identityMatches("Vezakeini", "Baruch Levine", "Vezakeini", "Baruch Levine & Shira Choir", 210.0, -1))
     }
 
+    /** Regression: the gate compared only the FIRST credited artist, so a recording LRCLIB catalogues under the second credit was rejected. */
+    @Test
+    fun `any credited artist may match`() {
+        assertEquals(listOf("Shira Choir", "Baruch Levine"), LrcLib.creditedArtists("Shira Choir, Baruch Levine"))
+        assertEquals(listOf("A", "B", "C"), LrcLib.creditedArtists("A & B feat. C"))
+        assertTrue(LrcLib.identityMatches("Vezakeini", "Baruch Levine", "Vezakeini", "Shira Choir, Baruch Levine", 210.0, 210))
+        assertTrue(LrcLib.identityMatches("Vezakeini", "Shira Choir", "Vezakeini", "Shira Choir, Baruch Levine", 210.0, 210))
+        assertFalse("a wrong artist still fails even with multiple credits", LrcLib.identityMatches("Vezakeini", "Some J-Pop Artist", "Vezakeini", "Shira Choir, Baruch Levine", 210.0, 210))
+    }
+
     private fun track(duration: Double, synced: String?, plain: String?) = Track(1, "Koi Koi Koi", "Baruch Levine", duration, plain, synced)
 
     /** A track inside the 3 s identity gate but outside the 1 s sync gate never serves its synced body. */

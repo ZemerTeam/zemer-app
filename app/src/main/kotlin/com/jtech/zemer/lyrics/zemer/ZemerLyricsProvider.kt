@@ -1,9 +1,6 @@
 package com.jtech.zemer.lyrics.zemer
 
-import android.content.Context
 import com.jtech.zemer.constants.EnableZemerLyricsKey
-import com.jtech.zemer.utils.dataStore
-import com.jtech.zemer.utils.get
 import com.jtech.zemer.lyrics.LabeledLyrics
 import com.jtech.zemer.lyrics.LyricsProvider
 import com.jtech.zemer.lyrics.model.LyricsUnavailableException
@@ -19,7 +16,7 @@ import com.jtech.zemer.lyrics.model.LyricsUnavailableException
 object ZemerLyricsProvider : LyricsProvider {
     override val name = "Zemer"
 
-    override fun isEnabled(context: Context): Boolean = context.dataStore[EnableZemerLyricsKey] ?: true
+    override val enabledKey = EnableZemerLyricsKey
 
     /**
      * Bodies in preference order for a resolved entry (fetchers injected for tests). With [firstOnly] the

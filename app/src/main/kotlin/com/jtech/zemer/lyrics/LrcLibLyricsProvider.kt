@@ -1,15 +1,12 @@
 package com.jtech.zemer.lyrics
 
-import android.content.Context
 import com.metrolist.lrclib.LrcLib
 import com.jtech.zemer.constants.EnableLrcLibKey
-import com.jtech.zemer.utils.dataStore
-import com.jtech.zemer.utils.get
 
 object LrcLibLyricsProvider : LyricsProvider {
     override val name = "LrcLib"
 
-    override fun isEnabled(context: Context): Boolean = context.dataStore[EnableLrcLibKey] ?: true
+    override val enabledKey = EnableLrcLibKey
 
     override suspend fun getLyrics(
         id: String,
