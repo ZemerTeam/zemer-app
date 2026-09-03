@@ -315,7 +315,7 @@
     <string name="enable_lrclib">LrcLib</string>
     <string name="enable_musixmatch">Musixmatch</string>
     <string name="enable_youtube_lyrics">YouTube</string>
-    <string name="lyrics_report_wrong">Report wrong lyrics</string>
+    <string name="lyrics_report_wrong">Report</string>
     <string name="lyrics_reported">Thanks, reported. Lyrics are hidden once a second listener agrees.</string>
     <string name="lyrics_submitted">Lyrics saved and sent to Zemer for review</string>
     <string name="lyrics_provider_selection">Provider selection</string>

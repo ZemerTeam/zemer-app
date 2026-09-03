@@ -409,6 +409,7 @@ fun LyricsMenu(
                         }
                     )
                 ),
+                columns = 4, // four actions on one balanced row (Edit · Refetch · Search · Report)
                 modifier = Modifier.padding(horizontal = 4.dp, vertical = 16.dp)
             )
         }

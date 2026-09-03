@@ -217,7 +217,7 @@
     <string name="enable_lrclib">LrcLib</string>
     <string name="enable_musixmatch">Musixmatch</string>
     <string name="enable_youtube_lyrics">YouTube</string>
-    <string name="lyrics_report_wrong">דווח על מילים שגויות</string>
+    <string name="lyrics_report_wrong">דיווח</string>
     <string name="lyrics_reported">תודה, דווח. המילים יוסתרו ברגע שמאזין נוסף יסכים.</string>
     <string name="lyrics_submitted">המילים נשמרו ונשלחו ל-Zemer לבדיקה</string>
     <string name="lyrics_provider_selection">בחירת ספקים</string>
