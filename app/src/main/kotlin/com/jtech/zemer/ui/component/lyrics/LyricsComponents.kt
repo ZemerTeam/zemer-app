@@ -30,11 +30,16 @@ import com.jtech.zemer.R
 import com.jtech.zemer.db.entities.LyricsEntity
 import com.jtech.zemer.models.MediaMetadata
 
+/** The provider label as shown: a Zemer row shows just "Zemer" (the sub-source stays in the stored label for reports); legacy rows show no provider. */
+fun displayProviderName(provider: String?): String? =
+    provider?.replace(" ✓", "")?.takeUnless { it == LyricsEntity.PROVIDER_LEGACY }?.let { if (it.startsWith(ZEMER_LABEL)) ZEMER_LABEL else it }
+private const val ZEMER_LABEL = "Zemer"
+
 /** "Lyrics from <provider> · synced" — provenance is part of the UI, not hidden. */
 @Composable
 fun LyricsSourceHeader(provider: String?, synced: Boolean, color: Color, modifier: Modifier = Modifier) {
     Text(
-        text = stringResource(R.string.lyrics_from, provider?.replace(" ✓", "")?.takeUnless { it == LyricsEntity.PROVIDER_LEGACY } ?: stringResource(R.string.unknown)) + " · " +
+        text = stringResource(R.string.lyrics_from, displayProviderName(provider) ?: stringResource(R.string.unknown)) + " · " +
             stringResource(if (synced) R.string.lyrics_synced else R.string.lyrics_plain),
         style = MaterialTheme.typography.labelMedium,
         color = color.copy(alpha = 0.6f),
