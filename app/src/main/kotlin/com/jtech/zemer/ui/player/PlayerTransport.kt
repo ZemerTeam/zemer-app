@@ -84,8 +84,13 @@ fun PlayerSeekBar(
 ) {
     val value = (sliderPosition ?: position).toFloat()
     val valueRange = 0f..(if (duration == C.TIME_UNSET) 0f else duration.toFloat())
-    val onValueChange: (Float) -> Unit = { onSliderPositionChange(it.toLong()) }
-    val onValueChangeFinished = { sliderPosition?.let(onSeek); onSliderPositionChange(null) }
+    // A TAP fires onValueChange and onValueChangeFinished inside one frame, before recomposition delivers the new
+    // [sliderPosition] parameter — a closure over the parameter would seek to the stale (null) value and do nothing,
+    // while a drag happened to work only because it recomposes along the way. Keep the latest value in state that
+    // the finish callback reads directly, so tap-to-seek and drag-to-seek behave the same.
+    val latest = remember { mutableStateOf<Long?>(null) }
+    val onValueChange: (Float) -> Unit = { latest.value = it.toLong(); onSliderPositionChange(it.toLong()) }
+    val onValueChangeFinished = { (latest.value ?: sliderPosition)?.let(onSeek); latest.value = null; onSliderPositionChange(null) }
     Column(modifier = modifier.fillMaxWidth()) {
         Box(modifier = Modifier.fillMaxWidth().padding(horizontal = PlayerHorizontalPadding - 8.dp)) {
             // A broadcast has no transport: the seek slider is replaced by the read-only LIVE bar.
