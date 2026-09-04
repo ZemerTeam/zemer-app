@@ -37,6 +37,8 @@ object ZemerLyricsClient {
         val feedUrl: String? = null,
         val browseId: String? = null,     // youtube lyrics tab
         val trackId: Long? = null,        // zingmusic (server-vetted track id) / musixmatch
+        val hash: String? = null,         // kugou (audio hash; the app re-runs the krcs search with it)
+        val krcId: Long? = null,          // kugou (server-vetted krcs candidate id)
         val plain: String? = null,        // operator-hosted text (booklet/manual)
         val syncedLrc: String? = null,
         val synced: Boolean = false,

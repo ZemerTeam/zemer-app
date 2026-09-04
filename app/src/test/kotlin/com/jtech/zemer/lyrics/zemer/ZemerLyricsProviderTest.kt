@@ -63,6 +63,28 @@ class ZemerLyricsProviderTest {
     }
 
     @Test
+    fun `kugou source re-runs the krcs search by hash, takes only the vetted id, and decodes the LRC`() = runBlocking {
+        val lrcB64 = java.util.Base64.getEncoder().encodeToString("[ti:x]\n[00:01.00]one\n[00:02.00]two\n[00:03.00]three\n[00:04.00]four".toByteArray())
+        val hash = "959d52326c6c8b2919e80f8a40db48fc"
+        val resolved = ZemerLyricsClient.Resolved(videoId = "kg1", hasSynced = true, sources = listOf(ZemerLyricsClient.Source(type = "kugou", hash = hash, krcId = 439665416, synced = true)))
+        val fetch: suspend (String) -> String? = { url ->
+            when {
+                url == KugouLrc.searchUrl(hash) -> """{"candidates":[{"id":1,"accesskey":"OTHER"},{"id":439665416,"accesskey":"KEY"}]}"""
+                url == KugouLrc.downloadUrl(439665416, "KEY") -> """{"content":"$lrcB64"}"""
+                else -> null
+            }
+        }
+        val bodies = ZemerLyricsProvider.bodies(resolved, fetch)
+        assertEquals(listOf("kugou"), bodies.map { it.first })
+        assertEquals("[00:01.00]one", bodies[0].second.lines().first())      // metadata tag dropped, timed lines kept
+        // the vetted id missing from the candidates = no body (never another candidate's accesskey)
+        assertTrue(ZemerLyricsProvider.bodies(resolved, fetch = { url -> if (url == KugouLrc.searchUrl(hash)) """{"candidates":[{"id":1,"accesskey":"OTHER"}]}""" else null }).isEmpty())
+        // fewer than 4 timed lines = no body
+        val thinB64 = java.util.Base64.getEncoder().encodeToString("[00:01.00]one\n[00:02.00]two".toByteArray())
+        assertTrue(ZemerLyricsProvider.bodies(resolved, fetch = { url -> if (url == KugouLrc.searchUrl(hash)) """{"candidates":[{"id":439665416,"accesskey":"KEY"}]}""" else """{"content":"$thinB64"}""" }).isEmpty())
+    }
+
+    @Test
     fun `label is one string for both the auto-fetch and picker paths`() {
         assertEquals("Zemer · jkaraoke", ZemerLyricsProvider.label("jkaraoke", verified = true))
         assertEquals("Zemer · jyrics", ZemerLyricsProvider.label("jyrics", verified = false))
