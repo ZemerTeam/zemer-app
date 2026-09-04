@@ -115,7 +115,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `.github/workflows/docs-regenerate.yml` | 81 lines | `.yml` |
 | `.github/workflows/player-monitor.yml` | 195 lines | `.yml` |
 | `.github/workflows/regression.yml` | 82 lines | `.yml` |
-| `.github/workflows/release-build.yml` | 161 lines | `.yml` |
+| `.github/workflows/release-build.yml` | 164 lines | `.yml` |
 | `.github/workflows/ui-audit.yml` | 56 lines | `.yml` |
 | `.gitignore` | 117 lines | `[none]` |
 | `.gitmodules` | 3 lines | `[none]` |
@@ -944,8 +944,8 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/main/res/raw/loading_dots_blue.lottie` | 1221 bytes | `.lottie` |
 | `app/src/main/res/raw/welcome.lottie` | 2138 bytes | `.lottie` |
 | `app/src/main/res/resources.properties` | 1 lines | `.properties` |
-| `app/src/main/res/values-iw/metrolist_strings.xml` | 32 lines | `.xml` |
-| `app/src/main/res/values-iw/strings.xml` | 269 lines | `.xml` |
+| `app/src/main/res/values-iw/metrolist_strings.xml` | 30 lines | `.xml` |
+| `app/src/main/res/values-iw/strings.xml` | 267 lines | `.xml` |
 | `app/src/main/res/values-night/colors.xml` | 6 lines | `.xml` |
 | `app/src/main/res/values-v31/styles.xml` | 22 lines | `.xml` |
 | `app/src/main/res/values/app_name.xml` | 4 lines | `.xml` |
