@@ -39,6 +39,7 @@ object ZemerLyricsProvider : LyricsProvider {
                 "shironet" -> s.url?.let { fetch(it) }?.let { ShironetParser.parse(it).plain.takeIf(LyricsUtils::hasLyricBody) }
                 "zingmusic" -> s.trackId?.let { zing(it) }?.let { ZingParser.toPlain(it).takeIf(LyricsUtils::hasLyricBody) }
                 "lrclib" -> s.trackId?.let { fetch("https://lrclib.net/api/get/$it") }?.let { ZemerLyricsClient.lrclibBody(it) }
+                "kugou" -> s.hash?.let { h -> s.krcId?.let { id -> fetch(KugouLrc.searchUrl(h))?.let { KugouLrc.accessKey(it, id) }?.let { key -> fetch(KugouLrc.downloadUrl(id, key))?.let { KugouLrc.lrc(it) } } } }
                 "booklet", "manual", "canonical" -> s.syncedLrc?.takeIf { it.isNotBlank() } ?: s.plain?.takeIf { it.isNotBlank() }
                 else -> null
             }
@@ -47,7 +48,7 @@ object ZemerLyricsProvider : LyricsProvider {
         return out
     }
 
-    private fun rank(s: ZemerLyricsClient.Source) = when (s.type) { "jkaraoke" -> 0; "lrclib" -> 1; "jyrics" -> 1; "shironet" -> 1; "zingmusic" -> 1; "booklet" -> 2; "manual" -> 2; "canonical" -> 3; else -> 9 }
+    private fun rank(s: ZemerLyricsClient.Source) = when (s.type) { "jkaraoke" -> 0; "lrclib" -> 1; "jyrics" -> 1; "shironet" -> 1; "zingmusic" -> 1; "kugou" -> 1; "booklet" -> 2; "manual" -> 2; "canonical" -> 3; else -> 9 }
 
     /** "Zemer · jkaraoke": the sub-source matters for provenance. Verification is a server fact, not shown in the label. */
     fun label(source: String, @Suppress("UNUSED_PARAMETER") verified: Boolean): String = "$name · $source"
