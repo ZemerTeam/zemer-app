@@ -147,15 +147,18 @@ jobs:
           RECIPIENTS=$(printf '%s %s' "$PRIMARY_CHAT_ID" "$EXTRA_CHAT_IDS" \
             | tr ',\n' '  ' | tr -s ' ' '\n' | awk 'NF && !seen[$0]++')
 
+          # --max-time so a stalled Telegram upload can't hang the job until the 6h timeout
+          # (observed on run 33894912549); || true because the APK artifact is already uploaded —
+          # a failed notification must not fail the build.
           for CID in $RECIPIENTS; do
             if [ -n "$APK_FILE" ] && [ -f "$APK_FILE" ]; then
-              curl -s -X POST "https://api.telegram.org/bot${BOT_TOKEN}/sendDocument" \
+              curl -s --max-time 300 -X POST "https://api.telegram.org/bot${BOT_TOKEN}/sendDocument" \
                 -F chat_id="$CID" \
                 -F document=@"$APK_FILE" \
-                -F caption="$MESSAGE"
+                -F caption="$MESSAGE" || true
             else
-              curl -s -X POST "https://api.telegram.org/bot${BOT_TOKEN}/sendMessage" \
+              curl -s --max-time 60 -X POST "https://api.telegram.org/bot${BOT_TOKEN}/sendMessage" \
                 -d chat_id="$CID" \
-                --data-urlencode "text=${MESSAGE}"
+                --data-urlencode "text=${MESSAGE}" || true
             fi
           done

@@ -53,9 +53,7 @@
     <string name="add_to_library">הוסף לספרייה</string>
     <string name="remove_from_library">הסר מהספרייה</string>
     <string name="action_download">הורד</string>
-    <string name="downloading">מוריד</string>
     <string name="remove_download">הסר הורדה</string>
-    <string name="import_playlist">ייבוא פלייליסט</string>
     <string name="add_to_playlist">הוסף לפלייליסט</string>
     <string name="view_artist">הצג אמן</string>
     <string name="view_album">הצג אלבום</string>
