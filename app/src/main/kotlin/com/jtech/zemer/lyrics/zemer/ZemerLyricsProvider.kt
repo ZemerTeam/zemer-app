@@ -9,8 +9,8 @@ import com.jtech.zemer.lyrics.model.LyricsUnavailableException
 /**
  * First provider in the chain. Resolves the videoId through the Zemer server, then fetches the text from
  * the sources the server vouches for — in this preference order:
- *   jkaraoke (line-synced LRC, timings gated by duration on the server) > jyrics / shironet (curated plain) >
- *   operator-hosted booklet/manual text.
+ *   jkaraoke (line-synced LRC, timings gated by duration on the server) > jyrics / shironet /
+ *   lyricstranslate (audio-verified plain) > operator-hosted booklet/manual text.
  * Every body goes through the same parser the server used to verify it (golden-pinned ports), so what the
  * user sees is exactly what was cross-checked.
  */
@@ -37,6 +37,10 @@ object ZemerLyricsProvider : LyricsProvider {
                 "jkaraoke" -> s.feedUrl?.let { fetch(it) }?.let { page -> s.songId?.let { id -> JkaraokeLrc.fromFeedPage(page, id)?.synced } }
                 "jyrics" -> s.url?.let { fetch(it) }?.let { JyricsParser.parse(it).plain.takeIf(LyricsUtils::hasLyricBody) }
                 "shironet" -> s.url?.let { fetch(it) }?.let { ShironetParser.parse(it).plain.takeIf(LyricsUtils::hasLyricBody) }
+                // Server-inlined (the site's Cloudflare challenge blocks on-device fetches); the page fetch is
+                // a fallback in case an older server serves the pointer form without text.
+                "lyricstranslate" -> s.plain?.takeIf(LyricsUtils::hasLyricBody)
+                    ?: s.url?.let { fetch(it) }?.let { LyricsTranslateParser.parse(it)?.takeIf(LyricsUtils::hasLyricBody) }
                 "zingmusic" -> s.trackId?.let { zing(it) }?.let { ZingParser.toPlain(it).takeIf(LyricsUtils::hasLyricBody) }
                 "lrclib" -> s.trackId?.let { fetch("https://lrclib.net/api/get/$it") }?.let { ZemerLyricsClient.lrclibBody(it) }
                 "kugou" -> s.hash?.let { h -> s.krcId?.let { id -> fetch(KugouLrc.searchUrl(h))?.let { KugouLrc.accessKey(it, id) }?.let { key -> fetch(KugouLrc.downloadUrl(id, key))?.let { KugouLrc.lrc(it) } } } }
@@ -48,7 +52,7 @@ object ZemerLyricsProvider : LyricsProvider {
         return out
     }
 
-    private fun rank(s: ZemerLyricsClient.Source) = when (s.type) { "jkaraoke" -> 0; "lrclib" -> 1; "jyrics" -> 1; "shironet" -> 1; "zingmusic" -> 1; "kugou" -> 1; "booklet" -> 2; "manual" -> 2; "canonical" -> 3; else -> 9 }
+    private fun rank(s: ZemerLyricsClient.Source) = when (s.type) { "jkaraoke" -> 0; "lrclib" -> 1; "jyrics" -> 1; "shironet" -> 1; "zingmusic" -> 1; "kugou" -> 1; "lyricstranslate" -> 1; "booklet" -> 2; "manual" -> 2; "canonical" -> 3; else -> 9 }
 
     /** "Zemer · jkaraoke": the sub-source matters for provenance. Verification is a server fact, not shown in the label. */
     fun label(source: String, @Suppress("UNUSED_PARAMETER") verified: Boolean): String = "$name · $source"
