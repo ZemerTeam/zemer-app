@@ -712,8 +712,9 @@ class MusicService :
         currentMediaMetadata.distinctUntilChangedBy { it?.id }.collectLatest(scope) { mediaMetadata ->
             // Lyrics PREFETCH: warm the cache for this song and the next one on every track start, pane open or
             // not, so opening the pane later is instant. The cache decision, the chain and the row policy are
-            // LyricsStore's (one path with the lyrics screen and Refetch); it also skips episodes. Deferred past
-            // the stream resolution so the chain never competes with playback start; collectLatest cancels a
+            // LyricsStore's (one path with the lyrics screen and Refetch); it also skips episodes. A short
+            // deferral keeps the chain off the first seconds of the stream resolution (a coarse yield, not a
+            // readiness gate: a slow or failing resolve must not hold the lyrics back); collectLatest cancels a
             // pending prefetch when the track changes first (a fast skip costs nothing).
             if (mediaMetadata == null) return@collectLatest
             delay(LYRICS_PREFETCH_DELAY_MS)
@@ -3136,7 +3137,7 @@ class MusicService :
         private const val REVERT_RECOVERY_WINDOW_MS = 6_000L
         const val PERSISTENT_QUEUE_FILE = "persistent_queue.data"
         const val PERSISTENT_PLAYER_STATE_FILE = "persistent_player_state.data"
-        /** Lyrics prefetch waits for the stream resolution + first buffer before the chain walks (see the collector). */
+        /** Lyrics prefetch yields the first seconds of a track start to the stream resolution (see the collector). */
         const val LYRICS_PREFETCH_DELAY_MS = 3_000L
 
         const val MAX_CONSECUTIVE_ERR = 5

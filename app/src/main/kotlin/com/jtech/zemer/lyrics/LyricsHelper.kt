@@ -97,6 +97,7 @@ constructor(
                     }.getOrNull()
                 } catch (e: Exception) {
                     // Catch network-related exceptions like UnresolvedAddressException
+                    Timber.d("Lyrics %s threw in %d ms", provider.name, System.currentTimeMillis() - startedAt)
                     reportException(e)
                     null
                 }
