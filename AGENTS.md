@@ -612,7 +612,12 @@ the token is brokered by the Zemer server (`ZemerLyricsClient.musixmatchToken`),
 YouTube lyrics tab. The pick rule is the pure, tested `lyrics/SyncedFirstPicker`: among TRUSTED providers a SYNCED
 body beats a higher provider's plain one, but the YouTube providers are `lowTrust` (an auto-caption transcript is
 timestamped but not identity-gated) and are served ONLY when no trusted provider answered — never over a curated
-Zemer plain body. `LrcLib.identityMatches` accepts ANY credited artist of a joined credit (`creditedArtists`), not
+Zemer plain body. The SCHEDULE is the pure, tested `lyrics/LyricsChainWalk` (never changes the answer, only the
+wait): the primary trusted provider alone (a synced answer ends the walk with no other request), then the other
+trusted providers CONCURRENTLY offered in priority order, then the low-trust ones only when nothing trusted
+answered — so they are deferred even when the user order lists them first. Lyrics are PREFETCHED on every track
+start (`LyricsStore.prefetch`: current song then the next queue item, 3 s deferred, skipped offline) so opening
+the pane is a Room read; never regress the pane-open path to a live chain walk. `LrcLib.identityMatches` accepts ANY credited artist of a joined credit (`creditedArtists`), not
 just the first. The chain reads ONE DataStore snapshot per walk (`LyricsHelper.enabledProviders(prefs)`: order +
 every `LyricsProvider.enabledKey`), never a blocking read per provider. Musixmatch's `cleanLrc` formats with
 `Locale.US` (a comma-decimal locale produced LRC nothing could parse). Users contribute through the lyrics menu:
@@ -626,16 +631,18 @@ timings (word sync renders only measured `<mm:ss.xx>` tags); lyrics start at the
 30%; `LyricsSyncOffsetKey` user offset. The lyrics view (`ui/player/LyricsScreen.kt`, hosted by `Player.kt`, toggled by the
 `ShowLyricsKey`/`showLyrics` preference) reuses the player's own transport, slider and identity row via the shared
 components in `ui/component/lyrics/LyricsComponents.kt`; never re-roll them. Cache policy lives in `LyricsEntity`
-(`needsFetch`/`resolved`), applied by the ONE fetch-and-persist path `lyrics/LyricsStore` (`ensure` for the
-`showLyrics`-gated service prefetch and `LyricsScreen`'s open-time fetch, `refetch` for the menu's explicit
+(`needsFetch`/`resolved`), applied by the ONE fetch-and-persist path `lyrics/LyricsStore` (`ensure` for
+`LyricsScreen`'s open-time fetch, `prefetch(current, next, connected)` for the service's track-start warm-up - every
+track start, pane open or not, 3 s deferred, current song then the next queue item, skipped offline - so opening
+the pane is a Room read, `refetch` for the menu's explicit
 delete-then-refresh - the delete lands FIRST so the pane visibly reloads even when the chain answers the same
 body, and fetches are single-flight per videoId so the screen's re-fetch joins the refetch's walk; JVM-tested with
 injected storage - never re-roll the decision per call site): a not-found row is
 a negative cache; a pre-provider row with a body is re-resolved once — a PLAIN legacy body is always kept
 (stamped `legacy`; it may be a manual entry, Refetch is the explicit way out), a SYNCED legacy body is replaced
-when the chain answers (nobody types timestamps: it is an old ungated LrcLib match). The one-time purge drops
-only legacy not-found rows (pre-provider rows carry no provider stamp, so a `provider = 'LrcLib'` clause could
-only ever hit NEW gated rows). Do not add DB migrations for lyrics (the 35→36 `provider` column is the one that exists).
+when the chain answers (nobody types timestamps: it is an old ungated LrcLib match). Cache refresh is by chain generation (`LyricsEntity.CHAIN_GENERATION` vs `LyricsChainGenerationKey`): each
+generation step runs `DatabaseDao.purgeRefreshableLyrics` once, dropping not-found rows and auto-cached PLAIN rows
+while retaining synced, `manual` and `legacy` rows. Do not add DB migrations for lyrics (the 35→36 `provider` column is the one that exists).
 
 ### Shared UI components (componentized - import, don't re-roll)
 

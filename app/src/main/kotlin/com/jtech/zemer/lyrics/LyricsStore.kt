@@ -57,6 +57,20 @@ class LyricsStore(
     }
 
     /**
+     * Warm the cache for the playing song and the one after it, so opening the lyrics pane later is a Room read
+     * instead of a chain walk. Runs [ensure] for [current] then [next]; each is the ordinary cache-gated path, so
+     * a cached song costs one query and nothing is fetched twice (fetches are single-flight per videoId). Skipped
+     * entirely while offline: the chain would only mint not-found rows that then hide the song's lyrics online.
+     * Returns how many songs actually fetched (for tests and the debug log).
+     */
+    suspend fun prefetch(current: MediaMetadata?, next: MediaMetadata?, connected: Boolean): Int {
+        if (!connected) return 0
+        var fetched = 0
+        for (item in listOfNotNull(current, next).distinctBy { it.id }) if (ensure(item)) fetched++
+        return fetched
+    }
+
+    /**
      * The menu's Refetch: an explicit user request drops whatever is cached (manual text included) and stores
      * a fresh chain answer. The delete lands first so the pane visibly reloads.
      */

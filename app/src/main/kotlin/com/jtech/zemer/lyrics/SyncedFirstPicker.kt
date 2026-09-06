@@ -27,6 +27,9 @@ class SyncedFirstPicker {
         return null
     }
 
+    /** Whether a trusted provider has answered (plain): the low-trust providers are then never needed. */
+    val hasTrustedAnswer: Boolean get() = trustedPlain != null
+
     /** The answer once every provider was walked: the first trusted plain body, else the first low-trust body, else not found. */
     fun result(): LyricsHelper.Fetched = trustedPlain ?: lowTrust ?: LyricsHelper.Fetched(LYRICS_NOT_FOUND, null)
 }

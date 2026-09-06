@@ -87,4 +87,22 @@ class LyricsStoreTest {
         assertEquals(1, f.fetches)
         assertTrue(f.persisted.all { it == LyricsEntity("v", "fresh", "LrcLib") })
     }
+
+    @Test
+    fun `prefetch warms the current and next songs through the cache gate and does nothing offline`() = runBlocking {
+        val next = song.copy(id = "n")
+        val f = Fake(null, LyricsHelper.Fetched("words", "Zemer · jyrics"))
+        assertEquals(2, f.store.prefetch(song, next, connected = true))
+        assertEquals(listOf("v", "n"), f.persisted.map { it.id })
+        // offline: no chain walk, no not-found rows minted
+        val off = Fake(null, LyricsHelper.Fetched(LYRICS_NOT_FOUND, null))
+        assertEquals(0, off.store.prefetch(song, next, connected = false))
+        assertEquals(0, off.fetches)
+        // a cached current song costs no fetch; the same id twice fetches once; an episode next is skipped
+        val cached = Fake(LyricsEntity("v", "words", "Zemer · jyrics"), LyricsHelper.Fetched("words", "SimpMusic"))
+        assertEquals(0, cached.store.prefetch(song, song, connected = true))
+        assertEquals(0, cached.store.prefetch(song, episode, connected = true))
+        assertEquals(0, cached.fetches)
+        assertEquals(0, Fake(null, LyricsHelper.Fetched("words", "SimpMusic")).store.prefetch(null, null, connected = true))
+    }
 }
