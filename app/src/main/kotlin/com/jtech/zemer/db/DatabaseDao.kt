@@ -579,7 +579,7 @@ interface DatabaseDao {
      * [LyricsEntity.needsFetch]). The GLOB is the `[mm:ss.xx]` / `[mm:ss.xxx]` line tag no user types (digits
      * only, two or three fractional digits, the same contract as [LyricsEntity]'s synced-body check).
      */
-    @Query("DELETE FROM lyrics WHERE lyrics = 'LYRICS_NOT_FOUND' OR (provider IS NOT NULL AND provider NOT IN ('manual', 'legacy') AND lyrics NOT GLOB '*[[][0-9][0-9]:[0-9][0-9].[0-9][0-9]*')")
+    @Query("DELETE FROM lyrics WHERE lyrics = 'LYRICS_NOT_FOUND' OR (provider IS NOT NULL AND provider NOT IN ('manual', 'legacy') AND lyrics NOT GLOB '*[[][0-9][0-9]:[0-9][0-9].[0-9][0-9]]*' AND lyrics NOT GLOB '*[[][0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]]*')")
     fun purgeRefreshableLyrics(): Int
 
     @Transaction
