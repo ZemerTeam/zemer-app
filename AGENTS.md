@@ -585,7 +585,9 @@ The rules that must not regress:
 `lyrics/LyricsHelper.kt` runs the providers in order: **Zemer resolver first** (`lyrics/zemer/`; the search
 server's `/lyrics/resolve` returns source POINTERS, the app fetches Jyrics/Shironet/jkaraoke/tab4u/zemirotdb
 itself through golden-pinned parser ports of the server's parsers — `JyricsParser`, `ShironetParser`,
-`JkaraokeLrc`, `Tab4uParser`, `ZemirotDbParser` — the YouTube lyrics tab by the server-vouched `browseId`
+`JkaraokeLrc` (plus the resolver's per-song `offsetSec` on jkaraoke lines, applied ONLY when `offsetFrom ==
+"measured"`: karaoke cues lead the voice on most songs but trail it on ~15 %, so the fleet default is never
+applied), `Tab4uParser`, `ZemirotDbParser` — the YouTube lyrics tab by the server-vouched `browseId`
 (trusted at rank 3 INSIDE the resolver, a deliberate policy: the server verified the tab for that exact
 videoId), and an audio-verified LRCLIB record by id, `ZemerLyricsClient.lrclibBody`, which the server hands out
 only for rows its audio check confirmed. Rank (`ZemerLyricsProvider.rank`): `zemer` 0 (Zemer's own certified

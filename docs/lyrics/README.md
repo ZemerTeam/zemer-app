@@ -19,7 +19,10 @@ providers by `MediaMetadata.id` (never `setVideoId`, which is a playlist-entry t
 * **Zemer** (`lyrics/zemer/`): `ZemerLyricsClient.resolve(videoId)` → `GET {ZEMER_LYRICS_BASE_URL}/lyrics/resolve`
   (BuildConfig; gradle `-PzemerLyricsBaseUrl=`; default `https://search.zemer.io`). The server returns SOURCE
   POINTERS, not third-party text; the app fetches each source itself: jkaraoke feed page → `JkaraokeLrc`
-  (line-synced LRC, measured times), Jyrics page → `JyricsParser` (plain), Shironet page → `ShironetParser`
+  (line-synced LRC, measured times; karaoke cues lead the voice on ~85 % of songs and trail it on the rest, so the
+  resolver's per-song `offsetSec` is added to every line ONLY when `offsetFrom == "measured"` —
+  `ZemerLyricsProvider.jkaraokeOffset`; the fleet `default` is treated as zero, and the feed sanity rules run on
+  the raw starts), Jyrics page → `JyricsParser` (plain), Shironet page → `ShironetParser`
   (plain), Zing track → `ZingParser` (plain), tab4u chord sheet → `Tab4uParser` (plain, ≥ 6 lyric lines),
   zemirotdatabase page → `ZemirotDbParser` (plain, the server's ≥ 12-word gate; a piyut may be ONE comma-joined
   line by design), the YouTube Music lyrics tab by the server-vouched `browseId` →
