@@ -250,7 +250,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/main/kotlin/com/jtech/zemer/lyrics/LrcLibLyricsProvider.kt` | 29 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/lyrics/LyricsChainWalk.kt` | 38 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/lyrics/LyricsEntry.kt` | 23 lines | `.kt` |
-| `app/src/main/kotlin/com/jtech/zemer/lyrics/LyricsHelper.kt` | 176 lines | `.kt` |
+| `app/src/main/kotlin/com/jtech/zemer/lyrics/LyricsHelper.kt` | 177 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/lyrics/LyricsProvider.kt` | 66 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/lyrics/LyricsProviderOrdering.kt` | 20 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/lyrics/LyricsProviderRegistry.kt` | 44 lines | `.kt` |
@@ -326,7 +326,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/main/kotlin/com/jtech/zemer/playback/MediaLibrarySessionCallback.kt` | 810 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/playback/MediaStoreDownloadManager.kt` | 1226 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/playback/MediaStoreDownloadService.kt` | 302 lines | `.kt` |
-| `app/src/main/kotlin/com/jtech/zemer/playback/MusicService.kt` | 3152 lines | `.kt` |
+| `app/src/main/kotlin/com/jtech/zemer/playback/MusicService.kt` | 3153 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/playback/PlaybackNonceRegistry.kt` | 76 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/playback/PlaybackProbe.kt` | 31 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/playback/PlayerConnection.kt` | 413 lines | `.kt` |
