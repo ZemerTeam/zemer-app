@@ -28,6 +28,25 @@ class ZemerLyricsClientParseTest {
     }
 
     @Test
+    fun `lineTimes, manual origin, zemer richSync and explicit nulls parse from live responses`() {
+        val zing = ZemerLyricsClient.json.decodeFromString(ZemerLyricsClient.Resolved.serializer(), res("resolve-zingmusic-linetimes.json"))
+        assertEquals("zingmusic", zing.lineTimes!!.type)
+        assertEquals(60, zing.lineTimes!!.keys.size)
+        assertEquals(60, zing.lineTimes!!.times.size)
+        assertEquals(26.08, zing.lineTimes!!.times[0], 0.0)
+        val zemer = ZemerLyricsClient.json.decodeFromString(ZemerLyricsClient.Resolved.serializer(), res("resolve-zemer-richsync.json"))
+        assertNull(zemer.lineTimes)
+        assertTrue(zemer.sources[0].richSync!!.contains("<00:17.45>"))
+        val manual = ZemerLyricsClient.json.decodeFromString(ZemerLyricsClient.Resolved.serializer(),
+            """{"videoId":"3SY60gjC4po","lang":"yi","verified":true,"sources":[{"type":"manual","origin":"telegram","ref":"tg:x/121","plain":"a\nb\nc\nd","synced":false,"syncedLrc":null}]}""")
+        assertEquals("telegram", manual.sources[0].origin)
+        assertEquals("tg:x/121", manual.sources[0].ref)
+        assertNull(manual.sources[0].syncedLrc)
+    }
+
+    private fun res(name: String) = javaClass.classLoader!!.getResourceAsStream("lyrics/$name")!!.readBytes().toString(Charsets.UTF_8)
+
+    @Test
     fun `an empty resolve carries no sources`() {
         val r = ZemerLyricsClient.json.decodeFromString(ZemerLyricsClient.Resolved.serializer(), """{"videoId":"x"}""")
         assertTrue(r.sources.isEmpty())

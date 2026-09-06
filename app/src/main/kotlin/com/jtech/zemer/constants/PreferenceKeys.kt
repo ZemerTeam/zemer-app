@@ -452,8 +452,8 @@ val TrackingBackfillCursorKey = longPreferencesKey("trackingBackfillCursor")
 val TrackingBackfillBoundKey = longPreferencesKey("trackingBackfillBound")
 val TrackingBackfillDoneKey = booleanPreferencesKey("trackingBackfillDone")
 val TrackingActionBackfillDoneKey = booleanPreferencesKey("trackingActionBackfillDone")
-/** One-time cleanup of cached lyrics done: drops legacy not-found rows only (see DatabaseDao.purgeUntrustedLyrics). */
-val LyricsCachePurgeDoneKey = booleanPreferencesKey("lyricsCachePurgeDone")
+/** The lyrics chain generation this install last re-resolved its cache for (see LyricsEntity.CHAIN_GENERATION). */
+val LyricsChainGenerationKey = intPreferencesKey("lyricsChainGeneration")
 val TrackingActionBackfillSentKey = longPreferencesKey("trackingActionBackfillSent")
 val VisitorDataKey = stringPreferencesKey("visitorData")
 val DataSyncIdKey = stringPreferencesKey("dataSyncId")

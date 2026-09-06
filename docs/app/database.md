@@ -429,7 +429,7 @@
 | `getSetVideoId` | `videoId: String` | `SetVideoIdEntity?` |
 | `format` | `id: String?` | `Flow<FormatEntity?>` |
 | `lyrics` | `id: String?` | `Flow<LyricsEntity?>` |
-| `purgeUntrustedLyrics` | `` | `Int` |
+| `purgeRefreshableLyrics` | `` | `Int` |
 | `artistsByCreateDateAsc` | `` | `Flow<List<Artist>>` |
 | `artistsByNameAsc` | `` | `Flow<List<Artist>>` |
 | `allWhitelistedArtistsByName` | `` | `Flow<List<Artist>>` |

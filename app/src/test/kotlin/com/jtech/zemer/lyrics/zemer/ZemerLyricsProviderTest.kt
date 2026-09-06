@@ -88,5 +88,64 @@ class ZemerLyricsProviderTest {
     fun `label is one string for both the auto-fetch and picker paths`() {
         assertEquals("Zemer · jkaraoke", ZemerLyricsProvider.label("jkaraoke", verified = true))
         assertEquals("Zemer · jyrics", ZemerLyricsProvider.label("jyrics", verified = false))
+        assertEquals("Zemer's own certified text is just Zemer", "Zemer", ZemerLyricsProvider.label("zemer", verified = true))
+    }
+
+    @Test
+    fun `zemer certified word sync outranks jkaraoke and prefers richSync over syncedLrc over plain`() = runBlocking {
+        val resolved = ZemerLyricsClient.json.decodeFromString(ZemerLyricsClient.Resolved.serializer(), res("resolve-zemer-richsync.json"))
+        val bodies = ZemerLyricsProvider.bodies(resolved, fetch = { res("jkaraoke-page28.json") })
+        assertEquals("zemer", bodies[0].first)
+        assertTrue(bodies[0].second.lines().first().startsWith("[00:17.45] <00:17.45>"))
+        val zemer = resolved.sources[0]
+        assertEquals(zemer.syncedLrc, ZemerLyricsProvider.bodies(resolved.copy(sources = listOf(zemer.copy(richSync = null))), fetch = { null })[0].second)
+        assertEquals(zemer.plain, ZemerLyricsProvider.bodies(resolved.copy(sources = listOf(zemer.copy(richSync = "", syncedLrc = null))), fetch = { null })[0].second)
+    }
+
+    @Test
+    fun `manual rows are labelled by origin, community and unknown types rank last or are skipped`() = runBlocking {
+        val resolved = ZemerLyricsClient.Resolved(videoId = "m", sources = listOf(
+            ZemerLyricsClient.Source(type = "community", plain = "c\nc\nc\nc", ref = "x"),
+            ZemerLyricsClient.Source(type = "manual", origin = "telegram", plain = "t\nt\nt\nt"),
+            ZemerLyricsClient.Source(type = "manual", origin = "asrverified", plain = "v\nv\nv\nv"),
+            ZemerLyricsClient.Source(type = "manual", origin = "forum", plain = "f\nf\nf\nf"),
+            ZemerLyricsClient.Source(type = "manual", plain = "m\nm\nm\nm"),
+            ZemerLyricsClient.Source(type = "musixmatch", trackId = 1, commontrackId = 2, synced = true),
+            ZemerLyricsClient.Source(type = "future-type", plain = "z\nz\nz\nz"),
+        ))
+        val bodies = ZemerLyricsProvider.bodies(resolved, fetch = { null })
+        assertEquals(listOf("Telegram", "verified", "forum", "manual", "community"), bodies.map { it.first })
+        assertEquals("Zemer · Telegram", ZemerLyricsProvider.label(bodies[0].first, verified = true))
+    }
+
+    @Test
+    fun `youtube tab is fetched by browseId and lineTimes sync only the source they were measured against`() = runBlocking {
+        val tab = "first line\nsecond line\nthird line\nfourth line"
+        val times = ZemerLyricsClient.LineTimes("youtube", 4, listOf(1.0, 2.0, 3.0, 4.0), tab.lines().map(LineTimesLrc::lineKey))
+        val resolved = ZemerLyricsClient.Resolved(videoId = "y", lineTimes = times, sources = listOf(
+            ZemerLyricsClient.Source(type = "youtube", browseId = "MPLYt_x"),
+            ZemerLyricsClient.Source(type = "shironet", url = "https://shironet.mako.co.il/x"),
+        ))
+        val asked = ArrayList<String>()
+        val bodies = ZemerLyricsProvider.bodies(resolved, fetch = { res("shironet-0.html") }, youtube = { asked += it; tab })
+        assertEquals(listOf("MPLYt_x"), asked)
+        assertEquals(listOf("youtube", "shironet"), bodies.map { it.first })
+        assertEquals("[00:01.00] first line\n[00:02.00] second line\n[00:03.00] third line\n[00:04.00] fourth line", bodies[0].second)
+        assertTrue("another pointer's body stays plain", !bodies[1].second.contains("[00:"))
+        // timings that do not cover the tab leave it plain; a thin tab yields nothing
+        assertEquals(tab, ZemerLyricsProvider.bodies(resolved.copy(lineTimes = times.copy(keys = List(4) { "00000000" })), fetch = { null }, youtube = { tab })[0].second)
+        assertTrue(ZemerLyricsProvider.bodies(resolved.copy(lineTimes = null), fetch = { null }, youtube = { "one\ntwo" }).isEmpty())
+    }
+
+    @Test
+    fun `tab4u and zemirotdb pages are fetched and parsed through the golden ports`() = runBlocking {
+        val resolved = ZemerLyricsClient.Resolved(videoId = "t", sources = listOf(
+            ZemerLyricsClient.Source(type = "tab4u", songId = 72017, url = "https://www.tab4u.com/tabs/songs/72017.html"),
+            ZemerLyricsClient.Source(type = "zemirotdb", songId = 186, url = "https://www.zemirotdatabase.org/view_song.php?id=186"),
+        ))
+        val bodies = ZemerLyricsProvider.bodies(resolved, fetch = { url -> if (url.contains("tab4u")) res("tab4u-72017.html") else res("zemirotdb-186.html") })
+        assertEquals(listOf("tab4u", "zemirotdb"), bodies.map { it.first })
+        assertEquals(res("tab4u-72017.expected.txt").trimEnd(), bodies[0].second)
+        assertEquals(res("zemirotdb-186.expected.txt").trimEnd(), bodies[1].second)
     }
 }
