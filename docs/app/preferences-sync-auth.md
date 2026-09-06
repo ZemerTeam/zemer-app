@@ -160,7 +160,7 @@ Preference keys extracted from `PreferenceKeys.kt`: `166`.
 | `TrackingBackfillBoundKey` | `longPreferencesKey` | `trackingBackfillBound` |
 | `TrackingBackfillDoneKey` | `booleanPreferencesKey` | `trackingBackfillDone` |
 | `TrackingActionBackfillDoneKey` | `booleanPreferencesKey` | `trackingActionBackfillDone` |
-| `LyricsCachePurgeDoneKey` | `booleanPreferencesKey` | `lyricsCachePurgeDone` |
+| `LyricsChainGenerationKey` | `intPreferencesKey` | `lyricsChainGeneration` |
 | `TrackingActionBackfillSentKey` | `longPreferencesKey` | `trackingActionBackfillSent` |
 | `VisitorDataKey` | `stringPreferencesKey` | `visitorData` |
 | `DataSyncIdKey` | `stringPreferencesKey` | `dataSyncId` |

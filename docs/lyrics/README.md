@@ -19,17 +19,48 @@ providers by `MediaMetadata.id` (never `setVideoId`, which is a playlist-entry t
 * **Zemer** (`lyrics/zemer/`): `ZemerLyricsClient.resolve(videoId)` → `GET {ZEMER_LYRICS_BASE_URL}/lyrics/resolve`
   (BuildConfig; gradle `-PzemerLyricsBaseUrl=`; default `https://search.zemer.io`). The server returns SOURCE
   POINTERS, not third-party text; the app fetches each source itself: jkaraoke feed page → `JkaraokeLrc`
-  (line-synced LRC, measured times), Jyrics page → `JyricsParser` (plain), Shironet page → `ShironetParser`
-  (plain), Zing track → `ZingParser` (plain), LRCLIB record by id → `ZemerLyricsClient.lrclibBody` (the server
+  (line-synced LRC, measured times; karaoke cues lead the voice on ~85 % of songs and trail it on the rest, so the
+  resolver's per-song `offsetSec` is added to every line ONLY when `offsetFrom == "measured"` —
+  `ZemerLyricsProvider.jkaraokeOffset`; the fleet `default` is treated as zero, and the feed sanity rules run on
+  the raw starts), Jyrics page → `JyricsParser` (plain), Shironet page → `ShironetParser`
+  (plain), Zing track → `ZingParser` (plain), tab4u chord sheet → `Tab4uParser` (plain, ≥ 6 lyric lines),
+  zemirotdatabase page → `ZemirotDbParser` (plain, the server's ≥ 12-word gate; a piyut may be ONE comma-joined
+  line by design), the YouTube Music lyrics tab by the server-vouched `browseId` →
+  `ZemerLyricsClient.youtubeLyricsTab` (a direct browse, no `next()`; trusted inside the resolver because the
+  server verified the tab for that videoId — a deliberate policy, unlike the chain's own low-trust
+  `YouTubeLyricsProvider`), LRCLIB record by id → `ZemerLyricsClient.lrclibBody` (the server
   hands out `lrclib:<id>` only for rows its audio check confirmed; LRC preferred, plain as fallback, instrumental
-  or thin records yield nothing; `ZemerLyricsProviderTest`), booklet/manual/canonical text inline. The page parsers are
+  or thin records yield nothing; `ZemerLyricsProviderTest`), `zemer` (Zemer's own certified text: `richSync`
+  enhanced LRC with `<mm:ss.xx>` word tags > `syncedLrc` > `plain`; every word tag is certified by two aligners,
+  a line without tags is deliberately line-only) and booklet/manual/canonical/community text inline. A
+  `musixmatch` pointer (`trackId`/`commontrackId`) is parsed but not fetched (no rows exist; the on-device client has
+  no by-id path). Rank: `zemer` 0 > `jkaraoke` 1 > `lrclib`/`kugou`/`musixmatch` 2 > `jyrics`/`shironet`/
+  `zingmusic`/`youtube`/`tab4u`/`zemirotdb`/`lyricstranslate` 3 > `booklet`/`manual` 4 > `canonical`/`community`
+  5 > unknown types skipped. The page parsers are
   byte-identical ports of the server's, pinned by golden files under `app/src/test/resources/lyrics/`
   (`JyricsParserGoldenTest`, `ShironetParserGoldenTest`, `ZingParserGoldenTest`, `JkaraokeLrcGoldenTest`,
-  `SyncIntegrationTest`); they share `HtmlEntities.unescape` and the `LyricsUtils.hasLyricBody` body gate (four
-  non-blank lines, also Musixmatch's). Provider label: `Zemer · <source>` (verification is a server fact, not shown;
-  the lyrics header shows just "Zemer", the sub-source stays in the stored label for reports).
+  `Tab4uParserGoldenTest`, `ZemirotDbParserGoldenTest`, `SyncIntegrationTest`); they share `HtmlEntities.unescape`
+  and the `LyricsUtils.hasLyricBody` body gate (four non-blank lines, also Musixmatch's) except zemirotdb's word gate.
+  Provider label: `Zemer · <source>` (verification is a server fact, not shown; the lyrics header shows just
+  "Zemer", the sub-source stays in the stored label for reports); Zemer's own text is labelled just `Zemer`, and a
+  `manual` row's suffix is its `origin` display name (`Telegram`, `verified` for `asrverified`, `forum`,
+  `community`, an unknown slug as-is — `ZemerLyricsProvider.originName`).
   `bodies(firstOnly = true)` stops at the first source that yields text, so the auto-fetch path does not download
   every source.
+* **`lineTimes`** (`lyrics/zemer/LineTimesLrc.kt`, JVM-tested `LineTimesLrcTest`): the resolver may carry measured
+  line START times for the row's OWN text when that text is a pointer the app fetches itself
+  (`{"type": "zingmusic", "count", "times": [s], "keys": [8-hex]}`; jkaraoke rows never carry it). No text travels:
+  each timed line has a text-free key — `lineKey` = NFC → strip Hebrew points/cantillation U+0591..U+05C7 →
+  lowercase → keep only Unicode letters (L*) and numbers (N*, incl. Nl/No) → SHA-1 → first 8 hex, the server's
+  `corpus/lyrics.mjs#lineKey`, pinned by vectors computed with it. `apply(plain, lineTimes)` keys the parsed body's
+  non-blank lines and pairs them MONOTONELY (a repeated chorus line takes successive timed occurrences, output is
+  always in time order) and only to the body of the source `lineTimes.type` names (never another pointer's text,
+  never an already-synced body). It syncs only when ≥ `MIN_MATCHED_SHARE` (80 %) of the TIMED lines matched AND
+  ≥ 80 % of the BODY's lines matched, else the body stays plain; an unmatched line inside a passing body rides the
+  preceding matched line's tag (a leading one rides the first) — the equal-time continuation the server's own
+  `syncedLrc` bodies already use — so no text is dropped for sync and no line is ever given an estimated time.
+  The live zing fixture (`zing-1340.json` + `resolve-zingmusic-linetimes.json`) shows why keys beat counts: the
+  record's text drifted since it was timed (57 lines vs 60), 50 pair by key, the body syncs with every line kept.
 * **SimpMusic**: keyed by videoId; prefers `richSyncLyrics` (word tags) > `syncedLyrics` > `plainLyric`, but a synced/word
   body is used only when the source track is within `SYNC_TOLERANCE_SEC` (1 s) of ours — otherwise plain text
   (`syncAllowed`; an unknown `durationSeconds` is accepted, the entry is the same recording by videoId). Downloads embed
@@ -88,8 +119,11 @@ Refetch (`LyricsStore.refetch`) is the explicit override: it DELETES the row fir
 the user's feedback that the button did something, even when the chain answers the same body) and stores a fresh
 chain answer. The cleared row makes the open lyrics screen call `ensure` too; fetches are single-flight per
 videoId, so both join one chain walk (`LyricsStoreTest`).
-The one-time purge (`DatabaseDao.purgeUntrustedLyrics`, flag `LyricsCachePurgeDoneKey`) deletes only legacy
-not-found rows; pre-provider rows carry no provider stamp, so a `provider = 'LrcLib'` clause could only ever hit
-NEW identity-gated rows and was removed. Hebrew strings under `values-iw/` are managed by the locale process and
+Cache refresh is by CHAIN GENERATION, not one-off booleans: `LyricsEntity.CHAIN_GENERATION` (bump it when the
+chain gains sources or sync it did not have) vs the persisted `LyricsChainGenerationKey`; an install below it runs
+`DatabaseDao.purgeRefreshableLyrics` once — drops not-found rows (the chain may cover the song now) and auto-cached
+PLAIN rows (it may sync them now), keeps every synced body, `manual` and `legacy` rows — then stores the generation.
+Generation 1 = the zemer / youtube / tab4u / zemirotdb / community sources + `lineTimes`; it subsumes the earlier
+legacy-not-found purge (`LyricsCachePurgeDoneKey`, removed). The DAO query is Room and not JVM-testable here. Hebrew strings under `values-iw/` are managed by the locale process and
 are not edited here (project rule 3); new lyrics strings fall back to English until translated.
 No further DB migrations are to be added for lyrics without an explicit decision.

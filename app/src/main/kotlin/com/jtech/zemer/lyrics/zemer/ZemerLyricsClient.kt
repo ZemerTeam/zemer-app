@@ -15,6 +15,8 @@ import io.ktor.serialization.kotlinx.json.json
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
 import com.jtech.zemer.lyrics.LyricsUtils
+import com.metrolist.innertube.YouTube
+import com.metrolist.innertube.models.BrowseEndpoint
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.contentOrNull
@@ -35,17 +37,39 @@ object ZemerLyricsClient {
         val songId: Long? = null,         // jkaraoke
         val feedPage: Int? = null,
         val feedUrl: String? = null,
+        val offsetSec: Double? = null,    // jkaraoke: this recording's measured voice-vs-cue lead, applied only when offsetFrom == "measured"
+        val offsetFrom: String? = null,   // jkaraoke: "measured" (this song's own alignment) or "default" (fleet median, NOT applied)
         val browseId: String? = null,     // youtube lyrics tab
         val trackId: Long? = null,        // zingmusic (server-vetted track id) / musixmatch
         val hash: String? = null,         // kugou (audio hash; the app re-runs the krcs search with it)
         val krcId: Long? = null,          // kugou (server-vetted krcs candidate id)
-        val plain: String? = null,        // operator-hosted text (booklet/manual)
+        val plain: String? = null,        // operator-hosted text (booklet/manual/canonical/community/zemer)
         val syncedLrc: String? = null,
+        val richSync: String? = null,     // zemer: enhanced LRC with certified `<mm:ss.xx>` word tags
         val synced: Boolean = false,
+        val origin: String? = null,       // manual: where the text came from (telegram / forum / asrverified / community)
+        val ref: String? = null,          // manual/community: the operator's reference for that origin
+        val commontrackId: Long? = null,  // musixmatch (parsed, not fetched: no rows exist yet)
     )
 
+    /**
+     * Measured line START times for the row's OWN text when that text is a pointer the app fetches itself. No
+     * text travels: each timed line carries a text-free key ([LineTimesLrc.lineKey]) the app recomputes over its
+     * own parsed lines, so the two splitters never have to agree. [type] names the one source the timings were
+     * measured against; they are never applied to another pointer's body.
+     */
     @Serializable
-    data class Resolved(val videoId: String, val lang: String? = null, val verified: Boolean = false, val hasSynced: Boolean = false, val sources: List<Source> = emptyList())
+    data class LineTimes(val type: String, val count: Int = 0, val times: List<Double> = emptyList(), val keys: List<String> = emptyList())
+
+    @Serializable
+    data class Resolved(
+        val videoId: String,
+        val lang: String? = null,
+        val verified: Boolean = false,
+        val hasSynced: Boolean = false,
+        val sources: List<Source> = emptyList(),
+        val lineTimes: LineTimes? = null,
+    )
 
     internal val json = Json { ignoreUnknownKeys = true; isLenient = true; explicitNulls = false }
 
@@ -77,6 +101,13 @@ object ZemerLyricsClient {
         val r = client.get(url) { header(HttpHeaders.UserAgent, "Zemer/${BuildConfig.VERSION_NAME} lyrics"); header(HttpHeaders.Accept, "text/html,application/json") }
         return if (r.status == HttpStatusCode.OK) r.bodyAsText() else null
     }
+
+    /**
+     * The YouTube Music lyrics tab for a server-vouched `browseId` (`MPLYt…`). The server verified the tab exists
+     * for this exact videoId, so this is a direct browse: no `next()` round-trip, no title search.
+     */
+    suspend fun youtubeLyricsTab(browseId: String): String? =
+        YouTube.lyrics(BrowseEndpoint(browseId)).getOrNull()?.takeIf { it.isNotBlank() }
 
     /**
      * zingmusic (jewishmusic.fm) public GraphQL: the lyrics HTML for ONE server-vetted track id. The server resolved

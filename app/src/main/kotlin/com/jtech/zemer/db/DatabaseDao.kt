@@ -572,16 +572,14 @@ interface DatabaseDao {
     fun lyrics(id: String?): Flow<LyricsEntity?>
 
     /**
-     * One-time cleanup of cached lyrics rows that are safe to drop: not-found rows that predate provider
-     * tracking (so the song is tried once through the new chain). Rows with a body and no provider are NOT
-     * deleted: pre-provider manual entries look exactly like old auto-cached rows (including LrcLib's old
-     * duration-only matches, which have no provider stamp either), and deleting would silently discard
-     * user-entered lyrics. Those are re-resolved once when their lyrics are next opened (see
-     * [LyricsEntity.resolved]: a synced legacy body is replaced, a plain one is kept). Rows stamped
-     * `LrcLib` are identity-gated matches from the new chain and are never purged.
+     * The cache rows a lyrics chain generation bump re-resolves (run once per [LyricsEntity.CHAIN_GENERATION]
+     * step, see `MusicService`): not-found rows (the chain may cover the song now) and auto-cached PLAIN rows
+     * (the chain may sync them now). Kept: every SYNCED body (already the best the chain offers), `manual`
+     * rows (user-typed text) and `legacy` rows (pre-provider bodies that may be manual and are handled by
+     * [LyricsEntity.needsFetch]). The GLOB is the `[mm:ss.xx]` line tag no user types.
      */
-    @Query("DELETE FROM lyrics WHERE provider IS NULL AND lyrics = 'LYRICS_NOT_FOUND'")
-    fun purgeUntrustedLyrics(): Int
+    @Query("DELETE FROM lyrics WHERE lyrics = 'LYRICS_NOT_FOUND' OR (provider IS NOT NULL AND provider NOT IN ('manual', 'legacy') AND lyrics NOT GLOB '*[[]??:??.??]*')")
+    fun purgeRefreshableLyrics(): Int
 
     @Transaction
     @SuppressWarnings(RoomWarnings.QUERY_MISMATCH)

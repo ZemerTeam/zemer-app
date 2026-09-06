@@ -14,6 +14,13 @@ data class LyricsEntity(
         const val LYRICS_NOT_FOUND = "LYRICS_NOT_FOUND"
 
         /**
+         * Bump when the provider chain gains sources or sync it did not have (so cached answers may now be
+         * beatable): installs below it drop their refreshable rows once (`DatabaseDao.purgeRefreshableLyrics`).
+         * 1 = the Zemer resolver's zemer / youtube / tab4u / zemirotdb / community sources and `lineTimes`.
+         */
+        const val CHAIN_GENERATION = 1
+
+        /**
          * Provider stamp for a row cached before provider tracking whose song the gated chain could not
          * resolve. The body is kept (it may be a manual entry, and manual entries are typically made for
          * songs no provider covers) and shown with unknown provenance; it is not re-fetched again.

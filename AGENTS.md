@@ -583,10 +583,26 @@ The rules that must not regress:
 ### Lyrics (the provider chain, the Zemer resolver, sync) — `docs/lyrics/README.md`
 
 `lyrics/LyricsHelper.kt` runs the providers in order: **Zemer resolver first** (`lyrics/zemer/`; the search
-server's `/lyrics/resolve` returns source POINTERS, the app fetches Jyrics/Shironet/jkaraoke itself through
-golden-pinned parser ports of the server's parsers — `JyricsParser`, `ShironetParser`, `JkaraokeLrc` — and an
-audio-verified LRCLIB record by id, `ZemerLyricsClient.lrclibBody`, which the server hands out only for rows its
-audio check confirmed; ranked with the plain sources, below jkaraoke), then
+server's `/lyrics/resolve` returns source POINTERS, the app fetches Jyrics/Shironet/jkaraoke/tab4u/zemirotdb
+itself through golden-pinned parser ports of the server's parsers — `JyricsParser`, `ShironetParser`,
+`JkaraokeLrc` (plus the resolver's per-song `offsetSec` on jkaraoke lines, applied ONLY when `offsetFrom ==
+"measured"`: karaoke cues lead the voice on most songs but trail it on ~15 %, so the fleet default is never
+applied), `Tab4uParser`, `ZemirotDbParser` — the YouTube lyrics tab by the server-vouched `browseId`
+(trusted at rank 3 INSIDE the resolver, a deliberate policy: the server verified the tab for that exact
+videoId), and an audio-verified LRCLIB record by id, `ZemerLyricsClient.lrclibBody`, which the server hands out
+only for rows its audio check confirmed. Rank (`ZemerLyricsProvider.rank`): `zemer` 0 (Zemer's own certified
+text, `richSync` word tags > `syncedLrc` > `plain`, labelled just "Zemer") > jkaraoke 1 > lrclib/kugou 2 > the
+text pointers 3 > booklet/manual 4 > canonical/community 5; an unknown type is skipped, never guessed. A
+`manual` row's label names its `origin` (`Zemer · Telegram`, `verified`, `forum`, …). **`lineTimes`** (the
+resolver's measured line START times for a pointer's own text) are applied by the pure `LineTimesLrc`: lines
+pair by a TEXT-FREE key (`lineKey` = NFC → strip U+0591..U+05C7 → lowercase → letters+digits only → SHA-1[0:8],
+pinned to the server by vectors), monotone so a repeated chorus takes successive times, ONLY to the source
+`lineTimes.type` names, and only when ≥ 80 % of the timed lines AND ≥ 80 % of the body's lines matched — else
+plain. An unmatched line rides the preceding matched tag (the equal-time continuation the server's own synced
+bodies use) so no text is lost to sync; no line is ever given an estimated time. `LyricsEntity.CHAIN_GENERATION`
++ `LyricsChainGenerationKey`: bump the constant when the chain gains sources/sync and every install drops its
+refreshable rows once (`DatabaseDao.purgeRefreshableLyrics`: not-found + auto-cached plain; synced, `manual`
+and `legacy` rows kept) - the replacement for one-off purge booleans), then
 SimpMusic (videoId-keyed; synced bodies only within 1 s), LrcLib (identity-gated: title AND artist must agree; a
 duration-only match once served a Japanese song), **Musixmatch on-device** (`lyrics/musixmatch/MusixmatchLyrics.kt`:
 the catalog behind Spotify's lyrics, reached with one desktop-API token per phone — the server stores none of its

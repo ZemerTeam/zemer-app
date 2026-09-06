@@ -105,7 +105,7 @@ import com.jtech.zemer.constants.PersistentQueueKey
 import com.jtech.zemer.constants.StopMusicOnTaskClearKey
 import com.jtech.zemer.constants.PlayerVolumeKey
 import com.jtech.zemer.constants.RepeatModeKey
-import com.jtech.zemer.constants.LyricsCachePurgeDoneKey
+import com.jtech.zemer.constants.LyricsChainGenerationKey
 import com.jtech.zemer.constants.ShowLyricsKey
 import com.jtech.zemer.constants.SkipSilenceKey
 import com.jtech.zemer.db.MusicDatabase
@@ -700,13 +700,13 @@ class MusicService :
                 if (remotePlaying) startWidgetTicker() else updateWidget()
             }
 
-        // One-time, data-only cleanup (no schema change): drop legacy not-found rows so those songs go through
-        // the gated chain once. Legacy rows with a body are kept: they may be manual entries and are
-        // re-resolved once when next opened (see LyricsEntity.resolved).
+        // Data-only cache refresh (no schema change), once per lyrics chain generation: when the chain learns
+        // new sources or new sync, the rows it could improve (not found, auto-cached plain) are dropped so
+        // those songs walk the chain again when next opened. Synced, manual and legacy rows are kept.
         scope.launch {
-            if (dataStore.data.first()[LyricsCachePurgeDoneKey] != true) {
-                database.query { purgeUntrustedLyrics() }
-                dataStore.edit { it[LyricsCachePurgeDoneKey] = true }
+            if ((dataStore.data.first()[LyricsChainGenerationKey] ?: 0) < LyricsEntity.CHAIN_GENERATION) {
+                database.query { purgeRefreshableLyrics() }
+                dataStore.edit { it[LyricsChainGenerationKey] = LyricsEntity.CHAIN_GENERATION }
             }
         }
 
