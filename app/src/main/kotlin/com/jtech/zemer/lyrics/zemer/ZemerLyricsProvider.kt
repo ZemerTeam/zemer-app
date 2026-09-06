@@ -38,7 +38,7 @@ object ZemerLyricsProvider : LyricsProvider {
             if (firstOnly && out.isNotEmpty()) break
             val body = when (s.type) {
                 "zemer" -> s.richSync?.takeIf { it.isNotBlank() } ?: inline(s)
-                "jkaraoke" -> s.feedUrl?.let { fetch(it) }?.let { page -> s.songId?.let { id -> JkaraokeLrc.fromFeedPage(page, id)?.synced } }
+                "jkaraoke" -> s.feedUrl?.let { fetch(it) }?.let { page -> s.songId?.let { id -> JkaraokeLrc.fromFeedPage(page, id, jkaraokeOffset(s))?.synced } }
                 "jyrics" -> s.url?.let { fetch(it) }?.let { JyricsParser.parse(it).plain.takeIf(LyricsUtils::hasLyricBody) }
                 "shironet" -> s.url?.let { fetch(it) }?.let { ShironetParser.parse(it).plain.takeIf(LyricsUtils::hasLyricBody) }
                 // Server-inlined (the site's Cloudflare challenge blocks on-device fetches); the page fetch is
@@ -59,6 +59,12 @@ object ZemerLyricsProvider : LyricsProvider {
         }
         return out
     }
+
+    /**
+     * Karaoke cues lead the voice on most songs but trail it on ~15 %, so only a per-song MEASURED offset is applied;
+     * the fleet default would fix most unmeasured songs and worsen the rest, and is treated as zero.
+     */
+    fun jkaraokeOffset(s: ZemerLyricsClient.Source): Double = if (s.offsetFrom == "measured") s.offsetSec ?: 0.0 else 0.0
 
     private fun inline(s: ZemerLyricsClient.Source): String? = s.syncedLrc?.takeIf { it.isNotBlank() } ?: s.plain?.takeIf { it.isNotBlank() }
 

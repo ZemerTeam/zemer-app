@@ -1,6 +1,6 @@
 # Non-Kotlin file reference
 
-Every tracked non-Kotlin path outside `docs/` is listed. Text files report line counts; binary files report byte counts; gitlinks are recorded as non-file tracked paths. Total paths: `422`.
+Every tracked non-Kotlin path outside `docs/` is listed. Text files report line counts; binary files report byte counts; gitlinks are recorded as non-file tracked paths. Total paths: `429`.
 
 | Path | Size/status | Type metadata |
 | --- | ---: | --- |
@@ -12,7 +12,7 @@ Every tracked non-Kotlin path outside `docs/` is listed. Text files report line 
 | `.github/workflows/ui-audit.yml` | 56 lines | text `.yml` |
 | `.gitignore` | 117 lines | text `[none]` |
 | `.gitmodules` | 3 lines | text `[none]` |
-| `AGENTS.md` | 1873 lines | text `.md` |
+| `AGENTS.md` | 1887 lines | text `.md` |
 | `LICENSE` | 674 lines | text `[none]` |
 | `README.md` | 9 lines | text `.md` |
 | `app/.gitignore` | 1 lines | text `[none]` |
@@ -279,8 +279,15 @@ Every tracked non-Kotlin path outside `docs/` is listed. Text files report line 
 | `app/src/test/resources/lyrics/musixmatch-0.json` | 1 lines | text `.json`; JSON keys `message` |
 | `app/src/test/resources/lyrics/musixmatch-1.json` | 1 lines | text `.json`; JSON keys `message` |
 | `app/src/test/resources/lyrics/musixmatch-hit.json` | 1 lines | text `.json`; JSON keys `message` |
+| `app/src/test/resources/lyrics/resolve-zemer-richsync.json` | 1 lines | text `.json`; JSON keys `videoId, lang, verified, hasSynced, sources` |
+| `app/src/test/resources/lyrics/resolve-zingmusic-linetimes.json` | 1 lines | text `.json`; JSON keys `videoId, lang, verified, hasSynced, sources, lineTimes` |
 | `app/src/test/resources/lyrics/shironet-0.html` | 56 lines | text `.html` |
 | `app/src/test/resources/lyrics/shironet-golden.json` | 8 lines | text `.json` |
+| `app/src/test/resources/lyrics/tab4u-72017.expected.txt` | 99 lines | text `.txt` |
+| `app/src/test/resources/lyrics/tab4u-72017.html` | 1802 lines | text `.html` |
+| `app/src/test/resources/lyrics/zemirotdb-186.expected.txt` | 1 lines | text `.txt` |
+| `app/src/test/resources/lyrics/zemirotdb-186.html` | 301 lines | text `.html` |
+| `app/src/test/resources/lyrics/zing-1340.json` | 1 lines | text `.json`; JSON keys `data` |
 | `app/src/test/resources/lyrics/zing-golden.json` | 20 lines | text `.json` |
 | `app/src/test/resources/persistqueue/persistent_queue_v37.bin` | 1642 bytes | binary `.bin` |
 | `app/universal/release/baselineProfiles/0/app-universal-release.dm` | 10017 bytes | binary `.dm` |

@@ -148,4 +148,18 @@ class ZemerLyricsProviderTest {
         assertEquals(res("tab4u-72017.expected.txt").trimEnd(), bodies[0].second)
         assertEquals(res("zemirotdb-186.expected.txt").trimEnd(), bodies[1].second)
     }
+
+    @Test
+    fun `jkaraoke offsetSec is applied only when measured for this song, never the fleet default`() = runBlocking {
+        val src = ZemerLyricsClient.Source(type = "jkaraoke", songId = 1971, feedPage = 28, feedUrl = "https://jkaraoke.com/api/songs?page=28", synced = true)
+        val fetch: suspend (String) -> String? = { res("jkaraoke-page28.json") }
+        val raw = JkaraokeLrc.fromFeedPage(res("jkaraoke-page28.json"), 1971)!!.synced
+        val body = { s: ZemerLyricsClient.Source -> runBlocking { ZemerLyricsProvider.bodies(ZemerLyricsClient.Resolved(videoId = "k", sources = listOf(s)), fetch)[0].second } }
+        assertEquals(raw, body(src))
+        assertEquals(raw, body(src.copy(offsetSec = 0.37, offsetFrom = "default")))
+        assertEquals(raw, body(src.copy(offsetSec = 0.37, offsetFrom = null)))
+        assertEquals(JkaraokeLrc.fromFeedPage(res("jkaraoke-page28.json"), 1971, 0.31)!!.synced, body(src.copy(offsetSec = 0.31, offsetFrom = "measured")))
+        assertEquals(0.0, ZemerLyricsProvider.jkaraokeOffset(src.copy(offsetSec = 0.37, offsetFrom = "default")), 0.0)
+        assertEquals(-0.2, ZemerLyricsProvider.jkaraokeOffset(src.copy(offsetSec = -0.2, offsetFrom = "measured")), 0.0)
+    }
 }
