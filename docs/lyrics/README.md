@@ -96,12 +96,19 @@ from X · synced", only once a real body exists) + the lyrics menu + the shared 
 transport row and slider reused through `PlayerTransportRow` and the `ui/component/lyrics/LyricsComponents.kt`
 pieces. Its repeat button's content description follows `repeatModeContentDescriptionRes(repeatMode)`.
 
-## Pick rule (`lyrics/SyncedFirstPicker`, JVM-tested)
-Providers are walked in the user's order from ONE DataStore snapshot (`LyricsHelper.enabledProviders(prefs)`: the
-order key plus every provider's `enabledKey`). Among trusted providers the walk stops at the first SYNCED body and
+## Pick rule (`lyrics/SyncedFirstPicker`) and walk schedule (`lyrics/LyricsChainWalk`), both JVM-tested
+Providers come in the user's order from ONE DataStore snapshot (`LyricsHelper.enabledProviders(prefs)`: the
+order key plus every provider's `enabledKey`). Among trusted providers the pick stops at the first SYNCED body and
 otherwise serves the first plain one. The YouTube providers are `lowTrust`: an auto-caption transcript is
 timestamped but not identity-gated, so it is served only when no trusted provider answered — never over a curated
-Zemer plain body (`SyncedFirstPickerTest`).
+Zemer plain body (`SyncedFirstPickerTest`). `LyricsChainWalk` decides WHEN each provider is asked without changing
+that answer (`LyricsChainWalkTest` pins the equivalence): (1) the primary trusted provider alone — a synced answer
+ends the walk with no other request; (2) the remaining trusted providers CONCURRENTLY, offered to the picker in
+priority order (they were a serial ~4 s tail after every plain answer, LrcLib's title search the long pole);
+(3) the low-trust providers only when NO trusted provider answered, concurrently. Low-trust providers are therefore
+always deferred even when the user order lists them first (each cost 2-4 s of "no answer" at the head of the walk).
+Measured on the emulator: a Zemer-answered song walks in ~1.3-2.2 s (was 8-12 s with YouTube first, ~4-5 s in the
+default order). Each provider's elapsed time is a `Lyrics <name> answered|no answer in N ms` Timber breadcrumb.
 
 ## Feedback (`lyrics/zemer/LyricsFeedback`, JVM-tested)
 "Report wrong lyrics" and a saved edit POST through `LyricsMenuViewModel.feedback`, which rides `viewModelScope`.
@@ -109,7 +116,11 @@ The menu sheet's own `rememberCoroutineScope` is cancelled the frame the sheet i
 dismisses first, so a POST launched there never reached the server (`LyricsFeedbackTest`).
 
 ## Cache hygiene (`LyricsEntity.needsFetch` / `LyricsEntity.resolved`, applied by `LyricsStore`)
-`LyricsScreen` (on open) and `MusicService` (past the `showLyrics` guard) call `LyricsStore.ensure`, which runs the
+`LyricsScreen` (on open) calls `LyricsStore.ensure`, and `MusicService` PREFETCHES on every track start, pane open or
+not: `LyricsStore.prefetch(current, next, connected)` runs `ensure` for the playing song and the next queue item
+(`LYRICS_PREFETCH_DELAY_MS` = 3 s after the track change so the chain never competes with the stream resolution;
+`collectLatest` drops a pending prefetch when the track changes first; skipped offline so no not-found rows are
+minted that would hide lyrics once online). Opening the pane is then a Room read. `ensure` runs the
 chain only when `needsFetch`: nothing cached, or a legacy row (provider null) with a real body. A `LYRICS_NOT_FOUND` row is a
 negative cache and is never re-fetched. A legacy PLAIN body is always kept and stamped `provider = "legacy"`
 (shown as unknown provenance): pre-provider manual entries are indistinguishable from old auto-cached rows and

@@ -576,9 +576,10 @@ interface DatabaseDao {
      * step, see `MusicService`): not-found rows (the chain may cover the song now) and auto-cached PLAIN rows
      * (the chain may sync them now). Kept: every SYNCED body (already the best the chain offers), `manual`
      * rows (user-typed text) and `legacy` rows (pre-provider bodies that may be manual and are handled by
-     * [LyricsEntity.needsFetch]). The GLOB is the `[mm:ss.xx]` line tag no user types.
+     * [LyricsEntity.needsFetch]). The GLOB is the `[mm:ss.xx]` / `[mm:ss.xxx]` line tag no user types (digits
+     * only, two or three fractional digits, the same contract as [LyricsEntity]'s synced-body check).
      */
-    @Query("DELETE FROM lyrics WHERE lyrics = 'LYRICS_NOT_FOUND' OR (provider IS NOT NULL AND provider NOT IN ('manual', 'legacy') AND lyrics NOT GLOB '*[[]??:??.??]*')")
+    @Query("DELETE FROM lyrics WHERE lyrics = 'LYRICS_NOT_FOUND' OR (provider IS NOT NULL AND provider NOT IN ('manual', 'legacy') AND lyrics NOT GLOB '*[[][0-9][0-9]:[0-9][0-9].[0-9][0-9]*')")
     fun purgeRefreshableLyrics(): Int
 
     @Transaction

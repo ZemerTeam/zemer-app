@@ -106,7 +106,6 @@ import com.jtech.zemer.constants.StopMusicOnTaskClearKey
 import com.jtech.zemer.constants.PlayerVolumeKey
 import com.jtech.zemer.constants.RepeatModeKey
 import com.jtech.zemer.constants.LyricsChainGenerationKey
-import com.jtech.zemer.constants.ShowLyricsKey
 import com.jtech.zemer.constants.SkipSilenceKey
 import com.jtech.zemer.db.MusicDatabase
 import com.jtech.zemer.db.entities.Event
@@ -710,15 +709,16 @@ class MusicService :
             }
         }
 
-        combine(
-            currentMediaMetadata.distinctUntilChangedBy { it?.id },
-            dataStore.data.map { it[ShowLyricsKey] ?: false }.distinctUntilChanged(),
-        ) { mediaMetadata, showLyrics ->
-            mediaMetadata to showLyrics
-        }.collectLatest(scope) { (mediaMetadata, showLyrics) ->
-            // The cache decision, the chain and the row policy are LyricsStore's (one path with the lyrics
-            // screen and Refetch); it also skips episodes. A hidden pane costs no Room query per song change.
-            if (showLyrics && mediaMetadata != null) lyricsStore.ensure(mediaMetadata)
+        currentMediaMetadata.distinctUntilChangedBy { it?.id }.collectLatest(scope) { mediaMetadata ->
+            // Lyrics PREFETCH: warm the cache for this song and the next one on every track start, pane open or
+            // not, so opening the pane later is instant. The cache decision, the chain and the row policy are
+            // LyricsStore's (one path with the lyrics screen and Refetch); it also skips episodes. Deferred past
+            // the stream resolution so the chain never competes with playback start; collectLatest cancels a
+            // pending prefetch when the track changes first (a fast skip costs nothing).
+            if (mediaMetadata == null) return@collectLatest
+            delay(LYRICS_PREFETCH_DELAY_MS)
+            val next = player.nextMediaItemIndex.takeIf { it != C.INDEX_UNSET }?.let { player.getMediaItemAt(it).metadata }
+            lyricsStore.prefetch(mediaMetadata, next, isNetworkConnected.value)
         }
 
         dataStore.data
@@ -3136,6 +3136,9 @@ class MusicService :
         private const val REVERT_RECOVERY_WINDOW_MS = 6_000L
         const val PERSISTENT_QUEUE_FILE = "persistent_queue.data"
         const val PERSISTENT_PLAYER_STATE_FILE = "persistent_player_state.data"
+        /** Lyrics prefetch waits for the stream resolution + first buffer before the chain walks (see the collector). */
+        const val LYRICS_PREFETCH_DELAY_MS = 3_000L
+
         const val MAX_CONSECUTIVE_ERR = 5
         // Constants for audio normalization
         private const val MAX_GAIN_MB = 800 // Maximum gain in millibels (8 dB)

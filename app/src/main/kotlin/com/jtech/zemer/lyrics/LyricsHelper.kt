@@ -20,6 +20,7 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import timber.log.Timber
 import javax.inject.Inject
 
 class LyricsHelper
@@ -73,10 +74,11 @@ constructor(
         val providers = enabledProviders()
         val scope = CoroutineScope(SupervisorJob())
         val deferred = scope.async {
-            // Walk providers in trust order; the pick rule (synced-first among trusted providers, low-trust
-            // YouTube only as a last resort) is the pure, tested SyncedFirstPicker.
-            val picker = SyncedFirstPicker()
-            for (provider in providers) {
+            // The pick rule (synced-first among trusted providers, low-trust YouTube only as a last resort) is
+            // the pure SyncedFirstPicker; the schedule (primary alone, then the rest concurrently, low-trust
+            // deferred) is the pure LyricsChainWalk. Both are tested without a network.
+            LyricsChainWalk.run(providers) { provider ->
+                val startedAt = System.currentTimeMillis()
                 try {
                     val result = provider.getLabeledLyrics(
                         videoId,
@@ -85,21 +87,20 @@ constructor(
                         mediaMetadata.duration,
                         mediaMetadata.album?.title,
                     )
-                    result.onSuccess { labeled ->
-                        picker.offer(provider, labeled)?.let { return@async it }
-                    }.onFailure {
+                    Timber.d("Lyrics %s %s in %d ms", provider.name, if (result.isSuccess) "answered" else "no answer", System.currentTimeMillis() - startedAt)
+                    result.onFailure {
                         // Not found here is normal — keep looking. Report only unexpected exceptions.
                         if (it !is LyricsUnavailableException &&
                             !(it is IllegalStateException && it.message?.contains("Lyrics") == true)) {
                             reportException(it)
                         }
-                    }
+                    }.getOrNull()
                 } catch (e: Exception) {
                     // Catch network-related exceptions like UnresolvedAddressException
                     reportException(e)
+                    null
                 }
             }
-            return@async picker.result()
         }
 
         val lyrics = deferred.await()
