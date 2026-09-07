@@ -1,6 +1,7 @@
 package com.jtech.zemer.ui.component
 
 import android.text.format.Formatter
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -90,7 +91,13 @@ fun UpdateDownloadDialog(
     DefaultDialog(
         onDismiss = { if (!busy) onDismiss() },
         horizontalAlignment = Alignment.Start,
-        title = { Text(stringResource(R.string.update_available)) },
+        // Centered over the symmetric version card (DefaultDialog starts a title only when an
+        // icon is present).
+        title = {
+            Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                Text(stringResource(R.string.update_available), textAlign = TextAlign.Center)
+            }
+        },
         content = {
             VersionTransitionCard(currentVersion, latestVersion, isNightly)
 
