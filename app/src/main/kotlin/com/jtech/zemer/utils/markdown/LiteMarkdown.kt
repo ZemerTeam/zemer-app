@@ -27,9 +27,11 @@ object LiteMarkdown {
     private val HEADING = Regex("^(#{1,6})\\s+(.*)$")
     private val BULLET = Regex("^\\s{0,3}[-*+]\\s+(.*)$")
     private val ORDERED = Regex("^\\s{0,3}(\\d{1,3})[.)]\\s+(.*)$")
-    private val LINK = Regex("^\\[([^\\]]+)]\\(([^)\\s]+)\\)")
+    private val LINK_HEAD = Regex("^\\[([^\\]]+)]\\(")
     private val AUTOLINK = Regex("^https?://[^\\s<>]+")
-    private const val TRAILING_PUNCTUATION = ".,;:!?)]'\""
+    // Trailing punctuation stripped from a bare URL. ')' is handled separately, by balance, so a
+    // link whose own path contains a matched '(' keeps its closing ')'.
+    private const val TRAILING_PUNCTUATION = ".,;:!?]'\""
 
     fun parse(text: String): List<MarkdownBlock> {
         val blocks = mutableListOf<MarkdownBlock>()
@@ -116,12 +118,16 @@ object LiteMarkdown {
                 c == '_' && atWordStart(text, i) -> spanned(rest, "_", "_")
                     ?.takeIf { atWordEnd(text, i + it.second) }
                     ?.let { (body, len) -> flushPlain(); out += MarkdownInline.Italic(body); len } ?: 0
-                c == '[' -> LINK.find(rest)?.let { m ->
-                    flushPlain(); out += MarkdownInline.Link(m.groupValues[1], m.groupValues[2]); m.value.length
+                c == '[' -> LINK_HEAD.find(rest)?.let { m ->
+                    val head = m.value.length
+                    balancedTarget(rest, head)?.let { target ->
+                        flushPlain(); out += MarkdownInline.Link(m.groupValues[1], target)
+                        head + target.length + 1 // + the closing ')'
+                    }
                 } ?: 0
                 c == 'h' && (rest.startsWith("http://") || rest.startsWith("https://")) ->
                     AUTOLINK.find(rest)?.let { m ->
-                        val url = m.value.trimEnd { it in TRAILING_PUNCTUATION }
+                        val url = trimAutolink(m.value)
                         flushPlain(); out += MarkdownInline.Link(url, url); url.length
                     } ?: 0
                 else -> 0
@@ -135,6 +141,44 @@ object LiteMarkdown {
         }
         flushPlain()
         return out
+    }
+
+    /**
+     * Reads an explicit link target `(...)` starting at [start], honoring nested parentheses so a
+     * URL like `.../Function_(mathematics)` keeps its inner pair. Returns the target (without the
+     * closing paren) or null when the parens are unbalanced or a space/newline appears first.
+     */
+    private fun balancedTarget(s: String, start: Int): String? {
+        var depth = 0
+        var i = start
+        while (i < s.length) {
+            when (val ch = s[i]) {
+                '(' -> depth++
+                ')' -> if (depth == 0) return s.substring(start, i) else depth--
+                else -> if (ch.isWhitespace()) return null
+            }
+            i++
+        }
+        return null
+    }
+
+    /**
+     * Trims trailing punctuation from a bare URL. A closing `)` is dropped only when it is
+     * unbalanced (more `)` than `(`), so `.../Function_(mathematics)` is preserved while a URL that
+     * merely ends a sentence in parentheses, like `(see https://x)`, is not over-consumed.
+     */
+    private fun trimAutolink(raw: String): String {
+        var url = raw
+        while (url.isNotEmpty()) {
+            val last = url.last()
+            val strip = when {
+                last == ')' -> url.count { it == '(' } < url.count { it == ')' }
+                last in TRAILING_PUNCTUATION -> true
+                else -> false
+            }
+            if (strip) url = url.dropLast(1) else break
+        }
+        return url
     }
 
     /** Body + total consumed length for `open…close` at the start of [s]; null when unbalanced/empty. */

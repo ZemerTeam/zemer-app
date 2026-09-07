@@ -38,7 +38,17 @@ class UpdateDownloadFailureTest {
     @Test
     fun `broken artifact is corrupt`() {
         assertEquals(UpdateDownloadFailure.CORRUPT_ARTIFACT, classifyUpdateDownloadFailure(ZipException("not a zip")))
-        assertEquals(UpdateDownloadFailure.CORRUPT_ARTIFACT, classifyUpdateDownloadFailure(IllegalStateException("No APK found in the nightly archive")))
+        assertEquals(
+            UpdateDownloadFailure.CORRUPT_ARTIFACT,
+            classifyUpdateDownloadFailure(CorruptUpdateArtifactException("No APK found in the nightly archive")),
+        )
+    }
+
+    @Test
+    fun `a bare IllegalStateException is not misread as a corrupt artifact`() {
+        // A generic runtime ISE (e.g. from a coroutine/Ktor internal) must not be reported as a
+        // damaged download - only the dedicated corrupt type and ZipException are.
+        assertEquals(UpdateDownloadFailure.UNKNOWN, classifyUpdateDownloadFailure(IllegalStateException("some internal state")))
     }
 
     @Test

@@ -109,7 +109,7 @@ object NightlyUpdates {
         ZipFile(zip).use { archive ->
             val entry = archive.entries().asSequence()
                 .firstOrNull { !it.isDirectory && it.name.endsWith(".apk") }
-                ?: error("No APK found in the nightly archive")
+                ?: throw CorruptUpdateArtifactException("No APK found in the nightly archive")
             archive.getInputStream(entry).use { input ->
                 destination.outputStream().use { output -> input.copyTo(output) }
             }

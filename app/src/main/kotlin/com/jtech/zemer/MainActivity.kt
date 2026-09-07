@@ -303,6 +303,7 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
@@ -973,9 +974,15 @@ class MainActivity : ComponentActivity() {
                                     }
                                 },
                                 onCancelDownload = {
-                                    downloadJob?.cancel()
+                                    // Wait for the cancelled download to finish its cleanup (delete
+                                    // its part file) before returning to Idle, so a retry can start
+                                    // clean and the teardown can never touch the retry's files.
+                                    val job = downloadJob
                                     downloadJob = null
-                                    downloadState = com.jtech.zemer.utils.UpdateChecker.DownloadState.Idle
+                                    updateScope.launch {
+                                        job?.cancelAndJoin()
+                                        downloadState = com.jtech.zemer.utils.UpdateChecker.DownloadState.Idle
+                                    }
                                 },
                                 onInstall = { apk -> installController.install(apk) },
                                 onDismiss = {

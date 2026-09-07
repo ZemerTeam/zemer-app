@@ -14,13 +14,22 @@ import javax.net.ssl.SSLException
  */
 enum class UpdateDownloadFailure { TIMEOUT, NETWORK, STORAGE, CORRUPT_ARTIFACT, UNKNOWN }
 
+/**
+ * The downloaded artifact was structurally unusable (e.g. the nightly zip held no APK). A
+ * dedicated type so the classifier can report [UpdateDownloadFailure.CORRUPT_ARTIFACT] without
+ * swallowing every unrelated [IllegalStateException] as a corrupt download.
+ */
+class CorruptUpdateArtifactException(message: String) : Exception(message)
+
 /** Classifies [error] by walking its cause chain; the most specific class wins. */
 fun classifyUpdateDownloadFailure(error: Throwable): UpdateDownloadFailure {
     val chain = generateSequence(error) { it.cause?.takeIf { cause -> cause !== it } }.take(8).toList()
     return when {
         chain.any { it.isTimeout() } -> UpdateDownloadFailure.TIMEOUT
         chain.any { it.isStorage() } -> UpdateDownloadFailure.STORAGE
-        chain.any { it is ZipException || it is IllegalStateException } -> UpdateDownloadFailure.CORRUPT_ARTIFACT
+        // A malformed zip or a zip with no APK entry - never a bare IllegalStateException, which
+        // is a common runtime type an unrelated failure would carry.
+        chain.any { it is ZipException || it is CorruptUpdateArtifactException } -> UpdateDownloadFailure.CORRUPT_ARTIFACT
         chain.any { it.isNetwork() } -> UpdateDownloadFailure.NETWORK
         else -> UpdateDownloadFailure.UNKNOWN
     }

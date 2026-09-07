@@ -22,13 +22,15 @@ import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import timber.log.Timber
 import java.io.File
+import java.io.IOException
+import java.nio.file.Files
+import java.nio.file.StandardCopyOption
 
 object UpdateChecker {
     private const val API_URL = "https://ghtrack.zemer.io/api"
     private const val CHANGELOG_URL = "https://ghtrack.zemer.io/changelog"
     private const val DOWNLOAD_URL = "https://ghtrack.zemer.io/download"
     private const val APK_FILENAME = "zemer-update.apk"
-    private const val NIGHTLY_ZIP_FILENAME = "zemer-nightly.zip"
 
     /** Inactivity bound on the download: a connection that sends nothing for this long fails. */
     internal const val DOWNLOAD_IDLE_TIMEOUT_MS = 60_000L
@@ -147,47 +149,42 @@ object UpdateChecker {
 
     private suspend fun checkForStableUpdate(force: Boolean = false): UpdateResult {
         return try {
-            val httpClient = HttpClient()
-            val response = httpClient.get(API_URL)
-            val responseText = response.bodyAsText()
+            // `use` closes the client on every exit path (early return, throw), fixing the leak
+            // the old manual close() calls left when an exception was thrown mid-check.
+            HttpClient().use { httpClient ->
+                val responseText = httpClient.get(API_URL).bodyAsText()
 
-            val json = Json.parseToJsonElement(responseText)
-            val latestVersionRaw = json.jsonObject["latestVersion"]?.jsonPrimitive?.content
-                ?: run {
-                    httpClient.close()
-                    return UpdateResult.Error("Invalid API response")
+                val json = Json.parseToJsonElement(responseText)
+                val latestVersionRaw = json.jsonObject["latestVersion"]?.jsonPrimitive?.content
+                    ?: return UpdateResult.Error("Invalid API response")
+
+                // Strip "v" prefix if present (API returns "v4", app version is "4")
+                val latestVersion = latestVersionRaw.removePrefix("v").removePrefix("V")
+                val currentVersion = BuildConfig.VERSION_NAME
+
+                if (force || isNewerVersion(latestVersion, currentVersion)) {
+                    // Fetch changelog notes; a failed fetch must not block the update.
+                    val notes = try {
+                        val changelogText = httpClient.get(CHANGELOG_URL).bodyAsText()
+                        Json.parseToJsonElement(changelogText).jsonObject["notes"]?.jsonPrimitive?.content
+                    } catch (e: Exception) {
+                        null
+                    }
+                    UpdateResult.UpdateAvailable(
+                        latestVersion = latestVersion,
+                        // A forced download is the nightly user's return path — show which build
+                        // they are leaving by labelling the current version with its commit.
+                        currentVersion = if (force) {
+                            NightlyUpdates.currentVersionLabel(currentVersion, BuildConfig.COMMIT_HASH)
+                        } else {
+                            currentVersion
+                        },
+                        notes = notes,
+                        isReturnToStable = force,
+                    )
+                } else {
+                    UpdateResult.UpToDate(currentVersion)
                 }
-
-            // Strip "v" prefix if present (API returns "v4", app version is "4")
-            val latestVersion = latestVersionRaw.removePrefix("v").removePrefix("V")
-            val currentVersion = BuildConfig.VERSION_NAME
-
-            if (force || isNewerVersion(latestVersion, currentVersion)) {
-                // Fetch changelog notes
-                val notes = try {
-                    val changelogResponse = httpClient.get(CHANGELOG_URL)
-                    val changelogText = changelogResponse.bodyAsText()
-                    val changelogJson = Json.parseToJsonElement(changelogText)
-                    changelogJson.jsonObject["notes"]?.jsonPrimitive?.content
-                } catch (e: Exception) {
-                    null
-                }
-                httpClient.close()
-                UpdateResult.UpdateAvailable(
-                    latestVersion = latestVersion,
-                    // A forced download is the nightly user's return path — show which build
-                    // they are leaving by labelling the current version with its commit.
-                    currentVersion = if (force) {
-                        NightlyUpdates.currentVersionLabel(currentVersion, BuildConfig.COMMIT_HASH)
-                    } else {
-                        currentVersion
-                    },
-                    notes = notes,
-                    isReturnToStable = force,
-                )
-            } else {
-                httpClient.close()
-                UpdateResult.UpToDate(currentVersion)
             }
         } catch (e: Exception) {
             UpdateResult.Error(e.message ?: "Failed to check for updates")
@@ -198,8 +195,11 @@ object UpdateChecker {
         emit(DownloadState.Downloading(0f))
 
         val apkFile = File(context.cacheDir, APK_FILENAME)
-        // A nightly arrives as the artifact zip; the APK is extracted from it afterwards.
-        val targetFile = if (nightly) File(context.cacheDir, NIGHTLY_ZIP_FILENAME) else apkFile
+        // Each run streams into its OWN uniquely-named part file, never a shared fixed path. So a
+        // cancelled download (whose cleanup deletes only its part file) can never unlink the file
+        // a concurrent retry is writing, and a failed run never leaves the final apk behind - the
+        // finalized apkFile appears only on success. (The cancel-then-retry corruption fix.)
+        val partFile = File(context.cacheDir, "$APK_FILENAME.${System.nanoTime()}.part")
         try {
             downloadHttpClient().use { httpClient ->
                 // The block form STREAMS the body. The no-block `execute()` loads the whole body
@@ -208,6 +208,12 @@ object UpdateChecker {
                 httpClient
                     .prepareGet(if (nightly) NightlyUpdates.DOWNLOAD_URL else DOWNLOAD_URL)
                     .execute { response ->
+                        // The client does not validate status (expectSuccess is default-false), so a
+                        // 4xx/5xx would otherwise be written and offered for install as an error
+                        // document. Reject it as a network failure instead.
+                        if (!response.status.isSuccess()) {
+                            throw IOException("Update download failed: HTTP ${response.status.value}")
+                        }
                         // Size of the actual body we'll read, taken after redirects. A separate HEAD
                         // is unreliable here: /download redirects through a worker + CDN, so a HEAD can
                         // be answered by a different hop (e.g. a challenge page) whose Content-Length is
@@ -217,14 +223,11 @@ object UpdateChecker {
                         val isEncoded = response.headers[HttpHeaders.ContentEncoding]?.isNotBlank() == true
                         val contentLength = if (isEncoded) -1L else response.contentLength() ?: -1L
 
-                        if (apkFile.exists()) apkFile.delete()
-                        if (nightly && targetFile.exists()) targetFile.delete()
-
                         val channel = response.bodyAsChannel()
                         var downloadedBytes = 0L
                         var lastEmittedBytes = 0L
 
-                        targetFile.outputStream().use { output ->
+                        partFile.outputStream().use { output ->
                             val buffer = ByteArray(8192)
                             while (!channel.isClosedForRead) {
                                 val bytesRead = channel.readAvailable(buffer)
@@ -243,18 +246,23 @@ object UpdateChecker {
                         emit(downloadingState(downloadedBytes, contentLength))
                     }
             }
+            // Finalize into apkFile only after a fully-read body: a nightly extracts its APK from
+            // the part (a zip), a stable moves the part into place, replacing any stale apk.
             if (nightly) {
-                NightlyUpdates.extractApk(targetFile, apkFile)
-                targetFile.delete()
+                NightlyUpdates.extractApk(partFile, apkFile)
+            } else {
+                Files.move(partFile.toPath(), apkFile.toPath(), StandardCopyOption.REPLACE_EXISTING)
             }
             emit(DownloadState.Downloaded(apkFile))
         } catch (e: CancellationException) {
-            // A user cancel: drop the partial file and let the caller's cancellation propagate.
-            targetFile.delete()
-            throw e
+            throw e // cleanup runs in finally; propagate the cancel
         } catch (e: Exception) {
             Timber.w(e, "Update download failed")
             emit(DownloadState.Error(e.message ?: "Download failed", classifyUpdateDownloadFailure(e)))
+        } finally {
+            // Always drop this run's part file (a no-op after a successful stable move). Never
+            // touches apkFile, so a cancelled run cannot delete a concurrent retry's result.
+            partFile.delete()
         }
     }.flowOn(Dispatchers.IO)
 

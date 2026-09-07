@@ -76,6 +76,26 @@ class LiteMarkdownTest {
     }
 
     @Test
+    fun `explicit link keeps balanced parentheses in the target`() {
+        assertEquals(
+            listOf(Text("see "), Link("wiki", "https://example.org/Function_(mathematics)")),
+            LiteMarkdown.parseInlines("see [wiki](https://example.org/Function_(mathematics))"),
+        )
+    }
+
+    @Test
+    fun `bare link keeps a balanced trailing paren but drops an unbalanced one`() {
+        assertEquals(
+            listOf(Link("https://example.org/Function_(mathematics)", "https://example.org/Function_(mathematics)")),
+            LiteMarkdown.parseInlines("https://example.org/Function_(mathematics)"),
+        )
+        assertEquals(
+            listOf(Text("(see "), Link("https://zemer.io/x", "https://zemer.io/x"), Text(")")),
+            LiteMarkdown.parseInlines("(see https://zemer.io/x)"),
+        )
+    }
+
+    @Test
     fun `underscores inside identifiers are literal`() {
         assertEquals(
             listOf(Text("renamed release_apk to release_zip")),

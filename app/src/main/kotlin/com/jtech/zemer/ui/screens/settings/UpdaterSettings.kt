@@ -62,6 +62,7 @@ import com.jtech.zemer.utils.updater.InstallerType
 import com.jtech.zemer.utils.updater.rememberApkInstallController
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -341,9 +342,14 @@ fun UpdaterScreen(
                         }
                     },
                     onCancelDownload = {
-                        downloadJob?.cancel()
+                        // Wait for the cancelled download's cleanup before returning to Idle, so a
+                        // retry starts clean (the download writes a unique part file per run).
+                        val job = downloadJob
                         downloadJob = null
-                        downloadState = UpdateChecker.DownloadState.Idle
+                        scope.launch {
+                            job?.cancelAndJoin()
+                            downloadState = UpdateChecker.DownloadState.Idle
+                        }
                     },
                     onInstall = { apk -> installWithPermissionCheck(apk) },
                     onDismiss = {

@@ -126,6 +126,7 @@ class NightlyUpdatesTest {
         val result = runCatching { NightlyUpdates.extractApk(zip, destination) }
 
         assertTrue(result.isFailure)
+        assertTrue(result.exceptionOrNull() is CorruptUpdateArtifactException)
     }
 
     @Test
