@@ -4,6 +4,7 @@ import android.content.Context
 import com.jtech.zemer.BuildConfig
 import com.jtech.zemer.utils.updater.NightlyUpdates
 import io.ktor.client.*
+import io.ktor.client.engine.cio.CIO
 import io.ktor.client.request.*
 import io.ktor.client.statement.*
 import io.ktor.http.*
@@ -24,6 +25,16 @@ object UpdateChecker {
     private const val DOWNLOAD_URL = "https://ghtrack.zemer.io/download"
     private const val APK_FILENAME = "zemer-update.apk"
     private const val NIGHTLY_ZIP_FILENAME = "zemer-nightly.zip"
+
+    /**
+     * The client for the APK/artifact body download. CIO's default caps a WHOLE request at 15 s,
+     * which a ~10 MB download over a slow mobile or filtered link cannot meet ("Request timeout
+     * has expired" on the update dialog), so the request timeout is disabled here; connect
+     * failures still surface through the engine's connect timeout.
+     */
+    internal fun downloadHttpClient(): HttpClient = HttpClient(CIO) {
+        engine { requestTimeout = 0 }
+    }
 
     sealed class UpdateResult {
         data class UpdateAvailable(
@@ -162,7 +173,7 @@ object UpdateChecker {
         emit(DownloadState.Downloading(0f))
 
         try {
-            val httpClient = HttpClient()
+            val httpClient = downloadHttpClient()
 
             val response = httpClient
                 .prepareGet(if (nightly) NightlyUpdates.DOWNLOAD_URL else DOWNLOAD_URL)
