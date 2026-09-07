@@ -23,6 +23,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.jtech.zemer.R
@@ -198,6 +199,7 @@ private fun VersionTransitionCard(currentVersion: String, latestVersion: String,
                 label = stringResource(R.string.update_installed_version),
                 value = currentVersion,
                 emphasized = false,
+                modifier = Modifier.weight(1f),
             )
             Icon(
                 painter = painterResource(R.drawable.arrow_forward),
@@ -217,17 +219,20 @@ private fun VersionTransitionCard(currentVersion: String, latestVersion: String,
 
 @Composable
 private fun VersionColumn(label: String, value: String, emphasized: Boolean, modifier: Modifier = Modifier) {
-    Column(modifier) {
+    // Equal-width, centered columns around the arrow: a symmetric "from -> to", not a left-heavy row.
+    Column(modifier, horizontalAlignment = Alignment.CenterHorizontally) {
         Text(
             text = label,
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center,
         )
         Spacer(Modifier.height(2.dp))
         Text(
             text = value,
             style = MaterialTheme.typography.titleSmall,
             color = if (emphasized) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+            textAlign = TextAlign.Center,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
         )
