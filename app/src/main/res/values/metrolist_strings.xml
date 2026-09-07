@@ -220,7 +220,6 @@
     <string name="check_for_updates_now">Check for updates now</string>
     <string name="update_available_title">Update available</string>
     <string name="update_available">Update available</string>
-    <string name="update_available_message">You are on version %1$s. Version %2$s is available.</string>
     <string name="up_to_date">Up to date</string>
     <string name="up_to_date_message">You are running the latest version (%1$s).</string>
     <string name="update_channel_name">App updates</string>
@@ -228,7 +227,7 @@
     <string name="download_and_install">Download &amp; Install</string>
     <string name="downloading_update">Downloading update…</string>
     <string name="later">Later</string>
-    <string name="whats_new">What\'s new:</string>
+    <string name="whats_new">What\'s new</string>
     <string name="error">Error</string>
     <string name="installer_method">Installation method</string>
     <string name="installer_native_title">Standard</string>

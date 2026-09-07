@@ -303,6 +303,7 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
@@ -897,6 +898,7 @@ class MainActivity : ComponentActivity() {
                         var pendingUpdateIsNightly by rememberSaveable { mutableStateOf(false) }
                         var downloadState by remember { mutableStateOf<com.jtech.zemer.utils.UpdateChecker.DownloadState>(com.jtech.zemer.utils.UpdateChecker.DownloadState.Idle) }
                         var installError by remember { mutableStateOf<String?>(null) }
+                        var downloadJob by remember { mutableStateOf<kotlinx.coroutines.Job?>(null) }
                         val updateScope = rememberCoroutineScope()
                         val snackbarHostState = remember { SnackbarHostState() }
 
@@ -956,6 +958,7 @@ class MainActivity : ComponentActivity() {
                             com.jtech.zemer.ui.component.UpdateDownloadDialog(
                                 currentVersion = BuildConfig.VERSION_NAME,
                                 latestVersion = pendingUpdateVersion!!,
+                                isNightly = pendingUpdateIsNightly,
                                 notes = pendingUpdateNotes,
                                 downloadState = downloadState,
                                 isInstalling = installController.isInstalling,
@@ -964,10 +967,21 @@ class MainActivity : ComponentActivity() {
                                 onDownload = {
                                     downloadState = com.jtech.zemer.utils.UpdateChecker.DownloadState.Downloading(0f)
                                     installError = null
-                                    updateScope.launch {
+                                    downloadJob = updateScope.launch {
                                         com.jtech.zemer.utils.UpdateChecker.downloadUpdate(this@MainActivity, pendingUpdateIsNightly).collect { state ->
                                             downloadState = state
                                         }
+                                    }
+                                },
+                                onCancelDownload = {
+                                    // Wait for the cancelled download to finish its cleanup (delete
+                                    // its part file) before returning to Idle, so a retry can start
+                                    // clean and the teardown can never touch the retry's files.
+                                    val job = downloadJob
+                                    downloadJob = null
+                                    updateScope.launch {
+                                        job?.cancelAndJoin()
+                                        downloadState = com.jtech.zemer.utils.UpdateChecker.DownloadState.Idle
                                     }
                                 },
                                 onInstall = { apk -> installController.install(apk) },

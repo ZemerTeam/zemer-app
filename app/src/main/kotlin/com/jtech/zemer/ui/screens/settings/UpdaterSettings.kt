@@ -61,6 +61,8 @@ import com.jtech.zemer.utils.updater.InstallResult
 import com.jtech.zemer.utils.updater.InstallerType
 import com.jtech.zemer.utils.updater.rememberApkInstallController
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -86,6 +88,7 @@ fun UpdaterScreen(
     var showResultDialog by remember { mutableStateOf(false) }
     var updateResult by remember { mutableStateOf<UpdateChecker.UpdateResult?>(null) }
     var downloadState by remember { mutableStateOf<UpdateChecker.DownloadState>(UpdateChecker.DownloadState.Idle) }
+    var downloadJob by remember { mutableStateOf<Job?>(null) }
     var installError by remember { mutableStateOf<String?>(null) }
     var installerSelectionError by remember { mutableStateOf<String?>(null) }
 
@@ -322,6 +325,8 @@ fun UpdaterScreen(
                 UpdateDownloadDialog(
                     currentVersion = result.currentVersion,
                     latestVersion = result.latestVersion,
+                    isNightly = result.isNightly,
+                    isReturnToStable = result.isReturnToStable,
                     notes = result.notes,
                     downloadState = downloadState,
                     isInstalling = isInstalling,
@@ -330,10 +335,20 @@ fun UpdaterScreen(
                     onDownload = {
                         downloadState = UpdateChecker.DownloadState.Downloading(0f)
                         installError = null
-                        scope.launch {
+                        downloadJob = scope.launch {
                             UpdateChecker.downloadUpdate(context, result.isNightly).collectLatest { state ->
                                 downloadState = state
                             }
+                        }
+                    },
+                    onCancelDownload = {
+                        // Wait for the cancelled download's cleanup before returning to Idle, so a
+                        // retry starts clean (the download writes a unique part file per run).
+                        val job = downloadJob
+                        downloadJob = null
+                        scope.launch {
+                            job?.cancelAndJoin()
+                            downloadState = UpdateChecker.DownloadState.Idle
                         }
                     },
                     onInstall = { apk -> installWithPermissionCheck(apk) },
