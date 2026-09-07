@@ -30,14 +30,22 @@ object UpdateChecker {
     private const val APK_FILENAME = "zemer-update.apk"
     private const val NIGHTLY_ZIP_FILENAME = "zemer-nightly.zip"
 
+    /** Inactivity bound on the download: a connection that sends nothing for this long fails. */
+    internal const val DOWNLOAD_IDLE_TIMEOUT_MS = 60_000L
+
     /**
      * The client for the APK/artifact body download. CIO's default caps a WHOLE request at 15 s,
      * which a ~10 MB download over a slow mobile or filtered link cannot meet ("Request timeout
-     * has expired" on the update dialog), so the request timeout is disabled here; connect
-     * failures still surface through the engine's connect timeout.
+     * has expired" on the update dialog), so the request timeout is disabled. The bound that
+     * remains is per-packet inactivity ([idleTimeoutMs], CIO's `socketTimeout`, infinite by
+     * default): a slow transfer that keeps delivering bytes runs to completion, while a server
+     * that accepts the connection and then goes silent fails as a timeout instead of hanging.
      */
-    internal fun downloadHttpClient(): HttpClient = HttpClient(CIO) {
-        engine { requestTimeout = 0 }
+    internal fun downloadHttpClient(idleTimeoutMs: Long = DOWNLOAD_IDLE_TIMEOUT_MS): HttpClient = HttpClient(CIO) {
+        engine {
+            requestTimeout = 0
+            endpoint.socketTimeout = idleTimeoutMs
+        }
     }
 
     sealed class UpdateResult {
