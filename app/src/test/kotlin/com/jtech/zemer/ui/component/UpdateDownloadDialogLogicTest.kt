@@ -1,6 +1,7 @@
 package com.jtech.zemer.ui.component
 
 import com.jtech.zemer.utils.UpdateChecker.DownloadState
+import com.jtech.zemer.R
 import org.junit.Assert.assertEquals
 import org.junit.Test
 import java.io.File
@@ -25,5 +26,12 @@ class UpdateDownloadDialogLogicTest {
     fun `nightly value drops the redundant channel prefix, stable value is untouched`() {
         assertEquals("#1215 (0f8e9f8)", updateVersionValue("nightly #1215 (0f8e9f8)", isNightly = true))
         assertEquals("39", updateVersionValue("39", isNightly = false))
+    }
+
+    @Test
+    fun `new-version label names the channel for nightly and return-to-stable`() {
+        assertEquals(R.string.update_nightly_build, updateNewVersionLabelRes(isNightly = true, isReturnToStable = false))
+        assertEquals(R.string.update_stable_release, updateNewVersionLabelRes(isNightly = false, isReturnToStable = true))
+        assertEquals(R.string.update_new_version, updateNewVersionLabelRes(isNightly = false, isReturnToStable = false))
     }
 }

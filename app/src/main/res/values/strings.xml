@@ -456,6 +456,7 @@
     <string name="update_new_version">New version</string>
     <string name="percent_value">%1$d%%</string>
     <string name="update_nightly_build">Nightly build</string>
+    <string name="update_stable_release">Stable release</string>
     <string name="update_download_progress">%1$s of %2$s</string>
     <string name="update_download_progress_unsized">%1$s downloaded</string>
     <string name="update_error_timeout">The download timed out. Check your connection and try again.</string>

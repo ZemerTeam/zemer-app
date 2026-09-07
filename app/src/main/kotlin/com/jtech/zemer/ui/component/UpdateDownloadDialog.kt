@@ -58,6 +58,17 @@ fun updateVersionValue(latestVersion: String, isNightly: Boolean): String =
     if (isNightly) latestVersion.removePrefix("nightly").trimStart() else latestVersion
 
 /**
+ * Pure: the label over the new-version column. A nightly names its channel; the forced
+ * return-to-stable path names the channel too (the version may equal the installed one, so
+ * "New version 38 -> 38" would read as a no-op); a plain stable update says "New version".
+ */
+fun updateNewVersionLabelRes(isNightly: Boolean, isReturnToStable: Boolean): Int = when {
+    isNightly -> R.string.update_nightly_build
+    isReturnToStable -> R.string.update_stable_release
+    else -> R.string.update_new_version
+}
+
+/**
  * The "update available -> download -> install" dialog, shared by the Updater settings screen
  * and the startup update prompt so both behave identically. Purely presentational: the caller
  * owns the state (download/install) and the actions.
@@ -72,6 +83,7 @@ fun UpdateDownloadDialog(
     currentVersion: String,
     latestVersion: String,
     isNightly: Boolean,
+    isReturnToStable: Boolean = false,
     notes: String?,
     downloadState: UpdateChecker.DownloadState,
     isInstalling: Boolean,
@@ -99,7 +111,7 @@ fun UpdateDownloadDialog(
             }
         },
         content = {
-            VersionTransitionCard(currentVersion, latestVersion, isNightly)
+            VersionTransitionCard(currentVersion, latestVersion, isNightly, isReturnToStable)
 
             if (!notes.isNullOrBlank()) {
                 Spacer(Modifier.height(12.dp))
@@ -192,7 +204,7 @@ fun UpdateDownloadDialog(
 }
 
 @Composable
-private fun VersionTransitionCard(currentVersion: String, latestVersion: String, isNightly: Boolean) {
+private fun VersionTransitionCard(currentVersion: String, latestVersion: String, isNightly: Boolean, isReturnToStable: Boolean) {
     Surface(
         shape = MaterialTheme.shapes.medium,
         color = MaterialTheme.colorScheme.surfaceContainerHighest,
@@ -215,7 +227,7 @@ private fun VersionTransitionCard(currentVersion: String, latestVersion: String,
                 modifier = Modifier.padding(horizontal = 10.dp),
             )
             VersionColumn(
-                label = stringResource(if (isNightly) R.string.update_nightly_build else R.string.update_new_version),
+                label = stringResource(updateNewVersionLabelRes(isNightly, isReturnToStable)),
                 value = updateVersionValue(latestVersion, isNightly),
                 emphasized = true,
                 modifier = Modifier.weight(1f),

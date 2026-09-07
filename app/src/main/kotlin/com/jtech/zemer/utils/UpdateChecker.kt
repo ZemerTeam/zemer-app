@@ -56,6 +56,9 @@ object UpdateChecker {
             // Tags the result with its channel so the download uses the source this result came
             // from, even if the nightly preference is toggled between check and download.
             val isNightly: Boolean = false,
+            // The nightly user's forced way back to stable: the version may equal the installed
+            // one (nightlies share the stable versionName), so the dialog labels the channel.
+            val isReturnToStable: Boolean = false,
         ) : UpdateResult()
         data class UpToDate(val currentVersion: String) : UpdateResult()
         data class Error(val message: String) : UpdateResult()
@@ -180,6 +183,7 @@ object UpdateChecker {
                         currentVersion
                     },
                     notes = notes,
+                    isReturnToStable = force,
                 )
             } else {
                 httpClient.close()

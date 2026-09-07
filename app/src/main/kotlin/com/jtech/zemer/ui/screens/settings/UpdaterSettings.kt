@@ -325,6 +325,7 @@ fun UpdaterScreen(
                     currentVersion = result.currentVersion,
                     latestVersion = result.latestVersion,
                     isNightly = result.isNightly,
+                    isReturnToStable = result.isReturnToStable,
                     notes = result.notes,
                     downloadState = downloadState,
                     isInstalling = isInstalling,
