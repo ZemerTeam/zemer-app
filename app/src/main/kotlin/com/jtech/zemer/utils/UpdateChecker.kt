@@ -195,12 +195,14 @@ object UpdateChecker {
         emit(DownloadState.Downloading(0f))
 
         val apkFile = File(context.cacheDir, APK_FILENAME)
-        // Each run streams into its OWN uniquely-named part file, never a shared fixed path. So a
-        // cancelled download (whose cleanup deletes only its part file) can never unlink the file
-        // a concurrent retry is writing, and a failed run never leaves the final apk behind - the
-        // finalized apkFile appears only on success. (The cancel-then-retry corruption fix.)
-        val partFile = File(context.cacheDir, "$APK_FILENAME.${System.nanoTime()}.part")
+        // Each run streams into its OWN atomically-created, guaranteed-unique part file, never a
+        // shared fixed path. So a cancelled download (whose cleanup deletes only its part file) can
+        // never unlink the file a concurrent retry is writing, and a failed run never leaves the
+        // final apk behind - the finalized apkFile appears only on success. (The cancel-then-retry
+        // corruption fix.) The nullable ref lets the finally clean up even if creation threw.
+        var partFile: File? = null
         try {
+            val part = File.createTempFile(APK_FILENAME, ".part", context.cacheDir).also { partFile = it }
             downloadHttpClient().use { httpClient ->
                 // The block form STREAMS the body. The no-block `execute()` loads the whole body
                 // into memory before returning, which made the progress loop run after the real
@@ -227,7 +229,7 @@ object UpdateChecker {
                         var downloadedBytes = 0L
                         var lastEmittedBytes = 0L
 
-                        partFile.outputStream().use { output ->
+                        part.outputStream().use { output ->
                             val buffer = ByteArray(8192)
                             while (!channel.isClosedForRead) {
                                 val bytesRead = channel.readAvailable(buffer)
@@ -246,12 +248,19 @@ object UpdateChecker {
                         emit(downloadingState(downloadedBytes, contentLength))
                     }
             }
-            // Finalize into apkFile only after a fully-read body: a nightly extracts its APK from
-            // the part (a zip), a stable moves the part into place, replacing any stale apk.
+            // Finalize into apkFile only after a fully-read body, and only via an atomic move so a
+            // failure never leaves a partial apk: a nightly extracts its APK into a temp file first,
+            // a stable moves its part directly. Either way apkFile is replaced in one step.
             if (nightly) {
-                NightlyUpdates.extractApk(partFile, apkFile)
+                val extractedApk = File.createTempFile(APK_FILENAME, ".extracted", context.cacheDir)
+                try {
+                    NightlyUpdates.extractApk(part, extractedApk)
+                    Files.move(extractedApk.toPath(), apkFile.toPath(), StandardCopyOption.REPLACE_EXISTING)
+                } finally {
+                    extractedApk.delete()
+                }
             } else {
-                Files.move(partFile.toPath(), apkFile.toPath(), StandardCopyOption.REPLACE_EXISTING)
+                Files.move(part.toPath(), apkFile.toPath(), StandardCopyOption.REPLACE_EXISTING)
             }
             emit(DownloadState.Downloaded(apkFile))
         } catch (e: CancellationException) {
@@ -262,7 +271,7 @@ object UpdateChecker {
         } finally {
             // Always drop this run's part file (a no-op after a successful stable move). Never
             // touches apkFile, so a cancelled run cannot delete a concurrent retry's result.
-            partFile.delete()
+            partFile?.delete()
         }
     }.flowOn(Dispatchers.IO)
 
