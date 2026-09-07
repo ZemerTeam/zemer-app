@@ -51,6 +51,17 @@ object NightlyUpdates {
 
     fun versionLabel(run: NightlyRun): String = "nightly #${run.runNumber} (${run.headSha.take(7)})"
 
+    /**
+     * Formats a commit message as the nightly's release notes: the subject line becomes a heading
+     * and the body follows as Markdown (hard-wrapped lines reflow). Null for a blank message.
+     */
+    fun commitMessageMarkdown(message: String): String? {
+        val lines = message.trim().lines()
+        val title = lines.firstOrNull()?.trim()?.takeIf { it.isNotEmpty() } ?: return null
+        val body = lines.drop(1).joinToString("\n").trim()
+        return if (body.isEmpty()) "### $title" else "### $title\n\n$body"
+    }
+
     fun currentVersionLabel(versionName: String, installedSha: String): String =
         if (installedSha.isBlank()) versionName else "$versionName (${installedSha.take(7)})"
 

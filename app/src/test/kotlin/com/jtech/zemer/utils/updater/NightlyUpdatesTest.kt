@@ -185,4 +185,14 @@ class NightlyUpdatesTest {
             NightlyUpdates.buildGradleUrl("abc123"),
         )
     }
+
+    @Test
+    fun `commit message becomes a heading plus markdown body`() {
+        assertEquals(
+            "### fix(x): subject (#1)\n\nBody line one\nline two.\n\n- a bullet",
+            NightlyUpdates.commitMessageMarkdown("fix(x): subject (#1)\n\nBody line one\nline two.\n\n- a bullet\n"),
+        )
+        assertEquals("### subject only", NightlyUpdates.commitMessageMarkdown("subject only"))
+        assertNull(NightlyUpdates.commitMessageMarkdown("  \n "))
+    }
 }

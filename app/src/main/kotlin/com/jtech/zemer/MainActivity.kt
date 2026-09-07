@@ -897,6 +897,7 @@ class MainActivity : ComponentActivity() {
                         var pendingUpdateIsNightly by rememberSaveable { mutableStateOf(false) }
                         var downloadState by remember { mutableStateOf<com.jtech.zemer.utils.UpdateChecker.DownloadState>(com.jtech.zemer.utils.UpdateChecker.DownloadState.Idle) }
                         var installError by remember { mutableStateOf<String?>(null) }
+                        var downloadJob by remember { mutableStateOf<kotlinx.coroutines.Job?>(null) }
                         val updateScope = rememberCoroutineScope()
                         val snackbarHostState = remember { SnackbarHostState() }
 
@@ -956,6 +957,7 @@ class MainActivity : ComponentActivity() {
                             com.jtech.zemer.ui.component.UpdateDownloadDialog(
                                 currentVersion = BuildConfig.VERSION_NAME,
                                 latestVersion = pendingUpdateVersion!!,
+                                isNightly = pendingUpdateIsNightly,
                                 notes = pendingUpdateNotes,
                                 downloadState = downloadState,
                                 isInstalling = installController.isInstalling,
@@ -964,11 +966,16 @@ class MainActivity : ComponentActivity() {
                                 onDownload = {
                                     downloadState = com.jtech.zemer.utils.UpdateChecker.DownloadState.Downloading(0f)
                                     installError = null
-                                    updateScope.launch {
+                                    downloadJob = updateScope.launch {
                                         com.jtech.zemer.utils.UpdateChecker.downloadUpdate(this@MainActivity, pendingUpdateIsNightly).collect { state ->
                                             downloadState = state
                                         }
                                     }
+                                },
+                                onCancelDownload = {
+                                    downloadJob?.cancel()
+                                    downloadJob = null
+                                    downloadState = com.jtech.zemer.utils.UpdateChecker.DownloadState.Idle
                                 },
                                 onInstall = { apk -> installController.install(apk) },
                                 onDismiss = {

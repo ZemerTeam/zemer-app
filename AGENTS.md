@@ -728,7 +728,14 @@ select-mode cluster) and `SelectionActions` (the select-all + overflow pair for 
 `actions` slot), all over the shared `ItemWrapper`. Also shared: `PlaylistDetailHeader` (the playlist
 detail screens' header block), `ErrorRetryState` (the "something went wrong" + Retry block, with an
 optional `detail` line for the caught message), `GenreCatalogShimmer` (the genre-catalog loading
-shimmer) and `RemoveDownloadConfirmDialog` (the remove-download confirm).
+shimmer) and `RemoveDownloadConfirmDialog` (the remove-download confirm). The **update dialog family**
+(`UpdateDownloadDialog.kt`) contributed three general pieces: `MarkdownText` (renders the pure
+`utils/markdown/LiteMarkdown` subset - headings, bullet/numbered lists, bold/italic/code, tappable
+links - for release notes and any other server-authored prose; a nightly's commit message is formatted
+into it by `NightlyUpdates.commitMessageMarkdown`), `LabeledWavyProgress` (the ONE label + percent +
+expressive wavy bar + detail-caption stack for any in-progress row) and `InlineMessagePanel` /
+`InlineErrorPanel` (icon + text on a tonal container - an error the user must read and act on renders
+here, never as a bare red `Text`).
 New screens use these; a hand-rolled duplicate is a
 review miss.
 
