@@ -9,8 +9,6 @@ import io.ktor.client.plugins.defaultRequest
 import io.ktor.client.request.get
 import io.ktor.client.request.parameter
 import io.ktor.serialization.kotlinx.json.json
-import kotlinx.coroutines.currentCoroutineContext
-import kotlinx.coroutines.ensureActive
 import kotlinx.serialization.json.Json
 import kotlin.math.abs
 
@@ -140,8 +138,6 @@ object LrcLib {
         album: String? = null,
     ) = runCatching {
         val tracks = queryLyrics(artist, title, album)
-        val cleanedTitle = cleanTitle(title)
-        val cleanedArtist = cleanArtist(artist)
 
         val candidates = tracks.filter { identityMatches(it.trackName, it.artistName, title, artist, it.duration, duration) }
         val res = pickBody(candidates, duration)?.let(LrcLib::Lyrics)
@@ -150,32 +146,6 @@ object LrcLib {
             return@runCatching res.text
         } else {
             throw IllegalStateException("Lyrics unavailable")
-        }
-    }
-
-    suspend fun getAllLyrics(
-        title: String,
-        artist: String,
-        duration: Int,
-        album: String? = null,
-        callback: (String) -> Unit,
-    ) {
-        val tracks = queryLyrics(artist, title, album)
-        val cleanedTitle = cleanTitle(title)
-        val cleanedArtist = cleanArtist(artist)
-        var count = 0
-        var plain = 0
-
-        // Only identity-gated candidates are ever offered, synced first.
-        val sortedTracks = tracks.filter { identityMatches(it.trackName, it.artistName, title, artist, it.duration, duration) }
-            .sortedByDescending { track -> (if (track.syncedLyrics != null) 1.0 else 0.0) + (calculateStringSimilarity(cleanedTitle, track.trackName) + calculateStringSimilarity(cleanedArtist, track.artistName)) / 2.0 }
-
-        sortedTracks.forEach { track ->
-            currentCoroutineContext().ensureActive() // Corrected usage
-            if (count <= 4) {
-                if (syncable(track, duration)) { count++; track.syncedLyrics!!.let(callback) }
-                if (track.plainLyrics != null && plain == 0) { count++; plain++; track.plainLyrics.let(callback) }
-            }
         }
     }
 

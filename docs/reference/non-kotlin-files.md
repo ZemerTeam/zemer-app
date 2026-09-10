@@ -1,6 +1,6 @@
 # Non-Kotlin file reference
 
-Every tracked non-Kotlin path outside `docs/` is listed. Text files report line counts; binary files report byte counts; gitlinks are recorded as non-file tracked paths. Total paths: `429`.
+Every tracked non-Kotlin path outside `docs/` is listed. Text files report line counts; binary files report byte counts; gitlinks are recorded as non-file tracked paths. Total paths: `434`.
 
 | Path | Size/status | Type metadata |
 | --- | ---: | --- |
@@ -12,7 +12,7 @@ Every tracked non-Kotlin path outside `docs/` is listed. Text files report line 
 | `.github/workflows/ui-audit.yml` | 56 lines | text `.yml` |
 | `.gitignore` | 117 lines | text `[none]` |
 | `.gitmodules` | 3 lines | text `[none]` |
-| `AGENTS.md` | 1913 lines | text `.md` |
+| `AGENTS.md` | 1921 lines | text `.md` |
 | `LICENSE` | 674 lines | text `[none]` |
 | `README.md` | 9 lines | text `.md` |
 | `app/.gitignore` | 1 lines | text `[none]` |
@@ -260,7 +260,7 @@ Every tracked non-Kotlin path outside `docs/` is listed. Text files report line 
 | `app/src/main/res/values/app_name.xml` | 4 lines | text `.xml`; XML root `resources` |
 | `app/src/main/res/values/colors.xml` | 9 lines | text `.xml`; XML root `resources` |
 | `app/src/main/res/values/metrolist_strings.xml` | 698 lines | text `.xml`; XML root `resources` |
-| `app/src/main/res/values/strings.xml` | 467 lines | text `.xml`; XML root `resources` |
+| `app/src/main/res/values/strings.xml` | 466 lines | text `.xml`; XML root `resources` |
 | `app/src/main/res/values/styles.xml` | 26 lines | text `.xml`; XML root `resources` |
 | `app/src/main/res/values/values.xml` | 8 lines | text `.xml`; XML root `resources` |
 | `app/src/main/res/xml-v25/shortcuts.xml` | 23 lines | text `.xml`; XML root `shortcuts` |
@@ -270,6 +270,10 @@ Every tracked non-Kotlin path outside `docs/` is listed. Text files report line 
 | `app/src/main/res/xml/data_extraction_rules.xml` | 29 lines | text `.xml`; XML root `data-extraction-rules` |
 | `app/src/main/res/xml/music_widget_info.xml` | 18 lines | text `.xml`; XML root `appwidget-provider` |
 | `app/src/main/res/xml/provider_paths.xml` | 12 lines | text `.xml`; XML root `paths` |
+| `app/src/test/resources/lyrics/apple-1571752969.expected.lrc` | 51 lines | text `.lrc` |
+| `app/src/test/resources/lyrics/apple-1571752969.json` | 1 lines | text `.json`; JSON keys `ttmlContent` |
+| `app/src/test/resources/lyrics/apple-1571752969.paxsenix.lrc` | 52 lines | text `.lrc` |
+| `app/src/test/resources/lyrics/apple-unsynced-reply.json` | 1 lines | text `.json`; JSON keys `type, metadata, content, lrc, elrc, elrcMultiPerson, plain, ttmlContent, source, cacheUploadMode` |
 | `app/src/test/resources/lyrics/jkaraoke-1971-golden.json` | 5 lines | text `.json`; JSON keys `songId, plain, synced` |
 | `app/src/test/resources/lyrics/jkaraoke-page28.json` | 1 lines | text `.json`; JSON keys `data, links, meta` |
 | `app/src/test/resources/lyrics/jyrics-0.html` | 721 lines | text `.html` |
@@ -279,6 +283,7 @@ Every tracked non-Kotlin path outside `docs/` is listed. Text files report line 
 | `app/src/test/resources/lyrics/musixmatch-0.json` | 1 lines | text `.json`; JSON keys `message` |
 | `app/src/test/resources/lyrics/musixmatch-1.json` | 1 lines | text `.json`; JSON keys `message` |
 | `app/src/test/resources/lyrics/musixmatch-hit.json` | 1 lines | text `.json`; JSON keys `message` |
+| `app/src/test/resources/lyrics/resolve-apple-linetimes.json` | 1 lines | text `.json`; JSON keys `videoId, lang, verified, hasSynced, sources, lineTimes` |
 | `app/src/test/resources/lyrics/resolve-zemer-richsync.json` | 1 lines | text `.json`; JSON keys `videoId, lang, verified, hasSynced, sources` |
 | `app/src/test/resources/lyrics/resolve-zingmusic-linetimes.json` | 1 lines | text `.json`; JSON keys `videoId, lang, verified, hasSynced, sources, lineTimes` |
 | `app/src/test/resources/lyrics/shironet-0.html` | 56 lines | text `.html` |

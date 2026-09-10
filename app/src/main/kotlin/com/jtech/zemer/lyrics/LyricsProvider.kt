@@ -28,20 +28,9 @@ interface LyricsProvider {
         album: String? = null,
     ): Result<String>
 
-    suspend fun getAllLyrics(
-        id: String,
-        title: String,
-        artist: String,
-        duration: Int,
-        album: String? = null,
-        callback: (String) -> Unit,
-    ) {
-        getLyrics(id, title, artist, duration, album).onSuccess(callback)
-    }
-
     /**
      * [getLyrics] with the provenance label attached. The label is part of the result, never looked up
-     * afterwards, so the auto-fetch path and the picker persist the same string for the same source.
+     * afterwards, so every path persists the same string for the same source.
      * Providers with sub-sources (Zemer) override this; everyone else is labelled with [name].
      */
     suspend fun getLabeledLyrics(
@@ -51,16 +40,4 @@ interface LyricsProvider {
         duration: Int,
         album: String? = null,
     ): Result<LabeledLyrics> = getLyrics(id, title, artist, duration, album).map { LabeledLyrics(name, it) }
-
-    /** [getAllLyrics] with the provenance label attached to every candidate. */
-    suspend fun getAllLabeledLyrics(
-        id: String,
-        title: String,
-        artist: String,
-        duration: Int,
-        album: String? = null,
-        callback: (LabeledLyrics) -> Unit,
-    ) {
-        getAllLyrics(id, title, artist, duration, album) { callback(LabeledLyrics(name, it)) }
-    }
 }

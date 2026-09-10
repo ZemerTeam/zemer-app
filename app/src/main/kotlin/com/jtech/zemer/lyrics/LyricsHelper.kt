@@ -14,12 +14,10 @@ import com.jtech.zemer.utils.NetworkConnectivityObserver
 import com.jtech.zemer.utils.reportException
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.launch
 import timber.log.Timber
 import javax.inject.Inject
 
@@ -40,14 +38,11 @@ constructor(
     private suspend fun enabledProviders(): List<LyricsProvider> = enabledProviders(context.dataStore.data.first())
 
     private val cache = LruCache<String, List<LyricsResult>>(MAX_CACHE_SIZE)
-    private var currentLyricsJob: Job? = null
 
     /** Lyrics body plus the provider label to persist/show ("Zemer · jkaraoke", "SimpMusic", …). */
     data class Fetched(val lyrics: String, val provider: String?)
 
     suspend fun getLyrics(mediaMetadata: MediaMetadata): Fetched {
-        currentLyricsJob?.cancel()
-
         // The resolver and SimpMusic are keyed by the YouTube videoId. setVideoId is the playlist-entry
         // token of the queue item, not a video identifier, so it must never be used as the key.
         val videoId = mediaMetadata.id
@@ -107,59 +102,6 @@ constructor(
         val lyrics = deferred.await()
         scope.cancel()
         return lyrics
-    }
-
-    suspend fun getAllLyrics(
-        mediaId: String,
-        songTitle: String,
-        songArtists: String,
-        duration: Int,
-        album: String? = null,
-        callback: (LyricsResult) -> Unit,
-    ) {
-        currentLyricsJob?.cancel()
-
-        val cacheKey = "$songArtists-$songTitle".replace(" ", "")
-        cache.get(cacheKey)?.let { results ->
-            results.forEach {
-                callback(it)
-            }
-            return
-        }
-
-        // Check network connectivity before making network requests
-        // Use synchronous check as fallback if flow doesn't emit
-        val isNetworkAvailable = try {
-            networkConnectivity.isCurrentlyConnected()
-        } catch (_: Exception) {
-            // If network check fails, try to proceed anyway
-            true
-        }
-        
-        if (!isNetworkAvailable) {
-            // Still try to proceed in case of false negative
-            return
-        }
-
-        val providers = enabledProviders()
-        val allResult = mutableListOf<LyricsResult>()
-        currentLyricsJob = CoroutineScope(SupervisorJob()).launch {
-            providers.forEach { provider ->
-                try {
-                    provider.getAllLabeledLyrics(mediaId, songTitle, songArtists, duration, album) { labeled ->
-                        val result = LyricsResult(labeled.label, lyrics = labeled.lyrics)
-                        allResult += result
-                        callback(result)
-                    }
-                } catch (e: Exception) {
-                    // Catch network-related exceptions like UnresolvedAddressException
-                    reportException(e)
-                }
-            }
-            cache.put(cacheKey, allResult)
-        }
-
-        currentLyricsJob?.join()
     }
 
     companion object {

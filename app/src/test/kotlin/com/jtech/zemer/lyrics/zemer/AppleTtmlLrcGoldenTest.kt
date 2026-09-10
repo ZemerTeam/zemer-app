@@ -31,6 +31,10 @@ class AppleTtmlLrcGoldenTest {
         val ttml = res("apple-1571752969.json")
         assertEquals(res("apple-1571752969.expected.lrc").trimEnd(), AppleTtmlLrc.fromReply(ttml.replaceFirst("{", """{"type":"Line","lrc":"[00:01.00] a\n[00:02.00] b",""")))
         assertEquals(res("apple-1571752969.expected.lrc").trimEnd(), AppleTtmlLrc.fromReply(ttml.replaceFirst("{", """{"type":"Line","lrc":null,""")))
+        // an unsynced reply never syncs, even when the mirror stamps a zero begin on every line
+        val zeroed = res("apple-unsynced-reply.json").replace("<p>", """<p begin=\"0:00.000\">""")
+        assertEquals(false, AppleTtmlLrc.fromReply(zeroed)!!.contains("["))
+        assertEquals(body, AppleTtmlLrc.fromReply(zeroed))
         // plain text under four lines, or labels only, is nothing
         assertNull(AppleTtmlLrc.plainBody("[Verse]\na\nb\nc"))
         assertNull(AppleTtmlLrc.fromReply("""{"type":"None","plain":"[Chorus]\n[Verse]"}"""))

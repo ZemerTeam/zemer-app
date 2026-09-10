@@ -22,6 +22,9 @@ object SimpMusicLyrics {
     /** Synced/word-synced bodies are used only when the source track is within this many seconds of ours. */
     const val SYNC_TOLERANCE_SEC = 1
 
+    /** A track counts as THIS recording only when its duration is known and within this many seconds of ours. */
+    const val IDENTITY_TOLERANCE_SEC = 5
+
     private val client by lazy {
         HttpClient(CIO) {
             install(ContentNegotiation) {
@@ -70,7 +73,10 @@ object SimpMusicLyrics {
         videoId: String,
         duration: Int = 0,
     ): Result<String> = runCatching {
-        val tracks = getLyricsByVideoId(videoId)
+        // The videoId key alone is not identity: the catalog is community-filled. Only a track whose known
+        // duration agrees with ours is this recording; the rest are a miss, never plain text. (A wrong-text
+        // upload that also matches the duration still passes - no client gate can tell; Report is the remedy.)
+        val tracks = getLyricsByVideoId(videoId).filter { sameRecording(it.duration, duration) }
 
         if (tracks.isEmpty()) {
             throw IllegalStateException("Lyrics unavailable")
@@ -91,54 +97,23 @@ object SimpMusicLyrics {
 
         lyrics
     }
-
-    suspend fun getAllLyrics(
-        videoId: String,
-        duration: Int = 0,
-        callback: (String) -> Unit,
-    ) {
-        val tracks = getLyricsByVideoId(videoId)
-        var count = 0
-        var plain = 0
-
-        val sortedTracks = if (duration > 0) {
-            tracks.sortedBy { durationDelta(it.duration, duration) }
-        } else {
-            tracks
-        }
-
-        sortedTracks.forEach { track ->
-            if (count <= 4) {
-                val rich = track.richSyncLyrics
-                if (!rich.isNullOrBlank() && syncAllowed(track.duration, duration)) {
-                    count++
-                    callback(rich)
-                }
-                val synced = track.syncedLyrics
-                if (!synced.isNullOrBlank() && syncAllowed(track.duration, duration)) {
-                    count++
-                    callback(synced)
-                }
-                val plainLyrics = track.plainLyrics
-                if (!plainLyrics.isNullOrBlank() && durationDelta(track.duration, duration) <= 5 && plain == 0) {
-                    count++
-                    plain++
-                    callback(plainLyrics)
-                }
-            }
-        }
-    }
 }
 
 /**
+ * Whether a SimpMusic track of [trackDuration] seconds is the recording we are playing ([duration] seconds):
+ * both durations known and within [SimpMusicLyrics.IDENTITY_TOLERANCE_SEC]. An entry with no duration is
+ * unverifiable and is a miss, not "probably right".
+ */
+internal fun sameRecording(trackDuration: Int?, duration: Int): Boolean =
+    duration > 0 && trackDuration != null && abs(trackDuration - duration) <= SimpMusicLyrics.IDENTITY_TOLERANCE_SEC
+
+/**
  * Whether a synced/word-synced body from a SimpMusic track of [trackDuration] seconds may be shown for a
- * song of [duration] seconds. The lookup is keyed by videoId, so the entry is the same recording by
- * construction; the duration check only guards against an upload made against a different cut. An
- * unknown duration on either side (null, or 0 for ours) is therefore accepted, not treated as a 0 s track
- * that fails the 1 s gate for every real song.
+ * song of [duration] seconds: the timings fit only the same cut, within [SimpMusicLyrics.SYNC_TOLERANCE_SEC];
+ * an unknown duration on either side never syncs.
  */
 internal fun syncAllowed(trackDuration: Int?, duration: Int): Boolean =
-    duration <= 0 || trackDuration == null || abs(trackDuration - duration) <= SimpMusicLyrics.SYNC_TOLERANCE_SEC
+    duration > 0 && trackDuration != null && abs(trackDuration - duration) <= SimpMusicLyrics.SYNC_TOLERANCE_SEC
 
 /** Distance in seconds between a track and ours for ranking; unknown durations sort last. */
 internal fun durationDelta(trackDuration: Int?, duration: Int): Int =

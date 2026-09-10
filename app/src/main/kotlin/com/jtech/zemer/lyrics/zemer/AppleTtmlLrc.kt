@@ -26,9 +26,15 @@ object AppleTtmlLrc {
 
     private val SECTION_LABEL = Regex("""^\[[^\]]*]$""")
 
-    /** The body for a paxsenix reply: the synced LRC (ready `lrc`, else the TTML onsets), or the plain text of an unsynced lyric; null when nothing is usable. */
+    /**
+     * The body for a paxsenix reply: for an UNSYNCED lyric (`type: "None"`) its plain text, straight away — the
+     * TTML is never consulted, so a mirror that stamps `begin="0:00.000"` on every line can never pass the
+     * monotonic check and show the song synced at zero; otherwise the synced LRC (ready `lrc`, else the TTML
+     * onsets), else the plain text. null when nothing is usable.
+     */
     fun fromReply(body: String): String? {
         val r = runCatching { json.decodeFromString(Reply.serializer(), body) }.getOrNull() ?: return null
+        if (r.type == "None") return r.plain?.let(::plainBody)
         if (r.type == "Line") MusixmatchLyrics.cleanLrc(r.lrc)?.let { return it }   // drops the `[by:…]` credit tag, keeps only monotonic timed lines
         r.ttmlContent?.let(::toLrc)?.let { return it }
         return r.plain?.let(::plainBody)

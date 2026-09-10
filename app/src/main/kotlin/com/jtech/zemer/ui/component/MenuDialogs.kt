@@ -130,14 +130,14 @@ fun AlreadyInPlaylistDialog(
 }
 
 /**
- * The shared "Remove downloads from <playlist>?" confirmation. Every playlist screen (auto, top,
- * local) showed a byte-identical [DefaultDialog] here; the only difference was the removal loop, so
- * that stays with the caller via [onConfirm] (which also flips its own show-dialog state, exactly as
- * the inlined OK buttons did). [onDismiss] backs both Cancel and the scrim.
+ * The ONE "are you sure?" confirmation, the app's established shape: the question as the body, Cancel / OK
+ * (clear history, delete playlist, remove downloads, report lyrics all render through it). The action stays
+ * with the caller via [onConfirm] (which also flips its own show-dialog state); [onDismiss] backs both
+ * Cancel and the scrim. Never hand-roll a [DefaultDialog] pair for a yes/no question again.
  */
 @Composable
-fun RemoveDownloadConfirmDialog(
-    playlistName: String,
+fun ConfirmDialog(
+    text: String,
     onConfirm: () -> Unit,
     onDismiss: () -> Unit,
 ) {
@@ -145,7 +145,7 @@ fun RemoveDownloadConfirmDialog(
         onDismiss = onDismiss,
         content = {
             Text(
-                text = stringResource(R.string.remove_download_playlist_confirm, playlistName),
+                text = text,
                 style = MaterialTheme.typography.bodyLarge,
                 modifier = Modifier.padding(horizontal = 18.dp),
             )
@@ -161,3 +161,11 @@ fun RemoveDownloadConfirmDialog(
         },
     )
 }
+
+/** The shared "Remove downloads from <playlist>?" confirmation of every playlist screen (auto, top, local); the removal loop stays with the caller. */
+@Composable
+fun RemoveDownloadConfirmDialog(
+    playlistName: String,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit,
+) = ConfirmDialog(stringResource(R.string.remove_download_playlist_confirm, playlistName), onConfirm, onDismiss)

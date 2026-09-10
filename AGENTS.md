@@ -585,9 +585,9 @@ The rules that must not regress:
 `lyrics/LyricsHelper.kt` runs the providers in order: **Zemer resolver first** (`lyrics/zemer/`; the search
 server's `/lyrics/resolve` returns source POINTERS, the app fetches Jyrics/Shironet/jkaraoke/tab4u/zemirotdb
 itself through golden-pinned parser ports of the server's parsers — `JyricsParser`, `ShironetParser`,
-`JkaraokeLrc` (plus the resolver's per-song `offsetSec` on jkaraoke lines, applied ONLY when `offsetFrom ==
-"measured"`: karaoke cues lead the voice on most songs but trail it on ~15 %, so the fleet default is never
-applied), `Tab4uParser`, `ZemirotDbParser` — the YouTube lyrics tab by the server-vouched `browseId`
+`JkaraokeLrc` (plus the resolver's `offsetSec` on every jkaraoke line, the song's own measured lead OR the fleet
+default alike: on 67 per-line-measured recordings the default cut the mean cue error 0.70 s → 0.53 s and helped four
+songs for every one it hurt, so `offsetFrom` no longer gates it), `Tab4uParser`, `ZemirotDbParser` — the YouTube lyrics tab by the server-vouched `browseId`
 (trusted at rank 2 INSIDE the resolver, a deliberate policy: the server verified the tab for that exact
 videoId), and an audio-verified LRCLIB record by id, `ZemerLyricsClient.lrclibBody`, which the server hands out
 only for rows its audio check confirmed, an Apple Music row by `catalogId` (`AppleTtmlLrc`: a synced reply's ready
@@ -615,7 +615,11 @@ bodies use) so no text is lost to sync; no line is ever given an estimated time.
 + `LyricsChainGenerationKey`: bump the constant when the chain gains sources/sync and every install drops its
 refreshable rows once (`DatabaseDao.purgeRefreshableLyrics`: not-found + auto-cached plain; synced, `manual`
 and `legacy` rows kept) - the replacement for one-off purge booleans), then
-SimpMusic (videoId-keyed; synced bodies only within 1 s), LrcLib (identity-gated: title AND artist must agree; a
+SimpMusic (videoId-keyed; a track is this recording only when its duration is KNOWN and within 5 s of ours,
+`sameRecording`, else a miss — an unverifiable entry is never "probably right"; synced bodies only within 1 s. The
+catalog is community-filled, so a WRONG-TEXT upload that matches title, artist and duration - Apiryoin
+`Xc-75pW8N0Y` carried another Yiddish song, synced - passes every client gate; only Report / the server's own
+text can close that), LrcLib (identity-gated: title AND artist must agree; a
 duration-only match once served a Japanese song), **Musixmatch on-device** (`lyrics/musixmatch/MusixmatchLyrics.kt`:
 the catalog behind Spotify's lyrics, reached with one desktop-API token per phone — the server stores none of its
 text; gates mirror `harvester/lyrics-musixmatch.mjs`: artist consonant key with the Chaim/Haim fold, title
@@ -633,7 +637,9 @@ the pane is a Room read; never regress the pane-open path to a live chain walk. 
 just the first. The chain reads ONE DataStore snapshot per walk (`LyricsHelper.enabledProviders(prefs)`: order +
 every `LyricsProvider.enabledKey`), never a blocking read per provider. Musixmatch's `cleanLrc` formats with
 `Locale.US` (a comma-decimal locale produced LRC nothing could parse). Users contribute through the lyrics menu:
-a saved edit is also POSTed to the server's submission queue and "Report wrong lyrics" POSTs a report, both via
+a saved edit is also POSTed to the server's submission queue and "Report" POSTs a report after the shared
+`ConfirmDialog` (`ui/component/MenuDialogs.kt`, the ONE Cancel/OK confirmation - the remove-download confirm rides
+it too) is accepted, both via
 `LyricsMenuViewModel.feedback` (`lyrics/zemer/LyricsFeedback` on `viewModelScope` — the sheet's own scope is
 cancelled the frame it is dismissed, which silently dropped every report; `ZemerLyricsClient.submitLyrics/reportLyrics`,
 device id from `RelayDeviceId`); the server admits a submission only when a second device agrees or the recording

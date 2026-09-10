@@ -37,8 +37,8 @@ object ZemerLyricsClient {
         val songId: Long? = null,         // jkaraoke
         val feedPage: Int? = null,
         val feedUrl: String? = null,
-        val offsetSec: Double? = null,    // jkaraoke: this recording's measured voice-vs-cue lead, applied only when offsetFrom == "measured"
-        val offsetFrom: String? = null,   // jkaraoke: "measured" (this song's own alignment) or "default" (fleet median, NOT applied)
+        val offsetSec: Double? = null,    // jkaraoke: the voice-vs-cue lead added to every line (this song's own, or the fleet median)
+        val offsetFrom: String? = null,   // jkaraoke: "measured" (this song's own alignment) or "default" (fleet median); both applied
         val browseId: String? = null,     // youtube lyrics tab
         val trackId: Long? = null,        // zingmusic (server-vetted track id) / musixmatch
         val hash: String? = null,         // kugou (audio hash; the app re-runs the krcs search with it)
