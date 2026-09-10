@@ -239,6 +239,7 @@ import com.jtech.zemer.ui.component.rememberBottomSheetState
 import com.jtech.zemer.ui.component.shimmer.ShimmerTheme
 import com.jtech.zemer.ui.menu.YouTubeSongMenu
 import com.jtech.zemer.ui.player.BottomSheetPlayer
+import com.jtech.zemer.ui.screens.LoginGateRedirect
 import com.jtech.zemer.ui.screens.LoginGateScreen
 import com.jtech.zemer.ui.screens.OnboardingFlow
 import com.jtech.zemer.ui.screens.Screens
@@ -797,10 +798,10 @@ class MainActivity : ComponentActivity() {
                         }
                         LaunchedEffect(loginGate, currentRoute) {
                             val (loggedIn, relay) = loginGate ?: return@LaunchedEffect
-                            if (!loggedIn && !relay &&
-                                currentRoute != "login_gate" && currentRoute != "login"
-                            ) {
-                                navController.navigate("login_gate") {
+                            // A null route = NavHost has not set the graph yet (navigate would throw);
+                            // the effect re-runs on the first real route. Decision: LoginGateRedirect.
+                            if (LoginGateRedirect.shouldRedirect(loggedIn, relay, currentRoute)) {
+                                navController.navigate(LoginGateRedirect.ROUTE) {
                                     popUpTo(0) { inclusive = true }
                                 }
                             }
