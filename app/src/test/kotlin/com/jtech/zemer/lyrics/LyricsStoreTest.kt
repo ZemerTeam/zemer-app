@@ -3,6 +3,7 @@ package com.jtech.zemer.lyrics
 import com.jtech.zemer.db.entities.LyricsEntity
 import com.jtech.zemer.db.entities.LyricsEntity.Companion.LYRICS_NOT_FOUND
 import com.jtech.zemer.db.entities.LyricsEntity.Companion.PROVIDER_LEGACY
+import com.jtech.zemer.lyrics.zemer.ZemerLyricsClient
 import com.jtech.zemer.models.MediaMetadata
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -20,18 +21,32 @@ class LyricsStoreTest {
     private val song = MediaMetadata(id = "v", title = "t", artists = emptyList(), duration = 100)
     private val episode = song.copy(id = "e", isEpisode = true)
 
-    private class Fake(var row: LyricsEntity?, private val answer: LyricsHelper.Fetched, private val fetchDelayMs: Long = 0) {
+    private class Fake(var row: LyricsEntity?, private val answer: LyricsHelper.Fetched, private val fetchDelayMs: Long = 0, private val resolved: ZemerLyricsClient.LineExtras? = null) {
         val persisted = mutableListOf<LyricsEntity>()
         val deleted = mutableListOf<LyricsEntity>()
         var fetches = 0
+        var resolves = 0
+        var clock = 1_000L
+        val extras = MapExtras()
         val store = LyricsStore(
             cached = { row },
             persist = { persisted += it },
             delete = { deleted += it; row = null },
             fetch = { fetches++; if (fetchDelayMs > 0) delay(fetchDelayMs); answer },
+            extras = extras,
+            resolveExtras = { resolves++; resolved },
             scope = CoroutineScope(SupervisorJob() + Dispatchers.Default),
+            now = { clock },
         )
     }
+    private class MapExtras : LineExtrasStorage {
+        val records = HashMap<String, LineExtrasRecord>()
+        val deletedIds = mutableListOf<String>()
+        override fun read(videoId: String) = records[videoId]
+        override fun write(videoId: String, wire: ZemerLyricsClient.LineExtras?, now: Long) { records[videoId] = LineExtrasRecord(now, wire) }
+        override fun delete(videoId: String) { deletedIds += videoId; records.remove(videoId) }
+    }
+    private val wire = ZemerLyricsClient.LineExtras(keys = listOf("abcd1234"), en = listOf("A home"), source = "machine")
 
     @Test
     fun `nothing cached fetches and persists the answer with its provenance`() = runBlocking {
@@ -104,5 +119,48 @@ class LyricsStoreTest {
         assertEquals(0, cached.store.prefetch(song, episode, connected = true))
         assertEquals(0, cached.fetches)
         assertEquals(0, Fake(null, LyricsHelper.Fetched("words", "SimpMusic")).store.prefetch(null, null, connected = true))
+    }
+
+    /** A chain answer re-records the song's extras every time (with or without them); not found drops them. */
+    @Test
+    fun `every chain answer records the extras it carried, not found clears them`() = runBlocking {
+        val f = Fake(null, LyricsHelper.Fetched("[00:01.00] a", "Zemer", wire))
+        f.store.ensure(song)
+        assertEquals(LineExtrasRecord(1_000, wire), f.extras.records["v"])
+        val none = Fake(null, LyricsHelper.Fetched("words", "SimpMusic"))
+        none.store.ensure(song)
+        assertEquals(LineExtrasRecord(1_000, null), none.extras.records["v"])
+        val nf = Fake(null, LyricsHelper.Fetched(LYRICS_NOT_FOUND, null))
+        nf.extras.records["v"] = LineExtrasRecord(1, wire)
+        nf.store.ensure(song)
+        assertEquals(listOf("v"), nf.extras.deletedIds)
+    }
+
+    /** A refetch drops the old extras with the old row (a re-verification changes the keys), then records the fresh ones. */
+    @Test
+    fun `refetch forgets the extras with the row and records the fresh answer's`() = runBlocking {
+        val f = Fake(LyricsEntity("v", "old", "Zemer"), LyricsHelper.Fetched("fresh", "Zemer", wire))
+        f.extras.records["v"] = LineExtrasRecord(1, ZemerLyricsClient.LineExtras(keys = listOf("stale000"), en = listOf("old")))
+        f.store.refetch(song)
+        assertEquals(listOf("v"), f.extras.deletedIds)
+        assertEquals(LineExtrasRecord(1_000, wire), f.extras.records["v"])
+    }
+
+    /** Extras for a pre-existing row: one resolver call, recorded either way; a "none" record is re-asked only after the TTL. */
+    @Test
+    fun `ensureExtras resolves once, re-asks a none record after the TTL, never for episodes`() = runBlocking {
+        val f = Fake(LyricsEntity("v", "words", "SimpMusic"), LyricsHelper.Fetched("words", "SimpMusic"), resolved = null)
+        assertTrue(f.store.ensureExtras(song))
+        assertFalse(f.store.ensureExtras(song))
+        assertEquals(1, f.resolves)
+        f.clock += LineExtrasStore.EMPTY_TTL_MS + 1
+        assertTrue(f.store.ensureExtras(song))
+        assertEquals(2, f.resolves)
+        assertFalse(f.store.ensureExtras(episode))
+        val with = Fake(null, LyricsHelper.Fetched("words", "Zemer"), resolved = wire)
+        assertTrue(with.store.ensureExtras(song))
+        with.clock += LineExtrasStore.EMPTY_TTL_MS * 10
+        assertFalse(with.store.ensureExtras(song))
+        assertEquals(0, with.fetches)
     }
 }

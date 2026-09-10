@@ -27,7 +27,14 @@ import com.jtech.zemer.LocalDatabase
 import com.jtech.zemer.R
 import com.jtech.zemer.db.entities.LyricsEntity
 import com.jtech.zemer.models.MediaMetadata
+import com.jtech.zemer.constants.LyricsLineExtrasKey
+import com.jtech.zemer.lyrics.LineExtrasLanguage
 import com.jtech.zemer.ui.component.ConfirmDialog
+import com.jtech.zemer.ui.component.ListPickerDialog
+import com.jtech.zemer.ui.component.Material3MenuGroup
+import com.jtech.zemer.ui.component.Material3MenuItemData
+import com.jtech.zemer.ui.component.lyrics.lineExtrasLanguageText
+import com.jtech.zemer.utils.rememberEnumPreference
 import com.jtech.zemer.ui.component.NewAction
 import com.jtech.zemer.ui.component.NewActionGrid
 import com.jtech.zemer.ui.component.TextFieldDialog
@@ -91,6 +98,18 @@ fun LyricsMenu(
         )
     }
 
+    val (lineExtrasLanguage, onLineExtrasLanguageChange) = rememberEnumPreference(LyricsLineExtrasKey, defaultValue = LineExtrasLanguage.OFF)
+    var showLineExtrasDialog by rememberSaveable { mutableStateOf(false) }
+    if (showLineExtrasDialog) {
+        ListPickerDialog(
+            selectedValue = lineExtrasLanguage,
+            values = LineExtrasLanguage.entries,
+            valueText = { lineExtrasLanguageText(it) },
+            onValueSelected = onLineExtrasLanguageChange,
+            onDismiss = { showLineExtrasDialog = false },
+        )
+    }
+
     LazyColumn(
         contentPadding = PaddingValues(
             start = 0.dp,
@@ -148,6 +167,21 @@ fun LyricsMenu(
                 ),
                 columns = 3, // three actions on one balanced row (Edit · Refetch · Report)
                 modifier = Modifier.padding(horizontal = 4.dp, vertical = 16.dp)
+            )
+        }
+        item {
+            // The per-line translation / transliteration pick, also in Appearance settings; here so the
+            // language can be flipped without leaving the pane. The picker is the settings rows' own dialog.
+            Material3MenuGroup(
+                items = listOf(
+                    Material3MenuItemData(
+                        icon = { Icon(painterResource(R.drawable.language), contentDescription = null) },
+                        title = { Text(stringResource(R.string.lyrics_line_extras)) },
+                        description = { Text(lineExtrasLanguageText(lineExtrasLanguage)) },
+                        onClick = { showLineExtrasDialog = true },
+                    ),
+                ),
+                modifier = Modifier.padding(horizontal = 16.dp),
             )
         }
     }
