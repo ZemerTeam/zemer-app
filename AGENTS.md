@@ -590,8 +590,10 @@ itself through golden-pinned parser ports of the server's parsers — `JyricsPar
 applied), `Tab4uParser`, `ZemirotDbParser` — the YouTube lyrics tab by the server-vouched `browseId`
 (trusted at rank 2 INSIDE the resolver, a deliberate policy: the server verified the tab for that exact
 videoId), and an audio-verified LRCLIB record by id, `ZemerLyricsClient.lrclibBody`, which the server hands out
-only for rows its audio check confirmed, an Apple Music row by `catalogId` (`AppleTtmlLrc`: the paxsenix mirror's
-TTML `<p begin>` lines → LRC, Apple's own line times, golden-pinned), and a Musixmatch row by id
+only for rows its audio check confirmed, an Apple Music row by `catalogId` (`AppleTtmlLrc`: a synced reply's ready
+`lrc`, else its TTML `<p begin>` onsets → LRC, Apple's own line times; an UNSYNCED reply (`type: "None"`, no
+`begin`s) serves its `plain` text with the `[Verse]` labels dropped — never nothing for a vouched row; golden-pinned
+both ways), and a Musixmatch row by id
 (`MusixmatchLyrics.getLyricsById`, `track.lyrics.get` + `track.subtitle.get` under the phone's own brokered token,
 text gates only — the server already matched the recording). Walk order (`ZemerLyricsProvider.order`): SYNCED
 sources first (`synced`, an inline `syncedLrc`/`richSync`, or the one pointer `lineTimes` covers), then rank

@@ -33,9 +33,12 @@ providers by `MediaMetadata.id` (never `setVideoId`, which is a playlist-entry t
   or thin records yield nothing; `ZemerLyricsProviderTest`), `zemer` (Zemer's own certified text: `richSync`
   enhanced LRC with `<mm:ss.xx>` word tags > `syncedLrc` > `plain`; every word tag is certified by two aligners,
   a line without tags is deliberately line-only), booklet/manual/canonical/community text inline, an `apple` row
-  by `catalogId` → `AppleTtmlLrc` (the paxsenix mirror `/apple-music/lyrics?id=` returns Apple's TTML; each
-  `<p begin="m:ss.mmm">` line becomes `[mm:ss.xx] text`, inner word `<span>`s dropped, Apple's own line times,
-  >= 4 monotonic lines; golden `apple-1571752969.json` → `.expected.lrc`), and a `musixmatch` row by id →
+  by `catalogId` → `AppleTtmlLrc` (the paxsenix mirror `/apple-music/lyrics?id=`: a synced reply, `type: "Line"`,
+  serves its ready `lrc` when `MusixmatchLyrics.cleanLrc` accepts it — the `[by:…]` credit dropped, monotonic timed
+  lines only — else its TTML, each `<p begin="m:ss.mmm">` line becoming `[mm:ss.xx] text`, inner word `<span>`s
+  dropped, Apple's own line times, >= 4 monotonic lines; an UNSYNCED reply, `type: "None"`, has `<p>`s without
+  `begin` and serves its `plain` text with the bracketed section labels dropped, >= 4 lines; golden
+  `apple-1571752969.json` → `.expected.lrc` and `apple-unsynced-reply.json`), and a `musixmatch` row by id →
   `MusixmatchLyrics.getLyricsById` (`track.lyrics.get?commontrack_id=` plus `track.subtitle.get?track_id=` when
   `synced`, under the phone's own brokered token with the same stale-token retry; only the text gates run —
   instrumental/restricted rejected, licence footer stripped, LRC monotonic — since the server matched the recording).

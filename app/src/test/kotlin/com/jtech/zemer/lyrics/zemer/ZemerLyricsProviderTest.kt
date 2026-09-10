@@ -129,8 +129,9 @@ class ZemerLyricsProviderTest {
         assertEquals(listOf("apple", "shironet"), bodies.map { it.first })
         assertEquals(res("apple-1571752969.expected.lrc").trimEnd(), bodies[0].second)
         assertEquals(AppleTtmlLrc.url("1571752969"), asked[0])
-        // a reply without TTML, a thin one, or a blank id yields nothing (never Apple's lineTimes on another source)
-        assertTrue(ZemerLyricsProvider.bodies(resolved.copy(sources = resolved.sources.take(1)), fetch = { """{"lrc":"x"}""" }).isEmpty())
+        // an unsynced reply serves its plain text; a reply with nothing usable, a thin one, or a blank id yields nothing
+        assertEquals("לפעמים", ZemerLyricsProvider.bodies(resolved.copy(sources = resolved.sources.take(1)), fetch = { res("apple-unsynced-reply.json") })[0].second.lines().first())
+        assertTrue(ZemerLyricsProvider.bodies(resolved.copy(sources = resolved.sources.take(1)), fetch = { """{"type":"Line","lrc":"x"}""" }).isEmpty())
         assertTrue(ZemerLyricsProvider.bodies(resolved.copy(sources = resolved.sources.take(1)), fetch = { """{"ttmlContent":"<p begin=\"1.0\">a</p><p begin=\"2.0\">b</p>"}""" }).isEmpty())
         assertTrue(ZemerLyricsProvider.bodies(resolved.copy(sources = listOf(resolved.sources[0].copy(catalogId = ""))), fetch = { res("apple-1571752969.json") }).isEmpty())
     }
