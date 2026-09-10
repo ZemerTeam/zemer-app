@@ -15,7 +15,12 @@ serves **what the Zemer audience actually plays**, and touches InnerTube for **z
    ranked by real distinct-device listening (albums/videos/artists) and YouTube view count (community
    playlists), 30-day live window, whitelist-pure + content-filtered server-side.
 2. **Quick Picks / Keep Listening / Forgotten Favorites** come from local Room. A brand-new user's empty
-   Quick Picks seeds from the Zemer `auto-top-50` curated playlist, not YouTube.
+   Quick Picks seeds from the Zemer `auto-top-50` curated playlist, not YouTube. Presentation across loads
+   is the pure `QuickPicksPresentation`: a pull-to-refresh keeps the displayed rows until the final list
+   lands (no intermediate reshuffle), surviving items keep their position with newcomers appended, and a
+   pool under 8 allowed songs is shown whole instead of rotated (the rotation flipped a tiny library's row
+   between two subsets on every pull). The rows read the live Room row via `rememberLiveSong`, which
+   falls back to the snapshot when the whitelist sync deleted the row mid-display.
 3. **Latest Releases** comes from the flipphoneguy feed; **Zemer Playlists** from `/zemer-playlists`.
 4. **Zemer Radio** (under Zemer Playlists) comes from `GET /stations` — the synchronized broadcast
    stations, with a live now-playing line per card (lifecycle-scoped 60s on-screen ticker) and a

@@ -1,5 +1,6 @@
 package com.jtech.zemer.utils.ogg
 
+import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.RandomAccessFile
 import java.util.Base64
@@ -39,32 +40,36 @@ object OggOpusTagger {
     fun write(input: File, output: File, tags: Tags): Boolean {
         if (tags.isEmpty) return false
         return try {
-            val bytes = input.readBytes()
-            val pages = parsePages(bytes) ?: return false
-            if (pages.size < 2) return false
+            // STREAMED, page by page: the whole file is never on the heap. The earlier whole-file read plus a
+            // per-page copy peaked at ~2x the track size, and three concurrent Opus downloads of long tracks
+            // on a low-RAM device was an OutOfMemoryError site. Only the head page, the OpusTags packet and
+            // ONE audio page at a time are resident.
+            val ok = RandomAccessFile(input, "r").use { raf ->
+                val reader = PageReader(raf)
+                val headPage = reader.next() ?: return@use false
+                val serial = headPage.serial
 
-            // Packet boundaries: a packet ends on a segment whose lacing value < 255.
-            // The first page holds OpusHead (packet 0); OpusTags (packet 1) starts at page 1.
-            val headPage = pages[0]
-            val serial = headPage.serial
-            val tagsPacket = extractPacket(pages, startPage = 1) ?: return false
+                // Packet boundaries: a packet ends on a segment whose lacing value < 255. The first page
+                // holds OpusHead (packet 0); OpusTags (packet 1) starts on page 1 and may span pages.
+                val tagsPacket = extractPacket(reader) ?: return@use false
+                val newComment = buildOpusTags(tagsPacket, tags) ?: return@use false
 
-            val newComment = buildOpusTags(tagsPacket.original, tags) ?: return false
-
-            // Pages after the tags packet are audio - keep their payloads, only renumber+recrc.
-            val trailing = pages.drop(tagsPacket.endPageExclusive)
-
-            output.outputStream().buffered().use { out ->
-                out.write(headPage.raw) // OpusHead page unchanged (seq 0)
-                var seq = 1
-                for (page in repaginate(serial, seq, newComment, granule = 0, continued = false, bos = false, eos = false)) {
-                    out.write(page); seq++
+                output.outputStream().buffered().use { out ->
+                    out.write(headPage.raw) // OpusHead page unchanged (seq 0)
+                    var seq = 1
+                    for (page in repaginate(serial, seq, newComment, granule = 0, continued = false, bos = false, eos = false)) {
+                        out.write(page); seq++
+                    }
+                    // Pages after the tags packet are audio - keep their payloads, only renumber+recrc.
+                    while (true) {
+                        val page = reader.next() ?: break
+                        out.write(rewritePageHeader(page.raw, seq)); seq++
+                    }
                 }
-                for (page in trailing) {
-                    out.write(rewritePageHeader(page.raw, seq)); seq++
-                }
+                reader.atEnd // trailing garbage or a truncated page = not a clean Ogg stream: refuse
             }
-            true
+            if (!ok) output.delete()
+            ok
         } catch (e: Exception) {
             output.delete()
             false
@@ -76,55 +81,58 @@ object OggOpusTagger {
     private class Page(
         val raw: ByteArray,
         val serial: Int,
-        val seq: Int,
-        val headerType: Int,
         val segTable: IntArray,
         val bodyOffset: Int,
-        val bodyLength: Int,
     )
 
-    private fun parsePages(b: ByteArray): List<Page>? {
-        val pages = mutableListOf<Page>()
-        var pos = 0
-        while (pos + 27 <= b.size) {
-            if (u32be(b, pos) != CAPTURE) return null
-            val headerType = b[pos + 5].toInt() and 0xFF
-            val serial = u32le(b, pos + 14)
-            val seq = u32le(b, pos + 18)
-            val segCount = b[pos + 26].toInt() and 0xFF
-            if (pos + 27 + segCount > b.size) return null
-            val segTable = IntArray(segCount) { b[pos + 27 + it].toInt() and 0xFF }
+    /**
+     * Sequential page reader over the file. [next] returns null at a clean end of stream OR on a malformed /
+     * truncated page - [atEnd] tells the two apart (true only when every byte was consumed as a valid page).
+     */
+    private class PageReader(private val raf: RandomAccessFile) {
+        private val length = raf.length()
+        private var pos = 0L
+        var atEnd = false
+            private set
+
+        fun next(): Page? {
+            if (pos == length) { atEnd = true; return null }
+            if (pos + 27 > length) return null
+            val header = ByteArray(27)
+            raf.seek(pos)
+            raf.readFully(header)
+            if (u32be(header, 0) != CAPTURE) return null
+            val serial = u32le(header, 14)
+            val segCount = header[26].toInt() and 0xFF
+            if (pos + 27 + segCount > length) return null
+            val segBytes = ByteArray(segCount)
+            raf.readFully(segBytes)
+            val segTable = IntArray(segCount) { segBytes[it].toInt() and 0xFF }
             val bodyLen = segTable.sum()
-            val bodyOffset = pos + 27 + segCount
-            if (bodyOffset + bodyLen > b.size) return null
             val total = 27 + segCount + bodyLen
-            pages.add(Page(b.copyOfRange(pos, pos + total), serial, seq, headerType, segTable, bodyOffset - pos, bodyLen))
+            if (pos + total > length) return null
+            val raw = ByteArray(total)
+            System.arraycopy(header, 0, raw, 0, 27)
+            System.arraycopy(segBytes, 0, raw, 27, segCount)
+            raf.readFully(raw, 27 + segCount, bodyLen)
             pos += total
+            return Page(raw, serial, segTable, 27 + segCount)
         }
-        return pages.takeIf { pos == b.size }
     }
 
-    private class ExtractedPacket(val original: ByteArray, val endPageExclusive: Int)
-
-    /** Concatenate the packet body that begins at [startPage], up to its terminating lace. */
-    private fun extractPacket(pages: List<Page>, startPage: Int): ExtractedPacket? {
-        val buf = ArrayList<Byte>()
-        var pageIdx = startPage
-        while (pageIdx < pages.size) {
-            val page = pages[pageIdx]
-            var consumed = 0
+    /** Concatenate the packet body that begins on the reader's next page, up to its terminating lace. */
+    private fun extractPacket(reader: PageReader): ByteArray? {
+        val buf = ByteArrayOutputStream()
+        while (true) {
+            val page = reader.next() ?: return null
             var bodyPos = page.bodyOffset
-            var ended = false
             for (lace in page.segTable) {
-                repeat(lace) { buf.add(page.raw[bodyPos + it]) }
+                buf.write(page.raw, bodyPos, lace)
                 bodyPos += lace
-                consumed += lace
-                if (lace < 255) { ended = true; break }
+                if (lace < 255) return buf.toByteArray()
             }
-            if (ended) return ExtractedPacket(buf.toByteArray(), pageIdx + 1)
-            pageIdx++ // packet continues onto the next page
+            // packet continues onto the next page
         }
-        return null
     }
 
     // --- OpusTags comment packet ---
@@ -168,24 +176,24 @@ object OggOpusTagger {
         }
 
         val all = kept + added
-        val out = ArrayList<Byte>()
-        out.addAll("OpusTags".toByteArray(Charsets.ISO_8859_1).toList())
-        out.addAll(u32leBytes(vendor.size).toList()); out.addAll(vendor.toList())
-        out.addAll(u32leBytes(all.size).toList())
-        for (c in all) { out.addAll(u32leBytes(c.size).toList()); out.addAll(c.toList()) }
+        val out = ByteArrayOutputStream()
+        out.write("OpusTags".toByteArray(Charsets.ISO_8859_1))
+        out.write(u32leBytes(vendor.size)); out.write(vendor)
+        out.write(u32leBytes(all.size))
+        for (c in all) { out.write(u32leBytes(c.size)); out.write(c) }
         return out.toByteArray()
     }
 
     /** Minimal FLAC METADATA_BLOCK_PICTURE (type 3 = front cover, no dims - players tolerate 0). */
     private fun flacPictureBlock(image: ByteArray, mime: String): ByteArray {
-        val out = ArrayList<Byte>()
-        fun u32(v: Int) { out.add((v ushr 24).toByte()); out.add((v ushr 16).toByte()); out.add((v ushr 8).toByte()); out.add(v.toByte()) }
+        val out = ByteArrayOutputStream()
+        fun u32(v: Int) { out.write(v ushr 24); out.write(v ushr 16); out.write(v ushr 8); out.write(v) }
         u32(3) // picture type: front cover
         val mimeBytes = mime.toByteArray(Charsets.US_ASCII)
-        u32(mimeBytes.size); out.addAll(mimeBytes.toList())
+        u32(mimeBytes.size); out.write(mimeBytes)
         u32(0) // description length
         u32(0); u32(0); u32(0); u32(0) // width, height, depth, colors (unknown)
-        u32(image.size); out.addAll(image.toList())
+        u32(image.size); out.write(image)
         return out.toByteArray()
     }
 
@@ -248,13 +256,12 @@ object OggOpusTagger {
         return page
     }
 
-    /** Renumber an existing (audio) page's seq and recompute its CRC in place. */
+    /** Renumber an existing (audio) page's seq and recompute its CRC, in place (the buffer is the reader's, used once). */
     private fun rewritePageHeader(page: ByteArray, seq: Int): ByteArray {
-        val copy = page.copyOf()
-        putU32le(copy, 18, seq)
-        putU32le(copy, 22, 0)
-        putU32le(copy, 22, oggCrc(copy))
-        return copy
+        putU32le(page, 18, seq)
+        putU32le(page, 22, 0)
+        putU32le(page, 22, oggCrc(page))
+        return page
     }
 
     // --- Ogg CRC-32 (poly 0x04C11DB7, init 0, no reflection, no final xor) ---

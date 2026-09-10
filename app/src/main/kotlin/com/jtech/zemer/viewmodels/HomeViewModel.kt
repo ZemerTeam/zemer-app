@@ -540,8 +540,14 @@ class HomeViewModel @Inject constructor(
                     .take(20)
             }
 
-            // Show local data immediately while network loads
-            if (quick.isNotEmpty() || forgotten.isNotEmpty() || keepListening.isNotEmpty()) {
+            // Show local data immediately while network loads - on a cold start. A refresh over rows already
+            // on screen keeps them until the final list lands, else the row reshuffles twice per pull
+            // (QuickPicksPresentation.showLocalRowsFirst).
+            val hasDisplayedRows = uiState.value.let {
+                it.quickPicks.isNotEmpty() || it.forgottenFavorites.isNotEmpty() || it.keepListening.isNotEmpty()
+            }
+            val showLocalFirst = QuickPicksPresentation.showLocalRowsFirst(force, hasDisplayedRows)
+            if (showLocalFirst && (quick.isNotEmpty() || forgotten.isNotEmpty() || keepListening.isNotEmpty())) {
                 val shownQuick = quick.shuffled(Random(System.nanoTime()))
                 uiState.update {
                     it.copy(
@@ -690,9 +696,15 @@ class HomeViewModel @Inject constructor(
             val fallbackQuick = runCatching {
                 database.allSongs().first().filter { it.isAllowed() }.take(30)
             }.getOrDefault(emptyList())
-            val freshQuick = filteredQuick.filter { song -> song.artistIds().none { it in recentArtistIds } }
-            val quickPool = freshQuick.ifEmpty { filteredQuick }
-            val recentAwareQuick = rotateByArtist(quickPool.ifEmpty { fallbackQuick }, 1, 20)
+            // A pool too small to rotate (a new or light listener) is shown whole: the recent-artist
+            // avoidance + one-per-artist pass otherwise flips such a row between two subsets on every load.
+            val recentAwareQuick = if (QuickPicksPresentation.rotates(filteredQuick.size)) {
+                val freshQuick = filteredQuick.filter { song -> song.artistIds().none { it in recentArtistIds } }
+                val quickPool = freshQuick.ifEmpty { filteredQuick }
+                rotateByArtist(quickPool.ifEmpty { fallbackQuick }, 1, 20)
+            } else {
+                filteredQuick.ifEmpty { fallbackQuick.take(20) }
+            }
             Timber.d("HomeViewModel: quickPicks flow - quick=${quick.size}, filtered=${filteredQuick.size}, rotated=${recentAwareQuick.size}")
 
             // CRITICAL: Never show fewer items than already displayed to user
@@ -711,7 +723,12 @@ class HomeViewModel @Inject constructor(
             Timber.d("HomeViewModel: finalQuick=${finalQuick.size} (original=${quick.size}, rotated=${recentAwareQuick.size})")
             // The Quick Picks row is shown in a per-load shuffle; its "See all" must lead with that SAME
             // order (the See-all contract), so shuffle ONCE here and use it for both the row and the snapshot.
-            val displayedQuick = finalQuick.shuffled(Random(System.nanoTime()))
+            // Items already on screen keep their position (a refresh must not reorder what the user is
+            // looking at); newcomers append in the shuffled order.
+            val displayedQuick = QuickPicksPresentation.keepDisplayedOrder(
+                uiState.value.quickPicks.map { it.id },
+                finalQuick.shuffled(Random(System.nanoTime())),
+            ) { it.id }
             // Featured rows come ONLY from the Zemer /home-rows endpoint — the ranked-row content gate
             // (female/israeli/blocked-ids, not the famous/american proxy) then the one-per-artist rotation.
             // No InnerTube: an empty pool (only possible if search.zemer.io is unreachable) just hides the

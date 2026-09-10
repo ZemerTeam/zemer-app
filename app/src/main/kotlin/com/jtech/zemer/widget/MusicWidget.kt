@@ -23,6 +23,7 @@ import androidx.glance.action.actionStartActivity
 import androidx.glance.action.clickable
 import androidx.glance.appwidget.GlanceAppWidget
 import androidx.glance.appwidget.GlanceAppWidgetManager
+import timber.log.Timber
 import androidx.glance.appwidget.GlanceAppWidgetReceiver
 import androidx.glance.appwidget.LinearProgressIndicator
 import androidx.glance.appwidget.SizeMode
@@ -301,8 +302,17 @@ class MusicWidget : GlanceAppWidget() {
         const val ACTION_PREV = "com.jtech.zemer.ACTION_PREV"
 
         /** True iff at least one instance of this widget is currently placed on a home screen. */
-        suspend fun hasPlacedWidget(context: Context): Boolean =
+        suspend fun hasPlacedWidget(context: Context): Boolean = try {
             GlanceAppWidgetManager(context).getGlanceIds(MusicWidget::class.java).isNotEmpty()
+        } catch (e: Exception) {
+            // Glance builds on AppWidgetManager.getInstance(context), which is null on ROMs without an
+            // AppWidgetService (Go / TV / stripped OEM builds) and NPEs inside getGlanceIds; the call
+            // runs from the playback service on every play transition, so an escape here killed
+            // background playback (Crashlytics: GlanceAppWidgetManager.addAllReceiversAndProviders...).
+            // No widget host means no widget to tick.
+            Timber.w(e, "Widget placement check failed; assuming no widget is placed")
+            false
+        }
 
         private fun artFile(context: Context): File = File(context.filesDir, ART_FILE_NAME)
 
