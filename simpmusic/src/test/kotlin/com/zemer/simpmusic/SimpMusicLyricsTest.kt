@@ -3,6 +3,7 @@ package com.zemer.simpmusic
 import com.metrolist.simpmusic.SimpMusicLyrics
 import com.metrolist.simpmusic.durationDelta
 import com.metrolist.simpmusic.firstNonBlankLyrics
+import com.metrolist.simpmusic.sameRecording
 import com.metrolist.simpmusic.syncAllowed
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -60,10 +61,21 @@ class SimpMusicLyricsTest {
      * duration failed the 1 s gate and silently lost its synced body (served plain, or nothing).
      */
     @Test
-    fun `unknown source duration is accepted, not treated as zero`() {
-        assertTrue(syncAllowed(null, 213))
-        assertTrue(syncAllowed(213, 0))
-        assertTrue(syncAllowed(null, 0))
+    fun `an unknown duration on either side never syncs and is not this recording`() {
+        assertFalse(syncAllowed(null, 213))
+        assertFalse(syncAllowed(213, 0))
+        assertFalse(syncAllowed(null, 0))
+        assertFalse(sameRecording(null, 213))
+        assertFalse(sameRecording(213, 0))
+    }
+
+    @Test
+    fun `identity is a known duration within five seconds`() {
+        assertTrue(sameRecording(213, 213))
+        assertTrue(sameRecording(218, 213))
+        assertTrue(sameRecording(208, 213))
+        assertFalse(sameRecording(219, 213))
+        assertFalse(sameRecording(207, 213))
     }
 
     @Test

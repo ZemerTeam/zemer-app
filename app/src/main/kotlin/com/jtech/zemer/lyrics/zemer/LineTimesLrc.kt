@@ -18,8 +18,8 @@ import java.text.Normalizer
  * sync; and a body where too few lines matched on either side stays plain.
  */
 object LineTimesLrc {
-    /** The share of TIMED lines that must find a parsed line, and of PARSED lines that must find a time. */
-    const val MIN_MATCHED_SHARE = 0.8
+    /** The share of the PARSED body's lines that must find a time (the server's own rule; below it the server sends `syncTruncated` instead). */
+    const val MIN_MATCHED_SHARE = 0.85
 
     private val HEBREW_POINTS = Regex("[\u0591-\u05C7]")
 
@@ -45,8 +45,9 @@ object LineTimesLrc {
 
     /**
      * The LRC for [plain] under [lineTimes], or null when the timings do not cover it well enough (fewer than
-     * [MIN_MATCHED_SHARE] of the timed lines matched, or fewer than that share of the body's own lines did).
-     * Unmatched lines carry the preceding matched line's tag; lines before the first match carry its tag.
+     * [MIN_MATCHED_SHARE] of the body's own lines found a time; a timed line absent from the body costs nothing,
+     * the text may legitimately have drifted shorter since it was measured). Unmatched lines carry the preceding
+     * matched line's tag; lines before the first match carry its tag.
      */
     fun apply(plain: String, lineTimes: ZemerLyricsClient.LineTimes): String? {
         val keys = lineTimes.keys
@@ -67,7 +68,7 @@ object LineTimesLrc {
             matched++
             next = j + 1
         }
-        if (matched < MIN_MATCHED_SHARE * timed || matched < MIN_MATCHED_SHARE * lines.size) return null
+        if (matched < MIN_MATCHED_SHARE * lines.size) return null
         val first = assigned.first { it != null }!!
         var current = first
         return lines.indices.joinToString("\n") { i ->

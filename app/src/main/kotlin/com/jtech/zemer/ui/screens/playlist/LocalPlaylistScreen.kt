@@ -44,21 +44,20 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SwipeToDismissBox
 import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarScrollBehavior
 import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.runtime.toMutableStateList
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -111,7 +110,6 @@ import com.jtech.zemer.playback.queues.ListQueue
 import com.jtech.zemer.ui.component.ActionPromptDialog
 import com.jtech.zemer.ui.component.AggregateDownloadButton
 import com.jtech.zemer.ui.component.AutoResizeText
-import com.jtech.zemer.ui.component.DefaultDialog
 import com.jtech.zemer.ui.component.RemoveDownloadConfirmDialog
 import com.jtech.zemer.ui.component.DraggableScrollbar
 import com.jtech.zemer.ui.component.EmptyPlaceholder
@@ -139,7 +137,6 @@ import com.jtech.zemer.utils.remotePlaylistRemovalArgs
 import com.jtech.zemer.utils.reportException
 import com.jtech.zemer.viewmodels.LocalPlaylistViewModel
 import com.metrolist.innertube.YouTube
-import com.metrolist.innertube.utils.completed
 import com.yalantis.ucrop.UCrop
 import io.ktor.client.plugins.ClientRequestException
 import kotlinx.coroutines.Dispatchers
@@ -148,6 +145,7 @@ import kotlinx.coroutines.withContext
 import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyListState
 import java.time.LocalDateTime
+import com.jtech.zemer.ui.component.ConfirmDialog
 
 @SuppressLint("RememberReturnType")
 @OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
@@ -308,44 +306,22 @@ fun LocalPlaylistScreen(
         mutableStateOf(false)
     }
     if (showDeletePlaylistDialog) {
-        DefaultDialog(
+        ConfirmDialog(
+            text = stringResource(R.string.delete_playlist_confirm, playlist?.playlist!!.name),
             onDismiss = { showDeletePlaylistDialog = false },
-            content = {
-                Text(
-                    text = stringResource(
-                        R.string.delete_playlist_confirm,
-                        playlist?.playlist!!.name
-                    ),
-                    style = MaterialTheme.typography.bodyLarge,
-                    modifier = Modifier.padding(horizontal = 18.dp)
-                )
+            onConfirm = {
+                showDeletePlaylistDialog = false
+                database.query {
+                    playlist?.let { delete(it.playlist) }
+                }
+                // Anonymous (pooled) sessions are local-only — only a personal account writes to remote.
+                if (isPersonalAccountSignedIn) {
+                    viewModel.viewModelScope.launch(Dispatchers.IO) {
+                        playlist?.playlist?.browseId?.let { YouTube.deletePlaylist(it) }
+                    }
+                }
+                navController.popBackStack()
             },
-            buttons = {
-                TextButton(
-                    onClick = {
-                        showDeletePlaylistDialog = false
-                    }
-                ) {
-                    Text(text = stringResource(android.R.string.cancel))
-                }
-                TextButton(
-                    onClick = {
-                        showDeletePlaylistDialog = false
-                        database.query {
-                            playlist?.let { delete(it.playlist) }
-                        }
-                        // Anonymous (pooled) sessions are local-only — only a personal account writes to remote.
-                        if (isPersonalAccountSignedIn) {
-                            viewModel.viewModelScope.launch(Dispatchers.IO) {
-                                playlist?.playlist?.browseId?.let { YouTube.deletePlaylist(it) }
-                            }
-                        }
-                        navController.popBackStack()
-                    }
-                ) {
-                    Text(text = stringResource(android.R.string.ok))
-                }
-            }
         )
     }
 

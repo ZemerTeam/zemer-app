@@ -106,7 +106,6 @@
     <string name="delete">Delete</string>
     <string name="remove_from_history">Remove from history</string>
     <string name="remove_from_playlist">Remove from playlist</string>
-    <string name="search_online">Search online</string>
     <string name="advanced">Advanced</string>
     <string name="tempo_and_pitch">Tempo and Pitch</string>
 
@@ -132,7 +131,6 @@
     <string name="unknown">Unknown</string>
     <string name="copied">Copied to clipboard</string>
 
-    <string name="search_lyrics">Search lyrics</string>
 
     <string name="edit_song">Edit song</string>
     <string name="song_title">Song title</string>
@@ -316,6 +314,7 @@
     <string name="enable_musixmatch">Musixmatch</string>
     <string name="enable_youtube_lyrics">YouTube</string>
     <string name="lyrics_report_wrong">Report</string>
+    <string name="lyrics_report_confirm">Are you sure you want to report these lyrics as wrong?</string>
     <string name="lyrics_reported">Thanks, reported. Lyrics are hidden once a second listener agrees.</string>
     <string name="lyrics_submitted">Lyrics saved and sent to Zemer for review</string>
     <string name="lyrics_provider_selection">Provider selection</string>

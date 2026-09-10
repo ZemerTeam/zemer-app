@@ -11,8 +11,9 @@ import java.util.Locale
  *
  * Karaoke sources time a line EARLY so the singer can read it: over 17,340 human-timed jkaraoke lines the voice
  * starts a median 0.31 s after the karaoke time, though ~15 % of songs cue AFTER the voice. The resolver carries
- * this recording's own measured median (`offsetSec`, applied by the provider only when `offsetFrom == "measured"`),
- * and every emitted line time is `start + offset`.
+ * this recording's own measured median or the fleet default (`offsetSec`, `offsetFrom` = "measured" / "default";
+ * the provider applies both, measured on 67 recordings to help four songs for every one it hurts), and every
+ * emitted line time is `start + offset`.
  * The sanity rules run on the raw feed starts (the offset is a rendering correction, not feed data).
  */
 object JkaraokeLrc {

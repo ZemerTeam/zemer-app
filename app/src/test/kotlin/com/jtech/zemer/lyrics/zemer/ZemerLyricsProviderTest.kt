@@ -113,9 +113,70 @@ class ZemerLyricsProviderTest {
             ZemerLyricsClient.Source(type = "musixmatch", trackId = 1, commontrackId = 2, synced = true),
             ZemerLyricsClient.Source(type = "future-type", plain = "z\nz\nz\nz"),
         ))
-        val bodies = ZemerLyricsProvider.bodies(resolved, fetch = { null })
-        assertEquals(listOf("Telegram", "verified", "forum", "manual", "community"), bodies.map { it.first })
-        assertEquals("Zemer · Telegram", ZemerLyricsProvider.label(bodies[0].first, verified = true))
+        val bodies = ZemerLyricsProvider.bodies(resolved, fetch = { null }, musixmatch = { _, _, _ -> null })
+        // community and manual share rank 4, so the server's order breaks the tie; the synced-flagged musixmatch pointer that yields nothing is skipped
+        assertEquals(listOf("community", "Telegram", "verified", "forum", "manual"), bodies.map { it.first })
+        assertEquals("Zemer · Telegram", ZemerLyricsProvider.label(bodies[1].first, verified = true))
+        assertEquals("Apple Music", ZemerLyricsProvider.originName("apple"))
+        assertEquals("YouTube", ZemerLyricsProvider.originName("youtube"))
+    }
+
+    @Test
+    fun `apple row fetches the paxsenix TTML by catalogId and converts it to line-synced LRC`() = runBlocking {
+        val resolved = ZemerLyricsClient.json.decodeFromString(ZemerLyricsClient.Resolved.serializer(), res("resolve-apple-linetimes.json"))
+        val asked = ArrayList<String>()
+        val bodies = ZemerLyricsProvider.bodies(resolved, fetch = { url -> asked += url; if (url == AppleTtmlLrc.url("1571752969")) res("apple-1571752969.json") else res("shironet-0.html") })
+        assertEquals(listOf("apple", "shironet"), bodies.map { it.first })
+        assertEquals(res("apple-1571752969.expected.lrc").trimEnd(), bodies[0].second)
+        assertEquals(AppleTtmlLrc.url("1571752969"), asked[0])
+        // an unsynced reply serves its plain text; a reply with nothing usable, a thin one, or a blank id yields nothing
+        assertEquals("לפעמים", ZemerLyricsProvider.bodies(resolved.copy(sources = resolved.sources.take(1)), fetch = { res("apple-unsynced-reply.json") })[0].second.lines().first())
+        assertTrue(ZemerLyricsProvider.bodies(resolved.copy(sources = resolved.sources.take(1)), fetch = { """{"type":"Line","lrc":"x"}""" }).isEmpty())
+        assertTrue(ZemerLyricsProvider.bodies(resolved.copy(sources = resolved.sources.take(1)), fetch = { """{"ttmlContent":"<p begin=\"1.0\">a</p><p begin=\"2.0\">b</p>"}""" }).isEmpty())
+        assertTrue(ZemerLyricsProvider.bodies(resolved.copy(sources = listOf(resolved.sources[0].copy(catalogId = ""))), fetch = { res("apple-1571752969.json") }).isEmpty())
+    }
+
+    @Test
+    fun `musixmatch row is fetched by id through the on-device client and gated on a real body`() = runBlocking {
+        val src = ZemerLyricsClient.Source(type = "musixmatch", commontrackId = 35322039, trackId = 383031460, synced = true)
+        val resolved = ZemerLyricsClient.Resolved(videoId = "mx", hasSynced = true, sources = listOf(src))
+        val asked = ArrayList<Triple<Long, Long, Boolean>>()
+        val lrc = "[00:01.00] a\n[00:02.00] b\n[00:03.00] c\n[00:04.00] d"
+        val bodies = ZemerLyricsProvider.bodies(resolved, fetch = { null }, musixmatch = { c, t, s -> asked += Triple(c, t, s); lrc })
+        assertEquals(listOf(Triple(35322039L, 383031460L, true)), asked)
+        assertEquals(listOf("musixmatch" to lrc), bodies)
+        assertTrue(ZemerLyricsProvider.bodies(resolved, fetch = { null }, musixmatch = { _, _, _ -> "too\nshort" }).isEmpty())
+        assertTrue(ZemerLyricsProvider.bodies(resolved, fetch = { null }, musixmatch = { _, _, _ -> null }).isEmpty())
+        // a missing id never calls the client
+        assertTrue(ZemerLyricsProvider.bodies(resolved.copy(sources = listOf(src.copy(trackId = null))), fetch = { null }, musixmatch = { _, _, _ -> error("must not be called") }).isEmpty())
+    }
+
+    @Test
+    fun `sources walk synced first then by rank, the server order breaking ties, and a throwing source is skipped`() = runBlocking {
+        val tab = "first line\nsecond line\nthird line\nfourth line"
+        val times = ZemerLyricsClient.LineTimes("youtube", 4, listOf(1.0, 2.0, 3.0, 4.0), tab.lines().map(LineTimesLrc::lineKey))
+        val resolved = ZemerLyricsClient.Resolved(videoId = "o", lineTimes = times, sources = listOf(
+            ZemerLyricsClient.Source(type = "shironet", url = "https://shironet.mako.co.il/x"),               // plain pointer, rank 3
+            ZemerLyricsClient.Source(type = "manual", origin = "telegram", syncedLrc = "[00:01.00] t\n[00:02.00] t\n[00:03.00] t\n[00:04.00] t"), // synced inline, rank 4
+            ZemerLyricsClient.Source(type = "youtube", browseId = "MPLYt_x"),                                  // synced via lineTimes, rank 2
+            ZemerLyricsClient.Source(type = "apple", catalogId = "1571752969", synced = true),                  // synced, rank 1
+            ZemerLyricsClient.Source(type = "booklet", plain = "b\nb\nb\nb"),                                   // plain inline, rank 4
+            ZemerLyricsClient.Source(type = "jyrics", url = "https://www.jyrics.com/lyrics/avraham/"),          // plain pointer, rank 3
+        ))
+        assertEquals(listOf("apple", "youtube", "manual", "shironet", "jyrics", "booklet"), ZemerLyricsProvider.order(resolved).map { it.type })
+        val fetch: suspend (String) -> String? = { url -> when {
+            url.contains("paxsenix") -> res("apple-1571752969.json")
+            url.contains("shironet") -> throw IllegalStateException("network down")
+            else -> res("jyrics-0.html")
+        } }
+        val bodies = ZemerLyricsProvider.bodies(resolved, fetch, youtube = { tab })
+        assertEquals(listOf("apple", "youtube", "Telegram", "jyrics", "booklet"), bodies.map { it.first })
+        assertTrue(bodies[1].second.startsWith("[00:01.00] first line"))
+        // firstOnly under the same order returns the synced apple body
+        assertEquals(listOf("apple"), ZemerLyricsProvider.bodies(resolved, fetch, firstOnly = true, youtube = { tab }).map { it.first })
+        // a cancelled walk stops at the cancelled source, never falling through to the next
+        val cancelled = runCatching { ZemerLyricsProvider.bodies(resolved, fetch = { throw kotlinx.coroutines.CancellationException("gone") }, youtube = { tab }) }
+        assertTrue(cancelled.exceptionOrNull() is kotlinx.coroutines.CancellationException)
     }
 
     @Test
@@ -150,16 +211,18 @@ class ZemerLyricsProviderTest {
     }
 
     @Test
-    fun `jkaraoke offsetSec is applied only when measured for this song, never the fleet default`() = runBlocking {
+    fun `jkaraoke offsetSec is applied whether measured for this song or the fleet default`() = runBlocking {
         val src = ZemerLyricsClient.Source(type = "jkaraoke", songId = 1971, feedPage = 28, feedUrl = "https://jkaraoke.com/api/songs?page=28", synced = true)
         val fetch: suspend (String) -> String? = { res("jkaraoke-page28.json") }
         val raw = JkaraokeLrc.fromFeedPage(res("jkaraoke-page28.json"), 1971)!!.synced
         val body = { s: ZemerLyricsClient.Source -> runBlocking { ZemerLyricsProvider.bodies(ZemerLyricsClient.Resolved(videoId = "k", sources = listOf(s)), fetch)[0].second } }
         assertEquals(raw, body(src))
-        assertEquals(raw, body(src.copy(offsetSec = 0.37, offsetFrom = "default")))
-        assertEquals(raw, body(src.copy(offsetSec = 0.37, offsetFrom = null)))
+        val shifted = JkaraokeLrc.fromFeedPage(res("jkaraoke-page28.json"), 1971, 0.37)!!.synced
+        assertEquals(shifted, body(src.copy(offsetSec = 0.37, offsetFrom = "default")))
+        assertEquals(shifted, body(src.copy(offsetSec = 0.37, offsetFrom = null)))
         assertEquals(JkaraokeLrc.fromFeedPage(res("jkaraoke-page28.json"), 1971, 0.31)!!.synced, body(src.copy(offsetSec = 0.31, offsetFrom = "measured")))
-        assertEquals(0.0, ZemerLyricsProvider.jkaraokeOffset(src.copy(offsetSec = 0.37, offsetFrom = "default")), 0.0)
+        assertEquals(0.37, ZemerLyricsProvider.jkaraokeOffset(src.copy(offsetSec = 0.37, offsetFrom = "default")), 0.0)
         assertEquals(-0.2, ZemerLyricsProvider.jkaraokeOffset(src.copy(offsetSec = -0.2, offsetFrom = "measured")), 0.0)
+        assertEquals(0.0, ZemerLyricsProvider.jkaraokeOffset(src), 0.0)
     }
 }

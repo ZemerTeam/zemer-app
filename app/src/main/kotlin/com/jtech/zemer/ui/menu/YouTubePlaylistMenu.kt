@@ -20,15 +20,14 @@ import androidx.compose.material3.ListItem
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -58,7 +57,6 @@ import com.jtech.zemer.playback.queues.YouTubeQueue
 import com.jtech.zemer.playback.queues.ZemerRadioQueue
 import com.jtech.zemer.tracking.PlaySource
 import com.jtech.zemer.ui.component.AlreadyInPlaylistDialog
-import com.jtech.zemer.ui.component.DefaultDialog
 import com.jtech.zemer.ui.component.Material3MenuGroup
 import com.jtech.zemer.ui.component.Material3MenuItemData
 import com.jtech.zemer.ui.component.NewAction
@@ -78,6 +76,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import com.jtech.zemer.tracking.Tracker
 import com.jtech.zemer.tracking.TrackingActionKind
+import com.jtech.zemer.ui.component.RemoveDownloadConfirmDialog
 
 @OptIn(ExperimentalMaterial3Api::class)
 @SuppressLint("MutableCollectionMutableState")
@@ -205,40 +204,20 @@ fun YouTubePlaylistMenu(
         mutableStateOf(false)
     }
     if (showRemoveDownloadDialog) {
-        DefaultDialog(
+        RemoveDownloadConfirmDialog(
+            playlistName = playlist.title,
             onDismiss = { showRemoveDownloadDialog = false },
-            content = {
-                Text(
-                    text = stringResource(
-                        R.string.remove_download_playlist_confirm,
-                        playlist.title
-                    ),
-                    style = MaterialTheme.typography.bodyLarge,
-                    modifier = Modifier.padding(horizontal = 18.dp)
-                )
-            },
-            buttons = {
-                TextButton(
-                    onClick = { showRemoveDownloadDialog = false }
-                ) {
-                    Text(text = stringResource(android.R.string.cancel))
-                }
-                TextButton(
-                    onClick = {
-                        showRemoveDownloadDialog = false
-                        // Remove what the Download row actually downloaded — resolvedSongs, NOT the
-                        // `songs` prop (empty when opened from the Home long-press menu, which would
-                        // otherwise make Remove a silent no-op).
-                        resolvedSongs.forEach { song ->
-                            coroutineScope.launch {
-                                downloadUtil.removeDownload(song.id)
-                            }
-                        }
+            onConfirm = {
+                showRemoveDownloadDialog = false
+                // Remove what the Download row actually downloaded — resolvedSongs, NOT the
+                // `songs` prop (empty when opened from the Home long-press menu, which would
+                // otherwise make Remove a silent no-op).
+                resolvedSongs.forEach { song ->
+                    coroutineScope.launch {
+                        downloadUtil.removeDownload(song.id)
                     }
-                ) {
-                    Text(text = stringResource(android.R.string.ok))
                 }
-            }
+            },
         )
     }
 

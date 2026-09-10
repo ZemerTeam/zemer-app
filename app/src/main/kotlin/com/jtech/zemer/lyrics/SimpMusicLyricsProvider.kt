@@ -15,15 +15,4 @@ object SimpMusicLyricsProvider : LyricsProvider {
         duration: Int,
         album: String?,
     ): Result<String> = SimpMusicLyrics.getLyrics(id, duration)
-
-    override suspend fun getAllLyrics(
-        id: String,
-        title: String,
-        artist: String,
-        duration: Int,
-        album: String?,
-        callback: (String) -> Unit,
-    ) {
-        SimpMusicLyrics.getAllLyrics(id, duration, callback)
-    }
 }

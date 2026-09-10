@@ -1,26 +1,15 @@
 package com.jtech.zemer.viewmodels
 
 import android.content.Context
-import androidx.compose.runtime.State
-import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.jtech.zemer.db.entities.Song
-import com.jtech.zemer.lyrics.LyricsHelper
 import com.jtech.zemer.lyrics.LyricsStore
-import com.jtech.zemer.lyrics.LyricsResult
 import com.jtech.zemer.lyrics.zemer.LyricsFeedback
-import com.jtech.zemer.playback.relay.RelayDeviceId
-import dagger.hilt.android.qualifiers.ApplicationContext
 import com.jtech.zemer.models.MediaMetadata
-import com.jtech.zemer.utils.NetworkConnectivityObserver
+import com.jtech.zemer.playback.relay.RelayDeviceId
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -29,61 +18,10 @@ class LyricsMenuViewModel
 @Inject
 constructor(
     @ApplicationContext context: Context,
-    private val lyricsHelper: LyricsHelper,
     private val lyricsStore: LyricsStore,
-    private val networkConnectivity: NetworkConnectivityObserver,
 ) : ViewModel() {
-    private var job: Job? = null
-
     /** Report / submit ride viewModelScope, which outlives the dismissed menu sheet (see [LyricsFeedback]). */
     val feedback = LyricsFeedback(viewModelScope, deviceId = { RelayDeviceId.get(context) })
-    val results = MutableStateFlow(emptyList<LyricsResult>())
-    val isLoading = MutableStateFlow(false)
-
-    private val _isNetworkAvailable = MutableStateFlow(false)
-    val isNetworkAvailable: StateFlow<Boolean> = _isNetworkAvailable.asStateFlow()
-
-    private val _currentSong = mutableStateOf<Song?>(null)
-    val currentSong: State<Song?> = _currentSong
-
-    init {
-        viewModelScope.launch {
-            networkConnectivity.networkStatus.collect { isConnected ->
-                _isNetworkAvailable.value = isConnected
-            }
-        }
-
-        _isNetworkAvailable.value = try {
-            networkConnectivity.isCurrentlyConnected()
-        } catch (e: Exception) {
-            true // Assume connected as fallback
-        }
-    }
-
-    fun search(
-        mediaId: String,
-        title: String,
-        artist: String,
-        duration: Int,
-    ) {
-        isLoading.value = true
-        results.value = emptyList()
-        job?.cancel()
-        job =
-            viewModelScope.launch(Dispatchers.IO) {
-                lyricsHelper.getAllLyrics(mediaId, title, artist, duration) { result ->
-                    results.update {
-                        it + result
-                    }
-                }
-                isLoading.value = false
-            }
-    }
-
-    fun cancelSearch() {
-        job?.cancel()
-        job = null
-    }
 
     /** Refetch drops the cached row and stores a fresh chain answer; the pane reloads meanwhile (see LyricsStore.refetch). */
     fun refetchLyrics(mediaMetadata: MediaMetadata) {
