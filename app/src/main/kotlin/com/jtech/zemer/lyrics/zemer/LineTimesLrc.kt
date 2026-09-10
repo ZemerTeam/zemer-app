@@ -32,9 +32,12 @@ object LineTimesLrc {
             if (isLetterOrNumber(cp)) kept.appendCodePoint(cp)
             i += Character.charCount(cp)
         }
-        val digest = MessageDigest.getInstance("SHA-1").digest(kept.toString().toByteArray(Charsets.UTF_8))
-        return digest.joinToString("") { "%02x".format(it) }.substring(0, 8)
+        return sha1Hex(kept.toString()).substring(0, 8)
     }
+
+    /** Lower-case hex SHA-1 of [text] (UTF-8); the key above and `LineExtras.linesHash` share it. */
+    fun sha1Hex(text: String): String =
+        MessageDigest.getInstance("SHA-1").digest(text.toByteArray(Charsets.UTF_8)).joinToString("") { "%02x".format(it) }
 
     /** JS `\p{L}` = the five letter categories; `\p{N}` = decimal, letter and other numbers (Java's isDigit is Nd only). */
     private fun isLetterOrNumber(cp: Int): Boolean = when (Character.getType(cp).toByte()) {

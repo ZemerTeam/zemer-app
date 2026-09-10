@@ -587,6 +587,11 @@ fun Lyrics(
                         }
                     ) {
                         val isActiveLine = index == displayedCurrentLineIndex && isSynced
+                        val lineTextAlign = when (lyricsTextPosition) {
+                            LyricsPosition.LEFT -> TextAlign.Left
+                            LyricsPosition.CENTER -> TextAlign.Center
+                            LyricsPosition.RIGHT -> TextAlign.Right
+                        }
                         val lineText = if (isActiveLine && wordSyncLyrics && item.words.isNotEmpty()) {
                             val sung = sungWordCount(item.words, currentPositionMs)
                             val unsungColor = textColor.copy(alpha = 0.35f)
@@ -609,23 +614,11 @@ fun Lyrics(
                             } else {
                                 textColor.copy(alpha = 0.8f) // Slightly muted for inactive lines
                             },
-                            textAlign = when (lyricsTextPosition) {
-                                LyricsPosition.LEFT -> TextAlign.Left
-                                LyricsPosition.CENTER -> TextAlign.Center
-                                LyricsPosition.RIGHT -> TextAlign.Right
-                            },
-                            fontWeight = if (index == displayedCurrentLineIndex && isSynced) FontWeight.ExtraBold else FontWeight.Bold
+                            textAlign = lineTextAlign,
+                            fontWeight = if (isActiveLine) FontWeight.ExtraBold else FontWeight.Bold
                         )
                         lineExtraTexts.getOrNull(index)?.let { extra ->
-                            LyricsLineExtra(
-                                text = extra,
-                                color = textColor,
-                                textAlign = when (lyricsTextPosition) {
-                                    LyricsPosition.LEFT -> TextAlign.Left
-                                    LyricsPosition.CENTER -> TextAlign.Center
-                                    LyricsPosition.RIGHT -> TextAlign.Right
-                                },
-                            )
+                            LyricsLineExtra(text = extra, color = textColor, textAlign = lineTextAlign)
                         }
                     }
                 }

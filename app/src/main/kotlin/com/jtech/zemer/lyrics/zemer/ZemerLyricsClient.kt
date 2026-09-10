@@ -92,6 +92,9 @@ object ZemerLyricsClient {
     data class ExtrasReply(val extras: LineExtras?, val failed: Boolean)
 
     @Serializable
+    private data class ExtrasRequest(val videoId: String, val lang: String, val lines: List<String>)
+
+    @Serializable
     data class Resolved(
         val videoId: String,
         val lang: String? = null,
@@ -136,12 +139,7 @@ object ZemerLyricsClient {
      * machine-translated on first request and cached server-side. 404 = no extras for this song.
      */
     suspend fun extrasForLines(videoId: String, lines: List<String>, lang: String): ExtrasReply = runCatching {
-        val body = buildString {
-            append("{\"videoId\":").append(Json.encodeToString(kotlinx.serialization.serializer<String>(), videoId))
-            append(",\"lang\":").append(Json.encodeToString(kotlinx.serialization.serializer<String>(), lang))
-            append(",\"lines\":").append(Json.encodeToString(kotlinx.serialization.serializer<List<String>>(), lines))
-            append("}")
-        }
+        val body = json.encodeToString(ExtrasRequest.serializer(), ExtrasRequest(videoId, lang, lines))
         val r = client.post("$baseUrl/lyrics/extras") { header(HttpHeaders.ContentType, "application/json"); header(HttpHeaders.Accept, "application/json"); setBody(body) }
         when (r.status) {
             HttpStatusCode.OK -> ExtrasReply(json.decodeFromString(LineExtras.serializer(), r.bodyAsText()), failed = false)
