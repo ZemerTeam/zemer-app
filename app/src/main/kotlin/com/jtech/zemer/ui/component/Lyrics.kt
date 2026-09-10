@@ -195,7 +195,12 @@ fun Lyrics(
     // Per-line extras (translation / transliteration) paired by text key, once per body + language; the
     // language and the extras both come from the pane's owner so the list never hashes lines per frame.
     val lineExtrasLanguage by rememberEnumPreference(LyricsLineExtrasKey, LineExtrasLanguage.OFF)
-    val lineExtras by hiltViewModel<LyricsLineExtrasViewModel>().extras.collectAsState()
+    val lineExtrasViewModel: LyricsLineExtrasViewModel = hiltViewModel()
+    val lineExtras by lineExtrasViewModel.extras.collectAsState()
+    val displayedLines = remember(lines) { lines.filter { it !== LyricsEntry.HEAD_LYRICS_ENTRY }.map { it.text } }
+    LaunchedEffect(mediaMetadata?.id, lineExtrasLanguage, displayedLines) {
+        mediaMetadata?.let { lineExtrasViewModel.bind(it, lineExtrasLanguage, displayedLines) }
+    }
     val lineExtraTexts = remember(lines, lineExtras, lineExtrasLanguage) {
         val extras = lineExtras
         if (extras == null || lineExtrasLanguage == LineExtrasLanguage.OFF) List(lines.size) { null } else extras.forLines(lines.map { it.text }, lineExtrasLanguage)

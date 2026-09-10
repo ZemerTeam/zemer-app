@@ -34,12 +34,22 @@ class LineExtrasStoreTest {
     }
 
     @Test
-    fun `the flow emits the paired extras and follows writes`() = runBlocking {
+    fun `the flow prefers the aligned reply for the displayed body and falls back to the resolve-time extras`() = runBlocking {
         val store = LineExtrasStore(tmp.newFolder())
-        assertNull(store.flow("dQw4w9WgXcQ").first())
-        store.write("dQw4w9WgXcQ", wire)
-        assertEquals("A home", store.flow("dQw4w9WgXcQ").first()!!.textFor("abcd1234-ignored", LineExtrasLanguage.ENGLISH) ?: "A home")
-        assertTrue(store.flow("dQw4w9WgXcQ").first()!!.isMachine)
+        val lines = listOf("בית הו בית")
+        val resolveWire = ZemerLyricsClient.LineExtras(keys = listOf(com.jtech.zemer.lyrics.zemer.LineTimesLrc.lineKey(lines[0])), en = listOf("from resolve"), source = "machine")
+        assertNull(store.flow("dQw4w9WgXcQ", LineExtrasLanguage.ENGLISH, lines).first())
+        store.write("dQw4w9WgXcQ", resolveWire)
+        assertEquals(listOf("from resolve"), store.flow("dQw4w9WgXcQ", LineExtrasLanguage.ENGLISH, lines).first()!!.forLines(lines, LineExtrasLanguage.ENGLISH))
+        store.writeAligned("dQw4w9WgXcQ", "en", LineExtras.linesHash(lines), ZemerLyricsClient.LineExtras(keys = listOf("x"), en = listOf("aligned"), source = "machine"))
+        assertEquals(listOf("aligned"), store.flow("dQw4w9WgXcQ", LineExtrasLanguage.ENGLISH, lines).first()!!.forLines(lines, LineExtrasLanguage.ENGLISH))
+        // a different displayed body ignores that aligned entry
+        assertEquals(listOf(null), store.flow("dQw4w9WgXcQ", LineExtrasLanguage.ENGLISH, listOf("other")).first()?.forLines(listOf("other"), LineExtrasLanguage.ENGLISH) ?: listOf(null))
+        // a chain answer replaces the resolve-time extras but keeps the aligned reply
+        store.write("dQw4w9WgXcQ", null)
+        assertEquals("aligned", store.read("dQw4w9WgXcQ")!!.aligned["en"]!!.extras!!.en!![0])
+        assertTrue(store.read("dQw4w9WgXcQ")!!.alignedCurrent("en", LineExtras.linesHash(lines), 0))
+        assertFalse(store.read("dQw4w9WgXcQ")!!.alignedCurrent("he", LineExtras.linesHash(lines), 0))
     }
 
     @Test

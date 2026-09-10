@@ -95,7 +95,15 @@ providers by `MediaMetadata.id` (never `setVideoId`, which is a playlist-entry t
   re-verification changes the keys). A row cached before the feature (or answered by another provider) gets ONE
   resolver call on demand (`LyricsStore.ensureExtras`, from `LyricsLineExtrasViewModel.bind`, only once a
   language is picked and the song has a body); a "none" record is re-asked after 7 days, a record with extras
-  only on refetch. Contract: `handoff-docs/zemer-app-line-extras.md`.
+  only on refetch. **Aligned extras (the evening update):** the resolve-time field pairs only where the displayed
+  text is the server's own, so the pane also asks `POST /lyrics/extras` with the lines EXACTLY as displayed plus
+  the wanted `lang` (`en` / `he` / `yi`; transliteration rides the `en` request and reads `roman`) and gets arrays
+  parallel to those lines (`ZemerLyricsClient.extrasForLines`, `LyricsStore.ensureExtras`), once per song +
+  language + displayed body (`LineExtras.linesHash`); a 404 is a dated negative, a network failure records nothing.
+  Stored beside the resolve-time extras in the same per-song file (`LineExtrasRecord.aligned`, kept across chain
+  answers, dropped on refetch); the store's `flow(videoId, language, lines)` serves the aligned reply for the current
+  body when there is one, else the resolve-time extras. Languages: OFF / ENGLISH / HEBREW / YIDDISH / ROMANIZED.
+  Contract: `handoff-docs/zemer-app-line-extras.md`.
 * **SimpMusic**: keyed by videoId. A track counts as this recording only when its duration is known and within
   `IDENTITY_TOLERANCE_SEC` (5 s) of ours (`sameRecording`); anything else is a miss, never plain text — an
   unverifiable entry is never "probably right". Known hole, NOT closable client-side: the catalog is community-filled,

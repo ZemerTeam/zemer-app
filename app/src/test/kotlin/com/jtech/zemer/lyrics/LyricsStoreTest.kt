@@ -21,7 +21,8 @@ class LyricsStoreTest {
     private val song = MediaMetadata(id = "v", title = "t", artists = emptyList(), duration = 100)
     private val episode = song.copy(id = "e", isEpisode = true)
 
-    private class Fake(var row: LyricsEntity?, private val answer: LyricsHelper.Fetched, private val fetchDelayMs: Long = 0, private val resolved: ZemerLyricsClient.LineExtras? = null) {
+    private class Fake(var row: LyricsEntity?, private val answer: LyricsHelper.Fetched, private val fetchDelayMs: Long = 0, private val resolved: ZemerLyricsClient.LineExtras? = null, var reply: ZemerLyricsClient.ExtrasReply = ZemerLyricsClient.ExtrasReply(null, failed = false)) {
+        val asked = mutableListOf<Triple<String, List<String>, String>>()
         val persisted = mutableListOf<LyricsEntity>()
         val deleted = mutableListOf<LyricsEntity>()
         var fetches = 0
@@ -35,6 +36,7 @@ class LyricsStoreTest {
             fetch = { fetches++; if (fetchDelayMs > 0) delay(fetchDelayMs); answer },
             extras = extras,
             resolveExtras = { resolves++; resolved },
+            alignedExtras = { id, lines, lang -> asked += Triple(id, lines, lang); reply },
             scope = CoroutineScope(SupervisorJob() + Dispatchers.Default),
             now = { clock },
         )
@@ -44,6 +46,10 @@ class LyricsStoreTest {
         val deletedIds = mutableListOf<String>()
         override fun read(videoId: String) = records[videoId]
         override fun write(videoId: String, wire: ZemerLyricsClient.LineExtras?, now: Long) { records[videoId] = LineExtrasRecord(now, wire) }
+        override fun writeAligned(videoId: String, lang: String, linesHash: String, wire: ZemerLyricsClient.LineExtras?, now: Long) {
+            val cur = records[videoId] ?: LineExtrasRecord(now)
+            records[videoId] = cur.copy(aligned = cur.aligned + (lang to AlignedExtras(linesHash, now, wire)))
+        }
         override fun delete(videoId: String) { deletedIds += videoId; records.remove(videoId) }
     }
     private val wire = ZemerLyricsClient.LineExtras(keys = listOf("abcd1234"), en = listOf("A home"), source = "machine")
@@ -148,19 +154,52 @@ class LyricsStoreTest {
 
     /** Extras for a pre-existing row: one resolver call, recorded either way; a "none" record is re-asked only after the TTL. */
     @Test
-    fun `ensureExtras resolves once, re-asks a none record after the TTL, never for episodes`() = runBlocking {
+    fun `ensureResolveExtras resolves once, re-asks a none record after the TTL, never for episodes`() = runBlocking {
         val f = Fake(LyricsEntity("v", "words", "SimpMusic"), LyricsHelper.Fetched("words", "SimpMusic"), resolved = null)
-        assertTrue(f.store.ensureExtras(song))
-        assertFalse(f.store.ensureExtras(song))
+        assertTrue(f.store.ensureResolveExtras(song))
+        assertFalse(f.store.ensureResolveExtras(song))
         assertEquals(1, f.resolves)
         f.clock += LineExtrasStore.EMPTY_TTL_MS + 1
-        assertTrue(f.store.ensureExtras(song))
+        assertTrue(f.store.ensureResolveExtras(song))
         assertEquals(2, f.resolves)
-        assertFalse(f.store.ensureExtras(episode))
+        assertFalse(f.store.ensureResolveExtras(episode))
         val with = Fake(null, LyricsHelper.Fetched("words", "Zemer"), resolved = wire)
-        assertTrue(with.store.ensureExtras(song))
+        assertTrue(with.store.ensureResolveExtras(song))
         with.clock += LineExtrasStore.EMPTY_TTL_MS * 10
-        assertFalse(with.store.ensureExtras(song))
+        assertFalse(with.store.ensureResolveExtras(song))
         assertEquals(0, with.fetches)
+    }
+
+    /** The aligned ask: once per song + language + displayed body; OFF never asks; transliteration rides the English request. */
+    @Test
+    fun `ensureExtras asks once per language and body, sends the displayed lines, OFF and episodes never ask`() = runBlocking {
+        val lines = listOf("בית הו בית", "שלום עליכם")
+        val f = Fake(null, LyricsHelper.Fetched("words", "SimpMusic"), reply = ZemerLyricsClient.ExtrasReply(wire, failed = false))
+        assertFalse(f.store.ensureExtras(song, LineExtrasLanguage.OFF, lines))
+        assertTrue(f.store.ensureExtras(song, LineExtrasLanguage.ENGLISH, lines))
+        assertEquals(Triple("v", lines, "en"), f.asked.single())
+        assertFalse(f.store.ensureExtras(song, LineExtrasLanguage.ENGLISH, lines))
+        assertFalse(f.store.ensureExtras(song, LineExtrasLanguage.ROMANIZED, lines)) // same en request already recorded
+        assertTrue(f.store.ensureExtras(song, LineExtrasLanguage.YIDDISH, lines))
+        assertEquals("yi", f.asked.last().third)
+        assertTrue(f.store.ensureExtras(song, LineExtrasLanguage.ENGLISH, lines + "a new line")) // a different body re-asks
+        assertFalse(f.store.ensureExtras(episode, LineExtrasLanguage.ENGLISH, lines))
+        assertFalse(f.store.ensureExtras(song, LineExtrasLanguage.ENGLISH, emptyList()))
+        assertEquals(wire, f.extras.records["v"]!!.aligned["en"]!!.extras)
+    }
+
+    /** A 404 is a dated negative re-asked after the TTL; a network failure records nothing and retries next time. */
+    @Test
+    fun `ensureExtras records a 404 as a negative with a TTL and never records a failed ask`() = runBlocking {
+        val lines = listOf("a", "b")
+        val f = Fake(null, LyricsHelper.Fetched("words", "SimpMusic"), reply = ZemerLyricsClient.ExtrasReply(null, failed = true))
+        assertFalse(f.store.ensureExtras(song, LineExtrasLanguage.ENGLISH, lines))
+        assertTrue(f.extras.records.isEmpty())
+        f.reply = ZemerLyricsClient.ExtrasReply(null, failed = false)
+        assertTrue(f.store.ensureExtras(song, LineExtrasLanguage.ENGLISH, lines))
+        assertFalse(f.store.ensureExtras(song, LineExtrasLanguage.ENGLISH, lines))
+        f.clock += LineExtrasStore.EMPTY_TTL_MS + 1
+        assertTrue(f.store.ensureExtras(song, LineExtrasLanguage.ENGLISH, lines))
+        assertEquals(3, f.asked.size)
     }
 }
