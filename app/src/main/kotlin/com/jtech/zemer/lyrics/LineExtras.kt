@@ -67,9 +67,6 @@ data class LineExtras(
         fun aligned(lines: List<String>, wire: ZemerLyricsClient.LineExtras?): LineExtras? = from(wire, keys = lines.map(LineTimesLrc::lineKey))
 
         /** Identifies the displayed body an aligned reply was made for; a different split/text re-asks. */
-        fun linesHash(lines: List<String>): String {
-            val digest = java.security.MessageDigest.getInstance("SHA-1").digest(lines.joinToString("\u0001").toByteArray(Charsets.UTF_8))
-            return digest.joinToString("") { "%02x".format(it) }
-        }
+        fun linesHash(lines: List<String>): String = LineTimesLrc.sha1Hex(lines.joinToString("\u0001"))
     }
 }
