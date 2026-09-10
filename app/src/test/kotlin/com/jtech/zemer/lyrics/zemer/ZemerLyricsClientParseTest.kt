@@ -28,6 +28,17 @@ class ZemerLyricsClientParseTest {
     }
 
     @Test
+    fun `lineExtras parses additively and is null when the server omits it`() {
+        val with = ZemerLyricsClient.json.decodeFromString(ZemerLyricsClient.Resolved.serializer(),
+            """{"videoId":"v","verified":true,"sources":[],"lineExtras":{"keys":["3f1a9c0e","b02d1111"],"en":["A home oh a home",""],"roman":["bayit ho bayit","x"],"source":"machine","future":1}}""")
+        assertEquals(listOf("3f1a9c0e", "b02d1111"), with.lineExtras!!.keys)
+        assertEquals(listOf("A home oh a home", ""), with.lineExtras!!.en)
+        assertNull(with.lineExtras!!.he)
+        assertEquals("machine", with.lineExtras!!.source)
+        assertNull(ZemerLyricsClient.json.decodeFromString(ZemerLyricsClient.Resolved.serializer(), body).lineExtras)
+    }
+
+    @Test
     fun `lineTimes, manual origin, zemer richSync and explicit nulls parse from live responses`() {
         val zing = ZemerLyricsClient.json.decodeFromString(ZemerLyricsClient.Resolved.serializer(), res("resolve-zingmusic-linetimes.json"))
         assertEquals("zingmusic", zing.lineTimes!!.type)

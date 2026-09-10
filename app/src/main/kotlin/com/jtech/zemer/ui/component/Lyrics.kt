@@ -99,6 +99,11 @@ import com.jtech.zemer.constants.LyricsScrollKey
 import com.jtech.zemer.constants.LyricsTextPositionKey
 import com.jtech.zemer.constants.LyricsWordSyncKey
 import com.jtech.zemer.constants.LyricsSyncOffsetKey
+import com.jtech.zemer.constants.LyricsLineExtrasKey
+import com.jtech.zemer.lyrics.LineExtrasLanguage
+import com.jtech.zemer.ui.component.lyrics.LyricsLineExtra
+import com.jtech.zemer.viewmodels.LyricsLineExtrasViewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.jtech.zemer.constants.PlayerBackgroundStyle
 import com.jtech.zemer.constants.PlayerBackgroundStyleKey
 import com.jtech.zemer.db.entities.LyricsEntity.Companion.LYRICS_NOT_FOUND
@@ -186,6 +191,15 @@ fun Lyrics(
         remember(lyrics) {
             !lyrics.isNullOrEmpty() && LyricsUtils.isSynced(lyrics)
         }
+
+    // Per-line extras (translation / transliteration) paired by text key, once per body + language; the
+    // language and the extras both come from the pane's owner so the list never hashes lines per frame.
+    val lineExtrasLanguage by rememberEnumPreference(LyricsLineExtrasKey, LineExtrasLanguage.OFF)
+    val lineExtras by hiltViewModel<LyricsLineExtrasViewModel>().extras.collectAsState()
+    val lineExtraTexts = remember(lines, lineExtras, lineExtrasLanguage) {
+        val extras = lineExtras
+        if (extras == null || lineExtrasLanguage == LineExtrasLanguage.OFF) List(lines.size) { null } else extras.forLines(lines.map { it.text }, lineExtrasLanguage)
+    }
 
     val textColor = when (playerBackground) {
         PlayerBackgroundStyle.DEFAULT -> MaterialTheme.colorScheme.secondary
@@ -597,6 +611,17 @@ fun Lyrics(
                             },
                             fontWeight = if (index == displayedCurrentLineIndex && isSynced) FontWeight.ExtraBold else FontWeight.Bold
                         )
+                        lineExtraTexts.getOrNull(index)?.let { extra ->
+                            LyricsLineExtra(
+                                text = extra,
+                                color = textColor,
+                                textAlign = when (lyricsTextPosition) {
+                                    LyricsPosition.LEFT -> TextAlign.Left
+                                    LyricsPosition.CENTER -> TextAlign.Center
+                                    LyricsPosition.RIGHT -> TextAlign.Right
+                                },
+                            )
+                        }
                     }
                 }
             }

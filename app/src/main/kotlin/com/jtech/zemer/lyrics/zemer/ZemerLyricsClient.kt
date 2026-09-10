@@ -72,6 +72,21 @@ object ZemerLyricsClient {
         val offsetFrom: String? = null,
     )
 
+    /**
+     * Translations / romanization UNDER each sung line (additive, verified rows only; older servers never send
+     * it). [keys] are the same text-free [LineTimesLrc.lineKey]s as `lineTimes`, one per non-empty stored line;
+     * [en] / [he] / [roman] are parallel to them ("" where a line has no entry; a language list is absent when
+     * the song has no such extra). [source] `"machine"` = machine translation, labelled once per song.
+     */
+    @Serializable
+    data class LineExtras(
+        val keys: List<String> = emptyList(),
+        val en: List<String>? = null,
+        val he: List<String>? = null,
+        val roman: List<String>? = null,
+        val source: String? = null,
+    )
+
     @Serializable
     data class Resolved(
         val videoId: String,
@@ -81,6 +96,7 @@ object ZemerLyricsClient {
         val sources: List<Source> = emptyList(),
         val lineTimes: LineTimes? = null,
         val syncTruncated: Double? = null, // the measured timings cover too few of the pointer's lines (< 85 %), so no lineTimes were sent
+        val lineExtras: LineExtras? = null,
     )
 
     internal val json = Json { ignoreUnknownKeys = true; isLenient = true; explicitNulls = false }

@@ -1,9 +1,13 @@
 package com.jtech.zemer.lyrics
 
 import androidx.datastore.preferences.core.Preferences
+import com.jtech.zemer.lyrics.zemer.ZemerLyricsClient
 
-/** A lyrics body plus the label to persist in `LyricsEntity.provider` ("Zemer · jkaraoke", "SimpMusic", ...). */
-data class LabeledLyrics(val label: String, val lyrics: String)
+/**
+ * A lyrics body plus the label to persist in `LyricsEntity.provider` ("Zemer · jkaraoke", "SimpMusic", ...), and
+ * the resolver's per-line extras when the Zemer provider answered (null from every other provider).
+ */
+data class LabeledLyrics(val label: String, val lyrics: String, val lineExtras: ZemerLyricsClient.LineExtras? = null)
 
 interface LyricsProvider {
     val name: String
