@@ -619,7 +619,8 @@ index; rendered by the shared `LyricsLineExtra` under the sung line, ONE languag
 (`LineExtrasStore`, no lyrics-table migration) that never outlives its row (re-recorded on every chain answer, dropped on
 refetch); the pane also asks `POST /lyrics/extras` with the lines EXACTLY as displayed (any provider's body) once per
 song + language + body (`LyricsStore.ensureExtras`; transliteration rides the `en` request and reads `roman`; the
-store's flow prefers that aligned reply over the resolve-time field), only once a language is picked.
+store's flow prefers that aligned reply over the resolve-time field), only once a language is picked; every ask and a
+refetch's delete → record share one per-videoId lock in `LyricsStore`, so a song resolves once and no stale record lands.
 `LyricsEntity.CHAIN_GENERATION`
 + `LyricsChainGenerationKey`: bump the constant when the chain gains sources/sync and every install drops its
 refreshable rows once (`DatabaseDao.purgeRefreshableLyrics`: not-found + auto-cached plain; synced, `manual`

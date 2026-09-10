@@ -94,8 +94,10 @@ providers by `MediaMetadata.id` (never `setVideoId`, which is a playlist-entry t
   record never outlives its row - every chain answer re-records or clears it, refetch deletes it first (a text
   re-verification changes the keys). A row cached before the feature (or answered by another provider) gets ONE
   resolver call on demand (`LyricsStore.ensureExtras`, from `LyricsLineExtrasViewModel.bind`, only once a
-  language is picked and the song has a body); a "none" record is re-asked after 7 days, a record with extras
-  only on refetch. **Aligned extras (the evening update):** the resolve-time field pairs only where the displayed
+  language is picked and the song has a body; `LyricsStore.ensureResolveExtras`); a "none" record is re-asked after
+  7 days, a record with extras only on refetch. Every extras read → ask → write, and a refetch's delete → record, run
+  under ONE per-videoId lock in `LyricsStore` (`withExtrasLock`): concurrent binds resolve a song once and an ask that
+  raced a refetch can never land a stale record after the delete (`LyricsStoreTest`). **Aligned extras (the evening update):** the resolve-time field pairs only where the displayed
   text is the server's own, so the pane also asks `POST /lyrics/extras` with the lines EXACTLY as displayed plus
   the wanted `lang` (`en` / `he` / `yi`; transliteration rides the `en` request and reads `roman`) and gets arrays
   parallel to those lines (`ZemerLyricsClient.extrasForLines`, `LyricsStore.ensureExtras`), once per song +
