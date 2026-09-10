@@ -137,6 +137,7 @@ object MusixmatchLyrics {
         json.parseToJsonElement(client.get(url) { header(HttpHeaders.UserAgent, UA); header(HttpHeaders.Cookie, "x-mxm-token-guid=") }.bodyAsText()).jsonObject
     }.getOrNull()
 
+    private fun JsonObject.unauthorized(): Boolean = header()?.get("status_code")?.jsonPrimitive?.intOrNull == 401
     private fun JsonObject?.header(): JsonObject? = this?.get("message")?.jsonObject?.get("header")?.jsonObject
     private fun JsonObject?.body(): JsonObject? = this?.get("message")?.jsonObject?.get("body")?.let { runCatching { it.jsonObject }.getOrNull() }
 
@@ -177,7 +178,7 @@ object MusixmatchLyrics {
             "f_subtitle_length_max_deviation" to "1", "subtitle_format" to "lrc", "format" to "json",
         ).joinToString("&") { (k, v) -> "$k=${java.net.URLEncoder.encode(v, "UTF-8")}" }
         val j = getJson("${BASE}macro.subtitles.get?$q") ?: return Outcome.Network
-        if (j.header()?.get("status_code")?.jsonPrimitive?.intOrNull == 401) return Outcome.Unauthorized
+        if (j.unauthorized()) return Outcome.Unauthorized
         val (track, ly, st) = parseMacro(j) ?: return Outcome.Network
         if (track == null) return Outcome.NoMatch
         if (ly.body.isNullOrBlank()) return Outcome.NoLyrics
@@ -197,7 +198,7 @@ object MusixmatchLyrics {
     suspend fun fetchById(token: String, commontrackId: Long, trackId: Long, synced: Boolean): Outcome {
         val auth = "app_id=$APP&usertoken=$token&format=json"
         val lj = getJson("${BASE}track.lyrics.get?$auth&commontrack_id=$commontrackId") ?: return Outcome.Network
-        if (lj.header()?.get("status_code")?.jsonPrimitive?.intOrNull == 401) return Outcome.Unauthorized
+        if (lj.unauthorized()) return Outcome.Unauthorized
         val ly = lj.body()?.get("lyrics")?.let { runCatching { it.jsonObject }.getOrNull() }?.let(::payload) ?: return Outcome.NoMatch
         if (ly.body.isNullOrBlank()) return Outcome.NoLyrics
         if (ly.instrumental || ly.restricted) return Outcome.Rejected(if (ly.instrumental) MusixmatchStatus.REASON_INSTRUMENTAL else MusixmatchStatus.REASON_RESTRICTED, commontrackId.toString())
@@ -208,27 +209,25 @@ object MusixmatchLyrics {
         return Outcome.Hit(Judged(plain, cleanLrc(subtitle), "mxm:$commontrackId@$trackId"))
     }
 
-    /** [fetchById] under the phone's token with the same stale-token retry as [getLyrics]; LRC when synced and clean, else plain. */
-    suspend fun getLyricsById(context: Context, commontrackId: Long, trackId: Long, synced: Boolean): String? {
-        val tok = token(context) ?: run { record(context, MusixmatchStatus.NoToken); return null }
-        var out = fetchById(tok, commontrackId, trackId, synced)
-        if (out is Outcome.Unauthorized) {
-            val fresh = token(context, forceNew = true)
-            out = if (fresh != null) fetchById(fresh, commontrackId, trackId, synced) else out
-        }
-        record(context, out.status)
-        return (out as? Outcome.Hit)?.judged?.let { it.synced ?: it.plain }
-    }
+    /** [fetchById] under the phone's token ([lookup]); LRC when synced and clean, else plain; null = nothing usable. */
+    suspend fun getLyricsById(context: Context, commontrackId: Long, trackId: Long, synced: Boolean): String? =
+        lookup(context) { fetchById(it, commontrackId, trackId, synced) }?.let { it.synced ?: it.plain }
 
     /** The gated body for this song: LRC when the recording length matched within 1 s, else plain text; null = not found. */
-    suspend fun getLyrics(context: Context, title: String, artist: String, duration: Int): Judged? {
+    suspend fun getLyrics(context: Context, title: String, artist: String, duration: Int): Judged? =
+        lookup(context) { fetch(it, title, artist, duration) }
+
+    /**
+     * One lookup under the phone's token, its outcome recorded for the Content settings row. A token is good for
+     * roughly a dozen lookups (measured 2026-09-02), then every reply is a 401 "captcha": fetch a fresh token and
+     * retry once; when issuance is refused too, back off (never a 6 h blackout).
+     */
+    private suspend fun lookup(context: Context, call: suspend (token: String) -> Outcome): Judged? {
         val tok = token(context) ?: run { record(context, MusixmatchStatus.NoToken); return null }
-        var out = fetch(tok, title, artist, duration)
-        // A token is good for roughly a dozen lookups (measured 2026-09-02), then every reply is a 401 "captcha":
-        // fetch a fresh token and retry once; when issuance is refused too, back off (never a 6 h blackout).
+        var out = call(tok)
         if (out is Outcome.Unauthorized) {
             val fresh = token(context, forceNew = true)
-            out = if (fresh != null) fetch(fresh, title, artist, duration) else out
+            out = if (fresh != null) call(fresh) else out
         }
         record(context, out.status)
         return (out as? Outcome.Hit)?.judged

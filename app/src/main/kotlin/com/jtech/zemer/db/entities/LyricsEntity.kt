@@ -17,8 +17,9 @@ data class LyricsEntity(
          * Bump when the provider chain gains sources or sync it did not have (so cached answers may now be
          * beatable): installs below it drop their refreshable rows once (`DatabaseDao.purgeRefreshableLyrics`).
          * 1 = the Zemer resolver's zemer / youtube / tab4u / zemirotdb / community sources and `lineTimes`.
+         * 2 = the resolver's apple (Apple Music line sync) and musixmatch-by-id sources, synced-first walk.
          */
-        const val CHAIN_GENERATION = 1
+        const val CHAIN_GENERATION = 2
 
         /**
          * Provider stamp for a row cached before provider tracking whose song the gated chain could not
