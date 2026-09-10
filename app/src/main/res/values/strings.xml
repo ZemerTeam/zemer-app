@@ -189,7 +189,6 @@
     <string name="lyrics_plain">not synced</string>
     <string name="lyrics_machine_translation">machine translation</string>
     <string name="lyrics_line_extras">Translation under lines</string>
-    <string name="lyrics_line_extras_description">Show a translation or transliteration under each lyric line when available</string>
     <string name="lyrics_line_extras_off">Off</string>
     <string name="lyrics_line_extras_english">English</string>
     <string name="lyrics_line_extras_hebrew">Hebrew</string>

@@ -202,4 +202,16 @@ class LyricsStoreTest {
         assertTrue(f.store.ensureExtras(song, LineExtrasLanguage.ENGLISH, lines))
         assertEquals(3, f.asked.size)
     }
+
+    /** Two binds for the same song (pane + a re-bind) resolve once: the read → resolve → write runs under the per-id lock. */
+    @Test
+    fun `concurrent extras asks for one song resolve once`() = runBlocking {
+        val f = Fake(null, LyricsHelper.Fetched("words", "Zemer"), resolved = wire)
+        val lines = listOf("a", "b")
+        val results = (1..3).map { async { f.store.ensureResolveExtras(song) to f.store.ensureExtras(song, LineExtrasLanguage.ENGLISH, lines) } }.map { it.await() }
+        assertEquals(1, results.count { it.first })
+        assertEquals(1, results.count { it.second })
+        assertEquals(1, f.resolves)
+        assertEquals(1, f.asked.size)
+    }
 }
