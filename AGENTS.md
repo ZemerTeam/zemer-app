@@ -69,7 +69,11 @@ source** onto the whitelisted relay host `stream.zemer.io`. Full contract + the 
   giants.
 - **Onboarding + gating.** The login gate has a third option **"I have a filter"** (login-less: sets
   `RELAY`, no cookie). `MainActivity`'s gate must NOT bounce a relay session (it derives login + relay from
-  one DataStore snapshot via `produceState`). A **normal login globally resets `RELAY`→`DIRECT`** in
+  one DataStore snapshot via `produceState`). The redirect decision is the pure, tested
+  `ui/screens/LoginGateRedirect`: a **null route means `NavHost` has not set the graph yet** and the effect
+  must NOT navigate (Navigation throws "Cannot navigate to login_gate. Navigation graph has not been set" -
+  a warm start / config-change recreate delivers the DataStore snapshot before the graph exists, and that
+  crash-looped launch); the effect is keyed on the route, so it re-runs on the first real one. A **normal login globally resets `RELAY`→`DIRECT`** in
   `App.kt` (from ANY entry point), and the **Settings toggle + the nav-drawer Account entry are hidden when
   not login-less** (relay is accountless). These gates key off the cookie's `SAPISID` (true for anon too),
   the codebase's standard "has a session" idiom.
@@ -430,7 +434,7 @@ A Zemer Station broadcast is never persisted (see §Zemer Stations).
 
 ### Cipher / player rotation (the most common future break)
 
-The `cipher` submodule (package `com.zemer.cipher`, repo `ZemerTeam/zemer-cipher`) deciphers YouTube's `player_ias` signatures in an Android WebView and mints poTokens. It's wired **two ways**: a git submodule *and* a Gradle composite build - `includeBuild("cipher")` in `settings.gradle.kts` substitutes `com.zemer:cipher` → the local `:library`, so the app always builds the working tree.
+The `cipher` submodule (package `com.zemer.cipher`, repo `ZemerTeam/zemer-cipher`) deciphers YouTube's `player_ias` signatures in an Android WebView and mints poTokens. **The per-track STS lookup never re-reads the player JS**: `CipherDeobfuscator.signatureTimestamp()` -> `PlayerJsFetcher.signatureTimestamp()` serves the remembered Int while the small `current_hash.txt` still names the unexpired player it was extracted from (`stsFastPath`, tested), and only falls through to `getPlayerJs` otherwise. The old path read the whole ~2.8 MB base.js from disk (bytes + String, 5+ MB) on EVERY stream resolve just to return that Int - the `getSignatureTimestampOrNull` OutOfMemoryError on low-RAM phones. It's wired **two ways**: a git submodule *and* a Gradle composite build - `includeBuild("cipher")` in `settings.gradle.kts` substitutes `com.zemer:cipher` → the local `:library`, so the app always builds the working tree.
 
 YouTube rotates `player_ias` frequently. Player configs live in **one JSON file**: `cipher/library/src/main/assets/player_configs.json` - per player the sig call expression (e.g. `mP(4,155,INPUT)`), the n-transform URL class (e.g. `Yx`), the STS, and the md5-of-first-10000-bytes alias. That single file is (1) bundled in the APK as the offline default, (2) **fetched at runtime from raw zemer-cipher `master`** by `PlayerConfigStore` (6 h TTL + ETag, plus a forced refresh + one retry the moment an unknown hash breaks deciphering), and (3) read by the `tests/` harness - so **a config pushed to cipher `master` fixes deployed apps within minutes, no APK release**. Parsing/validation is `PlayerConfigParser` (strict regexes; the n-IIFE is built from a local template - remote data can never inject free-form JS into the WebView; invalid entries are skipped, invalid files - including any duplicate hash/alias key - are rejected wholesale and the previous table kept). The validation rules exist in TWO readers (the Kotlin parser and `tests/player-configs.mjs`); file-level accept/reject verdicts and the n-IIFE template are pinned byte-for-byte by shared fixtures in `cipher/library/src/test/resources/config-parity/` - a rule change must update both readers AND the fixtures, or one of the two test suites goes red. When adding a config:
 - **Validate empirically**: `node tests/validate-player-config.mjs <hash>` deciphers a real stream and checks the CDN returns **HTTP 206**. That 206 is ground truth, not regex extraction - multiple constant pairs can decipher correctly, only the live response confirms which the server accepts. It prints a paste-ready JSON entry (and re-validates the committed entry first if one exists).
@@ -635,7 +639,14 @@ answered — so they are deferred even when the user order lists them first. Lyr
 start (`LyricsStore.prefetch`: current song then the next queue item, 3 s deferred, skipped offline) so opening
 the pane is a Room read; never regress the pane-open path to a live chain walk. `LrcLib.identityMatches` accepts ANY credited artist of a joined credit (`creditedArtists`), not
 just the first. The chain reads ONE DataStore snapshot per walk (`LyricsHelper.enabledProviders(prefs)`: order +
-every `LyricsProvider.enabledKey`), never a blocking read per provider. Musixmatch's `cleanLrc` formats with
+every `LyricsProvider.enabledKey`), never a blocking read per provider. **The walk runs STRUCTURED under its caller**
+(`LyricsHelper.getLyrics` calls `LyricsChainWalk.run` directly; `run` is a `coroutineScope`): it used to
+run on a parentless `SupervisorJob` scope whose `cancel()` sat after the `await`, so a cancelled caller (the
+track-start prefetch skipping to the next song) left every in-flight provider fetch running to completion
+with its body - steady heap churn during background playback on low-RAM phones. Cancelling the caller now
+cancels the fetches (`LyricsChainWalkTest`), and the fetch lambda rethrows `CancellationException` before
+its catch-all so a skipped track is never reported as a provider failure. There is no in-memory lyrics
+cache in the helper (the one it had was never written to); Room via `LyricsStore` is the cache. Musixmatch's `cleanLrc` formats with
 `Locale.US` (a comma-decimal locale produced LRC nothing could parse). Users contribute through the lyrics menu:
 a saved edit is also POSTed to the server's submission queue and "Report" POSTs a report after the shared
 `ConfirmDialog` (`ui/component/MenuDialogs.kt`, the ONE Cancel/OK confirmation - the remove-download confirm rides
@@ -944,6 +955,18 @@ Rules that must not regress:
 - **A brand-new user's empty Quick Picks seeds from Zemer**, not YouTube: `seedQuickPicksFromZemer`
   pulls the `auto-top-50` curated playlist. Returning users seed from local history; the seed is a no-op
   when Quick Picks is non-empty and never breaks Home on failure.
+- **Quick Picks must not churn on a pull-to-refresh** (pure, tested `viewmodels/QuickPicksPresentation`):
+  a refresh over rows already on screen skips the intermediate "local data first" publish and keeps the
+  rows until the FINAL list lands (`showLocalRowsFirst` - two publishes meant two shuffles per pull);
+  items that survive the reload keep their position and newcomers append (`keepDisplayedOrder`, applied to
+  the once-shuffled final list so the See-all contract still holds); and a pool under
+  `MIN_POOL_FOR_ROTATION` (8) allowed songs is shown WHOLE - the recent-artist avoidance + one-per-artist
+  rotation otherwise flips a small library's row between two subsets (3 -> 4 -> 3, "songs jump in").
+  Real libraries still rotate exactly as before.
+- **Home song rows read the live Room row through `ui/utils/rememberLiveSong`** (Quick Picks, Forgotten
+  Favorites, their See-all) - never `database.song(id)` + `!!`. The row CAN vanish under the composable
+  (the whitelist sync deletes a de-whitelisted artist's songs while Home still lists them), and the
+  unwrap was a Home crash; the helper falls back to the snapshot.
 - The **"Zemer Radio" row** (under Zemer Playlists) is the synchronized-broadcast stations shelf - see §Zemer Stations below and `docs/stations/README.md`; its now-playing cards tick every 60s
   while ON SCREEN only (`repeatOnLifecycle(RESUMED)`).
 - **Easter egg:** five quick taps on the Home top-bar title (1.5s idle resets) play a fixed song via
@@ -1769,7 +1792,10 @@ that must not regress:
   theme instead of the brand default. `ZemerTheme` with default params = brand pink and is only correct
   inside MainActivity (which drives `themeColor` itself, incl. album-art). The home-screen **widget**
   (`widget/MusicWidget.kt`) is RemoteViews and can't read the Compose theme - it uses the static
-  `@color/widget_accent` (brand).
+  `@color/widget_accent` (brand). `MusicWidget.hasPlacedWidget` (the per-playback-session placement check
+  `MusicService` runs before ticking the widget) must stay wrapped: Glance builds on
+  `AppWidgetManager.getInstance`, null on ROMs without an AppWidgetService, and the resulting NPE inside
+  `getGlanceIds` escaped the service scope and killed background playback on every play transition.
 
 ### The download system (ONE unified path - never fork it)
 
@@ -1861,7 +1887,11 @@ an audio download can now keep **Opus** instead of being forced to AAC. Rules th
   `utils/mp4/Mp4MetadataWriter` (iTunes-style `moov/udta/meta/ilst` atoms: title/artist/album/year, `covr`
   cover art, `aART`/`trkn` album-artist/track-number, and identity-exact lyrics). **WebM/Ogg Opus** ->
   rewrap WebM to Ogg via `AudioRemux.webmOpusToOgg`, then tag with `utils/ogg/OggOpusTagger` (an OpusTags
-  Vorbis-comment packet + `METADATA_BLOCK_PICTURE` cover). An already-Ogg file is tagged directly. All
+  Vorbis-comment packet + `METADATA_BLOCK_PICTURE` cover). **The Ogg tagger STREAMS page by page**
+  (`PageReader` over a `RandomAccessFile`; only the head page, the OpusTags packet and one audio page are
+  ever resident): the earlier whole-file read plus a per-page copy peaked at ~2x the track size, and three
+  concurrent Opus downloads was an OutOfMemoryError site. Trailing garbage or a truncated page is refused
+  with no output file, exactly as before (`OggOpusTaggerTest`). An already-Ogg file is tagged directly. All
   three are framework/pure-Kotlin - **no native dependency, no NDK.** Guarded by JVM tests
   (`Mp4MetadataWriterTest` / `OggOpusTaggerTest`) plus the on-device `OpusDevicePipelineTest` (real
   itag-251 WebM->Ogg remux + tag, then `MediaMetadataRetriever` reads every field + cover back from BOTH
@@ -1901,7 +1931,7 @@ Node ≥20 scripts (deps vendored in `tests/node_modules`, no install needed) th
 
 ### Modules & app layout
 
-- **`:app`** (`com.jtech.zemer`) - single-activity Jetpack Compose UI, Hilt DI (`App.kt` `@HiltAndroidApp`, modules under `di/`), Media3. `MainActivity` + `NavigationBuilder.kt` host the Compose nav graph; `MusicService` (a Media3 `MediaLibraryService`) owns ExoPlayer and is bridged to the UI by `PlayerConnection`, with `playback/queues/` implementations. State is Room (`db/MusicDatabase.kt`, `song.db`) + DataStore preferences (`utils/DataStore.kt` - holds the auth cookie / visitorData / dataSyncId and all settings). Content-filtering (whitelist, KidZone) lives in `sync/` + `utils/SyncUtils.kt`. The offline search-backup snapshot (sync engine + read-layer port) lives in `offline/` (on-disk store under `filesDir/subset/` - see §Offline search backup). Downloads via Media3 `ExoDownloadService` plus a MediaStore path. Crash/error telemetry is Firebase Crashlytics: `utils/CrashReportingTree.kt` (planted in `App.kt`) turns every Timber log (DEBUG+) into a breadcrumb and `reportException()` calls into non-fatal issues - so report errors via `reportException()`/`Timber`, never `printStackTrace`; release CI uploads R8 mappings and native symbols automatically.
+- **`:app`** (`com.jtech.zemer`) - single-activity Jetpack Compose UI, Hilt DI (`App.kt` `@HiltAndroidApp`, modules under `di/`), Media3. `MainActivity` + `NavigationBuilder.kt` host the Compose nav graph; `MusicService` (a Media3 `MediaLibraryService`) owns ExoPlayer and is bridged to the UI by `PlayerConnection`, with `playback/queues/` implementations. State is Room (`db/MusicDatabase.kt`, `song.db`) + DataStore preferences (`utils/DataStore.kt` - holds the auth cookie / visitorData / dataSyncId and all settings). Content-filtering (whitelist, KidZone) lives in `sync/` + `utils/SyncUtils.kt`. The offline search-backup snapshot (sync engine + read-layer port) lives in `offline/` (on-disk store under `filesDir/subset/` - see §Offline search backup). Downloads via Media3 `ExoDownloadService` plus a MediaStore path. Crash/error telemetry is Firebase Crashlytics: `utils/CrashReportingTree.kt` (planted in `App.kt`) turns every Timber log (DEBUG+) into a breadcrumb and `reportException()` calls into non-fatal issues - so report errors via `reportException()`/`Timber`, never `printStackTrace`; release CI uploads R8 mappings and native symbols automatically. `App.kt` sets the Crashlytics custom key `commit` = `BuildConfig.COMMIT_HASH` because every main build ships as the SAME versionCode/versionName (a nightly reports as "38" like stable) - the key is the only way to tell a nightly crash from a stable one in the console.
 - **`:innertube`** (`com.metrolist.innertube`) - the YouTube Music InnerTube API client (Ktor): request building, auth context, page parsers that turn YouTube renderer trees into typed models. Holds the `YouTubeClient` definitions. (The NewPipe extractor bridge is gone: the cipher player is the single sts/decipher source - a live probe 2026-08-27 showed the extractor's sig parse broken on the current player, and it fetched the player over the same iframe_api route as the cipher, so it could not survive any failure the cipher couldn't.)
 - **`:lrclib`** / **`:simpmusic`** (`com.metrolist.*`) - lyrics provider clients (LrcLib.net and api-lyrics.simpmusic.org).
 - **`cipher`** - see "Cipher / player rotation" above.
