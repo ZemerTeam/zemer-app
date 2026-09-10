@@ -588,7 +588,7 @@ itself through golden-pinned parser ports of the server's parsers — `JyricsPar
 `JkaraokeLrc` (plus the resolver's per-song `offsetSec` on jkaraoke lines, applied ONLY when `offsetFrom ==
 "measured"`: karaoke cues lead the voice on most songs but trail it on ~15 %, so the fleet default is never
 applied), `Tab4uParser`, `ZemirotDbParser` — the YouTube lyrics tab by the server-vouched `browseId`
-(trusted at rank 3 INSIDE the resolver, a deliberate policy: the server verified the tab for that exact
+(trusted at rank 2 INSIDE the resolver, a deliberate policy: the server verified the tab for that exact
 videoId), and an audio-verified LRCLIB record by id, `ZemerLyricsClient.lrclibBody`, which the server hands out
 only for rows its audio check confirmed, an Apple Music row by `catalogId` (`AppleTtmlLrc`: the paxsenix mirror's
 TTML `<p begin>` lines → LRC, Apple's own line times, golden-pinned), and a Musixmatch row by id

@@ -6,6 +6,7 @@ import com.jtech.zemer.lyrics.LyricsProvider
 import com.jtech.zemer.lyrics.LyricsUtils
 import com.jtech.zemer.lyrics.MusixmatchLyricsProvider
 import com.jtech.zemer.lyrics.model.LyricsUnavailableException
+import kotlinx.coroutines.CancellationException
 
 /**
  * First provider in the chain. Resolves the videoId through the Zemer server, then fetches the text from
@@ -39,7 +40,8 @@ object ZemerLyricsProvider : LyricsProvider {
         val out = ArrayList<Pair<String, String>>()
         for (s in order(resolved)) {
             if (firstOnly && out.isNotEmpty()) break
-            // one source's fetch/parse failure is skipped, never the whole walk (the next source is the fallback)
+            // one source's fetch/parse failure is skipped, never the whole walk (the next source is the fallback);
+            // a cancelled walk stops here instead of falling through to the next source
             val body = runCatching { when (s.type) {
                 "zemer" -> s.richSync?.takeIf { it.isNotBlank() } ?: inline(s)
                 "jkaraoke" -> s.feedUrl?.let { fetch(it) }?.let { page -> s.songId?.let { id -> JkaraokeLrc.fromFeedPage(page, id, jkaraokeOffset(s))?.synced } }
@@ -59,7 +61,7 @@ object ZemerLyricsProvider : LyricsProvider {
                 "kugou" -> s.hash?.let { h -> s.krcId?.let { id -> fetch(KugouLrc.searchUrl(h))?.let { KugouLrc.accessKey(it, id) }?.let { key -> fetch(KugouLrc.downloadUrl(id, key))?.let { KugouLrc.lrc(it) } } } }
                 "booklet", "manual", "canonical", "community" -> inline(s)
                 else -> null
-            } }.getOrNull()?.let { withLineTimes(s, it, resolved.lineTimes) }
+            } }.onFailure { if (it is CancellationException) throw it }.getOrNull()?.let { withLineTimes(s, it, resolved.lineTimes) }
             if (body != null) out += sourceLabel(s) to body
         }
         return out
@@ -121,7 +123,7 @@ object ZemerLyricsProvider : LyricsProvider {
         val resolved = ZemerLyricsClient.resolve(id) ?: throw LyricsUnavailableException
         val best = bodies(resolved, firstOnly = true).firstOrNull() ?: throw LyricsUnavailableException
         LabeledLyrics(label(best.first, resolved.verified), best.second)
-    }
+    }.onFailure { if (it is CancellationException) throw it }
 
     override suspend fun getAllLyrics(id: String, title: String, artist: String, duration: Int, album: String?, callback: (String) -> Unit) {
         getAllLabeledLyrics(id, title, artist, duration, album) { callback(it.lyrics) }

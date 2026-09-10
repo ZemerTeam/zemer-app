@@ -173,6 +173,9 @@ class ZemerLyricsProviderTest {
         assertTrue(bodies[1].second.startsWith("[00:01.00] first line"))
         // firstOnly under the same order returns the synced apple body
         assertEquals(listOf("apple"), ZemerLyricsProvider.bodies(resolved, fetch, firstOnly = true, youtube = { tab }).map { it.first })
+        // a cancelled walk stops at the cancelled source, never falling through to the next
+        val cancelled = runCatching { ZemerLyricsProvider.bodies(resolved, fetch = { throw kotlinx.coroutines.CancellationException("gone") }, youtube = { tab }) }
+        assertTrue(cancelled.exceptionOrNull() is kotlinx.coroutines.CancellationException)
     }
 
     @Test

@@ -196,7 +196,7 @@ object MusixmatchLyrics {
      * (instrumental/restricted rejected, licence footer stripped, LRC monotonic, >= 4 lines). null = nothing usable.
      */
     suspend fun fetchById(token: String, commontrackId: Long, trackId: Long, synced: Boolean): Outcome {
-        val auth = "app_id=$APP&usertoken=$token&format=json"
+        val auth = "app_id=$APP&usertoken=${java.net.URLEncoder.encode(token, "UTF-8")}&format=json"
         val lj = getJson("${BASE}track.lyrics.get?$auth&commontrack_id=$commontrackId") ?: return Outcome.Network
         if (lj.unauthorized()) return Outcome.Unauthorized
         val ly = lj.body()?.get("lyrics")?.let { runCatching { it.jsonObject }.getOrNull() }?.let(::payload) ?: return Outcome.NoMatch
