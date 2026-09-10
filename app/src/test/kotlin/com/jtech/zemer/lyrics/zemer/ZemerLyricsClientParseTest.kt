@@ -34,6 +34,7 @@ class ZemerLyricsClientParseTest {
         assertEquals(listOf("3f1a9c0e", "b02d1111"), with.lineExtras!!.keys)
         assertEquals(listOf("A home oh a home", ""), with.lineExtras!!.en)
         assertNull(with.lineExtras!!.he)
+        assertNull(with.lineExtras!!.yi)
         assertEquals("machine", with.lineExtras!!.source)
         assertNull(ZemerLyricsClient.json.decodeFromString(ZemerLyricsClient.Resolved.serializer(), body).lineExtras)
     }

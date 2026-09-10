@@ -75,6 +75,7 @@ fun lineExtrasLanguageText(language: LineExtrasLanguage): String = stringResourc
         LineExtrasLanguage.OFF -> R.string.lyrics_line_extras_off
         LineExtrasLanguage.ENGLISH -> R.string.lyrics_line_extras_english
         LineExtrasLanguage.HEBREW -> R.string.lyrics_line_extras_hebrew
+        LineExtrasLanguage.YIDDISH -> R.string.lyrics_line_extras_yiddish
         LineExtrasLanguage.ROMANIZED -> R.string.lyrics_line_extras_romanized
     },
 )

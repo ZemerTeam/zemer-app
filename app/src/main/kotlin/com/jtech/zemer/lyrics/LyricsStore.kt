@@ -36,6 +36,7 @@ class LyricsStore(
     private val fetch: suspend (MediaMetadata) -> LyricsHelper.Fetched,
     private val extras: LineExtrasStorage,
     private val resolveExtras: suspend (videoId: String) -> ZemerLyricsClient.LineExtras?,
+    private val alignedExtras: suspend (videoId: String, lines: List<String>, lang: String) -> ZemerLyricsClient.ExtrasReply,
     private val scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.IO),
     private val now: () -> Long = System::currentTimeMillis,
 ) {
@@ -47,6 +48,7 @@ class LyricsStore(
         fetch = helper::getLyrics,
         extras = extras,
         resolveExtras = { ZemerLyricsClient.resolve(it)?.lineExtras },
+        alignedExtras = ZemerLyricsClient::extrasForLines,
     )
 
     private val inFlightLock = Mutex()
@@ -65,12 +67,29 @@ class LyricsStore(
     }
 
     /**
-     * Extras for a song whose lyrics row predates them (cached before this feature, or answered by another
-     * provider): ONE resolver call per song, recorded either way (a "none" record is re-asked after
-     * [LineExtrasStore.EMPTY_TTL_MS]). Called only once the user has picked a language, so an install that never
-     * turns extras on never makes this request. Returns true when it resolved.
+     * Extras ALIGNED to the lines the pane displays (any provider's body): one `/lyrics/extras` call per song,
+     * language and displayed body, recorded either way (a 404 is a dated negative, re-asked after
+     * [LineExtrasStore.EMPTY_TTL_MS]; a network failure records nothing and is retried next time). Called only
+     * once the user has picked a language, so an install that never turns extras on never makes this request.
+     * Returns true when it asked the server.
      */
-    suspend fun ensureExtras(mediaMetadata: MediaMetadata): Boolean {
+    suspend fun ensureExtras(mediaMetadata: MediaMetadata, language: LineExtrasLanguage, lines: List<String>): Boolean {
+        val lang = language.wireLang ?: return false
+        if (mediaMetadata.isEpisode || lines.isEmpty()) return false
+        val hash = LineExtras.linesHash(lines)
+        if (extras.read(mediaMetadata.id)?.alignedCurrent(lang, hash, now()) == true) return false
+        val reply = alignedExtras(mediaMetadata.id, lines, lang)
+        if (reply.failed) return false
+        extras.writeAligned(mediaMetadata.id, lang, hash, reply.extras, now())
+        return true
+    }
+
+    /**
+     * The resolve-time extras for a row that predates them (cached before this feature): ONE resolver call per
+     * song, recorded either way (a "none" record is re-asked after [LineExtrasStore.EMPTY_TTL_MS]). The fast path
+     * behind [ensureExtras] when the displayed text is the server's own.
+     */
+    suspend fun ensureResolveExtras(mediaMetadata: MediaMetadata): Boolean {
         if (mediaMetadata.isEpisode) return false
         val record = extras.read(mediaMetadata.id)
         if (record != null && !record.isStale(now())) return false

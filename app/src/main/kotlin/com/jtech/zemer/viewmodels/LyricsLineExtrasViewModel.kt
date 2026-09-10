@@ -31,15 +31,21 @@ class LyricsLineExtrasViewModel @Inject constructor(
     private val lyricsStore: LyricsStore,
     private val extrasStore: LineExtrasStore,
 ) : ViewModel() {
-    private val videoId = MutableStateFlow<String?>(null)
+    private data class Bound(val videoId: String, val language: LineExtrasLanguage, val lines: List<String>)
 
-    val extras: StateFlow<LineExtras?> = videoId
-        .flatMapLatest { id -> if (id == null) flowOf(null) else extrasStore.flow(id) }
+    private val bound = MutableStateFlow<Bound?>(null)
+
+    val extras: StateFlow<LineExtras?> = bound
+        .flatMapLatest { b -> if (b == null || b.language == LineExtrasLanguage.OFF) flowOf(null) else extrasStore.flow(b.videoId, b.language, b.lines) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
-    fun bind(mediaMetadata: MediaMetadata, language: LineExtrasLanguage, hasLyrics: Boolean) {
-        videoId.value = mediaMetadata.id
-        if (language == LineExtrasLanguage.OFF || !hasLyrics) return
-        viewModelScope.launch(Dispatchers.IO) { lyricsStore.ensureExtras(mediaMetadata) }
+    /** Follow the pane: [lines] are the lyric lines exactly as displayed (the aligned reply pairs to them). */
+    fun bind(mediaMetadata: MediaMetadata, language: LineExtrasLanguage, lines: List<String>) {
+        bound.value = Bound(mediaMetadata.id, language, lines)
+        if (language == LineExtrasLanguage.OFF || lines.isEmpty()) return
+        viewModelScope.launch(Dispatchers.IO) {
+            lyricsStore.ensureResolveExtras(mediaMetadata)
+            lyricsStore.ensureExtras(mediaMetadata, language, lines)
+        }
     }
 }

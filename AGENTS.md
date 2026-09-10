@@ -617,7 +617,9 @@ index; rendered by the shared `LyricsLineExtra` under the sung line, ONE languag
 (`LineExtrasLanguage`, **default OFF** - nothing changes until the user picks one, Appearance → lyrics or the lyrics menu);
 `source: "machine"` labels the source header ONCE per song, never per line; stored as one JSON file per videoId
 (`LineExtrasStore`, no lyrics-table migration) that never outlives its row (re-recorded on every chain answer, dropped on
-refetch); a pre-existing row gets one on-demand resolver call (`LyricsStore.ensureExtras`) only once a language is picked.
+refetch); the pane also asks `POST /lyrics/extras` with the lines EXACTLY as displayed (any provider's body) once per
+song + language + body (`LyricsStore.ensureExtras`; transliteration rides the `en` request and reads `roman`; the
+store's flow prefers that aligned reply over the resolve-time field), only once a language is picked.
 `LyricsEntity.CHAIN_GENERATION`
 + `LyricsChainGenerationKey`: bump the constant when the chain gains sources/sync and every install drops its
 refreshable rows once (`DatabaseDao.purgeRefreshableLyrics`: not-found + auto-cached plain; synced, `manual`

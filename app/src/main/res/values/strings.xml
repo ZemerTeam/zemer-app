@@ -193,6 +193,7 @@
     <string name="lyrics_line_extras_off">Off</string>
     <string name="lyrics_line_extras_english">English</string>
     <string name="lyrics_line_extras_hebrew">Hebrew</string>
+    <string name="lyrics_line_extras_yiddish">Yiddish</string>
     <string name="lyrics_line_extras_romanized">Transliteration</string>
     <string name="sleep_timer">Sleep timer</string>
     <string name="end_of_song">End of song</string>

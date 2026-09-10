@@ -60,4 +60,24 @@ class LineExtrasTest {
         val extras = LineExtras.from(ZemerLyricsClient.LineExtras(keys = listOf(k("a"), k("b")), en = listOf("A")))!!
         assertEquals(listOf("A", null), extras.forLines(listOf("a", "b"), LineExtrasLanguage.ENGLISH))
     }
+
+    /** An aligned reply pairs to the lines the app SENT (index-parallel), keyed locally, never by the server's keys. */
+    @Test
+    fun `aligned reply pairs by the app's own lines and carries yiddish`() {
+        val lines = listOf("בית הו בית", "", "שלום עליכם")
+        val reply = ZemerLyricsClient.LineExtras(keys = listOf("ignored", "ignored", "ignored"), en = listOf("A home", "", "Peace"), yi = listOf("א היים", "", ""), source = "machine")
+        val extras = LineExtras.aligned(lines, reply)!!
+        assertEquals(listOf("A home", null, "Peace"), extras.forLines(lines, LineExtrasLanguage.ENGLISH))
+        assertEquals(listOf("א היים", null, null), extras.forLines(lines, LineExtrasLanguage.YIDDISH))
+        assertEquals("Peace", extras.textFor("שָׁלוֹם עֲלֵיכֶם", LineExtrasLanguage.ENGLISH))
+        assertNull(LineExtras.aligned(lines, null))
+    }
+
+    @Test
+    fun `wire lang, transliteration rides the English request and OFF sends nothing`() {
+        assertEquals("en", LineExtrasLanguage.ROMANIZED.wireLang)
+        assertEquals("yi", LineExtrasLanguage.YIDDISH.wireLang)
+        assertNull(LineExtrasLanguage.OFF.wireLang)
+        assertTrue(LineExtras.linesHash(listOf("a", "b")) != LineExtras.linesHash(listOf("ab")))
+    }
 }

@@ -163,9 +163,7 @@ fun LyricsScreen(
     val lyricsSynced = hasLyrics && LyricsUtils.isSynced(lyricsBody!!)
     // Per-line extras: the ViewModel is shared with the pane (same owner), the header only labels machine text.
     val lineExtrasLanguage by rememberEnumPreference(LyricsLineExtrasKey, LineExtrasLanguage.OFF)
-    val lineExtrasViewModel: LyricsLineExtrasViewModel = hiltViewModel()
-    val lineExtras by lineExtrasViewModel.extras.collectAsState()
-    LaunchedEffect(mediaMetadata.id, lineExtrasLanguage, hasLyrics) { lineExtrasViewModel.bind(mediaMetadata, lineExtrasLanguage, hasLyrics) }
+    val lineExtras by hiltViewModel<LyricsLineExtrasViewModel>().extras.collectAsState()
     val machineTranslation = lineExtrasLanguage != LineExtrasLanguage.OFF && lineExtras?.let { it.isMachine && lineExtrasLanguage in it.languages } == true
     val isLandscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
     val showLyricsMenu = { menuState.show { LyricsMenu(lyricsProvider = { currentLyrics }, mediaMetadataProvider = { mediaMetadata }, onDismiss = menuState::dismiss) } }
