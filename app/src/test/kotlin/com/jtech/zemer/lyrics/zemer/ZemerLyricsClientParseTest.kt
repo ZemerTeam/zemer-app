@@ -33,6 +33,7 @@ class ZemerLyricsClientParseTest {
             """{"videoId":"v","verified":true,"sources":[],"lineExtras":{"keys":["3f1a9c0e","b02d1111"],"en":["A home oh a home",""],"roman":["bayit ho bayit","x"],"source":"machine","future":1}}""")
         assertEquals(listOf("3f1a9c0e", "b02d1111"), with.lineExtras!!.keys)
         assertEquals(listOf("A home oh a home", ""), with.lineExtras!!.en)
+        assertEquals(listOf("bayit ho bayit", "x"), with.lineExtras!!.roman)
         assertNull(with.lineExtras!!.he)
         assertNull(with.lineExtras!!.yi)
         assertEquals("machine", with.lineExtras!!.source)

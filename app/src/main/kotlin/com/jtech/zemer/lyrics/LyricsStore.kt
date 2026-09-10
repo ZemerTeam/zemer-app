@@ -54,6 +54,15 @@ class LyricsStore(
     private val inFlightLock = Mutex()
     private val inFlight = HashMap<String, Deferred<LyricsHelper.Fetched>>()
 
+    /**
+     * One lock per videoId over the extras record: the pane's on-demand asks (read → resolve → write) and a
+     * refetch's delete → record run serialised, so two binds never resolve the same song twice and an ask that
+     * raced a refetch cannot land a stale record after the delete.
+     */
+    private val extrasLocks = HashMap<String, Mutex>()
+    private suspend fun <T> withExtrasLock(videoId: String, block: suspend () -> T): T =
+        inFlightLock.withLock { extrasLocks.getOrPut(videoId) { Mutex() } }.withLock { block() }
+
     /** Run the chain only when the cache says so (nothing cached, or a legacy row re-resolved once). Returns true when it fetched. */
     suspend fun ensure(mediaMetadata: MediaMetadata): Boolean {
         if (mediaMetadata.isEpisode) return false
@@ -62,7 +71,7 @@ class LyricsStore(
         val fetched = fetchShared(mediaMetadata)
         Timber.d("LyricsStore ensure %s -> %s", mediaMetadata.id, fetched.provider)
         persist(LyricsEntity.resolved(mediaMetadata.id, row, fetched.lyrics, fetched.provider))
-        recordExtras(mediaMetadata.id, fetched)
+        withExtrasLock(mediaMetadata.id) { recordExtras(mediaMetadata.id, fetched) }
         return true
     }
 
@@ -77,11 +86,13 @@ class LyricsStore(
         val lang = language.wireLang ?: return false
         if (mediaMetadata.isEpisode || lines.isEmpty()) return false
         val hash = LineExtras.linesHash(lines)
-        if (extras.read(mediaMetadata.id)?.alignedCurrent(lang, hash, now()) == true) return false
-        val reply = alignedExtras(mediaMetadata.id, lines, lang)
-        if (reply.failed) return false
-        extras.writeAligned(mediaMetadata.id, lang, hash, reply.extras, now())
-        return true
+        return withExtrasLock(mediaMetadata.id) {
+            if (extras.read(mediaMetadata.id)?.alignedCurrent(lang, hash, now()) == true) return@withExtrasLock false
+            val reply = alignedExtras(mediaMetadata.id, lines, lang)
+            if (reply.failed) return@withExtrasLock false
+            extras.writeAligned(mediaMetadata.id, lang, hash, reply.extras, now())
+            true
+        }
     }
 
     /**
@@ -91,13 +102,15 @@ class LyricsStore(
      */
     suspend fun ensureResolveExtras(mediaMetadata: MediaMetadata): Boolean {
         if (mediaMetadata.isEpisode) return false
-        val record = extras.read(mediaMetadata.id)
-        if (record != null && !record.isStale(now())) return false
-        val wire = runCatching { resolveExtras(mediaMetadata.id) }
-            .onFailure { if (it is CancellationException) throw it; Timber.w(it, "LyricsStore extras resolve failed for %s", mediaMetadata.id) }
-            .getOrElse { return false }
-        extras.write(mediaMetadata.id, wire, now())
-        return true
+        return withExtrasLock(mediaMetadata.id) {
+            val record = extras.read(mediaMetadata.id)
+            if (record != null && !record.isStale(now())) return@withExtrasLock false
+            val wire = runCatching { resolveExtras(mediaMetadata.id) }
+                .onFailure { if (it is CancellationException) throw it; Timber.w(it, "LyricsStore extras resolve failed for %s", mediaMetadata.id) }
+                .getOrElse { return@withExtrasLock false }
+            extras.write(mediaMetadata.id, wire, now())
+            true
+        }
     }
 
     /** Every chain answer re-records the song's extras (or clears them): a record never outlives its row. */
@@ -126,12 +139,16 @@ class LyricsStore(
     suspend fun refetch(mediaMetadata: MediaMetadata) {
         if (mediaMetadata.isEpisode) return
         cached(mediaMetadata.id)?.let(delete)
-        extras.delete(mediaMetadata.id)
         Timber.d("LyricsStore refetch %s", mediaMetadata.id)
-        val fetched = fetchShared(mediaMetadata)
-        Timber.d("LyricsStore refetch %s -> %s", mediaMetadata.id, fetched.provider)
-        persist(LyricsEntity.resolved(mediaMetadata.id, null, fetched.lyrics, fetched.provider))
-        recordExtras(mediaMetadata.id, fetched)
+        // The extras delete and the fresh record share one critical section with the pane's asks, so an ask
+        // that raced the refetch cannot re-record the old song's extras between the delete and the answer.
+        withExtrasLock(mediaMetadata.id) {
+            extras.delete(mediaMetadata.id)
+            val fetched = fetchShared(mediaMetadata)
+            Timber.d("LyricsStore refetch %s -> %s", mediaMetadata.id, fetched.provider)
+            persist(LyricsEntity.resolved(mediaMetadata.id, null, fetched.lyrics, fetched.provider))
+            recordExtras(mediaMetadata.id, fetched)
+        }
     }
 
     private suspend fun fetchShared(mediaMetadata: MediaMetadata): LyricsHelper.Fetched {
