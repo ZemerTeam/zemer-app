@@ -144,7 +144,10 @@ dismisses first, so a POST launched there never reached the server (`LyricsFeedb
 not: `LyricsStore.prefetch(current, next, connected)` runs `ensure` for the playing song and the next queue item
 (`LYRICS_PREFETCH_DELAY_MS` = 3 s after the track change so the chain never competes with the stream resolution;
 `collectLatest` drops a pending prefetch when the track changes first; skipped offline so no not-found rows are
-minted that would hide lyrics once online). Opening the pane is then a Room read. `ensure` runs the
+minted that would hide lyrics once online). Opening the pane is then a Room read. The walk itself runs
+structured under its caller (`LyricsHelper.getLyrics` -> `LyricsChainWalk.run`, a `coroutineScope`), so a
+cancelled prefetch cancels its in-flight provider fetches instead of leaving them to finish on a detached
+scope (`LyricsChainWalkTest` "cancelling the walk cancels the in-flight concurrent fetches"). `ensure` runs the
 chain only when `needsFetch`: nothing cached, or a legacy row (provider null) with a real body. A `LYRICS_NOT_FOUND` row is a
 negative cache and is never re-fetched. A legacy PLAIN body is always kept and stamped `provider = "legacy"`
 (shown as unknown provenance): pre-provider manual entries are indistinguishable from old auto-cached rows and
