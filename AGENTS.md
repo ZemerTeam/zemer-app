@@ -611,7 +611,17 @@ pinned to the server by vectors), monotone so a repeated chorus takes successive
 `lineTimes.type` names, and only when ≥ 85 % of the body's own lines found a time (the server's rule; below it the
 server sends `syncTruncated` instead of `lineTimes`; a timed line absent from a drifted-shorter body costs nothing) — else
 plain. An unmatched line rides the preceding matched tag (the equal-time continuation the server's own synced
-bodies use) so no text is lost to sync; no line is ever given an estimated time. `LyricsEntity.CHAIN_GENERATION`
+bodies use) so no text is lost to sync; no line is ever given an estimated time. **`lineExtras`** (the resolver's per-line
+translation / romanization, `lyrics/LineExtras.kt`): paired to the app's own parsed lines by the SAME `lineKey`, never by
+index; rendered by the shared `LyricsLineExtra` under the sung line, ONE language at a time from `LyricsLineExtrasKey`
+(`LineExtrasLanguage`, **default OFF** - nothing changes until the user picks one, Appearance → lyrics or the lyrics menu);
+`source: "machine"` labels the source header ONCE per song, never per line; stored as one JSON file per videoId
+(`LineExtrasStore`, no lyrics-table migration) that never outlives its row (re-recorded on every chain answer, dropped on
+refetch); the pane also asks `POST /lyrics/extras` with the lines EXACTLY as displayed (any provider's body) once per
+song + language + body (`LyricsStore.ensureExtras`; transliteration rides the `en` request and reads `roman`; the
+store's flow prefers that aligned reply over the resolve-time field), only once a language is picked; every ask and a
+refetch's delete → record share one per-videoId lock in `LyricsStore`, so a song resolves once and no stale record lands.
+`LyricsEntity.CHAIN_GENERATION`
 + `LyricsChainGenerationKey`: bump the constant when the chain gains sources/sync and every install drops its
 refreshable rows once (`DatabaseDao.purgeRefreshableLyrics`: not-found + auto-cached plain; synced, `manual`
 and `legacy` rows kept) - the replacement for one-off purge booleans), then

@@ -72,6 +72,28 @@ object ZemerLyricsClient {
         val offsetFrom: String? = null,
     )
 
+    /**
+     * Translations / romanization UNDER each sung line (additive, verified rows only; older servers never send
+     * it). [keys] are the same text-free [LineTimesLrc.lineKey]s as `lineTimes`, one per non-empty stored line;
+     * [en] / [he] / [roman] are parallel to them ("" where a line has no entry; a language list is absent when
+     * the song has no such extra). [source] `"machine"` = machine translation, labelled once per song.
+     */
+    @Serializable
+    data class LineExtras(
+        val keys: List<String> = emptyList(),
+        val en: List<String>? = null,
+        val he: List<String>? = null,
+        val yi: List<String>? = null,
+        val roman: List<String>? = null,
+        val source: String? = null,
+    )
+
+    /** The `/lyrics/extras` reply: absent (404) = no extras for this song; [failed] = could not ask (network), so nothing is cached. */
+    data class ExtrasReply(val extras: LineExtras?, val failed: Boolean)
+
+    @Serializable
+    private data class ExtrasRequest(val videoId: String, val lang: String, val lines: List<String>)
+
     @Serializable
     data class Resolved(
         val videoId: String,
@@ -81,6 +103,7 @@ object ZemerLyricsClient {
         val sources: List<Source> = emptyList(),
         val lineTimes: LineTimes? = null,
         val syncTruncated: Double? = null, // the measured timings cover too few of the pointer's lines (< 85 %), so no lineTimes were sent
+        val lineExtras: LineExtras? = null,
     )
 
     internal val json = Json { ignoreUnknownKeys = true; isLenient = true; explicitNulls = false }
@@ -108,6 +131,22 @@ object ZemerLyricsClient {
         val r = client.get("$baseUrl/lyrics/resolve") { url { parameters.append("videoId", videoId) }; header(HttpHeaders.Accept, "application/json") }
         return if (r.status == HttpStatusCode.OK) r.body<Resolved>() else null
     }
+
+    /**
+     * Extras aligned to the lines the app DISPLAYS (any provider's body): `POST /lyrics/extras` with the lines in
+     * order and the wanted [lang] (`en` / `he` / `yi`); the reply's arrays are parallel to [lines] ("" where
+     * nothing; `roman` comes along when held), and lines the server could not pair to its own text are
+     * machine-translated on first request and cached server-side. 404 = no extras for this song.
+     */
+    suspend fun extrasForLines(videoId: String, lines: List<String>, lang: String): ExtrasReply = runCatching {
+        val body = json.encodeToString(ExtrasRequest.serializer(), ExtrasRequest(videoId, lang, lines))
+        val r = client.post("$baseUrl/lyrics/extras") { header(HttpHeaders.ContentType, "application/json"); header(HttpHeaders.Accept, "application/json"); setBody(body) }
+        when (r.status) {
+            HttpStatusCode.OK -> ExtrasReply(json.decodeFromString(LineExtras.serializer(), r.bodyAsText()), failed = false)
+            HttpStatusCode.NotFound -> ExtrasReply(null, failed = false)
+            else -> ExtrasReply(null, failed = true)
+        }
+    }.getOrElse { if (it is kotlinx.coroutines.CancellationException) throw it; ExtrasReply(null, failed = true) }
 
     suspend fun fetchText(url: String): String? {
         val r = client.get(url) { header(HttpHeaders.UserAgent, "Zemer/${BuildConfig.VERSION_NAME} lyrics"); header(HttpHeaders.Accept, "text/html,application/json") }

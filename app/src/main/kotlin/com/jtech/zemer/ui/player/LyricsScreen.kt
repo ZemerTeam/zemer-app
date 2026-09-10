@@ -57,6 +57,7 @@ import androidx.media3.common.Player
 import coil3.compose.AsyncImage
 import com.jtech.zemer.LocalPlayerConnection
 import com.jtech.zemer.R
+import com.jtech.zemer.constants.LyricsLineExtrasKey
 import com.jtech.zemer.constants.PlayerBackgroundStyle
 import com.jtech.zemer.constants.PlayerBackgroundStyleKey
 import com.jtech.zemer.constants.SliderStyle
@@ -75,6 +76,9 @@ import com.jtech.zemer.ui.component.lyrics.LyricsNowPlayingBar
 import com.jtech.zemer.ui.component.lyrics.LyricsSourceHeader
 import com.jtech.zemer.ui.menu.LyricsMenu
 import com.jtech.zemer.utils.rememberEnumPreference
+import com.jtech.zemer.lyrics.LineExtrasLanguage
+import com.jtech.zemer.viewmodels.LyricsLineExtrasViewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import dagger.hilt.android.EntryPointAccessors
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
@@ -157,6 +161,10 @@ fun LyricsScreen(
     val lyricsBody = currentLyrics?.lyrics?.trim()
     val hasLyrics = !lyricsBody.isNullOrEmpty() && lyricsBody != LyricsEntity.LYRICS_NOT_FOUND
     val lyricsSynced = hasLyrics && LyricsUtils.isSynced(lyricsBody!!)
+    // Per-line extras: the ViewModel is shared with the pane (same owner), the header only labels machine text.
+    val lineExtrasLanguage by rememberEnumPreference(LyricsLineExtrasKey, LineExtrasLanguage.OFF)
+    val lineExtras by hiltViewModel<LyricsLineExtrasViewModel>().extras.collectAsState()
+    val machineTranslation = lineExtrasLanguage != LineExtrasLanguage.OFF && lineExtras?.let { it.isMachine && lineExtrasLanguage in it.languages } == true
     val isLandscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
     val showLyricsMenu = { menuState.show { LyricsMenu(lyricsProvider = { currentLyrics }, mediaMetadataProvider = { mediaMetadata }, onDismiss = menuState::dismiss) } }
 
@@ -194,7 +202,7 @@ fun LyricsScreen(
         @Composable
         fun LyricsPane(modifier: Modifier) {
             Column(modifier = modifier) {
-                if (hasLyrics) LyricsSourceHeader(provider = currentLyrics?.provider, synced = lyricsSynced, color = textColor)
+                if (hasLyrics) LyricsSourceHeader(provider = currentLyrics?.provider, synced = lyricsSynced, color = textColor, machineTranslation = machineTranslation)
                 Box(modifier = Modifier.weight(1f).fillMaxWidth().padding(horizontal = 16.dp), contentAlignment = Alignment.Center) {
                     Lyrics(sliderPositionProvider = { sliderPosition })
                 }

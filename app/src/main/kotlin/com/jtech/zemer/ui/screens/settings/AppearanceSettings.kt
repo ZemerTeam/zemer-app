@@ -87,6 +87,9 @@ import com.jtech.zemer.constants.LyricsScrollKey
 import com.jtech.zemer.constants.LyricsTextPositionKey
 import com.jtech.zemer.constants.LyricsWordSyncKey
 import com.jtech.zemer.constants.LyricsSyncOffsetKey
+import com.jtech.zemer.constants.LyricsLineExtrasKey
+import com.jtech.zemer.lyrics.LineExtrasLanguage
+import com.jtech.zemer.ui.component.lyrics.lineExtrasLanguageText
 import com.jtech.zemer.constants.PlayerBackgroundStyle
 import com.jtech.zemer.constants.PlayerBackgroundStyleKey
 import com.jtech.zemer.constants.PlayerButtonsStyle
@@ -219,6 +222,7 @@ fun AppearanceSettings(
     val (lyricsScroll, onLyricsScrollChange) = rememberPreference(LyricsScrollKey, defaultValue = true)
     val (lyricsWordSync, onLyricsWordSyncChange) = rememberPreference(LyricsWordSyncKey, defaultValue = true)
     val (lyricsSyncOffset, onLyricsSyncOffsetChange) = rememberPreference(LyricsSyncOffsetKey, defaultValue = 0)
+    val (lyricsLineExtras, onLyricsLineExtrasChange) = rememberEnumPreference(LyricsLineExtrasKey, defaultValue = LineExtrasLanguage.OFF)
 
     val (sliderStyle, onSliderStyleChange) = rememberEnumPreference(
         SliderStyleKey,
@@ -693,6 +697,15 @@ fun AppearanceSettings(
                                 LyricsPosition.RIGHT -> stringResource(R.string.right)
                             }
                         },
+                    )
+                },
+                {
+                    EnumListPreference(
+                        title = { Text(stringResource(R.string.lyrics_line_extras)) },
+                        icon = { Icon(painterResource(R.drawable.language), null) },
+                        selectedValue = lyricsLineExtras,
+                        onValueSelected = onLyricsLineExtrasChange,
+                        valueText = { lineExtrasLanguageText(it) },
                     )
                 },
                 {

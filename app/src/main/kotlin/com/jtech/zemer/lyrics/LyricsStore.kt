@@ -2,6 +2,8 @@ package com.jtech.zemer.lyrics
 
 import com.jtech.zemer.db.MusicDatabase
 import com.jtech.zemer.db.entities.LyricsEntity
+import com.jtech.zemer.lyrics.zemer.ZemerLyricsClient
+import kotlinx.coroutines.CancellationException
 import com.jtech.zemer.models.MediaMetadata
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
@@ -32,18 +34,34 @@ class LyricsStore(
     private val persist: (LyricsEntity) -> Unit,
     private val delete: (LyricsEntity) -> Unit,
     private val fetch: suspend (MediaMetadata) -> LyricsHelper.Fetched,
+    private val extras: LineExtrasStorage,
+    private val resolveExtras: suspend (videoId: String) -> ZemerLyricsClient.LineExtras?,
+    private val alignedExtras: suspend (videoId: String, lines: List<String>, lang: String) -> ZemerLyricsClient.ExtrasReply,
     private val scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.IO),
+    private val now: () -> Long = System::currentTimeMillis,
 ) {
     @Inject
-    constructor(database: MusicDatabase, helper: LyricsHelper) : this(
+    constructor(database: MusicDatabase, helper: LyricsHelper, extras: LineExtrasStore) : this(
         cached = { database.lyrics(it).first() },
         persist = { row -> database.query { upsert(row) } },
         delete = { row -> database.query { delete(row) } },
         fetch = helper::getLyrics,
+        extras = extras,
+        resolveExtras = { ZemerLyricsClient.resolve(it)?.lineExtras },
+        alignedExtras = ZemerLyricsClient::extrasForLines,
     )
 
     private val inFlightLock = Mutex()
     private val inFlight = HashMap<String, Deferred<LyricsHelper.Fetched>>()
+
+    /**
+     * One lock per videoId over the extras record: the pane's on-demand asks (read → resolve → write) and a
+     * refetch's delete → record run serialised, so two binds never resolve the same song twice and an ask that
+     * raced a refetch cannot land a stale record after the delete.
+     */
+    private val extrasLocks = HashMap<String, Mutex>()
+    private suspend fun <T> withExtrasLock(videoId: String, block: suspend () -> T): T =
+        inFlightLock.withLock { extrasLocks.getOrPut(videoId) { Mutex() } }.withLock { block() }
 
     /** Run the chain only when the cache says so (nothing cached, or a legacy row re-resolved once). Returns true when it fetched. */
     suspend fun ensure(mediaMetadata: MediaMetadata): Boolean {
@@ -53,7 +71,51 @@ class LyricsStore(
         val fetched = fetchShared(mediaMetadata)
         Timber.d("LyricsStore ensure %s -> %s", mediaMetadata.id, fetched.provider)
         persist(LyricsEntity.resolved(mediaMetadata.id, row, fetched.lyrics, fetched.provider))
+        withExtrasLock(mediaMetadata.id) { recordExtras(mediaMetadata.id, fetched) }
         return true
+    }
+
+    /**
+     * Extras ALIGNED to the lines the pane displays (any provider's body): one `/lyrics/extras` call per song,
+     * language and displayed body, recorded either way (a 404 is a dated negative, re-asked after
+     * [LineExtrasStore.EMPTY_TTL_MS]; a network failure records nothing and is retried next time). Called only
+     * once the user has picked a language, so an install that never turns extras on never makes this request.
+     * Returns true when it asked the server.
+     */
+    suspend fun ensureExtras(mediaMetadata: MediaMetadata, language: LineExtrasLanguage, lines: List<String>): Boolean {
+        val lang = language.wireLang ?: return false
+        if (mediaMetadata.isEpisode || lines.isEmpty()) return false
+        val hash = LineExtras.linesHash(lines)
+        return withExtrasLock(mediaMetadata.id) {
+            if (extras.read(mediaMetadata.id)?.alignedCurrent(lang, hash, now()) == true) return@withExtrasLock false
+            val reply = alignedExtras(mediaMetadata.id, lines, lang)
+            if (reply.failed) return@withExtrasLock false
+            extras.writeAligned(mediaMetadata.id, lang, hash, reply.extras, now())
+            true
+        }
+    }
+
+    /**
+     * The resolve-time extras for a row that predates them (cached before this feature): ONE resolver call per
+     * song, recorded either way (a "none" record is re-asked after [LineExtrasStore.EMPTY_TTL_MS]). The fast path
+     * behind [ensureExtras] when the displayed text is the server's own.
+     */
+    suspend fun ensureResolveExtras(mediaMetadata: MediaMetadata): Boolean {
+        if (mediaMetadata.isEpisode) return false
+        return withExtrasLock(mediaMetadata.id) {
+            val record = extras.read(mediaMetadata.id)
+            if (record != null && !record.isStale(now())) return@withExtrasLock false
+            val wire = runCatching { resolveExtras(mediaMetadata.id) }
+                .onFailure { if (it is CancellationException) throw it; Timber.w(it, "LyricsStore extras resolve failed for %s", mediaMetadata.id) }
+                .getOrElse { return@withExtrasLock false }
+            extras.write(mediaMetadata.id, wire, now())
+            true
+        }
+    }
+
+    /** Every chain answer re-records the song's extras (or clears them): a record never outlives its row. */
+    private fun recordExtras(videoId: String, fetched: LyricsHelper.Fetched) {
+        if (fetched.lyrics == LyricsEntity.LYRICS_NOT_FOUND) extras.delete(videoId) else extras.write(videoId, fetched.lineExtras, now())
     }
 
     /**
@@ -78,9 +140,15 @@ class LyricsStore(
         if (mediaMetadata.isEpisode) return
         cached(mediaMetadata.id)?.let(delete)
         Timber.d("LyricsStore refetch %s", mediaMetadata.id)
-        val fetched = fetchShared(mediaMetadata)
-        Timber.d("LyricsStore refetch %s -> %s", mediaMetadata.id, fetched.provider)
-        persist(LyricsEntity.resolved(mediaMetadata.id, null, fetched.lyrics, fetched.provider))
+        // The extras delete and the fresh record share one critical section with the pane's asks, so an ask
+        // that raced the refetch cannot re-record the old song's extras between the delete and the answer.
+        withExtrasLock(mediaMetadata.id) {
+            extras.delete(mediaMetadata.id)
+            val fetched = fetchShared(mediaMetadata)
+            Timber.d("LyricsStore refetch %s -> %s", mediaMetadata.id, fetched.provider)
+            persist(LyricsEntity.resolved(mediaMetadata.id, null, fetched.lyrics, fetched.provider))
+            recordExtras(mediaMetadata.id, fetched)
+        }
     }
 
     private suspend fun fetchShared(mediaMetadata: MediaMetadata): LyricsHelper.Fetched {

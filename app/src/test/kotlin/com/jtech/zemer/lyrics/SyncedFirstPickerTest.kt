@@ -42,6 +42,8 @@ class SyncedFirstPickerTest {
         val picker = SyncedFirstPicker()
         assertNull(picker.offer(zemer, LabeledLyrics("Zemer · shironet", plain)))
         assertEquals(LyricsHelper.Fetched(synced, "LrcLib"), picker.offer(lrclib, LabeledLyrics("LrcLib", synced)))
+        val extras = com.jtech.zemer.lyrics.zemer.ZemerLyricsClient.LineExtras(keys = listOf("k"), en = listOf("e"))
+        assertEquals(extras, SyncedFirstPicker().offer(lrclib, LabeledLyrics("Zemer", synced, extras))!!.lineExtras)
     }
 
     @Test

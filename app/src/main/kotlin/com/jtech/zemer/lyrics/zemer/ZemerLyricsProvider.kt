@@ -123,6 +123,6 @@ object ZemerLyricsProvider : LyricsProvider {
     override suspend fun getLabeledLyrics(id: String, title: String, artist: String, duration: Int, album: String?): Result<LabeledLyrics> = runCatching {
         val resolved = ZemerLyricsClient.resolve(id) ?: throw LyricsUnavailableException
         val best = bodies(resolved, firstOnly = true).firstOrNull() ?: throw LyricsUnavailableException
-        LabeledLyrics(label(best.first, resolved.verified), best.second)
+        LabeledLyrics(label(best.first, resolved.verified), best.second, resolved.lineExtras)
     }.onFailure { if (it is CancellationException) throw it }
 }
