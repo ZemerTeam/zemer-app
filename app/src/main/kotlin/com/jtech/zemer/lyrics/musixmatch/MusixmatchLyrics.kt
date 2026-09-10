@@ -188,6 +188,38 @@ object MusixmatchLyrics {
         return Outcome.Hit(judged)
     }
 
+    /**
+     * The body for ONE server-vetted Musixmatch row (a Zemer resolver `musixmatch` pointer): `track.lyrics.get` by
+     * [commontrackId], plus `track.subtitle.get` by [trackId] when the server says the row is [synced]. The server
+     * already matched artist, title and length against this recording, so only the text gates run here
+     * (instrumental/restricted rejected, licence footer stripped, LRC monotonic, >= 4 lines). null = nothing usable.
+     */
+    suspend fun fetchById(token: String, commontrackId: Long, trackId: Long, synced: Boolean): Outcome {
+        val auth = "app_id=$APP&usertoken=$token&format=json"
+        val lj = getJson("${BASE}track.lyrics.get?$auth&commontrack_id=$commontrackId") ?: return Outcome.Network
+        if (lj.header()?.get("status_code")?.jsonPrimitive?.intOrNull == 401) return Outcome.Unauthorized
+        val ly = lj.body()?.get("lyrics")?.let { runCatching { it.jsonObject }.getOrNull() }?.let(::payload) ?: return Outcome.NoMatch
+        if (ly.body.isNullOrBlank()) return Outcome.NoLyrics
+        if (ly.instrumental || ly.restricted) return Outcome.Rejected(if (ly.instrumental) MusixmatchStatus.REASON_INSTRUMENTAL else MusixmatchStatus.REASON_RESTRICTED, commontrackId.toString())
+        val plain = cleanLyrics(ly.body)
+        if (!LyricsUtils.hasLyricBody(plain)) return Outcome.NoLyrics
+        val subtitle = if (synced) getJson("${BASE}track.subtitle.get?$auth&track_id=$trackId&subtitle_format=lrc").body()
+            ?.get("subtitle")?.let { runCatching { it.jsonObject }.getOrNull() }?.get("subtitle_body")?.jsonPrimitive?.contentOrNull else null
+        return Outcome.Hit(Judged(plain, cleanLrc(subtitle), "mxm:$commontrackId@$trackId"))
+    }
+
+    /** [fetchById] under the phone's token with the same stale-token retry as [getLyrics]; LRC when synced and clean, else plain. */
+    suspend fun getLyricsById(context: Context, commontrackId: Long, trackId: Long, synced: Boolean): String? {
+        val tok = token(context) ?: run { record(context, MusixmatchStatus.NoToken); return null }
+        var out = fetchById(tok, commontrackId, trackId, synced)
+        if (out is Outcome.Unauthorized) {
+            val fresh = token(context, forceNew = true)
+            out = if (fresh != null) fetchById(fresh, commontrackId, trackId, synced) else out
+        }
+        record(context, out.status)
+        return (out as? Outcome.Hit)?.judged?.let { it.synced ?: it.plain }
+    }
+
     /** The gated body for this song: LRC when the recording length matched within 1 s, else plain text; null = not found. */
     suspend fun getLyrics(context: Context, title: String, artist: String, duration: Int): Judged? {
         val tok = token(context) ?: run { record(context, MusixmatchStatus.NoToken); return null }
@@ -219,8 +251,12 @@ object MusixmatchLyrics {
                 it["track_length"]?.jsonPrimitive?.intOrNull ?: 0, it["commontrack_id"]?.jsonPrimitive?.longOrNull ?: 0L, it["track_id"]?.jsonPrimitive?.longOrNull ?: 0L,
             )
         }
-        return Triple(track, LyricsPayload(ly?.get("lyrics_body")?.jsonPrimitive?.contentOrNull, (ly?.get("instrumental")?.jsonPrimitive?.intOrNull ?: 0) == 1, (ly?.get("restricted")?.jsonPrimitive?.intOrNull ?: 0) == 1), st)
+        return Triple(track, payload(ly), st)
     }
+
+    /** The `lyrics` object of a `track.lyrics.get` reply (inline in the macro call or standalone). */
+    fun payload(ly: JsonObject?): LyricsPayload =
+        LyricsPayload(ly?.get("lyrics_body")?.jsonPrimitive?.contentOrNull, (ly?.get("instrumental")?.jsonPrimitive?.intOrNull ?: 0) == 1, (ly?.get("restricted")?.jsonPrimitive?.intOrNull ?: 0) == 1)
 
     fun parseMacro(raw: String): Triple<Track?, LyricsPayload, String?>? = runCatching { parseMacro(json.parseToJsonElement(raw).jsonObject) }.getOrNull()
 }

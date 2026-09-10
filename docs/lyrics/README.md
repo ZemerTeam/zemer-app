@@ -32,19 +32,30 @@ providers by `MediaMetadata.id` (never `setVideoId`, which is a playlist-entry t
   hands out `lrclib:<id>` only for rows its audio check confirmed; LRC preferred, plain as fallback, instrumental
   or thin records yield nothing; `ZemerLyricsProviderTest`), `zemer` (Zemer's own certified text: `richSync`
   enhanced LRC with `<mm:ss.xx>` word tags > `syncedLrc` > `plain`; every word tag is certified by two aligners,
-  a line without tags is deliberately line-only) and booklet/manual/canonical/community text inline. A
-  `musixmatch` pointer (`trackId`/`commontrackId`) is parsed but not fetched (no rows exist; the on-device client has
-  no by-id path). Rank: `zemer` 0 > `jkaraoke` 1 > `lrclib`/`kugou`/`musixmatch` 2 > `jyrics`/`shironet`/
-  `zingmusic`/`youtube`/`tab4u`/`zemirotdb`/`lyricstranslate` 3 > `booklet`/`manual` 4 > `canonical`/`community`
-  5 > unknown types skipped. The page parsers are
+  a line without tags is deliberately line-only), booklet/manual/canonical/community text inline, an `apple` row
+  by `catalogId` → `AppleTtmlLrc` (the paxsenix mirror `/apple-music/lyrics?id=` returns Apple's TTML; each
+  `<p begin="m:ss.mmm">` line becomes `[mm:ss.xx] text`, inner word `<span>`s dropped, Apple's own line times,
+  >= 4 monotonic lines; golden `apple-1571752969.json` → `.expected.lrc`), and a `musixmatch` row by id →
+  `MusixmatchLyrics.getLyricsById` (`track.lyrics.get?commontrack_id=` plus `track.subtitle.get?track_id=` when
+  `synced`, under the phone's own brokered token with the same stale-token retry; only the text gates run —
+  instrumental/restricted rejected, licence footer stripped, LRC monotonic — since the server matched the recording).
+  Walk order (`ZemerLyricsProvider.order`): synced first (`synced`, an inline `syncedLrc`/`richSync`, or the one
+  pointer the resolver's `lineTimes` were measured against), then rank: `zemer` 0 > `jkaraoke`/`apple` 1 >
+  `lrclib`/`kugou`/`musixmatch`/`zingmusic`/`youtube` 2 > `jyrics`/`shironet`/`tab4u`/`zemirotdb`/`lyricstranslate`
+  3 > `booklet`/`manual`/`canonical`/`community` 4 (inline bodies stay behind the pointers: the pointer is the
+  fresher copy, the inline text the outage fallback) > unknown types skipped; the server's order breaks ties. Each
+  source's fetch/parse runs under `runCatching`, so a dead or throwing source is skipped, never the walk. The
+  informational extras (`publicDomain`, `borrowedFrom`, `syncedTruncated`, `wordSyncPartial`, `provenance`,
+  `admittedBy`, `Resolved.syncTruncated`, `LineTimes.offsetSec` — already folded into `times`) parse and are
+  not acted on. The page parsers are
   byte-identical ports of the server's, pinned by golden files under `app/src/test/resources/lyrics/`
   (`JyricsParserGoldenTest`, `ShironetParserGoldenTest`, `ZingParserGoldenTest`, `JkaraokeLrcGoldenTest`,
   `Tab4uParserGoldenTest`, `ZemirotDbParserGoldenTest`, `SyncIntegrationTest`); they share `HtmlEntities.unescape`
   and the `LyricsUtils.hasLyricBody` body gate (four non-blank lines, also Musixmatch's) except zemirotdb's word gate.
   Provider label: `Zemer · <source>` (verification is a server fact, not shown; the lyrics header shows just
   "Zemer", the sub-source stays in the stored label for reports); Zemer's own text is labelled just `Zemer`, and a
-  `manual` row's suffix is its `origin` display name (`Telegram`, `verified` for `asrverified`, `forum`,
-  `community`, an unknown slug as-is — `ZemerLyricsProvider.originName`).
+  `manual` row's suffix is its `origin` display name (`Telegram`, `verified` for `asrverified`, `Apple Music`,
+  `YouTube`, `forum`, `community`, an unknown slug as-is — `ZemerLyricsProvider.originName`).
   `bodies(firstOnly = true)` stops at the first source that yields text, so the auto-fetch path does not download
   every source.
 * **`lineTimes`** (`lyrics/zemer/LineTimesLrc.kt`, JVM-tested `LineTimesLrcTest`): the resolver may carry measured
@@ -55,8 +66,10 @@ providers by `MediaMetadata.id` (never `setVideoId`, which is a playlist-entry t
   `corpus/lyrics.mjs#lineKey`, pinned by vectors computed with it. `apply(plain, lineTimes)` keys the parsed body's
   non-blank lines and pairs them MONOTONELY (a repeated chorus line takes successive timed occurrences, output is
   always in time order) and only to the body of the source `lineTimes.type` names (never another pointer's text,
-  never an already-synced body). It syncs only when ≥ `MIN_MATCHED_SHARE` (80 %) of the TIMED lines matched AND
-  ≥ 80 % of the BODY's lines matched, else the body stays plain; an unmatched line inside a passing body rides the
+  never an already-synced body). It syncs only when ≥ `MIN_MATCHED_SHARE` (85 %, the server's own rule — below it
+  the server sends `syncTruncated` instead of `lineTimes`) of the BODY's lines found a time (a timed line absent
+  from the body costs nothing: the live text may have drifted shorter since it was measured, as the zing fixture
+  did), else the body stays plain; an unmatched line inside a passing body rides the
   preceding matched line's tag (a leading one rides the first) — the equal-time continuation the server's own
   `syncedLrc` bodies already use — so no text is dropped for sync and no line is ever given an estimated time.
   The live zing fixture (`zing-1340.json` + `resolve-zingmusic-linetimes.json`) shows why keys beat counts: the

@@ -39,16 +39,18 @@ class LineTimesLrcTest {
 
     @Test
     fun `an unmatched line rides the preceding measured tag and too many unmatched lines keep the body plain`() {
-        val times = lt(1.0 to "one", 2.0 to "two", 3.0 to "three", 4.0 to "four", 5.0 to "five")
-        // one of five parsed lines differs (80 % matched on both sides): synced; the odd line is kept on the previous tag, never given a time of its own
+        val times = lt(1.0 to "one", 2.0 to "two", 3.0 to "three", 4.0 to "four", 5.0 to "five", 6.0 to "six", 7.0 to "seven")
+        // one of seven parsed lines differs (86 % matched on both sides): synced; the odd line is kept on the previous tag, never given a time of its own
         val odd = times.copy(keys = times.keys.mapIndexed { i, k -> if (i == 3) "deadbeef" else k })
-        assertEquals("[00:01.00] one\n[00:02.00] two\n[00:03.00] three\n[00:03.00] FOUR!!\n[00:05.00] five", LineTimesLrc.apply("one\ntwo\nthree\nFOUR!!\nfive", odd))
+        assertEquals("[00:01.00] one\n[00:02.00] two\n[00:03.00] three\n[00:03.00] FOUR!!\n[00:05.00] five\n[00:06.00] six\n[00:07.00] seven", LineTimesLrc.apply("one\ntwo\nthree\nFOUR!!\nfive\nsix\nseven", odd))
         // a leading unmatched line rides the first measured tag
-        assertEquals("[00:01.00] TITLE\n[00:01.00] one\n[00:02.00] two\n[00:03.00] three\n[00:04.00] four\n[00:05.00] five", LineTimesLrc.apply("TITLE\none\ntwo\nthree\nfour\nfive", times))
-        // two of five timed lines never appear in the body: below the share, plain
-        assertNull(LineTimesLrc.apply("one\ntwo\nthree", times))
+        assertEquals("[00:01.00] TITLE\n[00:01.00] one\n[00:02.00] two\n[00:03.00] three\n[00:04.00] four\n[00:05.00] five\n[00:06.00] six\n[00:07.00] seven", LineTimesLrc.apply("TITLE\none\ntwo\nthree\nfour\nfive\nsix\nseven", times))
+        // two of seven body lines have no time (71 %): below the 85 % share, plain (the server's own rule)
+        assertNull(LineTimesLrc.apply("one\ntwo\nthree\nother\nanother\nsix\nseven", times))
         // the body has many lines the timings do not cover: plain
-        assertNull(LineTimesLrc.apply("one\ntwo\nthree\nfour\nfive\nx1\nx2\nx3\nx4\nx5", times))
+        assertNull(LineTimesLrc.apply("one\ntwo\nthree\nfour\nfive\nsix\nseven\nx1\nx2\nx3\nx4\nx5", times))
+        // a body shorter than the timings (text drifted since it was measured) still syncs: the share is over the body's lines
+        assertEquals("[00:01.00] one\n[00:02.00] two\n[00:03.00] three\n[00:04.00] four", LineTimesLrc.apply("one\ntwo\nthree\nfour", times))
         // fewer than four timed lines is never sync
         assertNull(LineTimesLrc.apply("one\ntwo\nthree", lt(1.0 to "one", 2.0 to "two", 3.0 to "three")))
         // a keys/times length mismatch is bounded by the shorter list
@@ -65,8 +67,8 @@ class LineTimesLrcTest {
         val plain = ZingParser.toPlain(html)
         val lrc = LineTimesLrc.apply(plain, lineTimes)
         assertNotNull("the server measured this record's own lines; the port must re-key them", lrc)
-        // the live record's text has drifted from what the server timed (57 lines now, 60 then): 50 match by key,
-        // which is exactly why lines pair by key and not by count; every line of the body is kept
+        // the live record's text has drifted from what the server timed (57 lines now, 60 then): 50 match by key (88 % of
+        // the body), which is exactly why lines pair by key and not by count; every line of the body is kept
         val lines = lrc!!.lines()
         assertEquals(plain.lines().count { it.isNotBlank() }, lines.size)
         assertEquals(50, lines.map { it.substring(0, 10) }.distinct().size)

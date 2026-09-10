@@ -590,14 +590,24 @@ itself through golden-pinned parser ports of the server's parsers — `JyricsPar
 applied), `Tab4uParser`, `ZemirotDbParser` — the YouTube lyrics tab by the server-vouched `browseId`
 (trusted at rank 3 INSIDE the resolver, a deliberate policy: the server verified the tab for that exact
 videoId), and an audio-verified LRCLIB record by id, `ZemerLyricsClient.lrclibBody`, which the server hands out
-only for rows its audio check confirmed. Rank (`ZemerLyricsProvider.rank`): `zemer` 0 (Zemer's own certified
-text, `richSync` word tags > `syncedLrc` > `plain`, labelled just "Zemer") > jkaraoke 1 > lrclib/kugou 2 > the
-text pointers 3 > booklet/manual 4 > canonical/community 5; an unknown type is skipped, never guessed. A
-`manual` row's label names its `origin` (`Zemer · Telegram`, `verified`, `forum`, …). **`lineTimes`** (the
+only for rows its audio check confirmed, an Apple Music row by `catalogId` (`AppleTtmlLrc`: the paxsenix mirror's
+TTML `<p begin>` lines → LRC, Apple's own line times, golden-pinned), and a Musixmatch row by id
+(`MusixmatchLyrics.getLyricsById`, `track.lyrics.get` + `track.subtitle.get` under the phone's own brokered token,
+text gates only — the server already matched the recording). Walk order (`ZemerLyricsProvider.order`): SYNCED
+sources first (`synced`, an inline `syncedLrc`/`richSync`, or the one pointer `lineTimes` covers), then rank
+(`ZemerLyricsProvider.rank`): `zemer` 0 (Zemer's own certified text, `richSync` word tags > `syncedLrc` > `plain`,
+labelled just "Zemer") > jkaraoke/apple 1 > lrclib/kugou/musixmatch/zingmusic/youtube 2 > the text pages 3 >
+booklet/manual/canonical/community 4 (the inline bodies stay BEHIND the pointers: a pointer is the fresher copy,
+the inline text the outage fallback); the server's order breaks ties; an unknown type is skipped, never guessed;
+one source's fetch/parse failure skips that source, never the walk. A `manual` row's label names its `origin`
+(`Zemer · Telegram`, `verified`, `Apple Music`, `YouTube`, `forum`, …); the extra facts a source may carry
+(`publicDomain`, `borrowedFrom`, `syncedTruncated`, `wordSyncPartial`, `provenance`, `admittedBy`, the
+`lineTimes.offsetSec` already folded into `times`) are parsed and informational only. **`lineTimes`** (the
 resolver's measured line START times for a pointer's own text) are applied by the pure `LineTimesLrc`: lines
 pair by a TEXT-FREE key (`lineKey` = NFC → strip U+0591..U+05C7 → lowercase → letters+digits only → SHA-1[0:8],
 pinned to the server by vectors), monotone so a repeated chorus takes successive times, ONLY to the source
-`lineTimes.type` names, and only when ≥ 80 % of the timed lines AND ≥ 80 % of the body's lines matched — else
+`lineTimes.type` names, and only when ≥ 85 % of the body's own lines found a time (the server's rule; below it the
+server sends `syncTruncated` instead of `lineTimes`; a timed line absent from a drifted-shorter body costs nothing) — else
 plain. An unmatched line rides the preceding matched tag (the equal-time continuation the server's own synced
 bodies use) so no text is lost to sync; no line is ever given an estimated time. `LyricsEntity.CHAIN_GENERATION`
 + `LyricsChainGenerationKey`: bump the constant when the chain gains sources/sync and every install drops its

@@ -49,7 +49,14 @@ object ZemerLyricsClient {
         val synced: Boolean = false,
         val origin: String? = null,       // manual: where the text came from (telegram / forum / asrverified / community)
         val ref: String? = null,          // manual/community: the operator's reference for that origin
-        val commontrackId: Long? = null,  // musixmatch (parsed, not fetched: no rows exist yet)
+        val commontrackId: Long? = null,  // musixmatch (fetched by id with the phone's own token, see MusixmatchLyrics.byId)
+        val catalogId: String? = null,    // apple: the Apple Music song id (TTML via the paxsenix mirror, see AppleTtmlLrc)
+        val publicDomain: Double? = null, // manual: share of lines (0..1) that are Tanach/siddur/haggadah text (nobody's copyright)
+        val borrowedFrom: String? = null, // manual: the text was verified on another recording of the same song (then never synced)
+        val syncedTruncated: Double? = null, // 0..1: stored timings cover too few lines, so the server withheld syncedLrc
+        val wordSyncPartial: Boolean? = null, // word tags exist but not for the whole song, so the server withheld richSync
+        val provenance: String? = null,   // zemer: how the certified text was produced (label only)
+        val admittedBy: String? = null,   // zemer: what admitted it (label only)
     )
 
     /**
@@ -59,7 +66,11 @@ object ZemerLyricsClient {
      * measured against; they are never applied to another pointer's body.
      */
     @Serializable
-    data class LineTimes(val type: String, val count: Int = 0, val times: List<Double> = emptyList(), val keys: List<String> = emptyList())
+    data class LineTimes(
+        val type: String, val count: Int = 0, val times: List<Double> = emptyList(), val keys: List<String> = emptyList(),
+        val offsetSec: Double? = null,    // informational: ALREADY added into [times] by the server, never applied again
+        val offsetFrom: String? = null,
+    )
 
     @Serializable
     data class Resolved(
@@ -69,6 +80,7 @@ object ZemerLyricsClient {
         val hasSynced: Boolean = false,
         val sources: List<Source> = emptyList(),
         val lineTimes: LineTimes? = null,
+        val syncTruncated: Double? = null, // the measured timings cover too few of the pointer's lines (< 85 %), so no lineTimes were sent
     )
 
     internal val json = Json { ignoreUnknownKeys = true; isLenient = true; explicitNulls = false }

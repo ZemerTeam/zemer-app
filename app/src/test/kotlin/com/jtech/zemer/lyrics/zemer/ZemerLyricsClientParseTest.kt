@@ -42,6 +42,23 @@ class ZemerLyricsClientParseTest {
         assertEquals("telegram", manual.sources[0].origin)
         assertEquals("tg:x/121", manual.sources[0].ref)
         assertNull(manual.sources[0].syncedLrc)
+        val apple = ZemerLyricsClient.json.decodeFromString(ZemerLyricsClient.Resolved.serializer(), res("resolve-apple-linetimes.json"))
+        assertEquals("1571752969", apple.sources[0].catalogId)
+        assertTrue(apple.sources[0].synced)
+        assertEquals("apple", apple.lineTimes!!.type)
+        assertEquals(51, apple.lineTimes!!.times.size)
+        // the extras any source may carry, incl. the integer-valued publicDomain the server emits for an all-liturgy text
+        val extras = ZemerLyricsClient.json.decodeFromString(ZemerLyricsClient.Resolved.serializer(),
+            """{"videoId":"x","sources":[{"type":"manual","origin":"jyrics","publicDomain":1,"borrowedFrom":"abc","syncedTruncated":0.4,"wordSyncPartial":true,"plain":"a\nb\nc\nd"},{"type":"zemer","provenance":"zemer-align","admittedBy":"certified","plain":"a\nb\nc\nd"}],"lineTimes":{"type":"youtube","count":1,"times":[1.5],"keys":["00000000"],"offsetSec":-0.42,"offsetFrom":"measured"},"syncTruncated":0.61}""")
+        assertEquals(1.0, extras.sources[0].publicDomain!!, 0.0)
+        assertEquals("abc", extras.sources[0].borrowedFrom)
+        assertEquals(0.4, extras.sources[0].syncedTruncated!!, 0.0)
+        assertEquals(true, extras.sources[0].wordSyncPartial)
+        assertEquals("zemer-align", extras.sources[1].provenance)
+        assertEquals("certified", extras.sources[1].admittedBy)
+        assertEquals(-0.42, extras.lineTimes!!.offsetSec!!, 0.0)
+        assertEquals("measured", extras.lineTimes!!.offsetFrom)
+        assertEquals(0.61, extras.syncTruncated!!, 0.0)
     }
 
     private fun res(name: String) = javaClass.classLoader!!.getResourceAsStream("lyrics/$name")!!.readBytes().toString(Charsets.UTF_8)
