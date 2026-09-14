@@ -124,12 +124,15 @@ class BuiltCategories internal constructor(
     // female-involved videoIds (primary OR credited) UNION blocked.female — matches the server's `_female`
     // set (api.mjs setFemaleSet), used by the community post-filter kept-count recompute.
     private val femaleVideoIds: Set<String>,
+    // Compiled once from the corpus's own `synonyms` shard (falls back to SubsetSynonyms.DEFAULT when the
+    // snapshot predates it), so search stays on the server's current table without a hand-copied one.
+    private val synonyms: SubsetSynonyms.Compiled,
 ) {
 
     fun search(q: String, k: Int, allowFemale: Boolean, blockVideos: Boolean, kidZone: Boolean): ZemerCategories {
         // pick = search n*4 -> filter allowed & !blocked -> slice n -> map (categories.mjs `pick`).
         fun <T : SearchDoc> pick(index: SubsetIndex<T>, n: Int, keep: (T) -> Boolean, blockIds: (T) -> List<String?>) =
-            searchIndex(index, q, n * 4).asSequence().map { it.doc }
+            searchIndex(index, q, n * 4, synonyms).asSequence().map { it.doc }
                 .filter { keep(it) && !blockedDoc(blockIds(it), allowFemale) }
                 .take(n).toList()
 
@@ -157,7 +160,7 @@ class BuiltCategories internal constructor(
         // Community: title-only ranking; communitySurvives() gate; then the api.mjs post-filter recompute of
         // whitelisted count + cover (no-op when no filter is active).
         val filterActive = !allowFemale || kidZone || blockVideos
-        val communityRows = searchIndex(community, q, k * 4).asSequence().map { it.doc }
+        val communityRows = searchIndex(community, q, k * 4, synonyms).asSequence().map { it.doc }
             .filter { communitySurvives(it, allowFemale, blockVideos, kidZone) && !blockedDoc(listOf(it.id), allowFemale) }
             .take(k).toList()
             .map { d ->
@@ -391,6 +394,7 @@ class BuiltCategories internal constructor(
                 podcasts = buildSubsetIndex(podcastDocs),
                 episodes = buildSubsetIndex(episodeDocs),
                 femaleVideoIds = femaleVideoIds,
+                synonyms = corpus.synonymGroups.takeIf { it.isNotEmpty() }?.let(SubsetSynonyms::compile) ?: SubsetSynonyms.DEFAULT,
             )
         }
     }

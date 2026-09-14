@@ -13,6 +13,7 @@ import com.jtech.zemer.search.ZemerPodcastGenrePageResponse
 import com.jtech.zemer.search.ZemerPodcastGenresResponse
 import com.jtech.zemer.search.ZemerPodcastResponse
 import com.jtech.zemer.search.ZemerPodcastsResponse
+import com.jtech.zemer.search.ZemerRadioResponse
 import com.jtech.zemer.search.ZemerSearchResponse
 import com.jtech.zemer.utils.PodcastWhitelistCache
 import com.jtech.zemer.utils.WhitelistCache
@@ -36,8 +37,10 @@ import javax.inject.Singleton
  * on-disk manifest version changes (a sync landed) or the GC reclaimed it. All flags mirror the client:
  * `kidZone` is always false (the client sends `kidZone=0` for these surfaces).
  *
- * The endpoints that are NOT reproducible offline — `/playlist` (live YouTube) and `/radio` (needs the
- * co-occurrence graph, not shipped) — have no method here; the repository leaves those server-only.
+ * `/radio` is now PARTIALLY reproducible (2026-09-11 addendum: the `radio-<n>` shards carry the
+ * popularity + co-occurrence graph — see [SubsetRadio]'s doc for exactly which kinds/tiers). `/playlist`
+ * (any YouTube playlist, not just corpus ones) stays entirely live-only and has no method here; the
+ * repository leaves it server-only.
  */
 @Singleton
 class OfflineReadProvider @Inject constructor(
@@ -141,4 +144,26 @@ class OfflineReadProvider @Inject constructor(
         withContext(Dispatchers.IO) {
             snapshot()?.let { offlinePodcastGenre(it.corpus, id, allowFemale, blockVideos, kidZone = false) }
         }
+
+    /** `GET /radio` (offline, first page). Null when there's no snapshot, or [kind] isn't reproducible
+     * offline (see [SubsetRadio]'s doc) — the repository's `serverOrOffline` then rethrows. */
+    suspend fun radio(kind: String, seed: String?, allowFemale: Boolean, blockVideos: Boolean): ZemerRadioResponse? =
+        withContext(Dispatchers.IO) {
+            snapshot()?.let { offlineRadio(it.corpus, it.female, kind, seed, allowFemale, blockVideos) }
+        }
+
+    /** The next offline radio page for an [OfflineRadioToken]-shaped [token] (the repository routes only a
+     * token carrying [OfflineRadioToken.PREFIX] here; a live token always goes to the server instead). */
+    suspend fun radioContinuation(token: String): ZemerRadioResponse? = withContext(Dispatchers.IO) {
+        val parts = OfflineRadioToken.parse(token) ?: return@withContext null
+        snapshot()?.let { offlineRadio(it.corpus, it.female, parts.kind, parts.seed, parts.allowFemale, parts.blockVideos, offset = parts.offset) }
+    }
+
+    /** Affordance hint for a download-completion prefetch: does the snapshot flag [videoId] as having a
+     * verified, servable Zemer text (the `lyricsflags` shard, bit0)? False (never null) when there's no
+     * snapshot or the song isn't flagged — a caller that wants to skip a wasted network attempt when a
+     * hint firmly says "no" should still fall back to trying when unsure, so this stays a plain Boolean. */
+    suspend fun hasLikelyLyrics(videoId: String): Boolean = withContext(Dispatchers.IO) {
+        snapshot()?.corpus?.hasLikelyLyrics(videoId) ?: false
+    }
 }

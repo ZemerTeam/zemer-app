@@ -156,4 +156,22 @@ class SubsetSearchTest {
         assertTrue("full-coverage hit kept", "cov_high000" in songs)
         assertFalse("single-word hit dropped by the coverage gate", "cov_low0000" in songs)
     }
+
+    @Test
+    fun `a corpus carrying its own synonyms shard expands a group the built-in default table doesn't know`() {
+        val nickname = track("nick000000", "Nickname", "a_miami")
+        val fullName = track("full000000", "Totally Different Title", "a_miami")
+        val c = SubsetCorpus(
+            artists = listOf(miami), tracks = listOf(nickname, fullName), albums = emptyList(), albumTracks = emptyList(),
+            artistPlaylists = emptyList(), community = emptyList(), communityTracks = emptyList(),
+            homeRank = emptyList(), zemerPlaylists = emptyList(), zemerItems = emptyList(),
+            blocked = SubBlocked(emptySet(), emptySet()),
+            // Neither form is in SubsetSynonyms.DEFAULT_GROUPS; only THIS corpus's own shard knows they're equivalent.
+            synonymGroups = listOf(listOf("nickname", "totally different title")),
+        )
+        val hits = offlineSearch(c, buildFemaleMatcher(c.artists), "nickname", 8, allowFemale = true, blockVideos = false, kidZone = false)
+            .categories.songs.map { it.videoId }.toSet()
+        assertTrue("the literal query hit is kept", "nick000000" in hits)
+        assertTrue("the corpus's own synonym group expands the query to the other surface form", "full000000" in hits)
+    }
 }

@@ -28,6 +28,14 @@ data class SubsetCorpus(
     val podcastChannels: List<SubPodcastChannel> = emptyList(),
     val podcasts: List<SubPodcastShow> = emptyList(),
     val podcastEpisodes: List<SubPodcastEpisode> = emptyList(),
+    // Additive shards (2026-09-11); all defaulted empty/null so a pre-addendum snapshot (or a test
+    // corpus) decodes and reads exactly as before — every read below just serves less, never breaks.
+    val synonymGroups: List<List<String>> = emptyList(),
+    val genreCatalog: SubGenreCatalog? = null,
+    /** videoId -> bits: bit0 a verified text is servable, bit1 line timings, bit2 Zemer-certified timings. */
+    val lyricsFlags: Map<String, Int> = emptyMap(),
+    val realVideos: Set<String> = emptySet(),
+    val radioRows: List<SubRadioRow> = emptyList(),
 ) {
     val artistsById: Map<String, SubArtist> by lazy { artists.associateBy { it.id } }
     val tracksById: Map<String, SubTrack> by lazy { tracks.associateBy { it.videoId } }
@@ -63,6 +71,12 @@ data class SubsetCorpus(
     val podcastEpisodesByShow: Map<String, List<SubPodcastEpisode>> by lazy {
         podcastEpisodes.groupBy { it.showId }
     }
+
+    val radioRowsById: Map<String, SubRadioRow> by lazy { radioRows.associateBy { it.videoId } }
+
+    /** Whether the `lyricsflags` shard flags [videoId] as having a verified, servable text (bit0) - an
+     * affordance hint only; absence means "no verified lyrics as of this snapshot", never "unknown". */
+    fun hasLikelyLyrics(videoId: String): Boolean = lyricsFlags[videoId]?.let { it and 1 != 0 } ?: false
 }
 
 data class SubArtist(
@@ -136,6 +150,30 @@ data class SubZemerPlaylist(val id: String, val title: String, val pos: Int, val
 data class SubZemerItem(val playlistId: String, val kind: String, val refId: String, val pos: Int)
 
 data class SubBlocked(val global: Set<String>, val female: Set<String>)
+
+// --- additive shards, 2026-09-11 (synonyms / genrecatalog / lyricsflags / realvideos / radio-<n>) ---
+// See [SubsetDecoder] for the wire layouts; row positions are pinned to build-subset.mjs.
+
+/** One `genrecatalog` catalog row: a stable slug, a display title, and an optional kind (music: style /
+ * occasion / non-music; podcast: server-owned section id, or null = ungrouped). */
+data class SubGenreEntry(val id: String, val title: String, val kind: String?)
+
+/** The decoded `genrecatalog` shard: the display words + section vocabulary for `/genres` and
+ * `/podcast-genres`, resolved offline instead of showing raw slugs. [kinds] are the music `kind`
+ * ids in catalog order (their display titles are app-owned, see `GenreKind`); [podcastKinds] are the
+ * server-owned podcast sections as (id, title) pairs, already carrying their display text. */
+data class SubGenreCatalog(
+    val genres: List<SubGenreEntry>,
+    val kinds: List<String>,
+    val podcastGenres: List<SubGenreEntry>,
+    val podcastKinds: List<Pair<String, String>>,
+)
+
+/** One `radio-<n>` shard row: a track's shipped popularity reach and up-to-20-neighbour co-occurrence
+ * lists from the library/session graphs (already corpus-intersected, weights rounded to 3 decimals). A
+ * track with neither list populated is never emitted by the server, so an absent videoId here carries no
+ * cooc signal — the same-artist + popularity fallback ladder applies, exactly as it does live. */
+data class SubRadioRow(val videoId: String, val pop: Double?, val lib: List<Pair<String, Double>>, val sess: List<Pair<String, Double>>)
 
 // --- podcasts (shard rows pinned to build-subset.mjs; see [SubsetDecoder]) ---
 

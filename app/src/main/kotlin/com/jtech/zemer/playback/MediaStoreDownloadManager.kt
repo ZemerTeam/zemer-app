@@ -24,6 +24,7 @@ import com.jtech.zemer.playback.relay.RelayDownload
 import com.jtech.zemer.playback.relay.RelayStream
 import com.jtech.zemer.db.MusicDatabase
 import com.jtech.zemer.db.entities.Song
+import com.jtech.zemer.models.toMediaMetadata
 import com.jtech.zemer.tracking.Tracker
 import com.jtech.zemer.tracking.TrackingActionKind
 import com.jtech.zemer.db.entities.SongAlbumMap
@@ -85,6 +86,8 @@ class MediaStoreDownloadManager
 constructor(
     @ApplicationContext private val context: Context,
     private val databaseLazy: dagger.Lazy<MusicDatabase>,
+    private val offlineReadsLazy: dagger.Lazy<com.jtech.zemer.offline.OfflineReadProvider>,
+    private val lyricsStoreLazy: dagger.Lazy<com.jtech.zemer.lyrics.LyricsStore>,
 ) {
     private val database: MusicDatabase
         get() = databaseLazy.get()
@@ -279,6 +282,7 @@ constructor(
                     )
                 )
                 markSongAsDownloaded(audioSong, existingFile.toString())
+                prefetchLyricsIfLikely(audioSong)
                 return@launch
             }
 
@@ -715,6 +719,7 @@ constructor(
                         ),
                     )
                     markSongAsDownloaded(songWithMeta, uri.toString())
+                    prefetchLyricsIfLikely(songWithMeta)
                 } else {
                     throw Exception("Failed to save file to MediaStore")
                 }
@@ -1167,6 +1172,26 @@ constructor(
                 )
             )
             insertSongRelations(song)
+        }
+    }
+
+    /**
+     * Best-effort: warms the lyrics cache for a song the offline snapshot's `lyricsflags` shard flags as
+     * having a verified, servable Zemer text — so it is already resolved before the user goes offline
+     * (the addendum's "pre-fetch lyrics through the normal resolver when a song is downloaded"
+     * guidance). Fire-and-forget on [scope], the same discipline every other lyrics prefetch in the app
+     * uses ([com.jtech.zemer.lyrics.LyricsStore.prefetch]): a failure here must never affect the
+     * download, which has already completed by the time this runs. A false/unknown hint (no snapshot,
+     * or the shard doesn't flag this song) is a no-op — it is a hint, not proof of absence elsewhere,
+     * but skipping the walk on a firm "no" avoids a wasted resolver round-trip for most non-lyric songs.
+     */
+    private fun prefetchLyricsIfLikely(song: Song) {
+        scope.launch {
+            runCatching {
+                if (offlineReadsLazy.get().hasLikelyLyrics(song.id)) {
+                    lyricsStoreLazy.get().ensure(song.toMediaMetadata())
+                }
+            }
         }
     }
 

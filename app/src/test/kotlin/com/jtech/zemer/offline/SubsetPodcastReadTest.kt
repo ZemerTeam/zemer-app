@@ -1,5 +1,6 @@
 package com.jtech.zemer.offline
 
+import com.jtech.zemer.search.ZemerPodcastGenreKind
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
@@ -217,5 +218,32 @@ class SubsetPodcastReadTest {
         val kid = offlineSearch(corpus, matcher, "Kids", 10, allowFemale = true, blockVideos = false, kidZone = true)
         assertTrue(kid.categories.podcasts.any { it.id == "MPSK" })
         assertTrue(kid.categories.episodes.any { it.videoId == "vek" })
+    }
+
+    @Test
+    fun `genre catalog and kinds prefer the server's own titles when the genrecatalog shard is present`() {
+        val withCatalog = corpus.copy(
+            genreCatalog = SubGenreCatalog(
+                genres = emptyList(),
+                kinds = emptyList(),
+                podcastGenres = listOf(SubGenreEntry("gemara", "Gemara Shiurim", "torah"), SubGenreEntry("history", "History Talks", null)),
+                podcastKinds = listOf("torah" to "Torah", "life" to "Life"),
+            ),
+        )
+        val open = offlinePodcastGenres(withCatalog, allowFemale = true, blockVideos = false, kidZone = false)
+        assertEquals("Gemara Shiurim", open.genres.first { it.id == "gemara" }.title) // server title, not the naive uppercase
+        assertEquals("torah", open.genres.first { it.id == "gemara" }.kind)
+        assertNull(open.genres.first { it.id == "history" }.kind) // an entry with no kind stays ungrouped, never guessed
+        assertEquals(listOf(ZemerPodcastGenreKind("torah", "Torah"), ZemerPodcastGenreKind("life", "Life")), open.kinds)
+
+        val detail = offlinePodcastGenre(withCatalog, "gemara", allowFemale = true, blockVideos = false, kidZone = false)!!
+        assertEquals("Gemara Shiurim", detail.genre.title)
+        assertEquals("torah", detail.genre.kind)
+
+        // A snapshot without the shard (this class's shared `corpus`) still falls back to the naive title
+        // and empty kinds — the pre-addendum behaviour, unchanged.
+        val noCatalog = offlinePodcastGenres(corpus, allowFemale = true, blockVideos = false, kidZone = false)
+        assertEquals("Gemara", noCatalog.genres.first { it.id == "gemara" }.title)
+        assertTrue(noCatalog.kinds.isEmpty())
     }
 }

@@ -236,11 +236,16 @@ private fun localeCompareIds(a: String, b: String): Int {
  * per-token plain+skeleton matching, IDF-weighted scoring, coverage gate, the boost stack and the
  * precision floor. Returns at most [k] hits.
  */
-fun <T : SearchDoc> searchIndex(index: SubsetIndex<T>, query: String, k: Int = 10): List<SearchHit<T>> {
+fun <T : SearchDoc> searchIndex(
+    index: SubsetIndex<T>,
+    query: String,
+    k: Int = 10,
+    synonyms: SubsetSynonyms.Compiled = SubsetSynonyms.DEFAULT,
+): List<SearchHit<T>> {
     val qp0 = uniq(SubsetNormalize.plainTokens(query))
     val qs0 = uniq(SubsetNormalize.skeletonTokens(query))
     if (qp0.isEmpty() && qs0.isEmpty()) return emptyList()
-    val expanded = SubsetSynonyms.expand(qp0, qs0)
+    val expanded = synonyms.expand(qp0, qs0)
     val qp = expanded.plain
     val qs = expanded.skel
     val qpKey = qp0.joinToString(" ")

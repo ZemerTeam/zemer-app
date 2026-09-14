@@ -3,6 +3,7 @@ package com.jtech.zemer.search
 import android.content.Context
 import com.jtech.zemer.R
 import com.jtech.zemer.offline.OfflineReadProvider
+import com.jtech.zemer.offline.OfflineRadioToken
 import com.jtech.zemer.search.ZemerResultMapper.toAlbumFacetPage
 import com.jtech.zemer.search.ZemerResultMapper.toAlbumItems
 import com.jtech.zemer.search.ZemerResultMapper.toAlbumPage
@@ -314,15 +315,32 @@ class ZemerSearchRepository @Inject constructor(
 
     /**
      * Corpus-native radio (see [ZemerRadioResponse]): the first page seeded by [kind]/[seed] (`artist` /
-     * `album` / `song`, or `shuffle` with a null seed), mapped to playable [SongItem]s. Not cached — a
-     * live continuation; tracks are whitelist-pure + blocked-ids filtered server-side.
+     * `album` / `song` / `playlist` / `genre`, or `shuffle` with a null seed), mapped to playable
+     * [SongItem]s. Not cached — a live continuation; tracks are whitelist-pure + blocked-ids filtered
+     * server-side. Server-first with the offline-subset fallback (2026-09-11: the `radio-<n>` shards);
+     * `kind == "genre"` and a few tiers the subset doesn't ship (see `SubsetRadio`'s doc) stay live-only.
      */
     suspend fun radio(kind: String, seed: String?, options: ZemerSearchOptions): ZemerRadioPage =
-        client.radio(kind, seed, options.allowFemale, options.blockVideos).toRadioPage()
+        serverOrOffline(
+            server = { client.radio(kind, seed, options.allowFemale, options.blockVideos) },
+            offline = { offlineReads.radio(kind, seed, options.allowFemale, options.blockVideos) },
+        ).toRadioPage()
 
-    /** The next radio page for an opaque [continuation] token (the seed + flags ride inside the token). */
+    /**
+     * The next radio page for an opaque [continuation] token (the seed + flags ride inside the token).
+     * An OFFLINE page's token is self-describing ([OfflineRadioToken.PREFIX]) and stays offline for its
+     * whole continuation chain — there is no live session behind it to hand off to, and recomputing the
+     * SAME deterministic station locally is exactly what makes its paging correct (see `SubsetRadio`'s
+     * doc). A malformed/expired offline token degrades to an empty page (ends the queue), never a crash.
+     */
     suspend fun radioContinuation(continuation: String): ZemerRadioPage =
-        client.radioContinuation(continuation).toRadioPage()
+        (
+            if (continuation.startsWith(OfflineRadioToken.PREFIX)) {
+                offlineReads.radioContinuation(continuation) ?: ZemerRadioResponse()
+            } else {
+                client.radioContinuation(continuation)
+            }
+        ).toRadioPage()
 
     /**
      * The live Zemer Stations for the "Zemer Radio" home row ([liveStations]: live-only cards,

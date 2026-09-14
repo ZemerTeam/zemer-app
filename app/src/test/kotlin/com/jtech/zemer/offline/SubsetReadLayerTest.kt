@@ -171,4 +171,66 @@ class SubsetReadLayerTest {
         assertTrue(r.videos.isEmpty())
         assertNull(offlineArtist(corpus, female, "UCnope", allowFemale = true, blockVideos = false, kidZone = false))
     }
+
+    // --- additive shards, 2026-09-11: realVideos + radio ---------------------------------------------
+
+    @Test
+    fun `home rows flag a track real only when the realvideos shard carries its id`() {
+        // v4 is the only video (SubsetReadLayerTest's shared corpus); a snapshot that ships `realvideos`
+        // for it flags realVideo=true on the SAME topVideos row every other field already comes from.
+        val real = corpus.copy(realVideos = setOf("v4"))
+        val r = offlineHomeRows(real, female, allowFemale = true, blockVideos = false, kidZone = false)
+        assertTrue(r.topVideos.first { it.videoId == "v4" }.realVideo)
+
+        // A snapshot without the shard (or one that doesn't carry this id) is conservative: false, exactly
+        // the prior behaviour — the ViewModel's empty-pool fallback still shows the whole set in the hero.
+        val noShard = offlineHomeRows(corpus, female, allowFemale = true, blockVideos = false, kidZone = false)
+        assertFalse(noShard.topVideos.first { it.videoId == "v4" }.realVideo)
+    }
+
+    @Test
+    fun `offline radio applies the same content gate as every other offline surface`() {
+        val radioCorpus = corpus.copy(
+            radioRows = listOf(SubRadioRow("v1", pop = 50.0, lib = listOf("v2" to 0.9), sess = emptyList())),
+            realVideos = setOf("v4"),
+        )
+        val open = offlineRadio(radioCorpus, female, "song", "v1", allowFemale = true, blockVideos = false)!!
+        assertEquals("v1", open.tracks.first().videoId) // the tapped song plays first
+        assertTrue(open.tracks.any { it.videoId == "v2" }) // its cooc neighbour follows
+
+        // blockVideos drops v4 from every fallback tier, exactly like offlineHomeRows/offlineArtist.
+        val blockedVideos = offlineRadio(radioCorpus, female, "shuffle", null, allowFemale = true, blockVideos = true)!!
+        assertTrue(blockedVideos.tracks.none { it.videoId == "v4" })
+
+        // allowFemale=false drops v5 (feat. Franciska) via the same credited-female rule as offlineArtist.
+        val blockedFemale = offlineRadio(radioCorpus, female, "shuffle", null, allowFemale = false, blockVideos = false)!!
+        assertTrue(blockedFemale.tracks.none { it.videoId == "v5" })
+
+        // realVideo rides the SAME mapping as offlineHomeRows.
+        assertTrue(open.tracks.none { it.videoId == "v4" } || open.tracks.first { it.videoId == "v4" }.realVideo)
+    }
+
+    @Test
+    fun `offline radio kind=genre is unsupported and returns null`() {
+        assertNull(offlineRadio(corpus, female, "genre", "nigunim", allowFemale = true, blockVideos = false))
+    }
+
+    @Test
+    fun `offline radio continuation token round-trips through OfflineRadioToken and pages deterministically`() {
+        val radioCorpus = corpus.copy(radioRows = listOf(SubRadioRow("v1", pop = 50.0, lib = emptyList(), sess = emptyList())))
+        val first = offlineRadio(radioCorpus, female, "shuffle", null, allowFemale = true, blockVideos = false, limit = 2)!!
+        val token = first.continuation!!
+        assertTrue(token.startsWith(OfflineRadioToken.PREFIX))
+        val parts = OfflineRadioToken.parse(token)!!
+        assertEquals("shuffle", parts.kind); assertNull(parts.seed); assertEquals(2, parts.offset)
+
+        val second = offlineRadio(radioCorpus, female, parts.kind, parts.seed, parts.allowFemale, parts.blockVideos, offset = parts.offset)!!
+        // The continuation page never repeats a track the first page already served.
+        val firstIds = first.tracks.map { it.videoId }.toSet()
+        assertTrue(second.tracks.none { it.videoId in firstIds })
+
+        // A live-shaped (non-offline) or corrupt token is never guessed at.
+        assertNull(OfflineRadioToken.parse("some-opaque-live-server-token"))
+        assertNull(OfflineRadioToken.parse(OfflineRadioToken.PREFIX + "{not json"))
+    }
 }
