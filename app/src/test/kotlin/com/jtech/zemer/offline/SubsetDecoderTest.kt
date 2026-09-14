@@ -150,4 +150,52 @@ class SubsetDecoderTest {
         assertNull(e[0].durationSec); assertNull(e[0].publishedAt)
         assertEquals(4164, e[1].durationSec); assertEquals("2026-05-10", e[1].publishedAt)
     }
+
+    // --- additive shards, 2026-09-11 ---------------------------------------------------------------
+
+    @Test
+    fun `synonym groups decode as a list of form lists`() {
+        val g = SubsetDecoder.decodeSynonymGroups("""[["mbd","mordechai ben david"],["lipa","lipa schmeltzer"]]""")
+        assertEquals(listOf(listOf("mbd", "mordechai ben david"), listOf("lipa", "lipa schmeltzer")), g)
+    }
+
+    @Test
+    fun `genre catalog decodes genres, kinds and the podcast counterparts, kind nullable`() {
+        val c = SubsetDecoder.decodeGenreCatalog(
+            """{"genres":[["nigunim","Nigunim","style"],["chagim","Chagim","occasion"]],
+                "kinds":[["style"],["occasion"],["non-music"]],
+                "podcastGenres":[["gemara","Gemara","torah"],["news","News",null]],
+                "podcastKinds":[["torah","Torah"],["life","Life"]]}""",
+        )
+        assertEquals(listOf(SubGenreEntry("nigunim", "Nigunim", "style"), SubGenreEntry("chagim", "Chagim", "occasion")), c.genres)
+        assertEquals(listOf("style", "occasion", "non-music"), c.kinds)
+        assertEquals(SubGenreEntry("gemara", "Gemara", "torah"), c.podcastGenres[0])
+        assertNull(c.podcastGenres[1].kind)
+        assertEquals(listOf("torah" to "Torah", "life" to "Life"), c.podcastKinds)
+    }
+
+    @Test
+    fun `lyrics flags decode as a videoId to bits map`() {
+        val f = SubsetDecoder.decodeLyricsFlags("""[["v1",1],["v2",7],["v3",3]]""")
+        assertEquals(mapOf("v1" to 1, "v2" to 7, "v3" to 3), f)
+    }
+
+    @Test
+    fun `real videos decode as a plain videoId set`() {
+        val r = SubsetDecoder.decodeRealVideos("""["v1","v2"]""")
+        assertEquals(setOf("v1", "v2"), r)
+    }
+
+    @Test
+    fun `radio rows decode pop nullable and up-to-20 neighbour pairs`() {
+        val rows = SubsetDecoder.decodeRadioRows(
+            """[["v1",12.5,[["v2",0.8],["v3",0.401]],[]],
+                ["v2",null,[],[["v1",0.8]]]]""",
+        )
+        assertEquals("v1", rows[0].videoId); assertEquals(12.5, rows[0].pop!!, 0.0)
+        assertEquals(listOf("v2" to 0.8, "v3" to 0.401), rows[0].lib)
+        assertTrue(rows[0].sess.isEmpty())
+        assertNull(rows[1].pop)
+        assertEquals(listOf("v1" to 0.8), rows[1].sess)
+    }
 }

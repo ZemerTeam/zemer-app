@@ -1312,7 +1312,21 @@ identically to a live one. Full detail in `docs/offline/README.md`. The invarian
 - **Server-first, always.** `serverOrOffline` falls back only on `isZemerServerUnreachable()` - `IOException` **or** `UnresolvedAddressException` (Ktor CIO signals no-network/DNS that way; it is
   NOT an IOException). A 404-null is returned as-is and never triggers the fallback; a non-network
   exception is never masked. Only SERVER responses enter the search LRU (a cached offline result
-  would outlive the outage). `/playlist` and `/radio` are live-only (not in the snapshot).
+  would outlive the outage). `/playlist` stays entirely live-only. `/radio` is now PARTIAL
+  (2026-09-11, `SubsetRadio.kt`): `song`/`artist`/`album`/`playlist`/`shuffle` run a scoped, faithful
+  port of the server's ranking blend over the shipped popularity + co-occurrence shards, but
+  `kind == "genre"` and a few JS tiers the shards don't carry (related-artist, skip-dock, acapella
+  exclusion) stay live-only, disclosed rather than faked - never claim offline radio is full parity.
+  An offline radio page's continuation token is self-describing (`OfflineRadioToken`) and its whole
+  paging chain stays offline; it never hands off to a live session mid-station.
+- **Additive shards, 2026-09-11** (all optional, an older app ignores them, an older snapshot just
+  serves less): `synonyms` (the query-expansion table now tracks the server's file instead of a
+  hand-copied one), `genrecatalog` (real podcast-genre titles/sections instead of a slug guess; the
+  music side is decoded but has no offline consumer yet - `/genres` stays live-only), `lyricsflags`
+  (an affordance hint driving a fire-and-forget lyrics prefetch on download completion,
+  `MediaStoreDownloadManager.prefetchLyricsIfLikely` - never gates the other lyrics providers), and
+  `realvideos` (the offline Featured Videos hero now shows only real filmed videos, matching the
+  live `realVideo` field).
 - **Kosher defenses:** a 14-day staleness cap (`subsetSnapshotIsFresh`), the live Firestore-synced
   whitelist overlaid at corpus load (`SubsetCorpus.withLiveWhitelist` - de-whitelisted artists drop
   the moment the app's whitelist sync lands, `isFemale` comes from the live flag), and ONE shared
