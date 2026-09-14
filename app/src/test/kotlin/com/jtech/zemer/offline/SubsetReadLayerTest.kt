@@ -233,4 +233,29 @@ class SubsetReadLayerTest {
         assertNull(OfflineRadioToken.parse("some-opaque-live-server-token"))
         assertNull(OfflineRadioToken.parse(OfflineRadioToken.PREFIX + "{not json"))
     }
+
+    @Test
+    fun `a negative offset in an offline token is rejected, never reaches List-drop and crashes`() {
+        // A tampered/corrupted token could carry offset:-1; List.drop(-1) throws, so parse() must
+        // reject it here rather than let offlineRadio hand it to radio()'s paging.
+        val tampered = OfflineRadioToken.PREFIX + """{"kind":"shuffle","allowFemale":true,"blockVideos":false,"offset":-1}"""
+        assertNull(OfflineRadioToken.parse(tampered))
+
+        // A legitimate zero/positive offset still parses (the fix must not reject valid tokens).
+        val real = OfflineRadioToken.encode("shuffle", null, allowFemale = true, blockVideos = false, offset = 3)
+        assertEquals(3, OfflineRadioToken.parse(real)!!.offset)
+    }
+
+    @Test
+    fun `offline radio seeds a curated playlist from its FULL membership, not just direct track items`() {
+        // "auto-mix" has a direct track (v1) AND an album expansion (al1 -> v1, v2); the radio seed
+        // set must cover both, exactly like the playlist's own detail screen (zemerPlaylistTracks) —
+        // a hand-filtered `kind == "track"` slice would silently drop v2, the album-only member.
+        val radioCorpus = corpus.copy(
+            radioRows = listOf(SubRadioRow("v2", pop = 1.0, lib = listOf("v3" to 0.9), sess = emptyList())),
+        )
+        val page = offlineRadio(radioCorpus, female, "playlist", "auto-mix", allowFemale = true, blockVideos = false)!!
+        // v2 (album-only membership) must have contributed as a cooc seed, reaching its own neighbour v3.
+        assertTrue("v2's own neighbour (v3) is reached only if v2 entered the seed set", page.tracks.any { it.videoId == "v3" })
+    }
 }

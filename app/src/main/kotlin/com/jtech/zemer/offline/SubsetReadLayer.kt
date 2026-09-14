@@ -841,11 +841,15 @@ internal object OfflineRadioToken {
     fun encode(kind: String, seed: String?, allowFemale: Boolean, blockVideos: Boolean, offset: Int): String =
         PREFIX + json.encodeToString(Parts.serializer(), Parts(kind, seed, allowFemale, blockVideos, offset))
 
-    /** Null for anything not shaped like one of ours (a live token, or corruption) — the caller must
-     * never guess at a malformed token; treating it as "end of station" is the caller's job. */
+    /** Null for anything not shaped like one of ours (a live token, or corruption, including a
+     * negative [Parts.offset] — that would reach `List.drop(offset)` downstream, which THROWS on a
+     * negative count) — the caller must never guess at a malformed token; treating it as "end of
+     * station" is the caller's job. */
     fun parse(token: String): Parts? {
         if (!token.startsWith(PREFIX)) return null
-        return runCatching { json.decodeFromString(Parts.serializer(), token.removePrefix(PREFIX)) }.getOrNull()
+        return runCatching { json.decodeFromString(Parts.serializer(), token.removePrefix(PREFIX)) }
+            .getOrNull()
+            ?.takeIf { it.offset >= 0 }
     }
 }
 
@@ -877,10 +881,15 @@ fun offlineRadio(
     }
     // kind=playlist: the server resolves membership from ANY YouTube playlist id; offline we can only
     // resolve a KNOWN community/curated playlist — an unknown id degrades to a seedless (popularity)
-    // station, exactly like an unresolvable song/artist/album seed (see SubsetRadio's doc).
+    // station, exactly like an unresolvable song/artist/album seed (see SubsetRadio's doc). A curated
+    // (Zemer) playlist reuses zemerPlaylistTracks — the SAME assembly its own detail screen plays —
+    // so the radio seed set covers year-rule membership and album-expansion members too, not just
+    // direct track items (a hand-filtered `kind == "track"` slice silently dropped both).
     val seedTracks = if (kind == "playlist" && seed != null) {
         corpus.communityTracksByPlaylist[seed]?.map { it.videoId }
-            ?: corpus.zemerItemsByPlaylist[seed]?.filter { it.kind == "track" }?.map { it.refId }
+            ?: corpus.zemerPlaylists.firstOrNull { it.id == seed }
+                ?.let { zemerPlaylistTracks(corpus, femaleIds, it, allowFemale, blockVideos, kidZone = false) }
+                ?.map { it.videoId }
     } else {
         null
     }
