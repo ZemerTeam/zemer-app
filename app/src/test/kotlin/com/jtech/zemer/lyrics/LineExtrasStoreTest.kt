@@ -1,7 +1,14 @@
 package com.jtech.zemer.lyrics
 
 import com.jtech.zemer.lyrics.zemer.ZemerLyricsClient
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Deferred
+import kotlinx.coroutines.async
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -50,6 +57,41 @@ class LineExtrasStoreTest {
         assertEquals("aligned", store.read("dQw4w9WgXcQ")!!.aligned["en"]!!.extras!!.en!![0])
         assertTrue(store.read("dQw4w9WgXcQ")!!.alignedCurrent("en", LineExtras.linesHash(lines), 0))
         assertFalse(store.read("dQw4w9WgXcQ")!!.alignedCurrent("he", LineExtras.linesHash(lines), 0))
+    }
+
+    /** Deterministically waits for a flow's FIRST emission (the collector's own signal, not a guessed
+     * yield), then, after triggering [act], waits a generous real-time margin and reports whether a
+     * SECOND emission arrived — the standard way to prove an absence without a virtual-time scheduler. */
+    private fun CoroutineScope.observeOneThenAct(flow: Flow<LineExtras?>, act: suspend () -> Unit): Deferred<Int> {
+        val emissions = mutableListOf<LineExtras?>()
+        val firstEmitted = CompletableDeferred<Unit>()
+        val job = launch { flow.collect { emissions += it; firstEmitted.complete(Unit) } }
+        return async {
+            firstEmitted.await()
+            act()
+            delay(150) // ample margin over local-file IO; only absence needs proving past this point
+            job.cancel()
+            emissions.size
+        }
+    }
+
+    @Test
+    fun `a write for one videoId never triggers a re-read for a different videoId's flow collector`() = runBlocking {
+        val store = LineExtrasStore(tmp.newFolder())
+        val other = "dQw4w9WgXcQ"
+        val unrelated = "oHg5SJYRHA0"
+        // A DIFFERENT song's write — a global change signal would re-fire `unrelated`'s collector too.
+        val count = observeOneThenAct(store.flow(unrelated, LineExtrasLanguage.ENGLISH, listOf("x"))) { store.write(other, wire) }.await()
+        assertEquals("only the initial emission — the other song's write never re-triggered this collector", 1, count)
+    }
+
+    @Test
+    fun `a failed write never emits a change - nothing on disk actually moved`() = runBlocking {
+        // Pass a plain FILE where a directory is expected: dir.mkdirs()/tmp.writeText() both fail, so
+        // store() must not signal a change that never happened.
+        val store = LineExtrasStore(tmp.newFile())
+        val count = observeOneThenAct(store.flow("dQw4w9WgXcQ", LineExtrasLanguage.ENGLISH, listOf("x"))) { store.write("dQw4w9WgXcQ", wire) }.await()
+        assertEquals("no change signalled for a write that never landed", 1, count)
     }
 
     @Test

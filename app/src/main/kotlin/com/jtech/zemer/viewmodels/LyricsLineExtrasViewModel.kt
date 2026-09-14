@@ -10,6 +10,7 @@ import com.jtech.zemer.models.MediaMetadata
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -39,13 +40,22 @@ class LyricsLineExtrasViewModel @Inject constructor(
         .flatMapLatest { b -> if (b == null || b.language == LineExtrasLanguage.OFF) flowOf(null) else extrasStore.flow(b.videoId, b.language, b.lines) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
+    // The one in-flight ask, if any — cancelled on every re-bind so skipping through songs never
+    // leaves an uncancelled resolve/extras round trip running for a song already left behind (the
+    // read side above gets this for free from flatMapLatest; the write side needs it explicitly).
+    private var bindJob: Job? = null
+
     /** Follow the pane: [lines] are the lyric lines exactly as displayed (the aligned reply pairs to them). */
     fun bind(mediaMetadata: MediaMetadata, language: LineExtrasLanguage, lines: List<String>) {
         bound.value = Bound(mediaMetadata.id, language, lines)
-        if (language == LineExtrasLanguage.OFF || lines.isEmpty()) return
-        viewModelScope.launch(Dispatchers.IO) {
-            lyricsStore.ensureResolveExtras(mediaMetadata)
-            lyricsStore.ensureExtras(mediaMetadata, language, lines)
+        bindJob?.cancel()
+        bindJob = if (language == LineExtrasLanguage.OFF || lines.isEmpty()) {
+            null
+        } else {
+            viewModelScope.launch(Dispatchers.IO) {
+                lyricsStore.ensureResolveExtras(mediaMetadata)
+                lyricsStore.ensureExtras(mediaMetadata, language, lines)
+            }
         }
     }
 }

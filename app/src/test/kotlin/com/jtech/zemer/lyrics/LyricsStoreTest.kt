@@ -214,4 +214,20 @@ class LyricsStoreTest {
         assertEquals(1, f.resolves)
         assertEquals(1, f.asked.size)
     }
+
+    /** The per-id extras lock map is bounded (LyricsStore is a process-lifetime singleton) — proves
+     * eviction never corrupts a DIFFERENT song's record: every one of many distinct songs still
+     * resolves and records correctly even once the lock map has evicted and recreated entries. */
+    @Test
+    fun `every song still resolves correctly once the bounded lock map has evicted earlier entries`() = runBlocking {
+        val f = Fake(null, LyricsHelper.Fetched("words", "Zemer"), resolved = wire)
+        val ids = (1..200).map { "song%03d".format(it) }
+        for (id in ids) {
+            assertTrue(f.store.ensureResolveExtras(song.copy(id = id)))
+            assertEquals(wire, f.extras.records[id]!!.extras)
+        }
+        // Nothing overwritten or dropped for an EARLIER id whose lock entry was long since evicted.
+        assertEquals(ids.size, f.extras.records.size)
+        assertTrue(ids.all { f.extras.records[it]?.extras == wire })
+    }
 }

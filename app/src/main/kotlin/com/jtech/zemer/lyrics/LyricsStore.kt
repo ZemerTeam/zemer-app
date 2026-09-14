@@ -28,6 +28,8 @@ import javax.inject.Singleton
  * user's feedback that the button did something), which makes the open lyrics screen call [ensure] too; both
  * join one chain walk instead of two.
  */
+private const val EXTRAS_LOCK_CACHE_SIZE = 64
+
 @Singleton
 class LyricsStore(
     private val cached: suspend (videoId: String) -> LyricsEntity?,
@@ -57,9 +59,15 @@ class LyricsStore(
     /**
      * One lock per videoId over the extras record: the pane's on-demand asks (read → resolve → write) and a
      * refetch's delete → record run serialised, so two binds never resolve the same song twice and an ask that
-     * raced a refetch cannot land a stale record after the delete.
+     * raced a refetch cannot land a stale record after the delete. Bounded (unlike [inFlight], which self-cleans
+     * via its own finally): [LyricsStore] is a singleton for the process lifetime, so a plain map would grow by
+     * one [Mutex] per distinct videoId ever touched. An evicted-while-locked entry is harmless here (a rare
+     * duplicate concurrent write self-heals via [LineExtrasStore]'s atomic file replace) — never worth a
+     * fragile remove-on-idle scheme that would race the very lock it's trying to clean up.
      */
-    private val extrasLocks = HashMap<String, Mutex>()
+    private val extrasLocks = object : LinkedHashMap<String, Mutex>(16, 0.75f, true) {
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, Mutex>) = size > EXTRAS_LOCK_CACHE_SIZE
+    }
     private suspend fun <T> withExtrasLock(videoId: String, block: suspend () -> T): T =
         inFlightLock.withLock { extrasLocks.getOrPut(videoId) { Mutex() } }.withLock { block() }
 

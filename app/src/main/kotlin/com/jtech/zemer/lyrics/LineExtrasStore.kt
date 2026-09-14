@@ -4,11 +4,15 @@ import android.content.Context
 import com.jtech.zemer.lyrics.zemer.ZemerLyricsClient
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.merge
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import timber.log.Timber
@@ -62,7 +66,12 @@ class LineExtrasStore(private val dir: File) : LineExtrasStorage {
     @Inject
     constructor(@ApplicationContext context: Context) : this(File(context.filesDir, DIR_NAME))
 
-    private val changes = MutableStateFlow(0L)
+    // The videoId a write/delete just touched — NOT one global counter: a global signal made every
+    // active flow(videoId, ...) collector re-read+re-parse its OWN file on every OTHER song's write
+    // (e.g. the next-song prefetch bumping it while the current song's pane is showing). Small buffer,
+    // drop-oldest: emissions here are cheap ids, not the data itself, and a coalesced notification just
+    // means the next DIFFERENT write for that id re-triggers it, never a missed update long-term.
+    private val changedIds = MutableSharedFlow<String>(extraBufferCapacity = 16, onBufferOverflow = BufferOverflow.DROP_OLDEST)
 
     override fun read(videoId: String): LineExtrasRecord? {
         val file = fileFor(videoId) ?: return null
@@ -84,18 +93,20 @@ class LineExtrasStore(private val dir: File) : LineExtrasStorage {
 
     private fun store(videoId: String, record: LineExtrasRecord) {
         val file = fileFor(videoId) ?: return
-        runCatching {
+        val wrote = runCatching {
             dir.mkdirs()
             val tmp = File(dir, file.name + ".tmp")
             tmp.writeText(json.encodeToString(LineExtrasRecord.serializer(), record))
             if (!tmp.renameTo(file)) { file.delete(); tmp.renameTo(file) }
-        }.onFailure { Timber.w(it, "lyrics extras: write failed for %s", videoId) }
-        changes.value = changes.value + 1
+        }.onFailure { Timber.w(it, "lyrics extras: write failed for %s", videoId) }.isSuccess
+        // Only a successful write actually changed anything on disk — a failed attempt (disk full, a
+        // transient IO error) must not send every collector off to redundantly re-read the same bytes.
+        if (wrote) changedIds.tryEmit(videoId)
     }
 
     override fun delete(videoId: String) {
         fileFor(videoId)?.delete()
-        changes.value = changes.value + 1
+        changedIds.tryEmit(videoId)
     }
 
     /**
@@ -106,7 +117,9 @@ class LineExtrasStore(private val dir: File) : LineExtrasStorage {
     fun flow(videoId: String, language: LineExtrasLanguage, lines: List<String>): Flow<LineExtras?> {
         val lang = language.wireLang
         val hash = LineExtras.linesHash(lines)
-        return changes.map {
+        // flowOf(Unit) fires the initial read (a SharedFlow, unlike the StateFlow this replaced, has no
+        // current value to replay on subscribe); every later trigger is THIS videoId's own write/delete.
+        return merge(flowOf(Unit), changedIds.filter { it == videoId }.map {}).map {
             val record = read(videoId)
             val aligned = lang?.let { record?.aligned?.get(it) }?.takeIf { it.linesHash == hash }
             if (aligned != null) LineExtras.aligned(lines, aligned.extras) else LineExtras.from(record?.extras)
