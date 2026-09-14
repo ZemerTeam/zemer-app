@@ -80,6 +80,32 @@ providers by `MediaMetadata.id` (never `setVideoId`, which is a playlist-entry t
   `syncedLrc` bodies already use — so no text is dropped for sync and no line is ever given an estimated time.
   The live zing fixture (`zing-1340.json` + `resolve-zingmusic-linetimes.json`) shows why keys beat counts: the
   record's text drifted since it was timed (57 lines vs 60), 50 pair by key, the body syncs with every line kept.
+* **`lineExtras`** (`lyrics/LineExtras.kt` + `lyrics/LineExtrasStore.kt`, JVM-tested `LineExtrasTest` /
+  `LineExtrasStoreTest` / `LyricsStoreTest`): the resolver may carry a translation / romanization UNDER each
+  sung line (`{"keys": [8-hex], "en": [...], "he"?: [...], "roman"?: [...], "source": "machine"}`, additive,
+  verified rows only; `he` only for English-language songs, `roman` only for Hebrew-script ones, `""` where a
+  line has no entry). Paired by the SAME text-free `lineKey` as `lineTimes`, never by index (`LineExtras.forLines`);
+  a line the server did not key gets nothing. Rendered by the shared `LyricsLineExtra` (bodyLarge, plain weight,
+  muted) under the primary line, ONE language at a time from `LyricsLineExtrasKey` (`LineExtrasLanguage`:
+  OFF / ENGLISH / HEBREW / ROMANIZED, **default OFF** so nothing changes until the user picks one, in Appearance →
+  lyrics and in the lyrics menu through the shared `ListPickerDialog`); `source: "machine"` adds ONE
+  " · machine translation" to the source header (`LyricsSourceHeader(machineTranslation)`), never a per-line
+  label. Storage is one JSON file per videoId under `filesDir/lyrics-extras/` (NO lyrics-table migration): a
+  record never outlives its row - every chain answer re-records or clears it, refetch deletes it first (a text
+  re-verification changes the keys). A row cached before the feature (or answered by another provider) gets ONE
+  resolver call on demand (`LyricsStore.ensureExtras`, from `LyricsLineExtrasViewModel.bind`, only once a
+  language is picked and the song has a body; `LyricsStore.ensureResolveExtras`); a "none" record is re-asked after
+  7 days, a record with extras only on refetch. Every extras read → ask → write, and a refetch's delete → record, run
+  under ONE per-videoId lock in `LyricsStore` (`withExtrasLock`): concurrent binds resolve a song once and an ask that
+  raced a refetch can never land a stale record after the delete (`LyricsStoreTest`). **Aligned extras (the evening update):** the resolve-time field pairs only where the displayed
+  text is the server's own, so the pane also asks `POST /lyrics/extras` with the lines EXACTLY as displayed plus
+  the wanted `lang` (`en` / `he` / `yi`; transliteration rides the `en` request and reads `roman`) and gets arrays
+  parallel to those lines (`ZemerLyricsClient.extrasForLines`, `LyricsStore.ensureExtras`), once per song +
+  language + displayed body (`LineExtras.linesHash`); a 404 is a dated negative, a network failure records nothing.
+  Stored beside the resolve-time extras in the same per-song file (`LineExtrasRecord.aligned`, kept across chain
+  answers, dropped on refetch); the store's `flow(videoId, language, lines)` serves the aligned reply for the current
+  body when there is one, else the resolve-time extras. Languages: OFF / ENGLISH / HEBREW / YIDDISH / ROMANIZED.
+  Contract: `handoff-docs/zemer-app-line-extras.md`.
 * **SimpMusic**: keyed by videoId. A track counts as this recording only when its duration is known and within
   `IDENTITY_TOLERANCE_SEC` (5 s) of ours (`sameRecording`); anything else is a miss, never plain text — an
   unverifiable entry is never "probably right". Known hole, NOT closable client-side: the catalog is community-filled,

@@ -17,7 +17,7 @@ class SyncedFirstPicker {
     /** Offer [labeled] from [provider]; returns the final answer when the walk can stop, else null. */
     fun offer(provider: LyricsProvider, labeled: LabeledLyrics): LyricsHelper.Fetched? {
         if (labeled.lyrics.isBlank() || labeled.lyrics == LYRICS_NOT_FOUND) return null
-        val fetched = LyricsHelper.Fetched(labeled.lyrics, labeled.label)
+        val fetched = LyricsHelper.Fetched(labeled.lyrics, labeled.label, labeled.lineExtras)
         if (provider.lowTrust) {
             if (lowTrust == null) lowTrust = fetched
             return null

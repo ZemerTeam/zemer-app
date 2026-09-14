@@ -2,7 +2,7 @@
 
 ## Preference key inventory
 
-Preference keys extracted from `PreferenceKeys.kt`: `166`.
+Preference keys extracted from `PreferenceKeys.kt`: `167`.
 
 | Kotlin val | Key type | Stored name |
 | --- | --- | --- |
@@ -151,6 +151,7 @@ Preference keys extracted from `PreferenceKeys.kt`: `166`.
 | `LyricsScrollKey` | `booleanPreferencesKey` | `lyricsScrollKey` |
 | `LyricsWordSyncKey` | `booleanPreferencesKey` | `lyricsWordSync` |
 | `LyricsSyncOffsetKey` | `intPreferencesKey` | `lyricsSyncOffsetMs` |
+| `LyricsLineExtrasKey` | `stringPreferencesKey` | `lyricsLineExtras` |
 | `PlayerVolumeKey` | `floatPreferencesKey` | `playerVolume` |
 | `RepeatModeKey` | `intPreferencesKey` | `repeatMode` |
 | `SwipeThumbnailKey` | `booleanPreferencesKey` | `swipeThumbnail` |

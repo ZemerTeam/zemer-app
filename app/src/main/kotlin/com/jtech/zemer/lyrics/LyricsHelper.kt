@@ -8,6 +8,7 @@ import androidx.datastore.preferences.core.Preferences
 import com.jtech.zemer.db.entities.LyricsEntity.Companion.LYRICS_NOT_FOUND
 import com.jtech.zemer.lyrics.model.LyricsUnavailableException
 import com.jtech.zemer.constants.LyricsProviderOrderKey
+import com.jtech.zemer.lyrics.zemer.ZemerLyricsClient
 import com.jtech.zemer.utils.dataStore
 import com.jtech.zemer.models.MediaMetadata
 import com.jtech.zemer.utils.NetworkConnectivityObserver
@@ -39,8 +40,8 @@ constructor(
 
     private val cache = LruCache<String, List<LyricsResult>>(MAX_CACHE_SIZE)
 
-    /** Lyrics body plus the provider label to persist/show ("Zemer · jkaraoke", "SimpMusic", …). */
-    data class Fetched(val lyrics: String, val provider: String?)
+    /** Lyrics body plus the provider label to persist/show ("Zemer · jkaraoke", "SimpMusic", …) and the resolver's per-line extras, if any. */
+    data class Fetched(val lyrics: String, val provider: String?, val lineExtras: ZemerLyricsClient.LineExtras? = null)
 
     suspend fun getLyrics(mediaMetadata: MediaMetadata): Fetched {
         // The resolver and SimpMusic are keyed by the YouTube videoId. setVideoId is the playlist-entry

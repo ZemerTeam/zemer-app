@@ -436,6 +436,8 @@ val LyricsScrollKey = booleanPreferencesKey("lyricsScrollKey")
 val LyricsWordSyncKey = booleanPreferencesKey("lyricsWordSync")
 /** Milliseconds added to the playback position before picking the highlighted line/word (negative = highlight later). */
 val LyricsSyncOffsetKey = intPreferencesKey("lyricsSyncOffsetMs")
+/** Which resolver extra renders under each sung line (a `LineExtrasLanguage` name); OFF = nothing, the default. */
+val LyricsLineExtrasKey = stringPreferencesKey("lyricsLineExtras")
 
 val PlayerVolumeKey = floatPreferencesKey("playerVolume")
 val RepeatModeKey = intPreferencesKey("repeatMode")

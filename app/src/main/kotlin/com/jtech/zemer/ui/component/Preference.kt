@@ -154,33 +154,13 @@ fun <T> ListPreference(
         mutableStateOf(false)
     }
     if (showDialog) {
-        ListDialog(
+        ListPickerDialog(
+            selectedValue = selectedValue,
+            values = values,
+            valueText = valueText,
+            onValueSelected = onValueSelected,
             onDismiss = { showDialog = false },
-        ) {
-            items(values) { value ->
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .clickable {
-                            showDialog = false
-                            onValueSelected(value)
-                        }.padding(horizontal = 16.dp, vertical = 12.dp),
-                ) {
-                    RadioButton(
-                        selected = value == selectedValue,
-                        onClick = null,
-                    )
-
-                    Text(
-                        text = valueText(value),
-                        style = MaterialTheme.typography.bodyLarge,
-                        modifier = Modifier.padding(start = 16.dp),
-                    )
-                }
-            }
-        }
+        )
     }
 
     PreferenceEntry(
@@ -191,6 +171,45 @@ fun <T> ListPreference(
         onClick = { showDialog = true },
         isEnabled = isEnabled,
     )
+}
+
+/**
+ * The single-choice radio list dialog behind [ListPreference], also presented on its own where a picker is
+ * needed outside a settings row (the lyrics menu's language pick). Selecting a value dismisses the dialog.
+ */
+@Composable
+fun <T> ListPickerDialog(
+    selectedValue: T,
+    values: List<T>,
+    valueText: @Composable (T) -> String,
+    onValueSelected: (T) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    ListDialog(onDismiss = onDismiss) {
+        items(values) { value ->
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .clickable {
+                        onDismiss()
+                        onValueSelected(value)
+                    }.padding(horizontal = 16.dp, vertical = 12.dp),
+            ) {
+                RadioButton(
+                    selected = value == selectedValue,
+                    onClick = null,
+                )
+
+                Text(
+                    text = valueText(value),
+                    style = MaterialTheme.typography.bodyLarge,
+                    modifier = Modifier.padding(start = 16.dp),
+                )
+            }
+        }
+    }
 }
 
 @Composable

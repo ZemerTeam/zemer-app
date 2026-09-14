@@ -28,6 +28,7 @@ import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import com.jtech.zemer.R
 import com.jtech.zemer.db.entities.LyricsEntity
+import com.jtech.zemer.lyrics.LineExtrasLanguage
 import com.jtech.zemer.models.MediaMetadata
 
 /** The provider label as shown: a Zemer row shows just "Zemer" (the sub-source stays in the stored label for reports); legacy rows show no provider. */
@@ -35,12 +36,16 @@ fun displayProviderName(provider: String?): String? =
     provider?.replace(" ✓", "")?.takeUnless { it == LyricsEntity.PROVIDER_LEGACY }?.let { if (it.startsWith(ZEMER_LABEL)) ZEMER_LABEL else it }
 private const val ZEMER_LABEL = "Zemer"
 
-/** "Lyrics from <provider> · synced" — provenance is part of the UI, not hidden. */
+/**
+ * "Lyrics from <provider> · synced" — provenance is part of the UI, not hidden. With [machineTranslation] the
+ * line ends " · machine translation": the ONE per-song label for rendered machine extras (never per line).
+ */
 @Composable
-fun LyricsSourceHeader(provider: String?, synced: Boolean, color: Color, modifier: Modifier = Modifier) {
+fun LyricsSourceHeader(provider: String?, synced: Boolean, color: Color, modifier: Modifier = Modifier, machineTranslation: Boolean = false) {
     Text(
         text = stringResource(R.string.lyrics_from, displayProviderName(provider) ?: stringResource(R.string.unknown)) + " · " +
-            stringResource(if (synced) R.string.lyrics_synced else R.string.lyrics_plain),
+            stringResource(if (synced) R.string.lyrics_synced else R.string.lyrics_plain) +
+            (if (machineTranslation) " · " + stringResource(R.string.lyrics_machine_translation) else ""),
         style = MaterialTheme.typography.labelMedium,
         color = color.copy(alpha = 0.6f),
         textAlign = TextAlign.Center,
@@ -49,6 +54,31 @@ fun LyricsSourceHeader(provider: String?, synced: Boolean, color: Color, modifie
         modifier = modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 8.dp),
     )
 }
+
+/** The extra under a sung line (translation / romanization): visually secondary, plain weight, muted, never animated. */
+@Composable
+fun LyricsLineExtra(text: String, color: Color, textAlign: TextAlign, modifier: Modifier = Modifier) {
+    Text(
+        text = text,
+        style = MaterialTheme.typography.bodyLarge,
+        fontWeight = FontWeight.Normal,
+        color = color.copy(alpha = 0.6f),
+        textAlign = textAlign,
+        modifier = modifier.fillMaxWidth().padding(top = 2.dp),
+    )
+}
+
+/** The picker label for a [LineExtrasLanguage] (settings row, lyrics menu). */
+@Composable
+fun lineExtrasLanguageText(language: LineExtrasLanguage): String = stringResource(
+    when (language) {
+        LineExtrasLanguage.OFF -> R.string.lyrics_line_extras_off
+        LineExtrasLanguage.ENGLISH -> R.string.lyrics_line_extras_english
+        LineExtrasLanguage.HEBREW -> R.string.lyrics_line_extras_hebrew
+        LineExtrasLanguage.YIDDISH -> R.string.lyrics_line_extras_yiddish
+        LineExtrasLanguage.ROMANIZED -> R.string.lyrics_line_extras_romanized
+    },
+)
 
 /** Art, title, artist and a trailing tonal "more" pill — the compact identity row under the lyrics. */
 @Composable
