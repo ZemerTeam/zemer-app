@@ -194,7 +194,7 @@ object ZemerLyricsClient {
      * folds the synced timings into its own witness/gate pipeline (nothing is served back - training input only).
      * Fire-and-forget: never blocks the lyrics walk, failures silent. The server corpus-gates and dedupes.
      */
-    suspend fun submitScraped(videoId: String, source: String, lyrics: String, title: String, artist: String, duration: Int): Boolean = runCatching {
+    suspend fun submitScraped(videoId: String, source: String, lyrics: String, title: String, artist: String, duration: Int, device: String? = null): Boolean = runCatching {
         val s = kotlinx.serialization.serializer<String>()
         val body = buildString {
             append("{\"videoId\":").append(Json.encodeToString(s, videoId))
@@ -203,6 +203,7 @@ object ZemerLyricsClient {
             append(",\"title\":").append(Json.encodeToString(s, title))
             append(",\"artist\":").append(Json.encodeToString(s, artist))
             append(",\"duration\":").append(duration)
+            if (device != null) append(",\"device\":").append(Json.encodeToString(s, device))
             append("}")
         }
         client.post("$baseUrl/lyrics/scrape") { header(HttpHeaders.ContentType, "application/json"); setBody(body) }.status == HttpStatusCode.OK
@@ -211,17 +212,20 @@ object ZemerLyricsClient {
     @Serializable
     data class WorklistTrack(val videoId: String, val title: String = "", val artist: String = "", val duration: Int = 0)
 
+    // paceMs is SERVER-controlled: the crawler waits this long between songs, so the whole fleet can be throttled
+    // centrally (if a provider rate-limits) without shipping a new build. 0 = use the crawler's own default.
     @Serializable
-    private data class WorklistReply(val tracks: List<WorklistTrack> = emptyList())
+    data class WorklistReply(val tracks: List<WorklistTrack> = emptyList(), val paceMs: Int = 0)
 
     /**
      * The next page of the crowd-scrape worklist. The SERVER owns a shared rotating cursor, so every call - from any
-     * device - returns a DIFFERENT slice; crawlers never duplicate each other's work. Just call it repeatedly.
+     * device - returns a DIFFERENT slice; crawlers never duplicate each other's work. Just call it repeatedly. The
+     * reply also carries a server-set [WorklistReply.paceMs] the crawler obeys, so rate limits are handled centrally.
      */
-    suspend fun scrapeWorklist(limit: Int): List<WorklistTrack> = runCatching {
+    suspend fun scrapeWorklist(limit: Int): WorklistReply = runCatching {
         val r = client.get("$baseUrl/lyrics/scrape-worklist") { url { parameters.append("limit", limit.toString()) }; header(HttpHeaders.Accept, "application/json") }
-        if (r.status == HttpStatusCode.OK) r.body<WorklistReply>().tracks else emptyList()
-    }.getOrDefault(emptyList())
+        if (r.status == HttpStatusCode.OK) r.body<WorklistReply>() else WorklistReply()
+    }.getOrDefault(WorklistReply())
 
     /** "Wrong lyrics" report: two distinct devices within 30 days make the server hide the row until re-verified. */
     suspend fun reportLyrics(videoId: String, device: String): Boolean = runCatching {

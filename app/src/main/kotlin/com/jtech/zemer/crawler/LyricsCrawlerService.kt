@@ -55,7 +55,7 @@ class LyricsCrawlerService : Service() {
         private const val NOTIFICATION_ID = 771
         const val ACTION_STOP = "com.jtech.zemer.CRAWL_STOP"
         private const val BATCH = 100
-        private const val PACE_MS = 1200L
+        private const val PACE_MS = 1500L   // default gap between songs; the server can override via worklist paceMs
 
         fun start(context: Context) {
             runCatching { context.startForegroundService(Intent(context, LyricsCrawlerService::class.java)) }
@@ -97,8 +97,12 @@ class LyricsCrawlerService : Service() {
             var done = progress.value.done
             progress.value = Progress(running = true, done = done)
             while (isActive) {
-                val batch = runCatching { ZemerLyricsClient.scrapeWorklist(BATCH) }.getOrDefault(emptyList())
-                if (batch.isEmpty()) { delay(3000); continue }
+                val reply = runCatching { ZemerLyricsClient.scrapeWorklist(BATCH) }.getOrNull()
+                val batch = reply?.tracks ?: emptyList()
+                // Rate-limit handling: the server sets the pace (throttle the whole fleet centrally if a provider
+                // pushes back), we add per-device jitter, and back off longer when the server is unreachable.
+                val pace = if (reply != null && reply.paceMs > 0) reply.paceMs.toLong() else PACE_MS
+                if (batch.isEmpty()) { delay(if (reply == null) 15000L else 5000L); continue }
                 for (t in batch) {
                     if (!isActive) break
                     progress.value = Progress(running = true, done = done, current = t.title)
@@ -114,7 +118,7 @@ class LyricsCrawlerService : Service() {
                     }.onFailure { Timber.d(it, "crawl fetch failed %s", t.videoId) }
                     done++
                     if (done % 10 == 0) updateNotification(done, t.title)
-                    delay(PACE_MS)
+                    delay(pace + (0L..400L).random())
                 }
             }
         }

@@ -21,8 +21,10 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
+import com.jtech.zemer.R
 import com.jtech.zemer.LocalPlayerAwareWindowInsets
 import com.jtech.zemer.crawler.LyricsCrawlerService
 import com.jtech.zemer.ui.component.AppBarTitle
@@ -53,24 +55,21 @@ fun LyricsCrawlerScreen(
         Spacer(Modifier.height(SettingsScreenTopSpacing))
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Text(
-                if (progress.running) "Crawling…" else "Idle",
+                stringResource(if (progress.running) R.string.crawler_running else R.string.crawler_idle),
                 style = MaterialTheme.typography.titleLarge,
             )
-            Text("Songs fetched this session: ${progress.done}")
-            if (progress.current.isNotBlank()) Text("Now: ${progress.current}")
+            Text(stringResource(R.string.crawler_fetched, progress.done))
+            if (progress.current.isNotBlank()) Text(stringResource(R.string.crawler_now, progress.current))
             Button(
                 onClick = {
                     if (progress.running) LyricsCrawlerService.stop(context) else LyricsCrawlerService.start(context)
                 },
                 modifier = Modifier.fillMaxWidth(),
             ) {
-                Text(if (progress.running) "Stop crawling" else "Start crawling")
+                Text(stringResource(if (progress.running) R.string.crawler_stop else R.string.crawler_start))
             }
             Text(
-                "Walks the whole catalog (most-played first) and fetches every enabled lyrics provider for each " +
-                    "song, sending the results to the Zemer server. Keeps running with the screen off. It does not " +
-                    "play audio, so it never affects play-count rankings. The server hands each device a different " +
-                    "slice, so multiple devices never duplicate work.",
+                stringResource(R.string.crawler_desc),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -78,7 +77,7 @@ fun LyricsCrawlerScreen(
     }
 
     TopAppBar(
-        title = { AppBarTitle("Lyrics crawler") },
+        title = { AppBarTitle(stringResource(R.string.crawler_title)) },
         navigationIcon = { BackNavigationIcon(navController) },
         colors = zemerTopAppBarColors(),
         scrollBehavior = scrollBehavior,

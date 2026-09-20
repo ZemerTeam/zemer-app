@@ -5,6 +5,7 @@ package com.jtech.zemer.lyrics
 import android.content.Context
 import android.util.LruCache
 import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.edit
 import com.jtech.zemer.db.entities.LyricsEntity.Companion.LYRICS_NOT_FOUND
 import com.jtech.zemer.lyrics.model.LyricsUnavailableException
 import com.jtech.zemer.constants.LyricsProviderOrderKey
@@ -46,6 +47,22 @@ constructor(
     // (which folds the synced timings into its own witness/gate pipeline). Fire-and-forget on a scope that outlives
     // the walk so it never blocks or is cancelled with the walk; failures are silent. See ZemerLyricsClient.submitScraped.
     private val scrapeScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
+    // A RANDOM anonymous per-install id (a stored UUID, not derived from any hardware/account identifier), so the
+    // server can report how many installs are contributing scrapes. It identifies nothing about the device or user.
+    @Volatile private var cachedScrapeId: String? = null
+    private suspend fun scrapeInstallId(): String {
+        cachedScrapeId?.let { return it }
+        val key = androidx.datastore.preferences.core.stringPreferencesKey("crowd_scrape_install_id")
+        val existing = runCatching { context.dataStore.data.first()[key] }.getOrNull()
+        val id = if (!existing.isNullOrBlank()) existing else {
+            val fresh = java.util.UUID.randomUUID().toString()
+            runCatching { context.dataStore.edit { it[key] = fresh } }
+            fresh
+        }
+        cachedScrapeId = id
+        return id
+    }
 
     /** Lyrics body plus the provider label to persist/show ("Zemer · jkaraoke", "SimpMusic", …) and the resolver's per-line extras, if any. */
     data class Fetched(val lyrics: String, val provider: String?, val lineExtras: ZemerLyricsClient.LineExtras? = null)
@@ -107,6 +124,7 @@ constructor(
                                     ZemerLyricsClient.submitScraped(
                                         videoId, lab.label, lab.lyrics,
                                         mediaMetadata.title, mediaMetadata.artists.joinToString { it.name }, mediaMetadata.duration,
+                                        device = scrapeInstallId(),
                                     )
                                 }
                             }

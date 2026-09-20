@@ -1,5 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="crawler_title">Lyrics crawler</string>
+    <string name="crawler_settings_desc">Fetch lyrics for the catalog and send them to the Zemer server</string>
+    <string name="crawler_running">Crawling…</string>
+    <string name="crawler_idle">Idle</string>
+    <string name="crawler_fetched">Songs fetched this session: %1$d</string>
+    <string name="crawler_now">Now: %1$s</string>
+    <string name="crawler_start">Start crawling</string>
+    <string name="crawler_stop">Stop crawling</string>
+    <string name="crawler_desc">Walks the whole catalog (most-played first) and fetches every enabled lyrics provider for each song, sending the results to the Zemer server. Keeps running with the screen off. It does not play audio, so it never affects play-count rankings. The server hands each device a different slice, so multiple devices never duplicate work.</string>
     <string name="pause">Pause</string>
     <string name="replay">Replay</string>
     <string name="crop_album_art">Crop album art</string>
