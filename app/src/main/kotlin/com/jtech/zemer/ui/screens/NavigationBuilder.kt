@@ -39,6 +39,7 @@ import com.jtech.zemer.ui.screens.settings.ButtonSetupScreen
 import com.jtech.zemer.ui.screens.settings.ContentSettings
 import com.jtech.zemer.ui.screens.settings.GeneralSettings
 import com.jtech.zemer.ui.screens.settings.LogViewerScreen
+import com.jtech.zemer.ui.screens.settings.LyricsCrawlerScreen
 import com.jtech.zemer.ui.screens.settings.OfflineSearchSettings
 import com.jtech.zemer.ui.screens.settings.PlayerSettings
 import com.jtech.zemer.ui.screens.settings.PrivacySettings
@@ -479,6 +480,10 @@ fun NavGraphBuilder.navigationBuilder(
         composable("settings/log_viewer") {
             LogViewerScreen(navController, scrollBehavior)
         }
+    }
+    // Lyrics crawler — walks the catalog feeding provider lyrics to the Zemer server. Available in all builds.
+    composable("settings/lyrics_crawler") {
+        LyricsCrawlerScreen(navController, scrollBehavior)
     }
     composable("settings/about") {
         AboutScreen(navController, scrollBehavior)

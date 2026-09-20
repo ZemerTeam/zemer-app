@@ -189,6 +189,40 @@ object ZemerLyricsClient {
         r.status == HttpStatusCode.OK
     }.getOrDefault(false)
 
+    /**
+     * Free crowd-scrape: send a provider body the app just fetched for a played song to the Zemer server, which
+     * folds the synced timings into its own witness/gate pipeline (nothing is served back - training input only).
+     * Fire-and-forget: never blocks the lyrics walk, failures silent. The server corpus-gates and dedupes.
+     */
+    suspend fun submitScraped(videoId: String, source: String, lyrics: String, title: String, artist: String, duration: Int): Boolean = runCatching {
+        val s = kotlinx.serialization.serializer<String>()
+        val body = buildString {
+            append("{\"videoId\":").append(Json.encodeToString(s, videoId))
+            append(",\"source\":").append(Json.encodeToString(s, source))
+            append(",\"lyrics\":").append(Json.encodeToString(s, lyrics))
+            append(",\"title\":").append(Json.encodeToString(s, title))
+            append(",\"artist\":").append(Json.encodeToString(s, artist))
+            append(",\"duration\":").append(duration)
+            append("}")
+        }
+        client.post("$baseUrl/lyrics/scrape") { header(HttpHeaders.ContentType, "application/json"); setBody(body) }.status == HttpStatusCode.OK
+    }.getOrDefault(false)
+
+    @Serializable
+    data class WorklistTrack(val videoId: String, val title: String = "", val artist: String = "", val duration: Int = 0)
+
+    @Serializable
+    private data class WorklistReply(val tracks: List<WorklistTrack> = emptyList())
+
+    /**
+     * The next page of the crowd-scrape worklist. The SERVER owns a shared rotating cursor, so every call - from any
+     * device - returns a DIFFERENT slice; crawlers never duplicate each other's work. Just call it repeatedly.
+     */
+    suspend fun scrapeWorklist(limit: Int): List<WorklistTrack> = runCatching {
+        val r = client.get("$baseUrl/lyrics/scrape-worklist") { url { parameters.append("limit", limit.toString()) }; header(HttpHeaders.Accept, "application/json") }
+        if (r.status == HttpStatusCode.OK) r.body<WorklistReply>().tracks else emptyList()
+    }.getOrDefault(emptyList())
+
     /** "Wrong lyrics" report: two distinct devices within 30 days make the server hide the row until re-verified. */
     suspend fun reportLyrics(videoId: String, device: String): Boolean = runCatching {
         val body = "{\"videoId\":" + Json.encodeToString(kotlinx.serialization.serializer<String>(), videoId) + ",\"device\":" + Json.encodeToString(kotlinx.serialization.serializer<String>(), device) + "}"

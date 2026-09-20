@@ -180,6 +180,14 @@ fun SettingsScreen(
             route = "settings/about"
         ),
         SettingItem(
+            id = "lyrics_crawler",
+            title = "Lyrics crawler",
+            description = "Fetch lyrics for the catalog and send them to the Zemer server",
+            icon = R.drawable.lyrics,
+            section = stringResource(R.string.settings_section_system),
+            route = "settings/lyrics_crawler"
+        ),
+        SettingItem(
             id = "donate",
             title = stringResource(R.string.donate),
             description = stringResource(R.string.settings_desc_donate),
