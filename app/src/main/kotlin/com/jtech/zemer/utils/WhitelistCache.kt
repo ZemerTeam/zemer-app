@@ -1,17 +1,29 @@
 package com.jtech.zemer.utils
 
 import com.jtech.zemer.db.entities.ArtistWhitelistEntity
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 
 object WhitelistCache {
     // A @Volatile immutable map swapped whole, NOT a mutable map mutated in place: the old
     // clear-then-refill left a window where concurrent readers (notably the offline subset's
     // live-whitelist overlay) saw an empty or partial whitelist mid-refresh — an empty read
     // short-circuits the overlay and briefly serves de-whitelisted content.
-    @Volatile
-    private var memory: Map<String, ArtistWhitelistEntity> = emptyMap()
+    private val _entries = MutableStateFlow<Map<String, ArtistWhitelistEntity>>(emptyMap())
+
+    /**
+     * The whitelist as it changes, for surfaces that filter once and must re-filter when it lands or
+     * changes (a feed that arrives before the first whitelist load). StateFlow equality means an
+     * identical reload does not re-emit, so a collector that itself refills the cache cannot loop.
+     */
+    val entries: StateFlow<Map<String, ArtistWhitelistEntity>> = _entries.asStateFlow()
+
+    private val memory: Map<String, ArtistWhitelistEntity>
+        get() = _entries.value
 
     fun updateAll(entries: List<ArtistWhitelistEntity>) {
-        memory = entries.associateBy { it.artistId }
+        _entries.value = entries.associateBy { it.artistId }
     }
 
     fun get(artistId: String): ArtistWhitelistEntity? = memory[artistId]
