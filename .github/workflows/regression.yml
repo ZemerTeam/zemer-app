@@ -65,6 +65,8 @@ jobs:
           cache-read-only: ${{ github.ref != 'refs/heads/main' }}
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
+        with:
+          packages: 'platform-tools'
       - name: Configure Android SDK path
         run: echo "sdk.dir=$ANDROID_SDK_ROOT" > local.properties
       - name: Configure Firebase
