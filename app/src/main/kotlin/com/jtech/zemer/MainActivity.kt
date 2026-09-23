@@ -170,6 +170,10 @@ import com.jtech.zemer.constants.AppBarHeight
 import com.jtech.zemer.constants.HomeContentTabKey
 import com.jtech.zemer.extensions.cookieHasSession
 import com.jtech.zemer.extensions.toEnum
+import com.jtech.zemer.playback.PlayerVideoUiLogic
+import com.jtech.zemer.ui.player.PlayerVideoSurface
+import com.jtech.zemer.ui.player.enterVideoPip
+import com.jtech.zemer.ui.player.rememberIsInPipMode
 import com.jtech.zemer.ui.screens.HomeContentTab
 import com.jtech.zemer.ui.screens.effectiveHomeTab
 import com.jtech.zemer.constants.BlockPodcastsKey
@@ -418,6 +422,13 @@ class MainActivity : ComponentActivity() {
         // so the order is what keeps Compose on the scaled metrics. Idempotent; no-op at native scale.
         DensityScaler.reapply(this)
         super.onConfigurationChanged(newConfig)
+    }
+
+    override fun onUserLeaveHint() {
+        super.onUserLeaveHint()
+        // Leaving the app while a video shows shrinks it to the PiP window instead of the onStop
+        // revert below (an Activity in PiP is paused, not stopped; closing the window stops it).
+        if (playerConnection?.isVideoMode?.value == true) enterVideoPip()
     }
 
     override fun onStop() {
@@ -2162,6 +2173,19 @@ class MainActivity : ComponentActivity() {
                                     searchBarFocusRequester.requestFocus()
                                     openSearchImmediately = false
                                 }
+                            }
+                        }
+                    }
+                    // The PiP window shows only the video (PlayerVideoUiLogic.showPipVideo).
+                    val isVideoMode = playerConnection?.isVideoMode?.collectAsState()?.value == true
+                    if (PlayerVideoUiLogic.showPipVideo(isVideoMode, rememberIsInPipMode())) {
+                        CompositionLocalProvider(LocalPlayerConnection provides playerConnection) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .background(MaterialTheme.colorScheme.scrim),
+                            ) {
+                                PlayerVideoSurface(modifier = Modifier.fillMaxSize())
                             }
                         }
                     }

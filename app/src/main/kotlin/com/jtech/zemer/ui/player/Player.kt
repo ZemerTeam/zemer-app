@@ -231,6 +231,7 @@ fun BottomSheetPlayer(
     // casting + rendition availability (VideoModeController) — read it, never re-derive those.
     val videoModeAvailable by playerConnection.videoModeAvailable.collectAsState()
     val isVideoMode by playerConnection.isVideoMode.collectAsState()
+    val inPip = rememberIsInPipMode()
     var isFullscreen by rememberSaveable { mutableStateOf(false) }
 
     // Fullscreen is a per-play, in-video affordance: exit it the instant video mode ends (a track
@@ -793,7 +794,7 @@ fun BottomSheetPlayer(
                                 sliderPositionProvider = { sliderPosition },
                                 modifier = Modifier.size(thumbnailSize),
                                 isPlayerExpanded = state.isExpanded,
-                                showVideo = PlayerVideoUiLogic.showInlineVideo(isVideoMode, isFullscreen),
+                                showVideo = PlayerVideoUiLogic.showInlineVideo(isVideoMode, isFullscreen, inPip),
                                 onEnterFullscreen = { isFullscreen = true },
                                 showVideoToggle = videoModeAvailable,
                                 isVideoMode = isVideoMode,
@@ -831,7 +832,7 @@ fun BottomSheetPlayer(
                                 sliderPositionProvider = { sliderPosition },
                                 modifier = Modifier.nestedScroll(state.preUpPostDownNestedScrollConnection),
                                 isPlayerExpanded = state.isExpanded,
-                                showVideo = PlayerVideoUiLogic.showInlineVideo(isVideoMode, isFullscreen),
+                                showVideo = PlayerVideoUiLogic.showInlineVideo(isVideoMode, isFullscreen, inPip),
                                 onEnterFullscreen = { isFullscreen = true },
                                 showVideoToggle = videoModeAvailable,
                                 isVideoMode = isVideoMode,
@@ -894,7 +895,7 @@ fun BottomSheetPlayer(
 
         // Fullscreen video overlay — drawn last so it covers the expanded player (I6: same surface,
         // re-parented). Only while expanded + in video mode + fullscreen requested.
-        if (PlayerVideoUiLogic.showFullscreenVideo(state.isExpanded, isVideoMode, isFullscreen)) {
+        if (PlayerVideoUiLogic.showFullscreenVideo(state.isExpanded, isVideoMode, isFullscreen, inPip)) {
             PlayerVideoFullscreen(onExit = { isFullscreen = false })
         }
     }

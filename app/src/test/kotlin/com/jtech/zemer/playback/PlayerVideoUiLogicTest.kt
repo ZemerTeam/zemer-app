@@ -71,4 +71,33 @@ class PlayerVideoUiLogicTest {
         assertFalse(PlayerVideoUiLogic.shouldRevertVideoForLyrics(lyricsExpanded = true, isVideoMode = false))
         assertFalse(PlayerVideoUiLogic.shouldRevertVideoForLyrics(lyricsExpanded = false, isVideoMode = false))
     }
+
+    // --- picture-in-picture -------------------------------------------------
+
+    @Test
+    fun `PiP shows the video only in video mode`() {
+        assertTrue(PlayerVideoUiLogic.showPipVideo(isVideoMode = true, inPip = true))
+        assertFalse(PlayerVideoUiLogic.showPipVideo(isVideoMode = false, inPip = true))
+        assertFalse(PlayerVideoUiLogic.showPipVideo(isVideoMode = true, inPip = false))
+    }
+
+    @Test
+    fun `in PiP the inline and fullscreen surfaces yield, so exactly one owner remains`() {
+        for (isFullscreen in listOf(false, true)) {
+            assertFalse(PlayerVideoUiLogic.showInlineVideo(isVideoMode = true, isFullscreen = isFullscreen, inPip = true))
+            assertFalse(
+                PlayerVideoUiLogic.showFullscreenVideo(
+                    expanded = true, isVideoMode = true, isFullscreen = isFullscreen, inPip = true,
+                )
+            )
+        }
+    }
+
+    @Test
+    fun `leaving PiP hands the surface back to its normal owner`() {
+        assertTrue(PlayerVideoUiLogic.showInlineVideo(isVideoMode = true, isFullscreen = false, inPip = false))
+        assertTrue(
+            PlayerVideoUiLogic.showFullscreenVideo(expanded = true, isVideoMode = true, isFullscreen = true, inPip = false)
+        )
+    }
 }

@@ -8,8 +8,8 @@ package com.jtech.zemer.playback
  *
  * [VideoModeController] already decides *whether* video is available (blocked/casting/rendition —
  * [VideoModeLogic.availability]); this object only decides *where* the live video surface renders
- * given the mode/fullscreen flags. The two never overlap: at most one of [showInlineVideo] /
- * [showFullscreenVideo] is ever true, so exactly one surface owner exists at a time.
+ * given the mode/fullscreen/PiP flags. They never overlap: at most one of [showInlineVideo] /
+ * [showFullscreenVideo] / [showPipVideo] is ever true, so exactly one surface owner exists at a time.
  */
 object PlayerVideoUiLogic {
 
@@ -18,15 +18,28 @@ object PlayerVideoUiLogic {
      * while in video mode and NOT in fullscreen — fullscreen re-parents the same surface, so the
      * inline placement must yield to avoid two owners fighting over the one ExoPlayer output.
      */
-    fun showInlineVideo(isVideoMode: Boolean, isFullscreen: Boolean): Boolean =
-        isVideoMode && !isFullscreen
+    fun showInlineVideo(isVideoMode: Boolean, isFullscreen: Boolean, inPip: Boolean = false): Boolean =
+        isVideoMode && !isFullscreen && !inPip
 
     /**
      * Whether the fullscreen overlay (and its surface) should be shown. Requires the player sheet to
      * be expanded — a collapsed/mini player never hosts fullscreen video.
      */
-    fun showFullscreenVideo(expanded: Boolean, isVideoMode: Boolean, isFullscreen: Boolean): Boolean =
-        expanded && isVideoMode && isFullscreen
+    fun showFullscreenVideo(
+        expanded: Boolean,
+        isVideoMode: Boolean,
+        isFullscreen: Boolean,
+        inPip: Boolean = false,
+    ): Boolean =
+        expanded && isVideoMode && isFullscreen && !inPip
+
+    /**
+     * Whether the picture-in-picture window's surface is the live owner: in video mode while the
+     * Activity is in PiP. The inline and fullscreen placements yield while this is true, so the one
+     * ExoPlayer output still has exactly one owner.
+     */
+    fun showPipVideo(isVideoMode: Boolean, inPip: Boolean): Boolean =
+        isVideoMode && inPip
 
     /**
      * Whether a requested-fullscreen flag must be force-cleared. Fullscreen is a per-play, in-video
