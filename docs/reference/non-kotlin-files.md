@@ -59,8 +59,7 @@ Every tracked non-Kotlin path outside `docs/` is listed. Text files report line 
 | `app/src/androidTest/assets/sample-flat.m4a` | 5341038 bytes | binary `.m4a` |
 | `app/src/androidTest/assets/sample-opus.webm` | 5878798 bytes | binary `.webm` |
 | `app/src/debug/res/values/app_name.xml` | 4 lines | text `.xml`; XML root `resources` |
-| `app/src/debug/res/xml-v25/shortcuts.xml` | 23 lines | text `.xml`; XML root `shortcuts` |
-| `app/src/main/AndroidManifest.xml` | 289 lines | text `.xml`; XML root `manifest` |
+| `app/src/main/AndroidManifest.xml` | 299 lines | text `.xml`; XML root `manifest` |
 | `app/src/main/ic_launcher-playstore.png` | 23742 bytes | binary `.png` |
 | `app/src/main/res/drawable-night/widget_background.xml` | 6 lines | text `.xml`; XML root `shape` |
 | `app/src/main/res/drawable/account.xml` | 9 lines | text `.xml`; XML root `vector` |
@@ -206,6 +205,7 @@ Every tracked non-Kotlin path outside `docs/` is listed. Text files report line 
 | `app/src/main/res/drawable/settings.xml` | 9 lines | text `.xml`; XML root `vector` |
 | `app/src/main/res/drawable/share.xml` | 15 lines | text `.xml`; XML root `vector` |
 | `app/src/main/res/drawable/shortcut_library.xml` | 15 lines | text `.xml`; XML root `vector` |
+| `app/src/main/res/drawable/shortcut_resume.xml` | 9 lines | text `.xml`; XML root `vector` |
 | `app/src/main/res/drawable/shortcut_search.xml` | 14 lines | text `.xml`; XML root `vector` |
 | `app/src/main/res/drawable/shuffle.xml` | 9 lines | text `.xml`; XML root `vector` |
 | `app/src/main/res/drawable/shuffle_on.xml` | 9 lines | text `.xml`; XML root `vector` |
@@ -259,11 +259,11 @@ Every tracked non-Kotlin path outside `docs/` is listed. Text files report line 
 | `app/src/main/res/values-v31/styles.xml` | 22 lines | text `.xml`; XML root `resources` |
 | `app/src/main/res/values/app_name.xml` | 4 lines | text `.xml`; XML root `resources` |
 | `app/src/main/res/values/colors.xml` | 9 lines | text `.xml`; XML root `resources` |
-| `app/src/main/res/values/metrolist_strings.xml` | 696 lines | text `.xml`; XML root `resources` |
+| `app/src/main/res/values/metrolist_strings.xml` | 698 lines | text `.xml`; XML root `resources` |
 | `app/src/main/res/values/strings.xml` | 472 lines | text `.xml`; XML root `resources` |
 | `app/src/main/res/values/styles.xml` | 26 lines | text `.xml`; XML root `resources` |
 | `app/src/main/res/values/values.xml` | 8 lines | text `.xml`; XML root `resources` |
-| `app/src/main/res/xml-v25/shortcuts.xml` | 23 lines | text `.xml`; XML root `shortcuts` |
+| `app/src/main/res/xml-v25/shortcuts.xml` | 33 lines | text `.xml`; XML root `shortcuts` |
 | `app/src/main/res/xml/accessibility_service_config.xml` | 9 lines | text `.xml`; XML root `accessibility-service` |
 | `app/src/main/res/xml/automotive_app_desc.xml` | 4 lines | text `.xml`; XML root `automotiveApp` |
 | `app/src/main/res/xml/backup_rules.xml` | 12 lines | text `.xml`; XML root `full-backup-content` |
