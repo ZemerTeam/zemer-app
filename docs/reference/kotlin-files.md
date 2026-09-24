@@ -102,7 +102,7 @@ Every tracked Kotlin file is listed with hard metadata extracted from the file t
 | `app/src/main/kotlin/com/jtech/zemer/lyrics/lrclib/LrcLib.kt` | 208 | `com.jtech.zemer.lyrics.lrclib` | no | 7 | 36 | io.ktor, kotlin.math, kotlinx.coroutines |
 | `app/src/main/kotlin/com/jtech/zemer/lyrics/lrclib/LrcLibLyricsProvider.kt` | 18 | `com.jtech.zemer.lyrics.lrclib` | no | 2 | 4 |  |
 | `app/src/main/kotlin/com/jtech/zemer/lyrics/lrclib/LrcLibTrack.kt` | 18 | `com.jtech.zemer.lyrics.lrclib` | no | 1 | 8 | kotlinx.serialization |
-| `app/src/main/kotlin/com/jtech/zemer/lyrics/musixmatch/MusixmatchLyrics.kt` | 251 | `com.jtech.zemer.lyrics.musixmatch` | no | 24 | 94 | android.content, androidx.datastore, io.ktor, java.text, java.util, kotlin.math, kotlinx.serialization |
+| `app/src/main/kotlin/com/jtech/zemer/lyrics/musixmatch/MusixmatchLyrics.kt` | 259 | `com.jtech.zemer.lyrics.musixmatch` | no | 24 | 95 | android.content, androidx.datastore, io.ktor, java.text, java.util, kotlin.math, kotlinx.serialization |
 | `app/src/main/kotlin/com/jtech/zemer/lyrics/musixmatch/MusixmatchLyricsProvider.kt` | 25 | `com.jtech.zemer.lyrics.musixmatch` | no | 4 | 8 | android.content |
 | `app/src/main/kotlin/com/jtech/zemer/lyrics/musixmatch/MusixmatchStatus.kt` | 39 | `com.jtech.zemer.lyrics.musixmatch` | no | 0 | 20 |  |
 | `app/src/main/kotlin/com/jtech/zemer/lyrics/simpmusic/SimpMusicLyrics.kt` | 133 | `com.jtech.zemer.lyrics.simpmusic` | no | 9 | 18 | io.ktor, kotlin.math, kotlinx.coroutines |
@@ -638,7 +638,7 @@ Every tracked Kotlin file is listed with hard metadata extracted from the file t
 | `app/src/test/kotlin/com/jtech/zemer/lyrics/LyricsUtilsTest.kt` | 68 | `com.jtech.zemer.lyrics` | no | 4 | 7 | org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/lyrics/SyncedFirstPickerTest.kt` | 87 | `com.jtech.zemer.lyrics` | no | 10 | 19 | androidx.datastore, org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/lyrics/lrclib/LrcLibIdentityTest.kt` | 64 | `com.jtech.zemer.lyrics.lrclib` | no | 5 | 3 | org.junit |
-| `app/src/test/kotlin/com/jtech/zemer/lyrics/musixmatch/MusixmatchGatesTest.kt` | 83 | `com.jtech.zemer.lyrics.musixmatch` | no | 7 | 12 | org.junit |
+| `app/src/test/kotlin/com/jtech/zemer/lyrics/musixmatch/MusixmatchGatesTest.kt` | 93 | `com.jtech.zemer.lyrics.musixmatch` | no | 7 | 12 | org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/lyrics/musixmatch/MusixmatchLiveTest.kt` | 18 | `com.jtech.zemer.lyrics.musixmatch` | no | 3 | 3 | kotlinx.coroutines, org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/lyrics/musixmatch/MusixmatchStatusInitOrderTest.kt` | 26 | `com.jtech.zemer.lyrics.musixmatch` | no | 4 | 8 | java.io, java.net, org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/lyrics/musixmatch/MusixmatchStatusTest.kt` | 39 | `com.jtech.zemer.lyrics.musixmatch` | no | 3 | 2 | org.junit |

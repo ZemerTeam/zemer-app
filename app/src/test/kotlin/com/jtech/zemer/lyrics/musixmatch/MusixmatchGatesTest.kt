@@ -80,4 +80,14 @@ class MusixmatchParseTest {
         }
         assertNull(MusixmatchLyrics.parseMacro("{\"message\":{\"header\":{\"status_code\":401,\"hint\":\"captcha\"}}}"))
     }
+
+    /** Musixmatch refuses issuance with a 200 whose token is all zeros; that, or a blank, is no token anywhere. */
+    @Test
+    fun `a blank or all-zero token is no token`() {
+        assertFalse(MusixmatchLyrics.usableToken(null))
+        assertFalse(MusixmatchLyrics.usableToken(""))
+        assertFalse(MusixmatchLyrics.usableToken("   "))
+        assertFalse(MusixmatchLyrics.usableToken("0".repeat(56)))
+        assertTrue(MusixmatchLyrics.usableToken("2503a1f9c0d0e2a7b1c4d5e6f70123456789abcdef0123456789abcd"))
+    }
 }
