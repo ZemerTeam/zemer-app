@@ -131,12 +131,20 @@ object MusixmatchLyrics {
     private fun JsonObject?.header(): JsonObject? = this?.get("message")?.jsonObject?.get("header")?.jsonObject
     private fun JsonObject?.body(): JsonObject? = this?.get("message")?.jsonObject?.get("body")?.let { runCatching { it.jsonObject }.getOrNull() }
 
+    /**
+     * Whether [token] can authenticate a lookup at all. Musixmatch refuses issuance with a `200` whose `user_token`
+     * is all zeros (never a 401), and every lookup made with such a token, or a blank one, answers `200` with a decoy
+     * track ("NOKIA / Drake") instead of an error - so a zero token is no token at every source: stored, brokered
+     * or issued. Without this gate an install sat on the zeros forever, rejecting the decoy on every song.
+     */
+    internal fun usableToken(token: String?): Boolean = !token.isNullOrBlank() && !token.all { it == '0' }
+
     private suspend fun token(context: Context, forceNew: Boolean = false): String? {
-        val stored = context.dataStore[MusixmatchTokenKey]?.takeIf { it.isNotBlank() }
+        val stored = context.dataStore[MusixmatchTokenKey]?.takeIf(::usableToken)
         if (!forceNew && stored != null) return stored
         // Prefer the token the Zemer server brokers: it issues from one clean IP, so a phone (whose IP Musixmatch
         // often refuses) never touches issuance. forceNew means our stored token went stale → ask for a renew.
-        runCatching { ZemerLyricsClient.musixmatchToken(renew = if (forceNew) stored else null) }.getOrNull()?.let {
+        runCatching { ZemerLyricsClient.musixmatchToken(renew = if (forceNew) stored else null) }.getOrNull()?.takeIf(::usableToken)?.let {
             context.dataStore.edit { p -> p[MusixmatchTokenKey] = it; p.remove(MusixmatchCooldownUntilKey) }
             return it
         }
@@ -145,7 +153,7 @@ object MusixmatchLyrics {
         if (cooldown > System.currentTimeMillis() + COOLDOWN_MS) context.dataStore.edit { it.remove(MusixmatchCooldownUntilKey) }
         else if (cooldown > System.currentTimeMillis()) return stored
         val j = getJson("${BASE}token.get?app_id=$APP")
-        val tok = j.body()?.get("user_token")?.jsonPrimitive?.contentOrNull
+        val tok = j.body()?.get("user_token")?.jsonPrimitive?.contentOrNull?.takeIf(::usableToken)
         context.dataStore.edit { if (tok != null) it[MusixmatchTokenKey] = tok else { it.remove(MusixmatchTokenKey); it[MusixmatchCooldownUntilKey] = System.currentTimeMillis() + COOLDOWN_MS } }
         return tok
     }
