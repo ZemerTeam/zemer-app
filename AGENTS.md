@@ -659,13 +659,11 @@ The rules that must not regress:
 (the interface), `LyricsHelper`, `LyricsChainWalk`, `SyncedFirstPicker`, `LyricsProviderRegistry`/`Ordering`,
 `LyricsStore`/`LyricsEntry`, `LyricsUtils`, `LineExtras`/`LineExtrasStore`, `LyricsUnavailableException`, and
 `LyricsHttp` - and every source lives in ONE package with its client, its models and its `LyricsProvider`
-wrapper together: `lrclib/`, `simpmusic/`, `musixmatch/`, `youtube/` (the two YouTube providers) and `zemer/`
-(the resolver client + provider + the parsers it drives). All four network sources share the single Ktor client
+wrapper together: `lrclib/`, `simpmusic/`, `youtube/` (the two YouTube providers) and `zemer/`
+(the resolver client + provider + the parsers it drives). All three network sources share the single Ktor client
 `LyricsHttp` (lenient JSON, 15/10/15 s timeouts, never throws on status - each caller judges its own reply); do
 not re-add a per-source `HttpClient`. `lrclib/LrcLibTrack` is the ONE LRCLIB record model for both the search
-hit and the by-id row the resolver vouches for. The two `cleanTitle`/`cleanArtist` pairs (LrcLib's fork-era
-English patterns vs Musixmatch's Hebrew-aware gates that mirror the server harvester) are deliberately separate
-contracts, not a duplicate to merge.
+hit and the by-id row the resolver vouches for.
 
 `lyrics/LyricsHelper.kt` runs the providers in order: **Zemer resolver first** (`lyrics/zemer/`; the search
 server's `/lyrics/resolve` returns source POINTERS, the app fetches Jyrics/Shironet/jkaraoke/tab4u/zemirotdb
@@ -681,12 +679,10 @@ only for rows its audio check confirmed, an Apple Music row by `catalogId` (`App
 both ways), a SimpMusic row by `entryId`
 (`SimpMusicLyrics.getLyricsByEntry`: the catalog the pointer's additive `videoId` names - else the track's own - fetched and
 the exact audio-verified entry picked, there is no per-entry endpoint, with the server's `synced` flag deciding whether its timings are served, `entryBody` - a synced pointer whose entry lost its timings upstream yields nothing, never plain text in the synced slot;
-the server never inlines simpmusic text, and a missing entry yields nothing so the walk continues), and a Musixmatch row by id
-(`MusixmatchLyrics.getLyricsById`, `track.lyrics.get` + `track.subtitle.get` under the phone's own brokered token,
-text gates only — the server already matched the recording). Walk order (`ZemerLyricsProvider.order`): SYNCED
+the server never inlines simpmusic text, and a missing entry yields nothing so the walk continues). Walk order (`ZemerLyricsProvider.order`): SYNCED
 sources first (`synced`, an inline `syncedLrc`/`richSync`, or the one pointer `lineTimes` covers), then rank
 (`ZemerLyricsProvider.rank`): `zemer` 0 (Zemer's own certified text, `richSync` word tags > `syncedLrc` > `plain`,
-labelled just "Zemer") > jkaraoke/apple 1 > lrclib/kugou/musixmatch/simpmusic/zingmusic/youtube 2 > the text pages 3 >
+labelled just "Zemer") > jkaraoke/apple 1 > lrclib/kugou/simpmusic/zingmusic/youtube 2 > the text pages 3 >
 booklet/manual/canonical/community 4 (the inline bodies stay BEHIND the pointers: a pointer is the fresher copy,
 the inline text the outage fallback); the server's order breaks ties; an unknown type is skipped, never guessed;
 one source's fetch/parse failure skips that source, never the walk. A `manual` row's label names its `origin`
@@ -718,11 +714,7 @@ SimpMusic (videoId-keyed; a track is this recording only when its duration is KN
 catalog is community-filled, so a WRONG-TEXT upload that matches title, artist and duration - Apiryoin
 `Xc-75pW8N0Y` carried another Yiddish song, synced - passes every client gate; only Report / the server's own
 text can close that), LrcLib (identity-gated: title AND artist must agree; a
-duration-only match once served a Japanese song), **Musixmatch on-device** (`lyrics/musixmatch/MusixmatchLyrics.kt`:
-the catalog behind Spotify's lyrics, reached with one desktop-API token per phone — the server stores none of its
-text; gates mirror `harvester/lyrics-musixmatch.mjs`: artist consonant key with the Chaim/Haim fold, title
-identity, length ≤ 2 s for text / ≤ 1 s for the LRC, instrumental/restricted rejected, licence footer stripped;
-the token is brokered by the Zemer server (`ZemerLyricsClient.musixmatchToken`), with direct issuance as the fallback behind a 30 min cooldown when refused; a blank or ALL-ZERO token is no token at every source - stored, brokered or issued (`usableToken`): Musixmatch refuses issuance with a 200 whose `user_token` is zeros, never a 401, and answers every lookup made with one with a decoy track ("NOKIA / Drake"), so without the gate an install sat on the zeros forever rejecting the decoy on every song; the last lookup outcome lands in `MusixmatchLastStatusKey` as a `MusixmatchStatus` CODE that the Content settings row localises via `musixmatchStatusText` - never store display text in a preference; `EnableMusixmatchKey` toggle in Content settings, whose provider-selection rows are the shared `SwitchPreference` and whose priority dialog is the shared `ReorderableList` over the pure `LyricsProviderOrdering`), YouTube subtitles,
+duration-only match once served a Japanese song) (the Content settings provider-selection rows are the shared `SwitchPreference` and the priority dialog the shared `ReorderableList` over the pure `LyricsProviderOrdering`), YouTube subtitles,
 YouTube lyrics tab. The pick rule is the pure, tested `lyrics/SyncedFirstPicker`: among TRUSTED providers a SYNCED
 body beats a higher provider's plain one, but the YouTube providers are `lowTrust` (an auto-caption transcript is
 timestamped but not identity-gated) and are served ONLY when no trusted provider answered — never over a curated
@@ -740,7 +732,7 @@ track-start prefetch skipping to the next song) left every in-flight provider fe
 with its body - steady heap churn during background playback on low-RAM phones. Cancelling the caller now
 cancels the fetches (`LyricsChainWalkTest`), and the fetch lambda rethrows `CancellationException` before
 its catch-all so a skipped track is never reported as a provider failure. There is no in-memory lyrics
-cache in the helper (the one it had was never written to); Room via `LyricsStore` is the cache. Musixmatch's `cleanLrc` formats with
+cache in the helper (the one it had was never written to); Room via `LyricsStore` is the cache. `LyricsUtils.cleanLrc` formats with
 `Locale.US` (a comma-decimal locale produced LRC nothing could parse). Users contribute through the lyrics menu:
 a saved edit is also POSTed to the server's submission queue and "Report" POSTs a report after the shared
 `ConfirmDialog` (`ui/component/MenuDialogs.kt`, the ONE Cancel/OK confirmation - the remove-download confirm rides
@@ -2056,7 +2048,7 @@ Node ≥20 scripts (deps vendored in `tests/node_modules`, no install needed) th
 
 - **`:app`** (`com.jtech.zemer`) - single-activity Jetpack Compose UI, Hilt DI (`App.kt` `@HiltAndroidApp`, modules under `di/`), Media3. `MainActivity` + `NavigationBuilder.kt` host the Compose nav graph; `MusicService` (a Media3 `MediaLibraryService`) owns ExoPlayer and is bridged to the UI by `PlayerConnection`, with `playback/queues/` implementations. State is Room (`db/MusicDatabase.kt`, `song.db`) + DataStore preferences (`utils/DataStore.kt` - holds the auth cookie / visitorData / dataSyncId and all settings). Content-filtering (whitelist, KidZone) lives in `sync/` + `utils/SyncUtils.kt`. The offline search-backup snapshot (sync engine + read-layer port) lives in `offline/` (on-disk store under `filesDir/subset/` - see §Offline search backup). Downloads via Media3 `ExoDownloadService` plus a MediaStore path. Crash/error telemetry is Firebase Crashlytics: `utils/CrashReportingTree.kt` (planted in `App.kt`) turns every Timber log (DEBUG+) into a breadcrumb and `reportException()` calls into non-fatal issues - so report errors via `reportException()`/`Timber`, never `printStackTrace`; release CI uploads R8 mappings and native symbols automatically. `App.kt` sets the Crashlytics custom key `commit` = `BuildConfig.COMMIT_HASH` because every main build ships as the SAME versionCode/versionName (a nightly reports as "38" like stable) - the key is the only way to tell a nightly crash from a stable one in the console.
 - **`:innertube`** (`com.metrolist.innertube`) - the YouTube Music InnerTube API client (Ktor): request building, auth context, page parsers that turn YouTube renderer trees into typed models. Holds the `YouTubeClient` definitions. (The NewPipe extractor bridge is gone: the cipher player is the single sts/decipher source - a live probe 2026-08-27 showed the extractor's sig parse broken on the current player, and it fetched the player over the same iframe_api route as the cipher, so it could not survive any failure the cipher couldn't.)
-- The lyrics provider clients are NOT modules: LrcLib.net (`lyrics/lrclib/`), api-lyrics.simpmusic.org (`lyrics/simpmusic/`) and Musixmatch (`lyrics/musixmatch/`) all live in `:app` under `com.jtech.zemer.lyrics.*`. (The fork's `:lrclib` / `:simpmusic` Gradle modules were folded in, 2026-09-24; they carried an unused second matcher + Levenshtein and an unused `Lyrics` wrapper, dropped with the move.)
+- The lyrics provider clients are NOT modules: LrcLib.net (`lyrics/lrclib/`) and api-lyrics.simpmusic.org (`lyrics/simpmusic/`) both live in `:app` under `com.jtech.zemer.lyrics.*`. (The fork's `:lrclib` / `:simpmusic` Gradle modules were folded in, 2026-09-24; they carried an unused second matcher + Levenshtein and an unused `Lyrics` wrapper, dropped with the move.)
 - **`cipher`** - see "Cipher / player rotation" above.
 
 ## Documentation

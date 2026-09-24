@@ -38,7 +38,7 @@ object ZemerLyricsClient {
         val offsetSec: Double? = null,    // jkaraoke: the voice-vs-cue lead added to every line (this song's own, or the fleet median)
         val offsetFrom: String? = null,   // jkaraoke: "measured" (this song's own alignment) or "default" (fleet median); both applied
         val browseId: String? = null,     // youtube lyrics tab
-        val trackId: Long? = null,        // zingmusic (server-vetted track id) / musixmatch
+        val trackId: Long? = null,        // zingmusic (server-vetted track id)
         val hash: String? = null,         // kugou (audio hash; the app re-runs the krcs search with it)
         val krcId: Long? = null,          // kugou (server-vetted krcs candidate id)
         val plain: String? = null,        // operator-hosted text (booklet/manual/canonical/community/zemer)
@@ -47,7 +47,6 @@ object ZemerLyricsClient {
         val synced: Boolean = false,
         val origin: String? = null,       // manual: where the text came from (telegram / forum / asrverified / community)
         val ref: String? = null,          // manual/community: the operator's reference for that origin
-        val commontrackId: Long? = null,  // musixmatch (fetched by id with the phone's own token, see MusixmatchLyrics.byId)
         val catalogId: String? = null,    // apple: the Apple Music song id (TTML via the paxsenix mirror, see AppleTtmlLrc)
         val publicDomain: Double? = null, // manual: share of lines (0..1) that are Tanach/siddur/haggadah text (nobody's copyright)
         val borrowedFrom: String? = null, // manual: the text was verified on another recording of the same song (then never synced)
@@ -183,12 +182,4 @@ object ZemerLyricsClient {
         LyricsHttp.client.post("$baseUrl/lyrics/report") { header(HttpHeaders.ContentType, "application/json"); setBody(body) }.status == HttpStatusCode.OK
     }.getOrDefault(false)
 
-    @Serializable
-    data class MusixmatchToken(val token: String, val issuedAt: Long = 0)
-
-    /** The shared Musixmatch token brokered by the server (one clean IP issues it; every app reuses it). */
-    suspend fun musixmatchToken(renew: String? = null): String? {
-        val r = LyricsHttp.client.get("$baseUrl/lyrics/musixmatch-token") { if (renew != null) url { parameters.append("renew", renew) }; header(HttpHeaders.Accept, "application/json") }
-        return if (r.status == HttpStatusCode.OK) r.body<MusixmatchToken>().token else null
-    }
 }

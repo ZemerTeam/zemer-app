@@ -18,7 +18,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.jtech.zemer.R
 import com.jtech.zemer.lyrics.LyricsProviderOrdering
-import com.jtech.zemer.lyrics.musixmatch.MusixmatchStatus
 import com.jtech.zemer.ui.component.DefaultDialog
 import com.jtech.zemer.ui.component.PreferenceEntryDefaults
 import com.jtech.zemer.ui.component.ReorderableEntry
@@ -32,27 +31,7 @@ class LyricsProviderToggle(
     val description: Int,
     val enabled: Boolean,
     val onEnabledChange: (Boolean) -> Unit,
-    val statusCode: String? = null,   // last outcome code (Musixmatch, `MusixmatchStatus`), localised under the description
 )
-
-/** The stored Musixmatch outcome code as user text; null for no/unknown code (older installs stored free text). */
-@Composable
-fun musixmatchStatusText(code: String?): String? = when (val s = MusixmatchStatus.parse(code)) {
-    null -> null
-    MusixmatchStatus.Hit -> stringResource(R.string.musixmatch_status_hit)
-    MusixmatchStatus.HitSynced -> stringResource(R.string.musixmatch_status_hit_synced)
-    MusixmatchStatus.Unauthorized -> stringResource(R.string.musixmatch_status_unauthorized)
-    MusixmatchStatus.Network -> stringResource(R.string.musixmatch_status_network)
-    MusixmatchStatus.NoMatch -> stringResource(R.string.musixmatch_status_no_match)
-    MusixmatchStatus.NoLyrics -> stringResource(R.string.musixmatch_status_no_lyrics)
-    MusixmatchStatus.NoToken -> stringResource(R.string.musixmatch_status_no_token)
-    is MusixmatchStatus.Rejected -> when (s.reason) {
-        MusixmatchStatus.REASON_ARTIST -> stringResource(R.string.musixmatch_status_rejected_artist, s.detail)
-        MusixmatchStatus.REASON_TITLE -> stringResource(R.string.musixmatch_status_rejected_title, s.detail)
-        MusixmatchStatus.REASON_LENGTH -> stringResource(R.string.musixmatch_status_rejected_length, s.detail)
-        else -> stringResource(R.string.musixmatch_status_rejected_unusable, s.detail)
-    }
-}
 
 /** Content settings → Provider selection: one switch row per provider (the shared `SwitchPreference`, D-pad focusable), with what each source is. */
 @Composable
@@ -67,10 +46,9 @@ fun LyricsProviderSelectionDialog(providers: List<LyricsProviderToggle>, onDismi
         // past the dialog's height cap it scrolls (the nav-drawer behaviour).
         Column(modifier = Modifier.fillMaxWidth().weight(1f, fill = false).verticalScroll(rememberScrollState())) {
             providers.forEach { p ->
-                val status = musixmatchStatusText(p.statusCode)
                 SwitchPreference(
                     title = { Text(stringResource(p.title)) },
-                    description = listOfNotNull(stringResource(p.description), status).joinToString("\n"),
+                    description = stringResource(p.description),
                     checked = p.enabled,
                     onCheckedChange = p.onEnabledChange,
                     contentPadding = PreferenceEntryDefaults.compactContentPadding,

@@ -8,9 +8,9 @@ import io.ktor.serialization.kotlinx.json.json
 import kotlinx.serialization.json.Json
 
 /**
- * The ONE Ktor client every lyrics source shares (the resolver, LRCLIB, SimpMusic, Musixmatch): lenient JSON
+ * The ONE Ktor client every lyrics source shares (the resolver, LRCLIB, SimpMusic): lenient JSON
  * that ignores unknown keys, 15 s request / 10 s connect / 15 s socket timeouts, and no throw on a non-2xx -
- * each caller judges its own status. Four private copies of this config once lived one per source.
+ * each caller judges its own status. Private copies of this config once lived one per source.
  */
 object LyricsHttp {
     val json = Json { ignoreUnknownKeys = true; isLenient = true; explicitNulls = false }

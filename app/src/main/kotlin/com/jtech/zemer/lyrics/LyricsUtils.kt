@@ -1,6 +1,7 @@
 package com.jtech.zemer.lyrics
 
 import android.text.format.DateUtils
+import java.util.Locale
 
 @Suppress("RegExpRedundantEscape")
 object LyricsUtils {
@@ -131,5 +132,23 @@ object LyricsUtils {
             if (word.time <= position + 100L) count++ else break
         }
         return count
+    }
+
+    /**
+     * Keep only well-formed, monotonic `[mm:ss.xx]` lines of an LRC body, re-formatted with `Locale.US` (the
+     * default locale would print a comma decimal or non-ASCII digits, which no LRC parser reads); null unless
+     * at least four sung lines remain, or when the timestamps run backwards.
+     */
+    fun cleanLrc(sub: String?): String? {
+        val rows = ArrayList<String>(); var last = -1.0
+        // lineSequence: LF, CRLF and CR-only bodies all split into rows (a CR-only reply used to be one rejected row).
+        for (l in (sub ?: "").lineSequence()) {
+            val m = Regex("""^\[(\d+):(\d+(?:\.\d+)?)]\s?(.*)$""").find(l) ?: continue
+            val t = m.groupValues[1].toInt() * 60 + m.groupValues[2].toDouble()
+            if (t < last) return null
+            last = t
+            rows.add(String.format(Locale.US, "[%s:%05.2f] %s", m.groupValues[1].padStart(2, '0'), m.groupValues[2].toDouble(), m.groupValues[3].trim()))
+        }
+        return if (rows.count { !it.endsWith("] ") && !it.endsWith("]") } >= 4) rows.joinToString("\n") else null
     }
 }
