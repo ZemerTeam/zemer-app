@@ -5,7 +5,6 @@ import java.io.IOException
 import java.net.ConnectException
 import java.net.SocketTimeoutException
 import java.net.UnknownHostException
-import java.util.zip.ZipException
 import javax.net.ssl.SSLException
 
 /**
@@ -15,9 +14,10 @@ import javax.net.ssl.SSLException
 enum class UpdateDownloadFailure { TIMEOUT, NETWORK, STORAGE, CORRUPT_ARTIFACT, UNKNOWN }
 
 /**
- * The downloaded artifact was structurally unusable (e.g. the nightly zip held no APK). A
- * dedicated type so the classifier can report [UpdateDownloadFailure.CORRUPT_ARTIFACT] without
- * swallowing every unrelated [IllegalStateException] as a corrupt download.
+ * The downloaded artifact was not the build that was announced (a nightly whose size or SHA-256
+ * does not match the mirror's record). A dedicated type so the classifier can report
+ * [UpdateDownloadFailure.CORRUPT_ARTIFACT] without swallowing every unrelated
+ * [IllegalStateException] as a corrupt download.
  */
 class CorruptUpdateArtifactException(message: String) : Exception(message)
 
@@ -27,9 +27,9 @@ fun classifyUpdateDownloadFailure(error: Throwable): UpdateDownloadFailure {
     return when {
         chain.any { it.isTimeout() } -> UpdateDownloadFailure.TIMEOUT
         chain.any { it.isStorage() } -> UpdateDownloadFailure.STORAGE
-        // A malformed zip or a zip with no APK entry - never a bare IllegalStateException, which
-        // is a common runtime type an unrelated failure would carry.
-        chain.any { it is ZipException || it is CorruptUpdateArtifactException } -> UpdateDownloadFailure.CORRUPT_ARTIFACT
+        // Only the dedicated type - never a bare IllegalStateException, which is a common runtime
+        // type an unrelated failure would carry.
+        chain.any { it is CorruptUpdateArtifactException } -> UpdateDownloadFailure.CORRUPT_ARTIFACT
         chain.any { it.isNetwork() } -> UpdateDownloadFailure.NETWORK
         else -> UpdateDownloadFailure.UNKNOWN
     }

@@ -33,6 +33,11 @@ android {
                 .standardOutput.asText.get().trim()
         }.getOrDefault("")
         buildConfigField("String", "COMMIT_HASH", "\"$commitHash\"")
+        // CI run number of this build (GITHUB_RUN_NUMBER, monotonic per workflow). The nightly
+        // updater refuses a nightly with a LOWER number, so a mirror announcing an older build can
+        // never install a downgrade (the 36 -> 34 Room crash). 0 outside CI = unknown, SHA-only rule.
+        val runNumber = providers.environmentVariable("GITHUB_RUN_NUMBER").orNull?.toIntOrNull() ?: 0
+        buildConfigField("int", "RUN_NUMBER", "$runNumber")
         val googleTokenExchangeUrl = (project.findProperty("googleTokenExchangeUrl") as String?) ?: ""
         buildConfigField("String", "GOOGLE_TOKEN_EXCHANGE_URL", "\"$googleTokenExchangeUrl\"")
         // Read-only content mirror (content.zemer.io) used mirror-first with the Firebase SDK as
