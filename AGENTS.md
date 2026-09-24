@@ -1837,7 +1837,22 @@ user re-toggles). Fullscreen force-exits the instant video mode ends (track adva
 or the player sheet collapses - a fullscreen video must never survive past the content it was showing.
 Backgrounding the app (`MainActivity.onStop`) reverts video mode to audio too - the same "don't decode
 invisibly" reasoning, orientation changes never pass here (`configChanges` handles them, no Activity
-restart).
+restart). **Leaving via Home/recents while in video mode enters picture-in-picture instead**
+(`ui/player/VideoPip.kt`, #498). Entry: on API 31+ the platform's auto-enter is armed exactly while
+video mode is on (`setVideoPipAutoEnter`, a `LaunchedEffect(isVideoMode)` in `MainActivity` - it fires
+only for Home/recents); below that `onUserLeaveHint` enters under the pure, tested
+`PlayerVideoUiLogic.shouldEnterPipOnLeave` - NEVER while an Activity this one launched is opening
+(`ownActivityLaunchInFlight`, raised by the `startActivity` / `startActivityForResult` overrides and
+cleared on resume: the platform delivers the hint for the recognition dialog, share sheets, pickers and
+sign-in too, and PiP under our own dialog was the bug). An Activity in PiP is paused, not stopped, so
+the onStop revert does not run. `VideoPipOverlay` is the window's ONE content owner (inline + fullscreen
+yield through their `inPip` flag): the video surface in video mode (`showPipVideo`), else the current
+cover art (`showPipArtwork` - video mode is per-play, so a track change / error / cast revert inside the
+window must show the audio still playing, never the app UI shrunk into a thumbnail-sized window; there
+is no exit-PiP API). Closing the window stops the Activity -> the normal onStop revert.
+`smallestScreenSize` in the manifest `configChanges` is load-bearing: without it a PiP transition may
+recreate the Activity, whose onStop reverts video and leaves an empty window (it only worked without
+because the app has no size-qualified resources - the first `sw600dp` folder would have broken it).
 
 **The blocked-user guarantee, end to end (verified, not assumed).** There is exactly ONE code path
 that can ever set video mode true - `VideoModeController.enterVideoMode`, reachable only through

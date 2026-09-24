@@ -42,6 +42,25 @@ object PlayerVideoUiLogic {
         isVideoMode && inPip
 
     /**
+     * The PiP window's audio-only state: still in the window, but video mode ended inside it (video
+     * mode is per-play, so a track change, a player error or a cast connection reverts it). The window
+     * then shows the current cover art - the audio IS still playing - never the app's regular UI
+     * shrunk into a thumbnail-sized window. Exactly one of this / [showPipVideo] is true while in PiP.
+     */
+    fun showPipArtwork(isVideoMode: Boolean, inPip: Boolean): Boolean =
+        inPip && !isVideoMode
+
+    /**
+     * Whether `onUserLeaveHint` should enter PiP: only in video mode, NEVER while an Activity this
+     * one launched is opening (the platform delivers the hint for the recognition dialog, a share
+     * sheet, a picker or sign-in too, and PiP under our own dialog is exactly the bug), and never
+     * where the platform's auto-enter (API 31+) owns the decision - it fires only for Home/recents,
+     * and a manual enter beside it would double up.
+     */
+    fun shouldEnterPipOnLeave(isVideoMode: Boolean, ownLaunchInFlight: Boolean, autoEnterSupported: Boolean): Boolean =
+        isVideoMode && !ownLaunchInFlight && !autoEnterSupported
+
+    /**
      * Whether a requested-fullscreen flag must be force-cleared. Fullscreen is a per-play, in-video
      * affordance: the instant video mode ends — a track advance/skip/error revert (I2) or the sheet
      * collapsing — fullscreen must exit back to the expanded player (D4: track end in fullscreen
