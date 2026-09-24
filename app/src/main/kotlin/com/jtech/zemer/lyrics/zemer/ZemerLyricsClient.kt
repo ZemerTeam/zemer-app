@@ -57,6 +57,8 @@ object ZemerLyricsClient {
         val wordSyncPartial: Boolean? = null, // word tags exist but not for the whole song, so the server withheld richSync
         val provenance: String? = null,   // zemer: how the certified text was produced (label only)
         val admittedBy: String? = null,   // zemer: what admitted it (label only)
+        val entryId: String? = null,      // simpmusic: the audio-verified entry (its `id`) in the track's by-videoId catalog
+        val videoId: String? = null,      // simpmusic: the catalog the entry is filed under (additive; equals the track's id for every row served today)
     )
 
     /**

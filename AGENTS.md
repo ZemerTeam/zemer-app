@@ -666,12 +666,15 @@ videoId), and an audio-verified LRCLIB record by id, `ZemerLyricsClient.lrclibBo
 only for rows its audio check confirmed, an Apple Music row by `catalogId` (`AppleTtmlLrc`: a synced reply's ready
 `lrc`, else its TTML `<p begin>` onsets → LRC, Apple's own line times; an UNSYNCED reply (`type: "None"`, no
 `begin`s) serves its `plain` text with the `[Verse]` labels dropped — never nothing for a vouched row; golden-pinned
-both ways), and a Musixmatch row by id
+both ways), a SimpMusic row by `entryId`
+(`SimpMusicLyrics.getLyricsByEntry`: the catalog the pointer's additive `videoId` names - else the track's own - fetched and
+the exact audio-verified entry picked, there is no per-entry endpoint, with the server's `synced` flag deciding whether its timings are served, `entryBody`;
+the server never inlines simpmusic text, and a missing entry yields nothing so the walk continues), and a Musixmatch row by id
 (`MusixmatchLyrics.getLyricsById`, `track.lyrics.get` + `track.subtitle.get` under the phone's own brokered token,
 text gates only — the server already matched the recording). Walk order (`ZemerLyricsProvider.order`): SYNCED
 sources first (`synced`, an inline `syncedLrc`/`richSync`, or the one pointer `lineTimes` covers), then rank
 (`ZemerLyricsProvider.rank`): `zemer` 0 (Zemer's own certified text, `richSync` word tags > `syncedLrc` > `plain`,
-labelled just "Zemer") > jkaraoke/apple 1 > lrclib/kugou/musixmatch/zingmusic/youtube 2 > the text pages 3 >
+labelled just "Zemer") > jkaraoke/apple 1 > lrclib/kugou/musixmatch/simpmusic/zingmusic/youtube 2 > the text pages 3 >
 booklet/manual/canonical/community 4 (the inline bodies stay BEHIND the pointers: a pointer is the fresher copy,
 the inline text the outage fallback); the server's order breaks ties; an unknown type is skipped, never guessed;
 one source's fetch/parse failure skips that source, never the walk. A `manual` row's label names its `origin`

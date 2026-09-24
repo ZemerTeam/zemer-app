@@ -72,6 +72,15 @@ object SimpMusicLyrics {
         }
     }.getOrDefault(emptyList())
 
+    /**
+     * A Zemer resolver `simpmusic` pointer: the one audio-verified entry ([entryId]) of the track's catalog, with
+     * no duration matching (the server vetted the row). There is no per-entry endpoint, so the by-videoId catalog
+     * is fetched and the entry picked by id; an entry missing from it (deleted upstream) is null, so the walk
+     * continues. The server's [synced] flag decides whether its timings are served - see [entryBody].
+     */
+    suspend fun getLyricsByEntry(videoId: String, entryId: String, synced: Boolean): String? =
+        entryBody(getLyricsByVideoId(videoId).firstOrNull { it.id == entryId }, synced)
+
     suspend fun getLyrics(
         videoId: String,
         duration: Int = 0,
@@ -117,6 +126,17 @@ internal fun sameRecording(trackDuration: Int?, duration: Int): Boolean =
  */
 internal fun syncAllowed(trackDuration: Int?, duration: Int): Boolean =
     duration > 0 && trackDuration != null && abs(trackDuration - duration) <= SimpMusicLyrics.SYNC_TOLERANCE_SEC
+
+/**
+ * The body of a server-vetted catalog [entry]: with [synced] the server verified its timings, so the word- or
+ * line-synced body is served (plain only as the fallback); without it the timings are unverified and ONLY the
+ * plain text is served, never a drifting sync. A missing entry is null.
+ */
+internal fun entryBody(entry: SimpMusicLyricsData?, synced: Boolean): String? = when {
+    entry == null -> null
+    synced -> firstNonBlankLyrics(entry.richSyncLyrics, entry.syncedLyrics, entry.plainLyrics)
+    else -> firstNonBlankLyrics(entry.plainLyrics)
+}
 
 /** Distance in seconds between a track and ours for ranking; unknown durations sort last. */
 internal fun durationDelta(trackDuration: Int?, duration: Int): Int =

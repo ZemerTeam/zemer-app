@@ -86,4 +86,17 @@ class SimpMusicLyricsTest {
         assertEquals(2, durationDelta(211, 213))
         assertEquals(Int.MAX_VALUE, durationDelta(null, 213))
     }
+
+    /** A Zemer-vetted entry serves its timings only when the server's synced flag says they were verified. */
+    @Test
+    fun `a vetted entry serves synced bodies only under the server's synced flag, plain otherwise`() {
+        val entry = SimpMusicLyricsData(id = "e1", duration = 299, syncedLyrics = "[00:01.00] synced", plainLyrics = "plain words", richSyncLyrics = "[00:01.00] <00:01.00>rich")
+        assertEquals("[00:01.00] <00:01.00>rich", entryBody(entry, synced = true))
+        assertEquals("plain words", entryBody(entry, synced = false))
+        // synced flag but the entry carries no synced body: the words still serve
+        assertEquals("plain words", entryBody(entry.copy(syncedLyrics = "", richSyncLyrics = null), synced = true))
+        // an unsynced pointer never serves the entry's timings, even when plain text is missing
+        assertNull(entryBody(entry.copy(plainLyrics = null), synced = false))
+        assertNull(entryBody(null, synced = true))
+    }
 }
