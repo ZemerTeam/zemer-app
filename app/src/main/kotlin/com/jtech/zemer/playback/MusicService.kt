@@ -3139,6 +3139,12 @@ class MusicService :
             ResumeShortcut.Action.WAIT_FOR_RESTORE -> resumeWhenRestored = true
             ResumeShortcut.Action.NOTHING_TO_RESUME -> toast(R.string.nothing_to_resume)
             ResumeShortcut.Action.PLAY -> {
+                // While casting the receiver plays, not the local player - the same routing the
+                // widget's play control uses; a bare local play() would sound alongside the receiver.
+                if (discoveryHandler.isConnected) {
+                    discoveryHandler.play()
+                    return
+                }
                 // A queue the player dropped (an error) or played to its end needs re-preparing or
                 // rewinding before play() does anything.
                 when (player.playbackState) {
