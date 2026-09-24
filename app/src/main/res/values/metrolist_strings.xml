@@ -215,8 +215,6 @@
     <string name="nightly_update_available">Update available: %1$s</string>
     <string name="update_action">Update</string>
     <string name="force_download_stable">Download current stable release</string>
-    <string name="release_coming_soon_title">Coming soon</string>
-    <string name="release_coming_soon_message">A newer version is on the way. Please wait for the stable release.</string>
     <string name="check_for_updates_now">Check for updates now</string>
     <string name="update_available_title">Update available</string>
     <string name="update_available">Update available</string>

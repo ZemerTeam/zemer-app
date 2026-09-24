@@ -1,8 +1,12 @@
 package com.jtech.zemer.utils.updater
 
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.jsonObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.security.MessageDigest
@@ -34,8 +38,12 @@ class NightlyUpdatesTest {
 
     private val build get() = NightlyUpdates.parseBuild(apiJson)!!
 
-    private fun apiJsonWithout(field: String): String =
-        apiJson.lines().filterNot { it.trimStart().startsWith("\"$field\"") }.joinToString("\n")
+    /** The fixture minus one property, rebuilt from the parsed object so it stays valid JSON. */
+    private fun apiJsonWithout(field: String): String {
+        val reduced = JsonObject(Json.parseToJsonElement(apiJson).jsonObject.filterKeys { it != field }).toString()
+        assertFalse("$field still present", Json.parseToJsonElement(reduced).jsonObject.containsKey(field))
+        return reduced
+    }
 
     @Test
     fun `parses the current build from a real-shaped response`() {
@@ -46,7 +54,6 @@ class NightlyUpdatesTest {
         assertEquals(12276456L, b.size)
         assertEquals("8f2b84306a0d36901677ffbe024416481ad8d9bafc5692b1ed71253d2766c14d", b.sha256)
         assertEquals("https://nightly.zemer.io/download/4a3d242079f43d96ad504683128d425bd583ee3a.apk", b.downloadUrl)
-        assertEquals(NightlyUpdates.BuildVersion(38, "38"), b.version)
         // The full commit message (subject + body) is the release-notes source.
         assertEquals(
             "fix(home): show Latest Releases when the whitelist loads late (#544)\n\nThe releases feed was filtered once at load.",
@@ -68,10 +75,7 @@ class NightlyUpdatesTest {
     }
 
     @Test
-    fun `version and commit message are optional`() {
-        val b = NightlyUpdates.parseBuild(apiJsonWithout("versionCode").let { apiJsonWithout("commitMessage").takeIf { false } ?: it })!!
-        assertNull(b.version)
-
+    fun `the commit message is optional`() {
         val noMessage = NightlyUpdates.parseBuild(apiJsonWithout("commitMessage"))!!
         assertNull(noMessage.commitMessage)
         assertEquals(1247, noMessage.runNumber)
@@ -91,6 +95,21 @@ class NightlyUpdatesTest {
         assertTrue(NightlyUpdates.isUpdateAvailable("0000000000000000000000000000000000000000", 0, b))
         // No SHA baked in (built without git) always counts as outdated.
         assertTrue(NightlyUpdates.isUpdateAvailable("", 0, b))
+    }
+
+    @Test
+    fun `the download gate accepts a newer build and refuses anything else`() {
+        val b = build // #1247
+
+        // Still an upgrade (a newer build landed after the check is fine too): passes through.
+        assertSame(b, NightlyUpdates.requireUpdate("0000000000000000000000000000000000000000", 1242, b))
+        // The mirror moved to the installed build, or to an OLDER run, between check and download.
+        val same = runCatching { NightlyUpdates.requireUpdate(b.sha, 1247, b) }
+        val older = runCatching { NightlyUpdates.requireUpdate("0000000000000000000000000000000000000000", 1300, b) }
+        assertTrue(same.exceptionOrNull() is IllegalStateException)
+        assertTrue(older.exceptionOrNull() is IllegalStateException)
+        // Not a corrupt artifact: nothing was downloaded yet.
+        assertEquals(UpdateDownloadFailure.UNKNOWN, classifyUpdateDownloadFailure(older.exceptionOrNull()!!))
     }
 
     @Test
@@ -190,33 +209,6 @@ class NightlyUpdatesTest {
     @Test
     fun `hex renders a digest lowercase and zero-padded`() {
         assertEquals("00ff10", NightlyUpdates.hex(byteArrayOf(0x00, 0xff.toByte(), 0x10)))
-    }
-
-    @Test
-    fun `isNameGreater compares dotted-numeric versions`() {
-        assertTrue(NightlyUpdates.isNameGreater("35", "34"))
-        assertTrue(NightlyUpdates.isNameGreater("34.1", "34"))
-        assertFalse(NightlyUpdates.isNameGreater("34", "34"))
-        assertFalse(NightlyUpdates.isNameGreater("34", "35"))
-    }
-
-    @Test
-    fun `release is coming soon only when both code and name are higher`() {
-        // Installed build is code 34 / name "34".
-        assertTrue(
-            NightlyUpdates.isReleaseComingSoon(34, "34", NightlyUpdates.BuildVersion(35, "35")),
-        )
-        // Same version (a normal same-release nightly) => offer it, not "coming soon".
-        assertFalse(
-            NightlyUpdates.isReleaseComingSoon(34, "34", NightlyUpdates.BuildVersion(34, "34")),
-        )
-        // Only one of the two higher => not a release bump; still offer it.
-        assertFalse(
-            NightlyUpdates.isReleaseComingSoon(34, "34", NightlyUpdates.BuildVersion(35, "34")),
-        )
-        assertFalse(
-            NightlyUpdates.isReleaseComingSoon(34, "34", NightlyUpdates.BuildVersion(34, "35")),
-        )
     }
 
     @Test

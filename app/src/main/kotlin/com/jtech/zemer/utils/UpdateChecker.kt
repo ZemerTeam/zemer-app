@@ -66,9 +66,6 @@ object UpdateChecker {
         ) : UpdateResult()
         data class UpToDate(val currentVersion: String) : UpdateResult()
         data class Error(val message: String) : UpdateResult()
-        // Nightly-only: the latest nightly is a higher version than this build, i.e. a release is
-        // being prepared. Nightly users are told to wait for the stable release instead.
-        data class ReleaseComingSoon(val currentVersion: String) : UpdateResult()
     }
 
     sealed class DownloadState {
@@ -118,24 +115,19 @@ object UpdateChecker {
                     ?: return@use UpdateResult.Error("Invalid API response")
                 val currentVersion =
                     NightlyUpdates.currentVersionLabel(BuildConfig.VERSION_NAME, BuildConfig.COMMIT_HASH)
-                when {
-                    !NightlyUpdates.isUpdateAvailable(BuildConfig.COMMIT_HASH, BuildConfig.RUN_NUMBER, build) ->
-                        UpdateResult.UpToDate(currentVersion)
-                    // A higher-versioned nightly means a release is being prepared - tell nightly
-                    // users to wait for stable rather than hand them the release candidate. The
-                    // mirror carries the version from build.gradle.kts at that commit; without it,
-                    // offer the nightly.
-                    build.version != null && NightlyUpdates.isReleaseComingSoon(
-                        BuildConfig.VERSION_CODE, BuildConfig.VERSION_NAME, build.version,
-                    ) -> UpdateResult.ReleaseComingSoon(currentVersion)
-                    else -> UpdateResult.UpdateAvailable(
+                if (NightlyUpdates.isUpdateAvailable(BuildConfig.COMMIT_HASH, BuildConfig.RUN_NUMBER, build)) {
+                    UpdateResult.UpdateAvailable(
                         latestVersion = NightlyUpdates.versionLabel(build),
                         currentVersion = currentVersion,
                         notes = nightlyNotes(httpClient, build),
                         isNightly = true,
                     )
+                } else {
+                    UpdateResult.UpToDate(currentVersion)
                 }
             }
+        } catch (e: CancellationException) {
+            throw e // a cancelled check is not an error result
         } catch (e: Exception) {
             UpdateResult.Error(e.message ?: "Failed to check for updates")
         }
@@ -152,7 +144,7 @@ object UpdateChecker {
         val changelog = if (installedSha.isBlank()) {
             null
         } else {
-            runCatching {
+            try {
                 val response = httpClient.get(NightlyUpdates.changelogUrl(installedSha)) {
                     header(HttpHeaders.UserAgent, USER_AGENT)
                 }
@@ -162,19 +154,28 @@ object UpdateChecker {
                 } else {
                     null
                 }
-            }.getOrNull()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                null
+            }
         }
         return changelog ?: build.commitMessage?.let(NightlyUpdates::commitMessageMarkdown)
     }
 
-    /** The mirror's current build, read with the download client so it shares the idle bound. */
+    /**
+     * The mirror's current build, read with the download client so it shares the idle bound, with
+     * the update rule applied AGAIN: the mirror may have moved on since the check (a newer build is
+     * still an upgrade), but it must never hand the download a build that is not one.
+     */
     private suspend fun resolveNightlyBuild(httpClient: HttpClient): NightlyUpdates.NightlyBuild {
         val response = httpClient.get(NightlyUpdates.API_URL) { header(HttpHeaders.UserAgent, USER_AGENT) }
         if (!response.status.isSuccess()) {
             throw IOException("Nightly channel unavailable: HTTP ${response.status.value}")
         }
-        return NightlyUpdates.parseBuild(response.bodyAsText())
+        val build = NightlyUpdates.parseBuild(response.bodyAsText())
             ?: throw IOException("Nightly channel returned an invalid build record")
+        return NightlyUpdates.requireUpdate(BuildConfig.COMMIT_HASH, BuildConfig.RUN_NUMBER, build)
     }
 
     private suspend fun checkForStableUpdate(force: Boolean = false): UpdateResult {
@@ -216,6 +217,8 @@ object UpdateChecker {
                     UpdateResult.UpToDate(currentVersion)
                 }
             }
+        } catch (e: CancellationException) {
+            throw e // a cancelled check is not an error result
         } catch (e: Exception) {
             UpdateResult.Error(e.message ?: "Failed to check for updates")
         }

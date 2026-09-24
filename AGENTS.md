@@ -452,12 +452,18 @@ build and the app installed it because nothing tied the download to the build th
   `BuildConfig.COMMIT_HASH` AND `/api.runNumber` > `BuildConfig.RUN_NUMBER` (`GITHUB_RUN_NUMBER`, baked in by
   CI; 0 outside CI keeps the SHA-only rule). Run numbers are monotonic per workflow, so a LOWER one can never
   be an upgrade, whatever a mirror announces - the app's own guard, independent of the server's. The
-  download re-reads `/api`, fetches its SHA-pinned `downloadUrl`, and **verifies size + SHA-256 against that
-  same document before the file is offered for install** (`verifyDownload`: a mismatch is
-  `CORRUPT_ARTIFACT`, the part file is dropped, `apkFile` is never touched). Never download a "latest" URL.
+  download re-reads `/api`, **applies the same rule again** to what it finds (`requireUpdate`: a newer
+  build that landed since the check is still an upgrade and is accepted; anything else aborts the
+  download, so the guard cannot be lost between the dialog and the download), fetches its SHA-pinned
+  `downloadUrl`, and **verifies size + SHA-256 against that same document before the file is offered for
+  install** (`verifyDownload`: a mismatch is `CORRUPT_ARTIFACT`, the part file is dropped, `apkFile` is
+  never touched). Never download a "latest" URL. A cancelled check or notes fetch rethrows
+  `CancellationException` - it is never turned into an error result or a fallback.
 - A non-2xx on `/api` (a 503 before the mirror's first ingest) is "could not check", never "up to date".
-- "Release coming soon" reads `versionCode`/`versionName` from `/api` (the mirror parses them from
-  `build.gradle.kts` at that commit); absent = offer the nightly.
+- There is no "release coming soon" hold any more: a version-bumped nightly is offered like any other.
+  The old rule (skip a nightly whose versionCode AND versionName exceed the installed build) parked
+  nightly users on their old build after every stable release, since every later nightly carries the
+  new version too. Don't reintroduce it.
 - Release notes = `/changelog?since=<installed sha>` (every build in the gap, newest first, capped at
   `MAX_CHANGELOG_ENTRIES`, and entries at or below `BuildConfig.RUN_NUMBER` dropped client-side - when the
   mirror does not hold the installed build it answers with its whole history, and an older build's message

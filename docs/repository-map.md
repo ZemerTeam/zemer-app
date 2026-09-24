@@ -120,7 +120,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `.github/workflows/ui-audit.yml` | 56 lines | `.yml` |
 | `.gitignore` | 117 lines | `[none]` |
 | `.gitmodules` | 3 lines | `[none]` |
-| `AGENTS.md` | 1971 lines | `.md` |
+| `AGENTS.md` | 1977 lines | `.md` |
 | `LICENSE` | 674 lines | `[none]` |
 | `README.md` | 9 lines | `.md` |
 | `app/.gitignore` | 1 lines | `[none]` |
@@ -635,7 +635,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/settings/StorageSettings.kt` | 468 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/settings/StreamSourceSettings.kt` | 297 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/settings/ThemeScreen.kt` | 590 lines | `.kt` |
-| `app/src/main/kotlin/com/jtech/zemer/ui/screens/settings/UpdaterSettings.kt` | 423 lines | `.kt` |
+| `app/src/main/kotlin/com/jtech/zemer/ui/screens/settings/UpdaterSettings.kt` | 408 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/statuses/SavedStatusScreen.kt` | 353 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/statuses/StatusDownloadsScreen.kt` | 439 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/statuses/StatusesScreen.kt` | 140 lines | `.kt` |
@@ -696,7 +696,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/main/kotlin/com/jtech/zemer/utils/RefreshRateSelection.kt` | 72 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/utils/StringUtils.kt` | 23 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/utils/SyncUtils.kt` | 1162 lines | `.kt` |
-| `app/src/main/kotlin/com/jtech/zemer/utils/UpdateChecker.kt` | 345 lines | `.kt` |
+| `app/src/main/kotlin/com/jtech/zemer/utils/UpdateChecker.kt` | 348 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/utils/Updater.kt` | 55 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/utils/UrlValidator.kt` | 82 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/utils/Utils.kt` | 30 lines | `.kt` |
@@ -716,7 +716,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/main/kotlin/com/jtech/zemer/utils/updater/AppRestarter.kt` | 30 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/utils/updater/InstallReceiver.kt` | 66 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/utils/updater/Installer.kt` | 24 lines | `.kt` |
-| `app/src/main/kotlin/com/jtech/zemer/utils/updater/NightlyUpdates.kt` | 174 lines | `.kt` |
+| `app/src/main/kotlin/com/jtech/zemer/utils/updater/NightlyUpdates.kt` | 160 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/utils/updater/UpdateDownloadFailure.kt` | 50 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/viewmodels/AccountSettingsViewModel.kt` | 25 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/viewmodels/AlbumViewModel.kt` | 147 lines | `.kt` |
@@ -967,7 +967,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/main/res/values-v31/styles.xml` | 22 lines | `.xml` |
 | `app/src/main/res/values/app_name.xml` | 4 lines | `.xml` |
 | `app/src/main/res/values/colors.xml` | 9 lines | `.xml` |
-| `app/src/main/res/values/metrolist_strings.xml` | 698 lines | `.xml` |
+| `app/src/main/res/values/metrolist_strings.xml` | 696 lines | `.xml` |
 | `app/src/main/res/values/strings.xml` | 473 lines | `.xml` |
 | `app/src/main/res/values/styles.xml` | 26 lines | `.xml` |
 | `app/src/main/res/values/values.xml` | 8 lines | `.xml` |
@@ -1162,7 +1162,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/test/kotlin/com/jtech/zemer/utils/mp4/Mp4MetadataWriterTest.kt` | 225 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/utils/ogg/OggOpusTaggerTest.kt` | 195 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/utils/updater/InstallerTest.kt` | 43 lines | `.kt` |
-| `app/src/test/kotlin/com/jtech/zemer/utils/updater/NightlyUpdatesTest.kt` | 231 lines | `.kt` |
+| `app/src/test/kotlin/com/jtech/zemer/utils/updater/NightlyUpdatesTest.kt` | 223 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/utils/updater/UpdateDownloadFailureTest.kt` | 61 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/viewmodels/ArtistChannelEpisodesTest.kt` | 67 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/viewmodels/StaleAlbumDeleteTest.kt` | 29 lines | `.kt` |
