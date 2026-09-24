@@ -439,6 +439,38 @@ YouTube rotates `player_ias` frequently. Player configs live in **one JSON file*
 - A cipher *scheme* change (new config shape, not just a new hash) still needs code + an APK; bump `schemaVersion` only on breaking shape changes - old apps reject newer schema files and keep their last-good table.
 - `.github/workflows/player-monitor.yml` checks hourly: it fetches the live raw `master` file once (the submodule copy is only a warned-about fallback) and **multi-samples** the live player surfaces via `tests/scan-live-players.mjs` (30× `iframe_api` + `music.youtube.com`) so a low-rate A/B **canary** - served ~1/6 of the time, which a single sample misses ~83% of the time - is caught the first hour it appears, not once it has already rotated in. "Known" is still decided by the harness loader (`parsePlayerConfigs`, the app's validation rules) against real keys + md5 aliases, so a pushed-but-invalid entry counts as UNKNOWN and still alerts. Opens one issue per unknown hash + a summary email, but does **not** auto-commit - the config is added by hand.
 
+### The in-app updater (stable via `ghtrack.zemer.io`, nightlies via `nightly.zemer.io`)
+
+`utils/UpdateChecker.kt` (the network/UI flow) + `utils/updater/NightlyUpdates.kt` (pure, JVM-tested).
+Stable updates read `ghtrack.zemer.io` `/api` + `/changelog` + `/download` as before. The **nightly channel
+reads ONE document, the Zemer nightly mirror's `GET https://nightly.zemer.io/api`** (contract + the
+app<->server thread: `handoff-docs/zemer-nightly-updates-server-request.md`); the GitHub Actions API,
+`raw.githubusercontent.com` and nightly.link are gone from the app. The rules that must not regress (they
+close the 36 -> 34 Room-downgrade crash, #543: a third-party "latest artifact" URL served a three-week-old
+build and the app installed it because nothing tied the download to the build the check announced):
+- **Check and download are one object.** "Update available" = `/api.sha` differs from
+  `BuildConfig.COMMIT_HASH` AND `/api.runNumber` > `BuildConfig.RUN_NUMBER` (`GITHUB_RUN_NUMBER`, baked in by
+  CI; 0 outside CI keeps the SHA-only rule). Run numbers are monotonic per workflow, so a LOWER one can never
+  be an upgrade, whatever a mirror announces - the app's own guard, independent of the server's. The
+  download re-reads `/api`, **applies the same rule again** to what it finds (`requireUpdate`: a newer
+  build that landed since the check is still an upgrade and is accepted; anything else aborts the
+  download, so the guard cannot be lost between the dialog and the download), fetches its SHA-pinned
+  `downloadUrl`, and **verifies size + SHA-256 against that same document before the file is offered for
+  install** (`verifyDownload`: a mismatch is `CORRUPT_ARTIFACT`, the part file is dropped, `apkFile` is
+  never touched). Never download a "latest" URL. A cancelled check or notes fetch rethrows
+  `CancellationException` - it is never turned into an error result or a fallback.
+- A non-2xx on `/api` (a 503 before the mirror's first ingest) is "could not check", never "up to date".
+- There is no "release coming soon" hold any more: a version-bumped nightly is offered like any other.
+  The old rule (skip a nightly whose versionCode AND versionName exceed the installed build) parked
+  nightly users on their old build after every stable release, since every later nightly carries the
+  new version too. Don't reintroduce it.
+- Release notes = `/changelog?since=<installed sha>` (every build in the gap, newest first, capped at
+  `MAX_CHANGELOG_ENTRIES`, and entries at or below `BuildConfig.RUN_NUMBER` dropped client-side - when the
+  mirror does not hold the installed build it answers with its whole history, and an older build's message
+  must never read as "what's new"), falling back to `/api.commitMessage`; a notes failure never blocks the
+  update.
+- App<->mirror contract changes travel as handoff-doc edits, never as edits to the `zemer-nightly` repo.
+
 ### Accounts: personal vs anonymous (pooled) - `SAPISID` ≠ logged in
 
 There are two signed-in states and telling them apart is non-obvious. A **personal** Google login sets a **`dataSyncId`**. The **"anonymous"** login signs into a **shared, pooled** account: its cookie **does** carry `SAPISID`, but the flow deliberately clears `dataSyncId` (`App.kt` / `LoginGateScreen` - `onBehalfOfUser`/dataSyncId breaks the pooled player request). So `parseCookieString(cookie).containsKey("SAPISID")` / the cookie-based `Context.isUserLoggedInFlow()` are **true for anonymous** and must **never** gate remote *account* reads or writes - doing so leaks the pooled account's library/likes/subscriptions across every anonymous user. (The old blocking `Context.isUserLoggedIn()`/`isSyncEnabled()` helpers - `runBlocking` around a DataStore read plus, in the login case, a blocking DNS socket - were dead and were deleted; use the reactive `*Flow` variants.)
