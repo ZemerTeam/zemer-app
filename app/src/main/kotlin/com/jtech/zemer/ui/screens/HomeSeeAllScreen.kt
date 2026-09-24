@@ -58,6 +58,7 @@ import com.jtech.zemer.ui.menu.AlbumMenu
 import com.jtech.zemer.ui.menu.ArtistMenu
 import com.jtech.zemer.ui.menu.SongMenu
 import com.jtech.zemer.ui.menu.ytItemMenu
+import com.jtech.zemer.ui.utils.rememberLiveSong
 import com.jtech.zemer.ui.utils.activeRowTapTogglesPlayPause
 import com.jtech.zemer.ui.utils.navigateToArtist
 import com.jtech.zemer.ui.utils.navigateToAlbum
@@ -280,8 +281,7 @@ private fun SongList(songs: List<Song>, navController: NavController) {
 
     LazyColumn(contentPadding = LocalPlayerAwareWindowInsets.current.asPaddingValues()) {
         items(items = songs, key = { it.id }) { originalSong ->
-            val song by database.song(originalSong.id).collectAsState(initial = originalSong)
-            val shown = song ?: originalSong
+            val shown = rememberLiveSong(database, originalSong)
             SongListItem(
                 song = shown,
                 showInLibraryIcon = true,
