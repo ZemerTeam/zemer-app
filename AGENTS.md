@@ -453,7 +453,10 @@ loop, so a phone nobody touched showed a "paused" notification plus a launcher b
   AND `NotificationManagerCompat.cancel(NOTIFICATION_ID)`), then `stopSelf()`. media3 builds its
   notification ASYNCHRONOUSLY, so the old order (pause, then remove, then stop) let the pause's
   scheduled paused-notification post land on the dead service - the "doesn't go off until
-  force-stop" half of #109. Keep that order.
+  force-stop" half of #109. Keep that order. The task-clear veto blocks only NON-foreground updates
+  and is dropped by any later user engagement (`markUserIntent`): `stopSelf()` does not destroy a
+  service another client (Android Auto, a headset app) still has bound, and that client's next play
+  must get its foreground start exactly as before. A foreground start is never vetoed by either rule.
 
 ### Cipher / player rotation (the most common future break)
 

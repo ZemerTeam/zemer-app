@@ -2386,10 +2386,14 @@ class MusicService :
     private var userIntentSeen = false
 
     // The other half of #109: raised by onTaskRemoved BEFORE it pauses, so media3's asynchronous
-    // paused-notification post is never scheduled onto the service that is being stopped.
+    // paused-notification post is never scheduled onto the service that is being stopped. Dropped
+    // again by any later user engagement: stopSelf() does not destroy a service another client
+    // (Android Auto, a headset app) still has bound, and that client's next play or the user's
+    // return must behave exactly as before the task clear.
     private var stoppingOnTaskClear = false
 
     private fun markUserIntent() {
+        stoppingOnTaskClear = false
         if (userIntentSeen) return
         userIntentSeen = true
         // Post the paused notification the veto held back - the pre-fix behaviour on opening the

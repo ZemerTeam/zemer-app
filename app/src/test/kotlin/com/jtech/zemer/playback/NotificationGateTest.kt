@@ -7,8 +7,8 @@ import org.junit.Test
 /**
  * Issue #109: the media notification must never appear for a queue that was merely restored by a
  * service creation nobody asked for (the post-boot media-resumption scan), must always appear once
- * the user is in the loop or playback runs, and must never be re-posted while the service is
- * stopping for a task clear.
+ * the user is in the loop or playback runs, must never be re-posted while the service is stopping
+ * for a task clear, and a foreground start must never be refused by either rule.
  */
 class NotificationGateTest {
 
@@ -24,20 +24,23 @@ class NotificationGateTest {
     }
 
     @Test
-    fun `media3 requiring the foreground is never vetoed while running`() {
-        assertTrue(NotificationGate.shouldPost(userIntentSeen = false, playWhenReady = false, startInForegroundRequired = true))
-    }
-
-    @Test
     fun `once the user is in the loop the paused notification shows as before`() {
         assertTrue(NotificationGate.shouldPost(userIntentSeen = true, playWhenReady = false, startInForegroundRequired = false))
         assertTrue(NotificationGate.shouldPost(userIntentSeen = true, playWhenReady = true, startInForegroundRequired = true))
     }
 
     @Test
-    fun `nothing is scheduled while the service stops for a task clear - the zombie case`() {
+    fun `the task-clear veto blocks the non-foreground paused post - the zombie case`() {
         // The pause issued by the task clear must not re-post a paused notification onto a dead service.
         assertFalse(NotificationGate.shouldPost(userIntentSeen = true, playWhenReady = false, startInForegroundRequired = false, stoppingOnTaskClear = true))
-        assertFalse(NotificationGate.shouldPost(userIntentSeen = true, playWhenReady = true, startInForegroundRequired = true, stoppingOnTaskClear = true))
+    }
+
+    @Test
+    fun `a foreground start is never vetoed, by either rule`() {
+        // No intent yet (nothing but a bind created the service) - playback is nevertheless ongoing.
+        assertTrue(NotificationGate.shouldPost(userIntentSeen = false, playWhenReady = false, startInForegroundRequired = true))
+        // The service survived a task clear because another client (Auto, a headset app) is still
+        // bound, and that client pressed play: media3 must be allowed to go foreground.
+        assertTrue(NotificationGate.shouldPost(userIntentSeen = true, playWhenReady = true, startInForegroundRequired = true, stoppingOnTaskClear = true))
     }
 }

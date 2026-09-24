@@ -16,16 +16,19 @@ package com.jtech.zemer.playback
  * 2. The task-clear half: "Stop music on task clear" pauses, removes the foreground notification
  *    and stops the service - but the pause had already scheduled media3's async paused-notification
  *    post, which then landed on the dead service as a zombie notification that only a force-stop
- *    cleared. While the service is stopping for a task clear, nothing may be scheduled.
+ *    cleared. While the service is stopping for a task clear, no NON-foreground update may be
+ *    scheduled. The veto is dropped again by any later user engagement, because `stopSelf()` does
+ *    not destroy a service another client (Android Auto, a headset app) still has bound, and a
+ *    play from that client must get its foreground start exactly as before.
  *
  * Pure so both rules are unit-tested.
  */
 object NotificationGate {
     /**
      * Whether the media notification may be posted right now. [startInForegroundRequired] is
-     * media3 telling the service playback is ongoing and it MUST go foreground - never vetoed,
-     * except while the service is already stopping for a task clear (playback was just paused for
-     * exactly that; the service's own removal is the last word).
+     * media3 telling the service playback is ongoing and it MUST go foreground - never vetoed, by
+     * either rule: a foreground start is never the zombie post, and refusing it would leave
+     * playback running without a foreground service.
      */
     fun shouldPost(
         userIntentSeen: Boolean,
@@ -33,5 +36,5 @@ object NotificationGate {
         startInForegroundRequired: Boolean,
         stoppingOnTaskClear: Boolean = false,
     ): Boolean =
-        !stoppingOnTaskClear && (userIntentSeen || playWhenReady || startInForegroundRequired)
+        startInForegroundRequired || (!stoppingOnTaskClear && (userIntentSeen || playWhenReady))
 }
