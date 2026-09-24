@@ -192,4 +192,46 @@ class OggOpusTaggerTest {
         assertTrue("every page CRC must be valid", allCrcsValid(out.readBytes()))
         println("REALOGG_OUT=${out.absolutePath}")
     }
+
+    @Test
+    fun `a long stream is streamed page by page - every audio payload survives byte-exact`() {
+        // 400 audio pages: the tagger must never hold the file on the heap, and the pages it forwards
+        // must be the input's payloads in order with only seq + CRC rewritten.
+        val input = syntheticOpus(listOf("ARTIST=old"), audioPages = 400)
+        val out = tmp.newFile("out.ogg")
+        assertTrue(OggOpusTagger.write(input, out, OggOpusTagger.Tags(title = "T")))
+        val inBytes = input.readBytes()
+        val outBytes = out.readBytes()
+        assertTrue(allCrcsValid(outBytes))
+        val inAudio = pageBoundaries(inBytes).drop(2).map { audioPayload(inBytes, it) }
+        val outAudio = pageBoundaries(outBytes).drop(2).map { audioPayload(outBytes, it) }
+        assertEquals(400, outAudio.size)
+        assertEquals(inAudio.map { it.toList() }, outAudio.map { it.toList() })
+        assertEquals((0 until 402).toList(), seqNumbers(outBytes))
+    }
+
+    @Test
+    fun `trailing garbage after the last page is refused and leaves no output file`() {
+        val input = syntheticOpus()
+        input.appendBytes(byteArrayOf(1, 2, 3))
+        val out = tmp.newFile("out.ogg")
+        assertFalse(OggOpusTagger.write(input, out, OggOpusTagger.Tags(title = "T")))
+        assertFalse(out.exists())
+    }
+
+    @Test
+    fun `a truncated final page is refused and leaves no output file`() {
+        val input = syntheticOpus()
+        val bytes = input.readBytes()
+        input.writeBytes(bytes.copyOf(bytes.size - 10))
+        val out = tmp.newFile("out.ogg")
+        assertFalse(OggOpusTagger.write(input, out, OggOpusTagger.Tags(title = "T")))
+        assertFalse(out.exists())
+    }
+
+    private fun audioPayload(b: ByteArray, start: Int): ByteArray {
+        val segc = b[start + 26].toInt() and 0xFF
+        val body = (0 until segc).sumOf { b[start + 27 + it].toInt() and 0xFF }
+        return b.copyOfRange(start + 27 + segc, start + 27 + segc + body)
+    }
 }

@@ -87,6 +87,11 @@ class App : Application(), SingletonImageLoader.Factory {
                 recordNonFatal = { FirebaseCrashlytics.getInstance().recordException(it) },
             )
         )
+        // Every main build ships as the same versionCode/versionName (nightly = stable's number), so
+        // Crashlytics buckets nightly and stable together; the commit + CI run number keys are what
+        // tell them apart (run number 0 = built outside CI).
+        FirebaseCrashlytics.getInstance().setCustomKey("commit", BuildConfig.COMMIT_HASH)
+        FirebaseCrashlytics.getInstance().setCustomKey("run_number", BuildConfig.RUN_NUMBER)
         if (BuildConfig.DEBUG) {
             Timber.plant(Timber.DebugTree())
             // Ring-buffer tree for the developer-mode Log viewer. Debug builds ONLY —
