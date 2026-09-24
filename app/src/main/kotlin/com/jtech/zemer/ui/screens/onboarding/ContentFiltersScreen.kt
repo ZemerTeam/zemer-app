@@ -254,7 +254,7 @@ internal fun ContentFiltersScreen(
                     subtitle = stringResource(R.string.onboarding_filters_subtitle),
                 )
 
-                // Allow Female Singers toggle
+                // Allow Female Content toggle
                 FilterOptionCard(
                     title = stringResource(R.string.onboarding_allow_female_title),
                     description = stringResource(R.string.onboarding_allow_female_desc),

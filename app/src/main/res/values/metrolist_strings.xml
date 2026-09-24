@@ -215,8 +215,6 @@
     <string name="nightly_update_available">Update available: %1$s</string>
     <string name="update_action">Update</string>
     <string name="force_download_stable">Download current stable release</string>
-    <string name="release_coming_soon_title">Coming soon</string>
-    <string name="release_coming_soon_message">A newer version is on the way. Please wait for the stable release.</string>
     <string name="check_for_updates_now">Check for updates now</string>
     <string name="update_available_title">Update available</string>
     <string name="update_available">Update available</string>
@@ -372,13 +370,13 @@
     <string name="onboarding_found_saved">Found your saved preferences</string>
     <string name="onboarding_restored_settings">Restored Settings:</string>
     <string name="onboarding_restored_filters_enabled">• Content Filters: Enabled</string>
-    <string name="onboarding_restored_female">• Female Singers: %s</string>
+    <string name="onboarding_restored_female">• Female Content: %s</string>
     <string name="onboarding_restored_videos">• Videos: %s</string>
     <string name="onboarding_restored_podcasts">• Podcasts: %s</string>
     <string name="onboarding_continuing_auto">Continuing automatically…</string>
     <string name="onboarding_filters_subtitle">Set up your content preferences (optional)</string>
-    <string name="onboarding_allow_female_title">Allow Female Singers</string>
-    <string name="onboarding_allow_female_desc">Include music by female artists</string>
+    <string name="onboarding_allow_female_title">Allow Female Content</string>
+    <string name="onboarding_allow_female_desc">Include music and podcasts by female artists</string>
     <string name="onboarding_block_videos_title">Block Videos</string>
     <string name="onboarding_block_videos_desc">Hide video content</string>
     <string name="onboarding_block_podcasts_title">Block Podcasts</string>

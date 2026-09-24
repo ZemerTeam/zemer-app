@@ -98,6 +98,7 @@ import com.jtech.zemer.tracking.PlaySource
 import com.jtech.zemer.ui.component.NavigationTitle
 import com.jtech.zemer.ui.component.ChipsRow
 import com.jtech.zemer.ui.component.ContentTabChipsRow
+import com.jtech.zemer.ui.utils.rememberLiveSong
 import com.jtech.zemer.ui.utils.whitelistedPodcastRoute
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
@@ -637,14 +638,12 @@ fun HomeScreen(
                                 key = { it.id },
                                 contentType = { "song" }
                             ) { originalSong ->
-                                // fetch song from database to keep updated
-                                val song by database.song(originalSong.id)
-                                    .collectAsState(initial = originalSong)
+                                val song = rememberLiveSong(database, originalSong)
 
                                 SongListItem(
-                                    song = song!!,
+                                    song = song,
                                     showInLibraryIcon = true,
-                                    isActive = song!!.id == mediaMetadata?.id,
+                                    isActive = song.id == mediaMetadata?.id,
                                     isPlaying = isPlaying,
                                     isSwipeable = false,
                                     trailingContent = {
@@ -652,7 +651,7 @@ fun HomeScreen(
                                             onClick = {
                                                 menuState.show {
                                                     SongMenu(
-                                                        originalSong = song!!,
+                                                        originalSong = song,
                                                         navController = navController,
                                                         onDismiss = menuState::dismiss
                                                     )
@@ -664,12 +663,12 @@ fun HomeScreen(
                                         .width(horizontalLazyGridItemWidth)
                                         .combinedClickable(
                                             onClick = {
-                                                if (activeRowTapTogglesPlayPause(song!!.id == mediaMetadata?.id, playerConnection.isStationBroadcast.value)) {
+                                                if (activeRowTapTogglesPlayPause(song.id == mediaMetadata?.id, playerConnection.isStationBroadcast.value)) {
                                                     playerConnection.playPause()
                                                 } else {
                                                     playerConnection.playQueue(
                                                         ZemerRadioQueue.song(
-                                                            song!!.toMediaMetadata(), playerConnection.service
+                                                            song.toMediaMetadata(), playerConnection.service
                                                         )
                                                     )
                                                 }
@@ -678,7 +677,7 @@ fun HomeScreen(
                                                 haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                                                 menuState.show {
                                                     SongMenu(
-                                                        originalSong = song!!,
+                                                        originalSong = song,
                                                         navController = navController,
                                                         onDismiss = menuState::dismiss
                                                     )
@@ -958,13 +957,12 @@ fun HomeScreen(
                                 key = { it.id },
                                 contentType = { "song" }
                             ) { originalSong ->
-                                val song by database.song(originalSong.id)
-                                    .collectAsState(initial = originalSong)
+                                val song = rememberLiveSong(database, originalSong)
 
                                 SongListItem(
-                                    song = song!!,
+                                    song = song,
                                     showInLibraryIcon = true,
-                                    isActive = song!!.id == mediaMetadata?.id,
+                                    isActive = song.id == mediaMetadata?.id,
                                     isPlaying = isPlaying,
                                     isSwipeable = false,
                                     trailingContent = {
@@ -973,7 +971,7 @@ fun HomeScreen(
                                                 haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                                                 menuState.show {
                                                     SongMenu(
-                                                        originalSong = song!!,
+                                                        originalSong = song,
                                                         navController = navController,
                                                         onDismiss = menuState::dismiss
                                                     )
@@ -985,12 +983,12 @@ fun HomeScreen(
                                         .width(horizontalLazyGridItemWidth)
                                         .combinedClickable(
                                             onClick = {
-                                                if (activeRowTapTogglesPlayPause(song!!.id == mediaMetadata?.id, playerConnection.isStationBroadcast.value)) {
+                                                if (activeRowTapTogglesPlayPause(song.id == mediaMetadata?.id, playerConnection.isStationBroadcast.value)) {
                                                     playerConnection.playPause()
                                                 } else {
                                                     playerConnection.playQueue(
                                                         ZemerRadioQueue.song(
-                                                            song!!.toMediaMetadata(), playerConnection.service
+                                                            song.toMediaMetadata(), playerConnection.service
                                                         )
                                                     )
                                                 }
@@ -999,7 +997,7 @@ fun HomeScreen(
                                                 haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                                                 menuState.show {
                                                     SongMenu(
-                                                        originalSong = song!!,
+                                                        originalSong = song,
                                                         navController = navController,
                                                         onDismiss = menuState::dismiss
                                                     )

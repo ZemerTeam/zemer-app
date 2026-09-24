@@ -328,15 +328,6 @@ fun ContentSettings(
             rows = listOf(
                 {
                     SwitchPreference(
-                        title = { Text(stringResource(R.string.enable_personal_filters)) },
-                        icon = { Icon(painterResource(R.drawable.settings), null) },
-                        checked = true, // Always shown as ON
-                        onCheckedChange = { }, // No-op, cannot be changed
-                        isEnabled = false // Always greyed out
-                    )
-                },
-                {
-                    SwitchPreference(
                         title = { Text(stringResource(R.string.allow_female_singers)) },
                         icon = { Icon(painterResource(R.drawable.person), null) },
                         checked = allowFemaleSingers,

@@ -3,8 +3,11 @@ package com.jtech.zemer.lyrics
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import com.jtech.zemer.db.entities.LyricsEntity.Companion.LYRICS_NOT_FOUND
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.yield
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -77,5 +80,32 @@ class LyricsChainWalkTest {
         assertEquals(setOf("Zemer", "SimpMusic", "YouTube Subtitle", "YouTube Music"), f.calls.toSet())
         assertEquals(LyricsHelper.Fetched(LYRICS_NOT_FOUND, null), LyricsChainWalk.run(listOf(zemer, ytSub), Fake(emptyMap()).fetch))
         assertEquals(LyricsHelper.Fetched(LYRICS_NOT_FOUND, null), LyricsChainWalk.run(emptyList(), Fake(emptyMap()).fetch))
+    }
+
+    @Test
+    fun `cancelling the walk cancels the in-flight concurrent fetches`() = runBlocking {
+        // The walk must be STRUCTURED under its caller: a skipped track cancels the prefetch, and the
+        // provider fetches must die with it instead of running to completion off a detached scope.
+        val cancelled = Collections.synchronizedList(ArrayList<String>())
+        val started = Collections.synchronizedList(ArrayList<String>())
+        val fetch: suspend (LyricsProvider) -> LabeledLyrics? = { p ->
+            if (p.name == "Zemer") {
+                LabeledLyrics(p.name, plain) // a plain primary sends the walk on to the concurrent tail
+            } else {
+                started += p.name
+                try {
+                    delay(60_000)
+                    null
+                } catch (e: CancellationException) {
+                    cancelled += p.name
+                    throw e
+                }
+            }
+        }
+        val job = launch { LyricsChainWalk.run(listOf(zemer, simp, mxm, lrclib), fetch) }
+        while (started.size < 3) yield()
+        job.cancel()
+        job.join()
+        assertEquals(setOf("SimpMusic", "Musixmatch", "LrcLib"), cancelled.toSet())
     }
 }

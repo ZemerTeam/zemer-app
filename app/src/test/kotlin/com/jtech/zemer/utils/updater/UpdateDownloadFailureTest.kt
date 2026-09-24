@@ -7,13 +7,12 @@ import java.io.FileNotFoundException
 import java.io.IOException
 import java.net.SocketTimeoutException
 import java.net.UnknownHostException
-import java.util.zip.ZipException
 
 class UpdateDownloadFailureTest {
 
     @Test
     fun `ktor request timeout is a timeout`() {
-        val e = HttpRequestTimeoutException("https://nightly.link/x", 15_000L)
+        val e = HttpRequestTimeoutException("https://nightly.zemer.io/download/x.apk", 15_000L)
         assertEquals(UpdateDownloadFailure.TIMEOUT, classifyUpdateDownloadFailure(e))
     }
 
@@ -25,7 +24,7 @@ class UpdateDownloadFailureTest {
 
     @Test
     fun `dns and generic io failures are network`() {
-        assertEquals(UpdateDownloadFailure.NETWORK, classifyUpdateDownloadFailure(UnknownHostException("nightly.link")))
+        assertEquals(UpdateDownloadFailure.NETWORK, classifyUpdateDownloadFailure(UnknownHostException("nightly.zemer.io")))
         assertEquals(UpdateDownloadFailure.NETWORK, classifyUpdateDownloadFailure(IOException("connection reset")))
     }
 
@@ -36,18 +35,22 @@ class UpdateDownloadFailureTest {
     }
 
     @Test
-    fun `broken artifact is corrupt`() {
-        assertEquals(UpdateDownloadFailure.CORRUPT_ARTIFACT, classifyUpdateDownloadFailure(ZipException("not a zip")))
+    fun `a build that is not what was announced is corrupt`() {
         assertEquals(
             UpdateDownloadFailure.CORRUPT_ARTIFACT,
-            classifyUpdateDownloadFailure(CorruptUpdateArtifactException("No APK found in the nightly archive")),
+            classifyUpdateDownloadFailure(CorruptUpdateArtifactException("Nightly SHA-256 mismatch")),
+        )
+        // Also when wrapped by a caller.
+        assertEquals(
+            UpdateDownloadFailure.CORRUPT_ARTIFACT,
+            classifyUpdateDownloadFailure(RuntimeException("wrapped", CorruptUpdateArtifactException("Nightly size mismatch"))),
         )
     }
 
     @Test
     fun `a bare IllegalStateException is not misread as a corrupt artifact`() {
         // A generic runtime ISE (e.g. from a coroutine/Ktor internal) must not be reported as a
-        // damaged download - only the dedicated corrupt type and ZipException are.
+        // damaged download - only the dedicated corrupt type is.
         assertEquals(UpdateDownloadFailure.UNKNOWN, classifyUpdateDownloadFailure(IllegalStateException("some internal state")))
     }
 

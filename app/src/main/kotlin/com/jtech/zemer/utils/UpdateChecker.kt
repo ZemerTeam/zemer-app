@@ -25,12 +25,14 @@ import java.io.File
 import java.io.IOException
 import java.nio.file.Files
 import java.nio.file.StandardCopyOption
+import java.security.MessageDigest
 
 object UpdateChecker {
     private const val API_URL = "https://ghtrack.zemer.io/api"
     private const val CHANGELOG_URL = "https://ghtrack.zemer.io/changelog"
     private const val DOWNLOAD_URL = "https://ghtrack.zemer.io/download"
     private const val APK_FILENAME = "zemer-update.apk"
+    private const val USER_AGENT = "Zemer-Updater"
 
     /** Inactivity bound on the download: a connection that sends nothing for this long fails. */
     internal const val DOWNLOAD_IDLE_TIMEOUT_MS = 60_000L
@@ -64,9 +66,6 @@ object UpdateChecker {
         ) : UpdateResult()
         data class UpToDate(val currentVersion: String) : UpdateResult()
         data class Error(val message: String) : UpdateResult()
-        // Nightly-only: the latest nightly is a higher version than this build, i.e. a release is
-        // being prepared. Nightly users are told to wait for the stable release instead.
-        data class ReleaseComingSoon(val currentVersion: String) : UpdateResult()
     }
 
     sealed class DownloadState {
@@ -98,53 +97,85 @@ object UpdateChecker {
         checkForStableUpdate(force = true)
     }
 
+    /**
+     * The nightly channel reads ONE document, the mirror's `/api` (the current build with its
+     * commit, CI run number, version, size, SHA-256 and SHA-pinned download URL). It is the only
+     * input to "is there an update"; the download re-reads it and verifies the bytes against it.
+     */
     private suspend fun checkForNightlyUpdate(): UpdateResult {
-        val httpClient = HttpClient()
         return try {
-            val responseText = httpClient.get(NightlyUpdates.RUNS_URL) {
-                // GitHub's API rejects requests without a User-Agent.
-                header(HttpHeaders.UserAgent, "Zemer-Updater")
-                header(HttpHeaders.Accept, "application/vnd.github+json")
-            }.bodyAsText()
-
-            val run = NightlyUpdates.parseLatestRun(responseText)
-                ?: return UpdateResult.Error("Invalid API response")
-            val currentVersion =
-                NightlyUpdates.currentVersionLabel(BuildConfig.VERSION_NAME, BuildConfig.COMMIT_HASH)
-            if (NightlyUpdates.isUpdateAvailable(BuildConfig.COMMIT_HASH, run.headSha)) {
-                // A higher-versioned nightly means a release is being prepared — tell nightly users
-                // to wait for stable rather than hand them the release candidate. The version lives
-                // in build.gradle.kts at that commit; a failed fetch must not block the update, so
-                // fall through to offering the nightly.
-                val nightlyVersion = runCatching {
-                    val gradle = httpClient.get(NightlyUpdates.buildGradleUrl(run.headSha)) {
-                        header(HttpHeaders.UserAgent, "Zemer-Updater")
-                    }.bodyAsText()
-                    NightlyUpdates.parseBuildVersion(gradle)
-                }.getOrNull()
-
-                if (nightlyVersion != null &&
-                    NightlyUpdates.isReleaseComingSoon(
-                        BuildConfig.VERSION_CODE, BuildConfig.VERSION_NAME, nightlyVersion,
-                    )
-                ) {
-                    UpdateResult.ReleaseComingSoon(currentVersion)
-                } else {
+            HttpClient().use { httpClient ->
+                val response = httpClient.get(NightlyUpdates.API_URL) { header(HttpHeaders.UserAgent, USER_AGENT) }
+                // A 503 before the mirror's first ingest, or any other non-2xx, is "could not
+                // check" - never "up to date", an empty answer must not look like being current.
+                if (!response.status.isSuccess()) {
+                    return@use UpdateResult.Error("Nightly channel unavailable: HTTP ${response.status.value}")
+                }
+                val build = NightlyUpdates.parseBuild(response.bodyAsText())
+                    ?: return@use UpdateResult.Error("Invalid API response")
+                val currentVersion =
+                    NightlyUpdates.currentVersionLabel(BuildConfig.VERSION_NAME, BuildConfig.COMMIT_HASH)
+                if (NightlyUpdates.isUpdateAvailable(BuildConfig.COMMIT_HASH, BuildConfig.RUN_NUMBER, build)) {
                     UpdateResult.UpdateAvailable(
-                        latestVersion = NightlyUpdates.versionLabel(run),
+                        latestVersion = NightlyUpdates.versionLabel(build),
                         currentVersion = currentVersion,
-                        notes = run.commitTitle?.let(NightlyUpdates::commitMessageMarkdown),
+                        notes = nightlyNotes(httpClient, build),
                         isNightly = true,
                     )
+                } else {
+                    UpdateResult.UpToDate(currentVersion)
                 }
-            } else {
-                UpdateResult.UpToDate(currentVersion)
             }
+        } catch (e: CancellationException) {
+            throw e // a cancelled check is not an error result
         } catch (e: Exception) {
             UpdateResult.Error(e.message ?: "Failed to check for updates")
-        } finally {
-            httpClient.close()
         }
+    }
+
+    /**
+     * Release notes: every build between the installed one and [build] (the mirror's `/changelog`,
+     * newest first), falling back to [build]'s own commit message when the endpoint is absent,
+     * fails, or has nothing - a failed notes fetch must never block the update. A build without a
+     * baked-in SHA has no gap to ask about.
+     */
+    private suspend fun nightlyNotes(httpClient: HttpClient, build: NightlyUpdates.NightlyBuild): String? {
+        val installedSha = BuildConfig.COMMIT_HASH
+        val changelog = if (installedSha.isBlank()) {
+            null
+        } else {
+            try {
+                val response = httpClient.get(NightlyUpdates.changelogUrl(installedSha)) {
+                    header(HttpHeaders.UserAgent, USER_AGENT)
+                }
+                if (response.status.isSuccess()) {
+                    NightlyUpdates.parseChangelog(response.bodyAsText())
+                        ?.let { NightlyUpdates.changelogMarkdown(it, BuildConfig.RUN_NUMBER) }
+                } else {
+                    null
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                null
+            }
+        }
+        return changelog ?: build.commitMessage?.let(NightlyUpdates::commitMessageMarkdown)
+    }
+
+    /**
+     * The mirror's current build, read with the download client so it shares the idle bound, with
+     * the update rule applied AGAIN: the mirror may have moved on since the check (a newer build is
+     * still an upgrade), but it must never hand the download a build that is not one.
+     */
+    private suspend fun resolveNightlyBuild(httpClient: HttpClient): NightlyUpdates.NightlyBuild {
+        val response = httpClient.get(NightlyUpdates.API_URL) { header(HttpHeaders.UserAgent, USER_AGENT) }
+        if (!response.status.isSuccess()) {
+            throw IOException("Nightly channel unavailable: HTTP ${response.status.value}")
+        }
+        val build = NightlyUpdates.parseBuild(response.bodyAsText())
+            ?: throw IOException("Nightly channel returned an invalid build record")
+        return NightlyUpdates.requireUpdate(BuildConfig.COMMIT_HASH, BuildConfig.RUN_NUMBER, build)
     }
 
     private suspend fun checkForStableUpdate(force: Boolean = false): UpdateResult {
@@ -186,6 +217,8 @@ object UpdateChecker {
                     UpdateResult.UpToDate(currentVersion)
                 }
             }
+        } catch (e: CancellationException) {
+            throw e // a cancelled check is not an error result
         } catch (e: Exception) {
             UpdateResult.Error(e.message ?: "Failed to check for updates")
         }
@@ -204,11 +237,19 @@ object UpdateChecker {
         try {
             val part = File.createTempFile(APK_FILENAME, ".part", context.cacheDir).also { partFile = it }
             downloadHttpClient().use { httpClient ->
+                // A nightly is downloaded from the SHA-pinned URL the mirror's `/api` names, and
+                // the bytes are verified below against that same document's size + SHA-256: the
+                // announced build and the installed build are one object. The record is re-read
+                // here rather than carried over from the check so it can never be stale, and the
+                // check's run-number rule already guarantees the mirror's current build is never
+                // older than the installed one.
+                val nightlyBuild = if (nightly) resolveNightlyBuild(httpClient) else null
+                val digest = if (nightlyBuild != null) MessageDigest.getInstance("SHA-256") else null
                 // The block form STREAMS the body. The no-block `execute()` loads the whole body
                 // into memory before returning, which made the progress loop run after the real
                 // download had already finished - the bar jumped 0 -> 100 with nothing between.
                 httpClient
-                    .prepareGet(if (nightly) NightlyUpdates.DOWNLOAD_URL else DOWNLOAD_URL)
+                    .prepareGet(nightlyBuild?.downloadUrl ?: DOWNLOAD_URL)
                     .execute { response ->
                         // The client does not validate status (expectSuccess is default-false), so a
                         // 4xx/5xx would otherwise be written and offered for install as an error
@@ -221,9 +262,11 @@ object UpdateChecker {
                         // be answered by a different hop (e.g. a challenge page) whose Content-Length is
                         // not the APK's, which would make the progress bar scale to the wrong total.
                         // If the body is gzip-encoded the header is the compressed size and won't match
-                        // the decoded bytes we count, so treat that as unknown.
+                        // the decoded bytes we count, so treat that as unknown. A nightly's total is
+                        // the mirror's declared size (the download is content-addressed), exact.
                         val isEncoded = response.headers[HttpHeaders.ContentEncoding]?.isNotBlank() == true
-                        val contentLength = if (isEncoded) -1L else response.contentLength() ?: -1L
+                        val contentLength = nightlyBuild?.size
+                            ?: (if (isEncoded) -1L else response.contentLength() ?: -1L)
 
                         val channel = response.bodyAsChannel()
                         var downloadedBytes = 0L
@@ -235,6 +278,7 @@ object UpdateChecker {
                                 val bytesRead = channel.readAvailable(buffer)
                                 if (bytesRead > 0) {
                                     output.write(buffer, 0, bytesRead)
+                                    digest?.update(buffer, 0, bytesRead)
                                     downloadedBytes += bytesRead
                                     // Emit per ~128 KB, not per 8 KB chunk, so a 10 MB download
                                     // doesn't drive a thousand recompositions.
@@ -246,22 +290,17 @@ object UpdateChecker {
                             }
                         }
                         emit(downloadingState(downloadedBytes, contentLength))
+                        // A nightly that is not byte-for-byte the announced build is never
+                        // installed: this throws CorruptUpdateArtifactException, the part file is
+                        // dropped in the finally below and apkFile is never touched.
+                        if (nightlyBuild != null && digest != null) {
+                            NightlyUpdates.verifyDownload(downloadedBytes, NightlyUpdates.hex(digest.digest()), nightlyBuild)
+                        }
                     }
             }
-            // Finalize into apkFile only after a fully-read body, and only via an atomic move so a
-            // failure never leaves a partial apk: a nightly extracts its APK into a temp file first,
-            // a stable moves its part directly. Either way apkFile is replaced in one step.
-            if (nightly) {
-                val extractedApk = File.createTempFile(APK_FILENAME, ".extracted", context.cacheDir)
-                try {
-                    NightlyUpdates.extractApk(part, extractedApk)
-                    Files.move(extractedApk.toPath(), apkFile.toPath(), StandardCopyOption.REPLACE_EXISTING)
-                } finally {
-                    extractedApk.delete()
-                }
-            } else {
-                Files.move(part.toPath(), apkFile.toPath(), StandardCopyOption.REPLACE_EXISTING)
-            }
+            // Finalize into apkFile only after a fully-read (and, for a nightly, verified) body,
+            // and only via an atomic move so a failure never leaves a partial apk behind.
+            Files.move(part.toPath(), apkFile.toPath(), StandardCopyOption.REPLACE_EXISTING)
             emit(DownloadState.Downloaded(apkFile))
         } catch (e: CancellationException) {
             throw e // cleanup runs in finally; propagate the cancel

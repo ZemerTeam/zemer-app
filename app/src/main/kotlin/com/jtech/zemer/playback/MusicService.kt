@@ -65,6 +65,7 @@ import androidx.media3.extractor.mp4.Mp4Extractor
 import androidx.media3.extractor.ogg.OggExtractor
 import timber.log.Timber
 import androidx.media3.session.CommandButton
+import androidx.core.app.NotificationManagerCompat
 import androidx.media3.session.DefaultMediaNotificationProvider
 import androidx.media3.session.MediaController
 import androidx.media3.session.MediaLibraryService
@@ -1728,6 +1729,7 @@ class MusicService :
 
     override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) {
         if (playWhenReady) {
+            markUserIntent() // a play from anywhere (headset, Auto, the resume chip) is intent
             setupLoudnessEnhancer()
             resyncStationOnResume()
         }
@@ -2371,6 +2373,42 @@ class MusicService :
     // Mirror of PlaybackModeKey; null = not yet observed (the dispatcher resolves that below).
     @Volatile
     private var relayModeNow: Boolean? = null
+
+    // Issue #109: media3 posts the media notification for ANY prepared player with a queue, and the
+    // persisted queue is restored + prepared on EVERY creation - including the post-boot
+    // media-resumption bind from SystemUI that no user asked for (creating intent
+    // android.media.browse.MediaBrowserService, reproduced on an API 30 emulator: a "paused"
+    // notification + launcher badge for an app nobody opened). The notification is vetoed through
+    // the pure NotificationGate until USER INTENT: the app's own UI bound (onBind handing out the
+    // in-app binder), an explicit start command (onStartCommand: widget tap, media button, the
+    // activity's own start, a sticky restart), or playback starting. A controller merely connecting
+    // (onGetSession) is not intent. Main-thread only, like every media3 service callback.
+    private var userIntentSeen = false
+
+    // The other half of #109: raised by onTaskRemoved BEFORE it pauses, so media3's asynchronous
+    // paused-notification post is never scheduled onto the service that is being stopped. Dropped
+    // again by any later user engagement: stopSelf() does not destroy a service another client
+    // (Android Auto, a headset app) still has bound, and that client's next play or the user's
+    // return must behave exactly as before the task clear.
+    private var stoppingOnTaskClear = false
+
+    private fun markUserIntent() {
+        // Re-engagement after a task clear whose service lingered (a client stayed bound) ends the
+        // task-clear veto AND re-posts the paused notification the task clear removed, exactly as
+        // a freshly created service posts it on the user's first engagement.
+        val resumingAfterTaskClear = stoppingOnTaskClear
+        stoppingOnTaskClear = false
+        if (userIntentSeen && !resumingAfterTaskClear) return
+        userIntentSeen = true
+        // Post the paused notification the veto held back - the pre-fix behaviour on opening the
+        // app with a restored queue. media3 re-evaluates whether there is anything to show.
+        if (player.mediaItemCount > 0) onUpdateNotification(mediaSession, /* startInForegroundRequired = */ false)
+    }
+
+    override fun onUpdateNotification(session: MediaSession, startInForegroundRequired: Boolean) {
+        if (!NotificationGate.shouldPost(userIntentSeen, session.player.playWhenReady, startInForegroundRequired, stoppingOnTaskClear)) return
+        super.onUpdateNotification(session, startInForegroundRequired)
+    }
 
     /** Whether playback is currently routed through the RELAY source (fixed server-side rendition). */
     fun isRelayPlaybackMode(): Boolean = relayModeNow == true
@@ -3041,6 +3079,18 @@ class MusicService :
         releaseLoudnessEnhancer()
         // Stop the widget ticker before releasing the player so a stray tick can't touch it.
         widgetTickerJob?.cancel()
+        // Issue #109, the in-flight post: media3 builds its notification ASYNCHRONOUSLY, and a
+        // callback that lands after this service is gone (the artwork load for a track that had
+        // just started, a state change right before a task clear) re-posts a notification nothing
+        // can remove. media3 invalidates its pending callbacks only inside its own removal path
+        // (it advances the notification sequence there), and that path runs for a session that is
+        // no longer added to the service - so remove the session first and let media3 remove the
+        // notification itself, before the session is released. Same stopForeground + cancel as
+        // below, plus the invalidation this service cannot do by hand.
+        if (isSessionAdded(mediaSession)) {
+            removeSession(mediaSession)
+            super.onUpdateNotification(mediaSession, /* startInForegroundRequired = */ false)
+        }
         mediaSession.release()
         player.removeListener(this)
         player.removeListener(sleepTimer)
@@ -3056,6 +3106,9 @@ class MusicService :
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        // Every explicit start (widget, media button, the activity, a sticky restart) is intent;
+        // only a bare bind (the post-boot scanner) is not. See userIntentSeen.
+        markUserIntent()
         when (intent?.action) {
             MusicWidget.ACTION_PLAY_PAUSE -> {
                 if (discoveryHandler.isConnected) {
@@ -3086,7 +3139,9 @@ class MusicService :
         return super.onStartCommand(intent, flags, startId)
     }
 
-    override fun onBind(intent: Intent?) = super.onBind(intent) ?: binder
+    // media3 answers its own session/browser binds (the post-boot scanner among them); only the
+    // app's own UI gets the in-app binder, and that IS user intent.
+    override fun onBind(intent: Intent?) = super.onBind(intent) ?: binder.also { markUserIntent() }
 
     override fun onTaskRemoved(rootIntent: Intent?) {
         // Issue #109: when "stop music on task clear" is enabled, swiping the app away from recents
@@ -3102,9 +3157,27 @@ class MusicService :
             if (CastPlayback.shouldEndCastOnTaskClear(true, discoveryHandler.isConnected)) {
                 discoveryHandler.disconnect()
             }
+            // Order matters (issue #109, the "notification doesn't go off" half): media3 builds its
+            // notification ASYNCHRONOUSLY, so pause() used to schedule a paused-notification post,
+            // stopForeground(REMOVE) removed the foreground one, and the scheduled post then landed
+            // on the dead service as a zombie only a force-stop cleared. The veto is raised BEFORE
+            // pause() so nothing is scheduled, then the notification is removed both ways media3
+            // itself removes one (stopForeground(REMOVE) AND cancel(), needed on all API levels).
+            stoppingOnTaskClear = true
             player.pause()
             stopForeground(STOP_FOREGROUND_REMOVE)
+            NotificationManagerCompat.from(this).cancel(NOTIFICATION_ID)
             stopSelf()
+            // A post already in flight when the task was cleared (media3's artwork load for a track
+            // that had just started) can still land after the cancel above, and the service may
+            // outlive stopSelf() while a client stays bound, so onDestroy's invalidation may never
+            // run. One bounded second cancel, only while nothing has re-engaged: any bind, start
+            // command or play clears the flag first, so a notification the user asked for is never
+            // touched by it.
+            android.os.Handler(mainLooper).postDelayed(
+                { if (stoppingOnTaskClear) NotificationManagerCompat.from(this).cancel(NOTIFICATION_ID) },
+                TASK_CLEAR_LATE_POST_WINDOW_MS,
+            )
         }
         super.onTaskRemoved(rootIntent)
     }
@@ -3128,6 +3201,9 @@ class MusicService :
 
         const val CHANNEL_ID = "music_channel_01"
         const val NOTIFICATION_ID = 888
+
+        /** How long after a task clear a media3 post that was already in flight may still land. */
+        private const val TASK_CLEAR_LATE_POST_WINDOW_MS = 2_000L
         // Clients whose streams run the cipher — only these have a meaningful player hash to report
         // on the telemetry `play` event (mirrors ShowMediaInfo's isWebStream set).
         val WEB_STREAM_CLIENTS = setOf("WEB_REMIX", "WEB_CREATOR", "TVHTML5", "TVHTML5_SIMPLY", "MWEB", "WEB")
