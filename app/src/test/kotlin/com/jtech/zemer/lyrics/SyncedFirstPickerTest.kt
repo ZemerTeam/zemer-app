@@ -81,7 +81,7 @@ class SyncedFirstPickerTest {
             EnableLrcLibKey to false,
             EnableYouTubeLyricsKey to false,
         )
-        assertEquals(listOf("Zemer", "SimpMusic", "Musixmatch"), LyricsHelper.enabledProviders(prefs).map { it.name })
+        assertEquals(listOf("Zemer", "SimpMusic"), LyricsHelper.enabledProviders(prefs).map { it.name })
         assertEquals(LyricsProviderRegistry.providerNames.size, LyricsHelper.enabledProviders(preferencesOf()).size)
     }
 }

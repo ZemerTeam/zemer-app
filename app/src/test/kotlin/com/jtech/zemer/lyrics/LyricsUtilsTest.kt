@@ -3,6 +3,7 @@ package com.jtech.zemer.lyrics
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
+import org.junit.Assert.assertNull
 import org.junit.Test
 
 class LyricsUtilsTest {
@@ -58,11 +59,31 @@ class LyricsUtilsTest {
         assertEquals(3, LyricsUtils.sungWordCount(words, 9000L))
     }
 
-    /** The shared body gate (Zemer sources + Musixmatch): fewer than four non-blank lines is a stub, not lyrics. */
+    /** The shared body gate (Zemer sources and the fetched providers): fewer than four non-blank lines is a stub, not lyrics. */
     @Test
     fun `hasLyricBody needs four non-blank lines`() {
         assertTrue(LyricsUtils.hasLyricBody("a\nb\n\nc\nd"))
         assertFalse(LyricsUtils.hasLyricBody("a\nb\nc"))
         assertFalse(LyricsUtils.hasLyricBody("a\n \n\t\nb\nc"))
+    }
+
+    @Test
+    fun `cleanLrc timestamps are locale-independent`() {
+        val saved = java.util.Locale.getDefault()
+        try {
+            for (locale in listOf(java.util.Locale.GERMANY, java.util.Locale.FRANCE, java.util.Locale("ar"), java.util.Locale("tr", "TR"))) {
+                java.util.Locale.setDefault(locale)
+                assertEquals(locale.toString(), "[00:01.20] a\n[00:02.50] b\n[00:03.00] c\n[00:04.00] d", LyricsUtils.cleanLrc("[00:01.20] a\n[00:02.5] b\n[00:03.00] c\n[00:04.00] d"))
+            }
+        } finally {
+            java.util.Locale.setDefault(saved)
+        }
+    }
+
+    @Test
+    fun `cleanLrc keeps only well-formed monotonic lines and needs four sung ones`() {
+        assertEquals("[00:01.20] a\n[00:02.50] b\n[00:03.00] c\n[00:04.00] d\n[00:05.00] ", LyricsUtils.cleanLrc("[00:01.20] a\n[00:02.5] b\n[00:03.00] c\n[00:04.00] d\n[00:05.00]\nnot a line"))
+        assertNull(LyricsUtils.cleanLrc("[00:05.00] a\n[00:02.00] b\n[00:03.00] c\n[00:04.00] d"))
+        assertNull(LyricsUtils.cleanLrc("[00:01.00] a\n[00:02.00] b"))
     }
 }

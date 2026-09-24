@@ -110,11 +110,10 @@ class ZemerLyricsProviderTest {
             ZemerLyricsClient.Source(type = "manual", origin = "asrverified", plain = "v\nv\nv\nv"),
             ZemerLyricsClient.Source(type = "manual", origin = "forum", plain = "f\nf\nf\nf"),
             ZemerLyricsClient.Source(type = "manual", plain = "m\nm\nm\nm"),
-            ZemerLyricsClient.Source(type = "musixmatch", trackId = 1, commontrackId = 2, synced = true),
             ZemerLyricsClient.Source(type = "future-type", plain = "z\nz\nz\nz"),
         ))
-        val bodies = ZemerLyricsProvider.bodies(resolved, fetch = { null }, musixmatch = { _, _, _ -> null })
-        // community and manual share rank 4, so the server's order breaks the tie; the synced-flagged musixmatch pointer that yields nothing is skipped
+        val bodies = ZemerLyricsProvider.bodies(resolved, fetch = { null })
+        // community and manual share rank 4, so the server's order breaks the tie; an unknown type is skipped
         assertEquals(listOf("community", "Telegram", "verified", "forum", "manual"), bodies.map { it.first })
         assertEquals("Zemer · Telegram", ZemerLyricsProvider.label(bodies[1].first, verified = true))
         assertEquals("Apple Music", ZemerLyricsProvider.originName("apple"))
@@ -134,21 +133,6 @@ class ZemerLyricsProviderTest {
         assertTrue(ZemerLyricsProvider.bodies(resolved.copy(sources = resolved.sources.take(1)), fetch = { """{"type":"Line","lrc":"x"}""" }).isEmpty())
         assertTrue(ZemerLyricsProvider.bodies(resolved.copy(sources = resolved.sources.take(1)), fetch = { """{"ttmlContent":"<p begin=\"1.0\">a</p><p begin=\"2.0\">b</p>"}""" }).isEmpty())
         assertTrue(ZemerLyricsProvider.bodies(resolved.copy(sources = listOf(resolved.sources[0].copy(catalogId = ""))), fetch = { res("apple-1571752969.json") }).isEmpty())
-    }
-
-    @Test
-    fun `musixmatch row is fetched by id through the on-device client and gated on a real body`() = runBlocking {
-        val src = ZemerLyricsClient.Source(type = "musixmatch", commontrackId = 35322039, trackId = 383031460, synced = true)
-        val resolved = ZemerLyricsClient.Resolved(videoId = "mx", hasSynced = true, sources = listOf(src))
-        val asked = ArrayList<Triple<Long, Long, Boolean>>()
-        val lrc = "[00:01.00] a\n[00:02.00] b\n[00:03.00] c\n[00:04.00] d"
-        val bodies = ZemerLyricsProvider.bodies(resolved, fetch = { null }, musixmatch = { c, t, s -> asked += Triple(c, t, s); lrc })
-        assertEquals(listOf(Triple(35322039L, 383031460L, true)), asked)
-        assertEquals(listOf("musixmatch" to lrc), bodies)
-        assertTrue(ZemerLyricsProvider.bodies(resolved, fetch = { null }, musixmatch = { _, _, _ -> "too\nshort" }).isEmpty())
-        assertTrue(ZemerLyricsProvider.bodies(resolved, fetch = { null }, musixmatch = { _, _, _ -> null }).isEmpty())
-        // a missing id never calls the client
-        assertTrue(ZemerLyricsProvider.bodies(resolved.copy(sources = listOf(src.copy(trackId = null))), fetch = { null }, musixmatch = { _, _, _ -> error("must not be called") }).isEmpty())
     }
 
     @Test

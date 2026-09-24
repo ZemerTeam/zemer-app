@@ -70,7 +70,7 @@ not a model of the app's real (unauthenticated) search path.
 
 The `lyrics-*.mjs`, `jyrics-*.mjs`, `jkaraoke-resolve.mjs`, `corpus-*.mjs`, `drive-*-resolve*.mjs` and
 `names-resolve-yt.mjs` scripts are the coverage/accuracy probes that chose the app's lyrics sources (Zemer resolver
-sources, SimpMusic, LrcLib, Musixmatch, YouTube). They read the sibling `zemer-search` repo's `data/corpus.db` +
+sources, SimpMusic, LrcLib, YouTube). They read the sibling `zemer-search` repo's `data/corpus.db` +
 `corpus/lyrics.mjs` through `jyrics-common.mjs` (`ZEMER_SEARCH=/path/to/zemer-search` overrides the default
 workspace sibling) and write under the gitignored `tests/search/.cache/`. Diagnostic only, never wired into CI.
 

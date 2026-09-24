@@ -1,7 +1,6 @@
 package com.jtech.zemer.lyrics.zemer
 
 import com.jtech.zemer.lyrics.LyricsUtils
-import com.jtech.zemer.lyrics.musixmatch.MusixmatchLyrics
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 
@@ -35,7 +34,7 @@ object AppleTtmlLrc {
     fun fromReply(body: String): String? {
         val r = runCatching { json.decodeFromString(Reply.serializer(), body) }.getOrNull() ?: return null
         if (r.type == "None") return r.plain?.let(::plainBody)
-        if (r.type == "Line") MusixmatchLyrics.cleanLrc(r.lrc)?.let { return it }   // drops the `[by:…]` credit tag, keeps only monotonic timed lines
+        if (r.type == "Line") LyricsUtils.cleanLrc(r.lrc)?.let { return it }   // drops the `[by:…]` credit tag, keeps only monotonic timed lines
         r.ttmlContent?.let(::toLrc)?.let { return it }
         return r.plain?.let(::plainBody)
     }

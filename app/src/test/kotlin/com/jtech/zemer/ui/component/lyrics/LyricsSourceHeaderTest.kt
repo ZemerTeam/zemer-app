@@ -11,7 +11,7 @@ class LyricsSourceHeaderTest {
         assertEquals("Zemer", displayProviderName("Zemer · jkaraoke"))
         assertEquals("Zemer", displayProviderName("Zemer · shironet ✓"))
         assertEquals("Zemer", displayProviderName("Zemer"))
-        assertEquals("Musixmatch", displayProviderName("Musixmatch"))
+        assertEquals("LrcLib", displayProviderName("LrcLib"))
         assertEquals("SimpMusic", displayProviderName("SimpMusic ✓"))
         assertNull(displayProviderName(LyricsEntity.PROVIDER_LEGACY))
         assertNull(displayProviderName(null))

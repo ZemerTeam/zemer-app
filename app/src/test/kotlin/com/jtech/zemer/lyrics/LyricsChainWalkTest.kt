@@ -23,7 +23,7 @@ class LyricsChainWalkTest {
     }
     private val zemer = provider("Zemer")
     private val simp = provider("SimpMusic")
-    private val mxm = provider("Musixmatch")
+    private val apple = provider("Apple")
     private val lrclib = provider("LrcLib")
     private val ytSub = provider("YouTube Subtitle", low = true)
     private val ytTab = provider("YouTube Music", low = true)
@@ -42,32 +42,32 @@ class LyricsChainWalkTest {
     @Test
     fun `a synced primary answer ends the walk with no other provider asked`() = runBlocking {
         val f = Fake(mapOf("Zemer" to synced, "SimpMusic" to synced))
-        assertEquals(LyricsHelper.Fetched(synced, "Zemer"), LyricsChainWalk.run(listOf(zemer, simp, mxm, lrclib, ytSub, ytTab), f.fetch))
+        assertEquals(LyricsHelper.Fetched(synced, "Zemer"), LyricsChainWalk.run(listOf(zemer, simp, apple, lrclib, ytSub, ytTab), f.fetch))
         assertEquals(listOf("Zemer"), f.calls)
     }
 
     @Test
     fun `after a plain primary the other trusted providers run concurrently and the best by priority wins`() = runBlocking {
-        val f = Fake(mapOf("Zemer" to plain, "Musixmatch" to synced, "LrcLib" to synced), delayMs = 150)
+        val f = Fake(mapOf("Zemer" to plain, "Apple" to synced, "LrcLib" to synced), delayMs = 150)
         val startedAt = System.currentTimeMillis()
-        val got = LyricsChainWalk.run(listOf(zemer, simp, mxm, lrclib, ytSub, ytTab), f.fetch)
+        val got = LyricsChainWalk.run(listOf(zemer, simp, apple, lrclib, ytSub, ytTab), f.fetch)
         val elapsed = System.currentTimeMillis() - startedAt
-        assertEquals("priority order, not arrival order", LyricsHelper.Fetched(synced, "Musixmatch"), got)
-        assertEquals(setOf("Zemer", "SimpMusic", "Musixmatch", "LrcLib"), f.calls.toSet())
+        assertEquals("priority order, not arrival order", LyricsHelper.Fetched(synced, "Apple"), got)
+        assertEquals(setOf("Zemer", "SimpMusic", "Apple", "LrcLib"), f.calls.toSet())
         assertTrue("three 150 ms providers ran concurrently, not serially (took $elapsed ms)", elapsed < 150 * 3)
     }
 
     @Test
     fun `a plain trusted answer is served without ever asking the low-trust providers`() = runBlocking {
         val f = Fake(mapOf("LrcLib" to plain, "YouTube Subtitle" to synced))
-        assertEquals(LyricsHelper.Fetched(plain, "LrcLib"), LyricsChainWalk.run(listOf(zemer, simp, mxm, lrclib, ytSub, ytTab), f.fetch))
+        assertEquals(LyricsHelper.Fetched(plain, "LrcLib"), LyricsChainWalk.run(listOf(zemer, simp, apple, lrclib, ytSub, ytTab), f.fetch))
         assertTrue(f.calls.none { it.startsWith("YouTube") })
     }
 
     @Test
     fun `low-trust providers are deferred to the end even when the user order lists them first`() = runBlocking {
         val f = Fake(mapOf("Zemer" to plain, "YouTube Subtitle" to synced))
-        val got = LyricsChainWalk.run(listOf(ytSub, ytTab, zemer, simp, mxm, lrclib), f.fetch)
+        val got = LyricsChainWalk.run(listOf(ytSub, ytTab, zemer, simp, apple, lrclib), f.fetch)
         assertEquals(LyricsHelper.Fetched(plain, "Zemer"), got)
         assertEquals("Zemer", f.calls.first())
         assertTrue(f.calls.none { it.startsWith("YouTube") })
@@ -102,10 +102,10 @@ class LyricsChainWalkTest {
                 }
             }
         }
-        val job = launch { LyricsChainWalk.run(listOf(zemer, simp, mxm, lrclib), fetch) }
+        val job = launch { LyricsChainWalk.run(listOf(zemer, simp, apple, lrclib), fetch) }
         while (started.size < 3) yield()
         job.cancel()
         job.join()
-        assertEquals(setOf("SimpMusic", "Musixmatch", "LrcLib"), cancelled.toSet())
+        assertEquals(setOf("SimpMusic", "Apple", "LrcLib"), cancelled.toSet())
     }
 }

@@ -6,7 +6,7 @@ Code-derived. Files: `lyrics/` (provider chain), `lyrics/zemer/` (Zemer resolver
 
 ## Provider chain (`lyrics/LyricsHelper.kt`)
 Default order (`LyricsProviderRegistry`, user-reorderable in Content settings): `ZemerLyricsProvider` →
-`SimpMusicLyricsProvider` → `MusixmatchLyricsProvider` → `LrcLibLyricsProvider` → `YouTubeSubtitleLyricsProvider`
+`SimpMusicLyricsProvider` → `LrcLibLyricsProvider` → `YouTubeSubtitleLyricsProvider`
 → `YouTubeLyricsProvider`. The walk's pick rule is `SyncedFirstPicker` (below); `LyricsHelper.getLyrics` returns
 `Fetched(lyrics, provider)` and the provider label is persisted in `LyricsEntity.provider` (nullable; Room
 `AutoMigration(35, 36)`). Every fetch-and-persist goes through `lyrics/LyricsStore` (`ensure` = the cache
@@ -36,18 +36,15 @@ providers by `MediaMetadata.id` (never `setVideoId`, which is a playlist-entry t
   enhanced LRC with `<mm:ss.xx>` word tags > `syncedLrc` > `plain`; every word tag is certified by two aligners,
   a line without tags is deliberately line-only), booklet/manual/canonical/community text inline, an `apple` row
   by `catalogId` → `AppleTtmlLrc` (the paxsenix mirror `/apple-music/lyrics?id=`: a synced reply, `type: "Line"`,
-  serves its ready `lrc` when `MusixmatchLyrics.cleanLrc` accepts it — the `[by:…]` credit dropped, monotonic timed
+  serves its ready `lrc` when `LyricsUtils.cleanLrc` accepts it — the `[by:…]` credit dropped, monotonic timed
   lines only — else its TTML, each `<p begin="m:ss.mmm">` line becoming `[mm:ss.xx] text`, inner word `<span>`s
   dropped, Apple's own line times, >= 4 monotonic lines; an UNSYNCED reply, `type: "None"`, goes STRAIGHT to its
   `plain` text with the bracketed section labels dropped, >= 4 lines — its TTML is never consulted, so a mirror
   stamping `begin="0:00.000"` on every line can never show it synced at zero; golden
-  `apple-1571752969.json` → `.expected.lrc` and `apple-unsynced-reply.json`), and a `musixmatch` row by id →
-  `MusixmatchLyrics.getLyricsById` (`track.lyrics.get?commontrack_id=` plus `track.subtitle.get?track_id=` when
-  `synced`, under the phone's own brokered token with the same stale-token retry; only the text gates run —
-  instrumental/restricted rejected, licence footer stripped, LRC monotonic — since the server matched the recording).
+  `apple-1571752969.json` → `.expected.lrc` and `apple-unsynced-reply.json`).
   Walk order (`ZemerLyricsProvider.order`): synced first (`synced`, an inline `syncedLrc`/`richSync`, or the one
   pointer the resolver's `lineTimes` were measured against), then rank: `zemer` 0 > `jkaraoke`/`apple` 1 >
-  `lrclib`/`kugou`/`musixmatch`/`zingmusic`/`youtube` 2 > `jyrics`/`shironet`/`tab4u`/`zemirotdb`/`lyricstranslate`
+  `lrclib`/`kugou`/`zingmusic`/`youtube` 2 > `jyrics`/`shironet`/`tab4u`/`zemirotdb`/`lyricstranslate`
   3 > `booklet`/`manual`/`canonical`/`community` 4 (inline bodies stay behind the pointers: the pointer is the
   fresher copy, the inline text the outage fallback) > unknown types skipped; the server's order breaks ties. Each
   source's fetch/parse runs under `runCatching`, so a dead or throwing source is skipped, never the walk. The
@@ -57,7 +54,7 @@ providers by `MediaMetadata.id` (never `setVideoId`, which is a playlist-entry t
   byte-identical ports of the server's, pinned by golden files under `app/src/test/resources/lyrics/`
   (`JyricsParserGoldenTest`, `ShironetParserGoldenTest`, `ZingParserGoldenTest`, `JkaraokeLrcGoldenTest`,
   `Tab4uParserGoldenTest`, `ZemirotDbParserGoldenTest`, `SyncIntegrationTest`); they share `HtmlEntities.unescape`
-  and the `LyricsUtils.hasLyricBody` body gate (four non-blank lines, also Musixmatch's) except zemirotdb's word gate.
+  and the `LyricsUtils.hasLyricBody` body gate (four non-blank lines) except zemirotdb's word gate.
   Provider label: `Zemer · <source>` (verification is a server fact, not shown; the lyrics header shows just
   "Zemer", the sub-source stays in the stored label for reports); Zemer's own text is labelled just `Zemer`, and a
   `manual` row's suffix is its `origin` display name (`Telegram`, `verified` for `asrverified`, `Apple Music`,
@@ -115,11 +112,6 @@ providers by `MediaMetadata.id` (never `setVideoId`, which is a playlist-entry t
   > `syncedLyrics` > `plainLyric`, and a synced/word body only within `SYNC_TOLERANCE_SEC` (1 s) — otherwise plain
   (`syncAllowed`; an unknown duration on either side never syncs). Downloads embed
   `LyricsUtils.stripWordTags(...)` of that body: plain LRC, never `<mm:ss.xx>` word tags.
-* **Musixmatch** (`lyrics/musixmatch/MusixmatchLyrics.kt`): on-device, one desktop-API token per phone brokered by
-  the Zemer server (`ZemerLyricsClient.musixmatchToken`, direct issuance as the fallback behind a 30 min cooldown);
-  gates mirror the server's (`MusixmatchGatesTest`), `cleanLrc` formats with `Locale.US`. The last lookup outcome is
-  stored as a `MusixmatchStatus` CODE in `MusixmatchLastStatusKey` and localised by the Content settings row
-  (`musixmatchStatusText`; `MusixmatchStatusTest`), never as display text.
 * **LrcLib**: title/artist keyed. `LrcLib.identityMatches` requires title ≥ 0.75 AND artist ≥ 0.75 similarity AND
   duration within 3 s — a duration-only match served a Japanese song for a Baruch Levine track before this gate
   (`lrclib/src/test/.../LrcLibIdentityTest.kt`). The artist side passes when ANY credited artist matches

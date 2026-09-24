@@ -15,7 +15,6 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.first
 import timber.log.Timber
 import javax.inject.Inject
-import com.jtech.zemer.lyrics.musixmatch.MusixmatchLyricsProvider
 import com.jtech.zemer.utils.dataStore
 
 class LyricsHelper
@@ -25,7 +24,6 @@ constructor(
     private val networkConnectivity: NetworkConnectivityObserver,
 ) {
     init {
-        MusixmatchLyricsProvider.init(context)
     }
 
     /**

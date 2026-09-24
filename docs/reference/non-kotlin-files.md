@@ -1,6 +1,6 @@
 # Non-Kotlin file reference
 
-Every tracked non-Kotlin path outside `docs/` is listed. Text files report line counts; binary files report byte counts; gitlinks are recorded as non-file tracked paths. Total paths: `431`.
+Every tracked non-Kotlin path outside `docs/` is listed. Text files report line counts; binary files report byte counts; gitlinks are recorded as non-file tracked paths. Total paths: `428`.
 
 | Path | Size/status | Type metadata |
 | --- | ---: | --- |
@@ -12,7 +12,7 @@ Every tracked non-Kotlin path outside `docs/` is listed. Text files report line 
 | `.github/workflows/ui-audit.yml` | 56 lines | text `.yml` |
 | `.gitignore` | 117 lines | text `[none]` |
 | `.gitmodules` | 3 lines | text `[none]` |
-| `AGENTS.md` | 2074 lines | text `.md` |
+| `AGENTS.md` | 2066 lines | text `.md` |
 | `LICENSE` | 674 lines | text `[none]` |
 | `README.md` | 9 lines | text `.md` |
 | `app/.gitignore` | 1 lines | text `[none]` |
@@ -260,7 +260,7 @@ Every tracked non-Kotlin path outside `docs/` is listed. Text files report line 
 | `app/src/main/res/values/app_name.xml` | 4 lines | text `.xml`; XML root `resources` |
 | `app/src/main/res/values/colors.xml` | 9 lines | text `.xml`; XML root `resources` |
 | `app/src/main/res/values/metrolist_strings.xml` | 698 lines | text `.xml`; XML root `resources` |
-| `app/src/main/res/values/strings.xml` | 472 lines | text `.xml`; XML root `resources` |
+| `app/src/main/res/values/strings.xml` | 459 lines | text `.xml`; XML root `resources` |
 | `app/src/main/res/values/styles.xml` | 26 lines | text `.xml`; XML root `resources` |
 | `app/src/main/res/values/values.xml` | 8 lines | text `.xml`; XML root `resources` |
 | `app/src/main/res/xml-v25/shortcuts.xml` | 33 lines | text `.xml`; XML root `shortcuts` |
@@ -280,9 +280,6 @@ Every tracked non-Kotlin path outside `docs/` is listed. Text files report line 
 | `app/src/test/resources/lyrics/jyrics-1.html` | 706 lines | text `.html` |
 | `app/src/test/resources/lyrics/jyrics-2.html` | 751 lines | text `.html` |
 | `app/src/test/resources/lyrics/jyrics-golden.json` | 14 lines | text `.json`; JSON keys `jyrics-0.html, jyrics-1.html, jyrics-2.html` |
-| `app/src/test/resources/lyrics/musixmatch-0.json` | 1 lines | text `.json`; JSON keys `message` |
-| `app/src/test/resources/lyrics/musixmatch-1.json` | 1 lines | text `.json`; JSON keys `message` |
-| `app/src/test/resources/lyrics/musixmatch-hit.json` | 1 lines | text `.json`; JSON keys `message` |
 | `app/src/test/resources/lyrics/resolve-apple-linetimes.json` | 1 lines | text `.json`; JSON keys `videoId, lang, verified, hasSynced, sources, lineTimes` |
 | `app/src/test/resources/lyrics/resolve-zemer-richsync.json` | 1 lines | text `.json`; JSON keys `videoId, lang, verified, hasSynced, sources` |
 | `app/src/test/resources/lyrics/resolve-zingmusic-linetimes.json` | 1 lines | text `.json`; JSON keys `videoId, lang, verified, hasSynced, sources, lineTimes` |

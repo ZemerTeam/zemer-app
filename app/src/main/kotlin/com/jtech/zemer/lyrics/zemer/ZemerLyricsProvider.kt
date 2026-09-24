@@ -4,7 +4,6 @@ import com.jtech.zemer.constants.EnableZemerLyricsKey
 import com.jtech.zemer.lyrics.LabeledLyrics
 import com.jtech.zemer.lyrics.LyricsProvider
 import com.jtech.zemer.lyrics.LyricsUtils
-import com.jtech.zemer.lyrics.musixmatch.MusixmatchLyricsProvider
 import com.jtech.zemer.lyrics.simpmusic.SimpMusicLyricsProvider
 import com.jtech.zemer.lyrics.LyricsUnavailableException
 import kotlinx.coroutines.CancellationException
@@ -14,7 +13,7 @@ import kotlinx.coroutines.CancellationException
  * the sources the server vouches for. Sources are walked SYNCED FIRST (a source the server flags `synced`, one
  * carrying `syncedLrc`/`richSync` inline, or the one pointer the resolver's measured `lineTimes` cover), then
  * by [rank]: zemer (Zemer's own certified text + word timings) > jkaraoke / apple (line-synced from the source) >
- * lrclib / kugou / musixmatch / zingmusic / youtube > the text pages jyrics / shironet / tab4u / zemirotdb /
+ * lrclib / kugou / zingmusic / youtube > the text pages jyrics / shironet / tab4u / zemirotdb /
  * lyricstranslate > the operator-hosted booklet / manual / canonical / community bodies (kept behind the
  * pointers: a pointer is the fresher copy, the inline body the fallback through a provider outage).
  * Every body goes through the same parser the server used to verify it (golden-pinned ports), so what the
@@ -36,7 +35,6 @@ object ZemerLyricsProvider : LyricsProvider {
         firstOnly: Boolean = false,
         zing: suspend (Long) -> String? = ZemerLyricsClient::zingLyricsHtml,
         youtube: suspend (String) -> String? = ZemerLyricsClient::youtubeLyricsTab,
-        musixmatch: suspend (Long, Long, Boolean) -> String? = MusixmatchLyricsProvider::lyricsById,
         simpmusic: suspend (String, String, Boolean) -> String? = SimpMusicLyricsProvider::lyricsByEntry,
     ): List<Pair<String, String>> {
         val out = ArrayList<Pair<String, String>>()
@@ -48,7 +46,6 @@ object ZemerLyricsProvider : LyricsProvider {
                 "zemer" -> s.richSync?.takeIf { it.isNotBlank() } ?: inline(s)
                 "jkaraoke" -> s.feedUrl?.let { fetch(it) }?.let { page -> s.songId?.let { id -> JkaraokeLrc.fromFeedPage(page, id, jkaraokeOffset(s))?.synced } }
                 "apple" -> s.catalogId?.takeIf { it.isNotBlank() }?.let { fetch(AppleTtmlLrc.url(it)) }?.let(AppleTtmlLrc::fromReply)
-                "musixmatch" -> s.commontrackId?.let { c -> s.trackId?.let { t -> musixmatch(c, t, s.synced) } }?.takeIf(LyricsUtils::hasLyricBody)
                 // The verified entry of the catalog the server names (additive `videoId`), else the track's own catalog -
                 // every pointer served today is filed under the track's videoId.
                 "simpmusic" -> s.entryId?.let { simpmusic(s.videoId ?: resolved.videoId, it, s.synced) }?.takeIf(LyricsUtils::hasLyricBody)
@@ -97,7 +94,7 @@ object ZemerLyricsProvider : LyricsProvider {
     fun rank(s: ZemerLyricsClient.Source) = when (s.type) {
         "zemer" -> 0
         "jkaraoke", "apple" -> 1
-        "lrclib", "kugou", "musixmatch", "simpmusic", "zingmusic", "youtube" -> 2
+        "lrclib", "kugou", "simpmusic", "zingmusic", "youtube" -> 2
         "jyrics", "shironet", "tab4u", "zemirotdb", "lyricstranslate" -> 3
         "booklet", "manual", "canonical", "community" -> 4
         else -> 9

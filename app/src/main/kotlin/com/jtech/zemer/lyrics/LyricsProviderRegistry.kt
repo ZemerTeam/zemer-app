@@ -1,7 +1,6 @@
 package com.jtech.zemer.lyrics
 
 import com.jtech.zemer.lyrics.zemer.ZemerLyricsProvider
-import com.jtech.zemer.lyrics.musixmatch.MusixmatchLyricsProvider
 import com.jtech.zemer.lyrics.simpmusic.SimpMusicLyricsProvider
 import com.jtech.zemer.lyrics.lrclib.LrcLibLyricsProvider
 import com.jtech.zemer.lyrics.youtube.YouTubeLyricsProvider
@@ -13,18 +12,16 @@ import com.jtech.zemer.lyrics.youtube.YouTubeSubtitleLyricsProvider
  * the Content settings dialogs (provider selection, drag-to-reorder priority) port over unchanged.
  *
  * Default order is the accuracy order: the Zemer resolver (curated, cross-verified) first; the videoId-keyed
- * and identity-gated providers next; Musixmatch on-device; YouTube (lower trust) last.
+ * and identity-gated providers next; YouTube (lower trust) last.
  */
 object LyricsProviderRegistry {
     private val providerMap = linkedMapOf<String, LyricsProvider>(
         // Accuracy first, then coverage on THIS catalog: Zemer is the only cross-verified source; SimpMusic
-        // matches the exact YouTube videoId (can't mismatch); Musixmatch outranks LrcLib because on the Jewish
-        // catalog Musixmatch matched ~50% of recognised tracks (most synced) while LrcLib hit ~1/120; YouTube's
+        // matches the exact YouTube videoId (can't mismatch); LrcLib is identity-gated; YouTube's
         // tab is lower trust, tried last. The pick rule (synced-first among trusted providers, low-trust YouTube only
         // when nothing else answered) is SyncedFirstPicker.
         "Zemer" to ZemerLyricsProvider,
         "SimpMusic" to SimpMusicLyricsProvider,
-        "Musixmatch" to MusixmatchLyricsProvider,
         "LrcLib" to LrcLibLyricsProvider,
         "YouTubeSubtitle" to YouTubeSubtitleLyricsProvider,
         "YouTube" to YouTubeLyricsProvider,
