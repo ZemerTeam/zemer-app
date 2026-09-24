@@ -34,6 +34,7 @@ import androidx.media3.common.Player.EVENT_TIMELINE_CHANGED
 import androidx.media3.common.Player.REPEAT_MODE_ALL
 import androidx.media3.common.Player.REPEAT_MODE_OFF
 import androidx.media3.common.Player.REPEAT_MODE_ONE
+import androidx.media3.common.Player.STATE_ENDED
 import androidx.media3.common.Player.STATE_IDLE
 import androidx.media3.common.Timeline
 import androidx.media3.common.audio.SonicAudioProcessor
@@ -78,6 +79,7 @@ import com.metrolist.innertube.models.SongItem
 import com.metrolist.innertube.models.WatchEndpoint
 import com.jtech.zemer.MainActivity
 import com.jtech.zemer.R
+import com.jtech.zemer.extensions.toast
 import com.jtech.zemer.constants.AndroidAutoTargetPlaylistKey
 import com.jtech.zemer.constants.AudioNormalizationKey
 import com.jtech.zemer.constants.PlaybackMode
@@ -771,9 +773,13 @@ class MusicService :
             }.onSuccess { queue ->
                 // Convert back to proper queue type
                 val restoredQueue = queue.toQueue()
+                // The restore is asynchronous: a resume-shortcut command that arrives before it lands
+                // parks on this flag (resumePlayback) instead of racing a timer.
+                queueRestoreInFlight = true
                 playQueue(
                     queue = restoredQueue,
                     playWhenReady = false,
+                    onLoaded = ::onQueueRestored,
                 )
             }.onFailure {
                 if (it !is FileNotFoundException) reportException(it)
@@ -1145,6 +1151,7 @@ class MusicService :
     fun playQueue(
         queue: Queue,
         playWhenReady: Boolean = true,
+        onLoaded: (() -> Unit)? = null,
     ) {
         val previousQueue = currentQueue
         stationWaitJob?.cancel()
@@ -1166,72 +1173,78 @@ class MusicService :
             player.playWhenReady = CastPlayback.shouldStartLocalPlayback(playWhenReady, discoveryHandler.isConnected)
         }
         scope.launch(SilentHandler) {
-            val initialStatus =
-                try {
-                    withContext(Dispatchers.IO) {
-                        queue.getInitialStatus()
-                            .filterBlockedPodcasts(podcastsBlocked())
+            try {
+                val initialStatus =
+                    try {
+                        withContext(Dispatchers.IO) {
+                            queue.getInitialStatus()
+                                .filterBlockedPodcasts(podcastsBlocked())
+                        }
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (e: Exception) {
+                        // A failed fetch must never be silent. Without a preload nothing plays: tell the
+                        // user and hand auto-continuation back to the queue that was playing (its player
+                        // items are untouched — only the pointer was swapped). With a preload the tapped
+                        // song IS playing but the radio fill failed: say so (a one-song queue reads as
+                        // broken) and KEEP this queue — its nextPage retries the seed page on a later
+                        // transition, so the radio can still start once the network recovers.
+                        reportException(e)
+                        if (currentQueue === queue) {
+                            if (queue.preloadItem == null) currentQueue = previousQueue
+                            onStartRadioFailed()
+                        }
+                        return@launch
                     }
-                } catch (e: CancellationException) {
-                    throw e
-                } catch (e: Exception) {
-                    // A failed fetch must never be silent. Without a preload nothing plays: tell the
-                    // user and hand auto-continuation back to the queue that was playing (its player
-                    // items are untouched — only the pointer was swapped). With a preload the tapped
-                    // song IS playing but the radio fill failed: say so (a one-song queue reads as
-                    // broken) and KEEP this queue — its nextPage retries the seed page on a later
-                    // transition, so the radio can still start once the network recovers.
-                    reportException(e)
-                    if (currentQueue === queue) {
-                        if (queue.preloadItem == null) currentQueue = previousQueue
-                        onStartRadioFailed()
+                // Tracking: initial items keep the queue's source when they are the chosen context
+                // (album/playlist tracks); a radio queue's fill beyond the tapped song reports "radio".
+                // Guarded: a slow-loading queue the user already replaced must not register its items
+                // over the newer queue's registrations.
+                if (currentQueue === queue) {
+                    initialStatus.items.map { it.mediaId }.let { ids ->
+                        if (queue.initialItemsAreContext) {
+                            Tracker.playSources.registerContext(queue.playSource, ids)
+                        } else {
+                            Tracker.playSources.registerRadio(ids)
+                        }
                     }
-                    return@launch
                 }
-            // Tracking: initial items keep the queue's source when they are the chosen context
-            // (album/playlist tracks); a radio queue's fill beyond the tapped song reports "radio".
-            // Guarded: a slow-loading queue the user already replaced must not register its items
-            // over the newer queue's registrations.
-            if (currentQueue === queue) {
-                initialStatus.items.map { it.mediaId }.let { ids ->
-                    if (queue.initialItemsAreContext) {
-                        Tracker.playSources.registerContext(queue.playSource, ids)
-                    } else {
-                        Tracker.playSources.registerRadio(ids)
-                    }
+                if (queue.preloadItem != null && player.playbackState == STATE_IDLE) return@launch
+                if (initialStatus.title != null) {
+                    queueTitle = initialStatus.title
                 }
-            }
-            if (queue.preloadItem != null && player.playbackState == STATE_IDLE) return@launch
-            if (initialStatus.title != null) {
-                queueTitle = initialStatus.title
-            }
-            if (initialStatus.items.isEmpty()) return@launch
-            if (queue.preloadItem != null) {
-                player.addMediaItems(
-                    0,
-                    initialStatus.items.subList(0, initialStatus.mediaItemIndex)
-                )
-                player.addMediaItems(
-                    initialStatus.items.subList(
-                        initialStatus.mediaItemIndex + 1,
-                        initialStatus.items.size
+                if (initialStatus.items.isEmpty()) return@launch
+                if (queue.preloadItem != null) {
+                    player.addMediaItems(
+                        0,
+                        initialStatus.items.subList(0, initialStatus.mediaItemIndex)
                     )
-                )
-            } else {
-                player.setMediaItems(
-                    initialStatus.items,
-                    if (initialStatus.mediaItemIndex >
-                        0
-                    ) {
-                        initialStatus.mediaItemIndex
-                    } else {
-                        0
-                    },
-                    initialStatus.position,
-                )
-                player.prepare()
-                // Same cast guard as the preload branch above.
-                player.playWhenReady = CastPlayback.shouldStartLocalPlayback(playWhenReady, discoveryHandler.isConnected)
+                    player.addMediaItems(
+                        initialStatus.items.subList(
+                            initialStatus.mediaItemIndex + 1,
+                            initialStatus.items.size
+                        )
+                    )
+                } else {
+                    player.setMediaItems(
+                        initialStatus.items,
+                        if (initialStatus.mediaItemIndex >
+                            0
+                        ) {
+                            initialStatus.mediaItemIndex
+                        } else {
+                            0
+                        },
+                        initialStatus.position,
+                    )
+                    player.prepare()
+                    // Same cast guard as the preload branch above.
+                    player.playWhenReady = CastPlayback.shouldStartLocalPlayback(playWhenReady, discoveryHandler.isConnected)
+                }
+            } finally {
+                // Fires on every exit (success, a failed fetch, an empty queue) so a caller
+                // waiting on this load - the resume shortcut's parked command - always hears back.
+                if (isActive) onLoaded?.invoke()
             }
         }
     }
@@ -3105,11 +3118,50 @@ class MusicService :
         super.onDestroy()
     }
 
+    // Resume-shortcut state (#508), see ResumeShortcut. Main thread only (scope is Main).
+    private var queueRestoreInFlight = false
+    private var resumeWhenRestored = false
+
+    private fun onQueueRestored() {
+        queueRestoreInFlight = false
+        if (resumeWhenRestored) {
+            resumeWhenRestored = false
+            resumePlayback()
+        }
+    }
+
+    /**
+     * ACTION_RESUME_PLAYBACK from the launcher shortcut's trampoline (#508): resume in the background
+     * without opening the UI. Media3 promotes the service to the foreground once playback starts.
+     */
+    private fun resumePlayback() {
+        when (ResumeShortcut.decide(queueRestoreInFlight, player.mediaItemCount)) {
+            ResumeShortcut.Action.WAIT_FOR_RESTORE -> resumeWhenRestored = true
+            ResumeShortcut.Action.NOTHING_TO_RESUME -> toast(R.string.nothing_to_resume)
+            ResumeShortcut.Action.PLAY -> {
+                // While casting the receiver plays, not the local player - the same routing the
+                // widget's play control uses; a bare local play() would sound alongside the receiver.
+                if (discoveryHandler.isConnected) {
+                    discoveryHandler.play()
+                    return
+                }
+                // A queue the player dropped (an error) or played to its end needs re-preparing or
+                // rewinding before play() does anything.
+                when (player.playbackState) {
+                    STATE_IDLE -> player.prepare()
+                    STATE_ENDED -> player.seekTo(0, 0L)
+                }
+                player.play()
+            }
+        }
+    }
+
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         // Every explicit start (widget, media button, the activity, a sticky restart) is intent;
         // only a bare bind (the post-boot scanner) is not. See userIntentSeen.
         markUserIntent()
         when (intent?.action) {
+            ACTION_RESUME_PLAYBACK -> resumePlayback()
             MusicWidget.ACTION_PLAY_PAUSE -> {
                 if (discoveryHandler.isConnected) {
                     // isRemotePlaying falls back to the play intent before the receiver's first state
@@ -3190,6 +3242,9 @@ class MusicService :
     }
 
     companion object {
+        // Background resume from the launcher shortcut (#508): ResumePlaybackActivity starts the
+        // service with this action and finishes, so playback resumes without opening the app UI.
+        const val ACTION_RESUME_PLAYBACK = "com.jtech.zemer.action.RESUME_PLAYBACK"
         const val ROOT = "root"
         const val SONG = "song"
         const val ARTIST = "artist"
