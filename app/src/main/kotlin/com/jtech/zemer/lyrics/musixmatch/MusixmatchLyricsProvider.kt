@@ -1,9 +1,9 @@
-package com.jtech.zemer.lyrics
+package com.jtech.zemer.lyrics.musixmatch
 
 import android.content.Context
 import com.jtech.zemer.constants.EnableMusixmatchKey
-import com.jtech.zemer.lyrics.model.LyricsUnavailableException
-import com.jtech.zemer.lyrics.musixmatch.MusixmatchLyrics
+import com.jtech.zemer.lyrics.LyricsUnavailableException
+import com.jtech.zemer.lyrics.LyricsProvider
 
 /** Musixmatch, on-device and gated (see [MusixmatchLyrics]); after the Zemer resolver and the videoId-keyed providers. */
 object MusixmatchLyricsProvider : LyricsProvider {

@@ -1,7 +1,8 @@
-package com.jtech.zemer.lyrics
+package com.jtech.zemer.lyrics.youtube
 
 import com.jtech.zemer.constants.EnableYouTubeLyricsKey
 import com.metrolist.innertube.YouTube
+import com.jtech.zemer.lyrics.LyricsProvider
 
 object YouTubeSubtitleLyricsProvider : LyricsProvider {
     override val name = "YouTube Subtitle"

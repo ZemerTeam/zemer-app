@@ -4,11 +4,13 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 /**
- * One SimpMusic catalog entry - only the fields the provider reads (the client ignores unknown keys, so
- * the wire's title/artist/album/vote metadata is simply not modelled).
+ * One SimpMusic catalog entry - only the fields the providers read (the client ignores unknown keys, so
+ * the wire's title/artist/album/vote metadata is simply not modelled). [id] is what a Zemer resolver
+ * `simpmusic` pointer names as its `entryId`.
  */
 @Serializable
 data class SimpMusicLyricsData(
+    val id: String? = null,
     @SerialName("durationSeconds")
     val duration: Int? = null,
     val syncedLyrics: String? = null,

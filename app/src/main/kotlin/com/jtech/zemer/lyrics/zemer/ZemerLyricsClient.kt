@@ -1,24 +1,22 @@
 package com.jtech.zemer.lyrics.zemer
 
 import com.jtech.zemer.BuildConfig
-import io.ktor.client.HttpClient
 import io.ktor.client.call.body
-import io.ktor.client.engine.cio.CIO
-import io.ktor.client.plugins.HttpTimeout
-import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.request.get
 import io.ktor.client.request.header
-import io.ktor.client.statement.bodyAsText
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.serialization.kotlinx.json.json
-import io.ktor.client.request.post
 import io.ktor.client.request.setBody
 import com.jtech.zemer.lyrics.LyricsUtils
 import com.metrolist.innertube.YouTube
 import com.metrolist.innertube.models.BrowseEndpoint
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
+import com.jtech.zemer.lyrics.LyricsHttp
+import com.jtech.zemer.lyrics.lrclib.LrcLibTrack
+import io.ktor.client.statement.bodyAsText
+import io.ktor.client.request.post
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
@@ -57,6 +55,8 @@ object ZemerLyricsClient {
         val wordSyncPartial: Boolean? = null, // word tags exist but not for the whole song, so the server withheld richSync
         val provenance: String? = null,   // zemer: how the certified text was produced (label only)
         val admittedBy: String? = null,   // zemer: what admitted it (label only)
+        val entryId: String? = null,      // simpmusic: the audio-verified entry (its `id`) in the track's by-videoId catalog
+        val videoId: String? = null,      // simpmusic: the catalog the entry is filed under (additive; equals the track's id for every row served today)
     )
 
     /**
@@ -106,29 +106,17 @@ object ZemerLyricsClient {
         val lineExtras: LineExtras? = null,
     )
 
-    internal val json = Json { ignoreUnknownKeys = true; isLenient = true; explicitNulls = false }
-
-    /** One LRCLIB record (`https://lrclib.net/api/get/<id>`); the server hands out the id of a duration-matched row. */
-    @Serializable
-    data class LrcLibTrack(val id: Long = 0, val syncedLyrics: String? = null, val plainLyrics: String? = null, val instrumental: Boolean = false)
+    internal val json: Json get() = LyricsHttp.json
 
     /** LRC when LRCLIB has line times, else the plain text; null for an instrumental or an empty record. */
     fun lrclibBody(body: String): String? = runCatching { json.decodeFromString<LrcLibTrack>(body) }.getOrNull()
         ?.takeUnless { it.instrumental }
         ?.let { t -> t.syncedLyrics?.takeIf { it.isNotBlank() } ?: t.plainLyrics?.takeIf(LyricsUtils::hasLyricBody) }
 
-    private val client by lazy {
-        HttpClient(CIO) {
-            install(ContentNegotiation) { json(json) }
-            install(HttpTimeout) { requestTimeoutMillis = 15000; connectTimeoutMillis = 10000; socketTimeoutMillis = 15000 }
-            expectSuccess = false
-        }
-    }
-
     var baseUrl: String = BuildConfig.ZEMER_LYRICS_BASE_URL.trimEnd('/')
 
     suspend fun resolve(videoId: String): Resolved? {
-        val r = client.get("$baseUrl/lyrics/resolve") { url { parameters.append("videoId", videoId) }; header(HttpHeaders.Accept, "application/json") }
+        val r = LyricsHttp.client.get("$baseUrl/lyrics/resolve") { url { parameters.append("videoId", videoId) }; header(HttpHeaders.Accept, "application/json") }
         return if (r.status == HttpStatusCode.OK) r.body<Resolved>() else null
     }
 
@@ -140,7 +128,7 @@ object ZemerLyricsClient {
      */
     suspend fun extrasForLines(videoId: String, lines: List<String>, lang: String): ExtrasReply = runCatching {
         val body = json.encodeToString(ExtrasRequest.serializer(), ExtrasRequest(videoId, lang, lines))
-        val r = client.post("$baseUrl/lyrics/extras") { header(HttpHeaders.ContentType, "application/json"); header(HttpHeaders.Accept, "application/json"); setBody(body) }
+        val r = LyricsHttp.client.post("$baseUrl/lyrics/extras") { header(HttpHeaders.ContentType, "application/json"); header(HttpHeaders.Accept, "application/json"); setBody(body) }
         when (r.status) {
             HttpStatusCode.OK -> ExtrasReply(json.decodeFromString(LineExtras.serializer(), r.bodyAsText()), failed = false)
             HttpStatusCode.NotFound -> ExtrasReply(null, failed = false)
@@ -149,7 +137,7 @@ object ZemerLyricsClient {
     }.getOrElse { if (it is kotlinx.coroutines.CancellationException) throw it; ExtrasReply(null, failed = true) }
 
     suspend fun fetchText(url: String): String? {
-        val r = client.get(url) { header(HttpHeaders.UserAgent, "Zemer/${BuildConfig.VERSION_NAME} lyrics"); header(HttpHeaders.Accept, "text/html,application/json") }
+        val r = LyricsHttp.client.get(url) { header(HttpHeaders.UserAgent, "Zemer/${BuildConfig.VERSION_NAME} lyrics"); header(HttpHeaders.Accept, "text/html,application/json") }
         return if (r.status == HttpStatusCode.OK) r.bodyAsText() else null
     }
 
@@ -166,7 +154,7 @@ object ZemerLyricsClient {
      */
     suspend fun zingLyricsHtml(trackId: Long): String? {
         val body = """{"query":"{ track(where:{id:$trackId}){ heLyrics enLyrics } }"}"""
-        val r = client.post("https://jewishmusic.fm:8443/graphql") { header(HttpHeaders.ContentType, "application/json"); setBody(body) }
+        val r = LyricsHttp.client.post("https://jewishmusic.fm:8443/graphql") { header(HttpHeaders.ContentType, "application/json"); setBody(body) }
         if (r.status != HttpStatusCode.OK) return null
         val j = json.parseToJsonElement(r.bodyAsText()).jsonObject["data"]?.jsonObject?.get("track")?.let { runCatching { it.jsonObject }.getOrNull() } ?: return null
         return j["heLyrics"]?.jsonPrimitive?.contentOrNull?.takeIf { it.isNotBlank() } ?: j["enLyrics"]?.jsonPrimitive?.contentOrNull
@@ -185,14 +173,14 @@ object ZemerLyricsClient {
             if (lang != null) append(",\"lang\":").append(Json.encodeToString(kotlinx.serialization.serializer<String>(), lang))
             append("}")
         }
-        val r = client.post("$baseUrl/lyrics/submit") { header(HttpHeaders.ContentType, "application/json"); setBody(body) }
+        val r = LyricsHttp.client.post("$baseUrl/lyrics/submit") { header(HttpHeaders.ContentType, "application/json"); setBody(body) }
         r.status == HttpStatusCode.OK
     }.getOrDefault(false)
 
     /** "Wrong lyrics" report: two distinct devices within 30 days make the server hide the row until re-verified. */
     suspend fun reportLyrics(videoId: String, device: String): Boolean = runCatching {
         val body = "{\"videoId\":" + Json.encodeToString(kotlinx.serialization.serializer<String>(), videoId) + ",\"device\":" + Json.encodeToString(kotlinx.serialization.serializer<String>(), device) + "}"
-        client.post("$baseUrl/lyrics/report") { header(HttpHeaders.ContentType, "application/json"); setBody(body) }.status == HttpStatusCode.OK
+        LyricsHttp.client.post("$baseUrl/lyrics/report") { header(HttpHeaders.ContentType, "application/json"); setBody(body) }.status == HttpStatusCode.OK
     }.getOrDefault(false)
 
     @Serializable
@@ -200,7 +188,7 @@ object ZemerLyricsClient {
 
     /** The shared Musixmatch token brokered by the server (one clean IP issues it; every app reuses it). */
     suspend fun musixmatchToken(renew: String? = null): String? {
-        val r = client.get("$baseUrl/lyrics/musixmatch-token") { if (renew != null) url { parameters.append("renew", renew) }; header(HttpHeaders.Accept, "application/json") }
+        val r = LyricsHttp.client.get("$baseUrl/lyrics/musixmatch-token") { if (renew != null) url { parameters.append("renew", renew) }; header(HttpHeaders.Accept, "application/json") }
         return if (r.status == HttpStatusCode.OK) r.body<MusixmatchToken>().token else null
     }
 }

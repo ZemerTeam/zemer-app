@@ -225,4 +225,37 @@ class ZemerLyricsProviderTest {
         assertEquals(-0.2, ZemerLyricsProvider.jkaraokeOffset(src.copy(offsetSec = -0.2, offsetFrom = "measured")), 0.0)
         assertEquals(0.0, ZemerLyricsProvider.jkaraokeOffset(src), 0.0)
     }
+
+    /** A `simpmusic` pointer is the verified entry of the track's own catalog, fetched by (videoId, entryId) with the server's synced flag. */
+    @Test
+    fun `simpmusic pointer fetches the exact entry under the track videoId, ranks with the timed pointers, and is skipped when the entry is gone`() = runBlocking {
+        val lrc = "[00:01.00] one\n[00:02.00] two\n[00:03.00] three\n[00:04.00] four"
+        val resolved = ZemerLyricsClient.Resolved(
+            videoId = "aPnt1xqBv5c", verified = true, hasSynced = true,
+            sources = listOf(
+                ZemerLyricsClient.Source(type = "simpmusic", entryId = "6937f8a70012d3ecbb81", synced = true),
+                ZemerLyricsClient.Source(type = "youtube", browseId = "MPLYt_x"),
+            ),
+        )
+        val asked = ArrayList<Triple<String, String, Boolean>>()
+        val bodies = ZemerLyricsProvider.bodies(
+            resolved, fetch = { null }, youtube = { "plain\nyoutube\ntab\ntext" },
+            simpmusic = { v, e, synced -> asked += Triple(v, e, synced); lrc },
+        )
+        assertEquals(listOf(Triple("aPnt1xqBv5c", "6937f8a70012d3ecbb81", true)), asked)
+        assertEquals(listOf("simpmusic", "youtube"), bodies.map { it.first })
+        assertEquals(lrc, bodies[0].second)
+        assertEquals(2, ZemerLyricsProvider.rank(resolved.sources[0]))
+        // the entry vanished upstream: the pointer yields nothing and the walk continues
+        val gone = ZemerLyricsProvider.bodies(resolved, fetch = { null }, youtube = { "plain\nyoutube\ntab\ntext" }, simpmusic = { _, _, _ -> null })
+        assertEquals(listOf("youtube"), gone.map { it.first })
+        // a pointer naming the entry's own catalog (additive videoId) is fetched there, not under the track id
+        val filed = ZemerLyricsClient.Resolved(videoId = "trackId", sources = listOf(ZemerLyricsClient.Source(type = "simpmusic", videoId = "otherCatalog", entryId = "e9", synced = false)))
+        asked.clear()
+        ZemerLyricsProvider.bodies(filed, fetch = { null }, simpmusic = { v, e, synced -> asked += Triple(v, e, synced); "a\nb\nc\nd" })
+        assertEquals(listOf(Triple("otherCatalog", "e9", false)), asked)
+        // no entryId (an older server) never fetches
+        val noId = ZemerLyricsClient.Resolved(videoId = "x", sources = listOf(ZemerLyricsClient.Source(type = "simpmusic", synced = true)))
+        assertTrue(ZemerLyricsProvider.bodies(noId, fetch = { null }, simpmusic = { _, _, _ -> error("must not be called") }).isEmpty())
+    }
 }

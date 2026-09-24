@@ -655,6 +655,18 @@ The rules that must not regress:
 
 ### Lyrics (the provider chain, the Zemer resolver, sync) — `docs/lyrics/README.md`
 
+**Layout (`lyrics/`, reorganised 2026-09-24):** the package root holds the chain core only - `LyricsProvider`
+(the interface), `LyricsHelper`, `LyricsChainWalk`, `SyncedFirstPicker`, `LyricsProviderRegistry`/`Ordering`,
+`LyricsStore`/`LyricsEntry`, `LyricsUtils`, `LineExtras`/`LineExtrasStore`, `LyricsUnavailableException`, and
+`LyricsHttp` - and every source lives in ONE package with its client, its models and its `LyricsProvider`
+wrapper together: `lrclib/`, `simpmusic/`, `musixmatch/`, `youtube/` (the two YouTube providers) and `zemer/`
+(the resolver client + provider + the parsers it drives). All four network sources share the single Ktor client
+`LyricsHttp` (lenient JSON, 15/10/15 s timeouts, never throws on status - each caller judges its own reply); do
+not re-add a per-source `HttpClient`. `lrclib/LrcLibTrack` is the ONE LRCLIB record model for both the search
+hit and the by-id row the resolver vouches for. The two `cleanTitle`/`cleanArtist` pairs (LrcLib's fork-era
+English patterns vs Musixmatch's Hebrew-aware gates that mirror the server harvester) are deliberately separate
+contracts, not a duplicate to merge.
+
 `lyrics/LyricsHelper.kt` runs the providers in order: **Zemer resolver first** (`lyrics/zemer/`; the search
 server's `/lyrics/resolve` returns source POINTERS, the app fetches Jyrics/Shironet/jkaraoke/tab4u/zemirotdb
 itself through golden-pinned parser ports of the server's parsers — `JyricsParser`, `ShironetParser`,
@@ -666,12 +678,15 @@ videoId), and an audio-verified LRCLIB record by id, `ZemerLyricsClient.lrclibBo
 only for rows its audio check confirmed, an Apple Music row by `catalogId` (`AppleTtmlLrc`: a synced reply's ready
 `lrc`, else its TTML `<p begin>` onsets → LRC, Apple's own line times; an UNSYNCED reply (`type: "None"`, no
 `begin`s) serves its `plain` text with the `[Verse]` labels dropped — never nothing for a vouched row; golden-pinned
-both ways), and a Musixmatch row by id
+both ways), a SimpMusic row by `entryId`
+(`SimpMusicLyrics.getLyricsByEntry`: the catalog the pointer's additive `videoId` names - else the track's own - fetched and
+the exact audio-verified entry picked, there is no per-entry endpoint, with the server's `synced` flag deciding whether its timings are served, `entryBody` - a synced pointer whose entry lost its timings upstream yields nothing, never plain text in the synced slot;
+the server never inlines simpmusic text, and a missing entry yields nothing so the walk continues), and a Musixmatch row by id
 (`MusixmatchLyrics.getLyricsById`, `track.lyrics.get` + `track.subtitle.get` under the phone's own brokered token,
 text gates only — the server already matched the recording). Walk order (`ZemerLyricsProvider.order`): SYNCED
 sources first (`synced`, an inline `syncedLrc`/`richSync`, or the one pointer `lineTimes` covers), then rank
 (`ZemerLyricsProvider.rank`): `zemer` 0 (Zemer's own certified text, `richSync` word tags > `syncedLrc` > `plain`,
-labelled just "Zemer") > jkaraoke/apple 1 > lrclib/kugou/musixmatch/zingmusic/youtube 2 > the text pages 3 >
+labelled just "Zemer") > jkaraoke/apple 1 > lrclib/kugou/musixmatch/simpmusic/zingmusic/youtube 2 > the text pages 3 >
 booklet/manual/canonical/community 4 (the inline bodies stay BEHIND the pointers: a pointer is the fresher copy,
 the inline text the outage fallback); the server's order breaks ties; an unknown type is skipped, never guessed;
 one source's fetch/parse failure skips that source, never the walk. A `manual` row's label names its `origin`

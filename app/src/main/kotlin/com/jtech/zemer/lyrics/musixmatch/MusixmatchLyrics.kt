@@ -3,30 +3,27 @@ package com.jtech.zemer.lyrics.musixmatch
 import com.jtech.zemer.lyrics.LyricsUtils
 import java.util.Locale
 import android.content.Context
-import androidx.datastore.preferences.core.edit
 import com.jtech.zemer.constants.MusixmatchCooldownUntilKey
 import com.jtech.zemer.constants.MusixmatchLastStatusKey
 import com.jtech.zemer.constants.MusixmatchTokenKey
 import com.jtech.zemer.lyrics.zemer.ZemerLyricsClient
+import io.ktor.client.request.header
+import io.ktor.http.HttpHeaders
+import kotlinx.serialization.json.JsonObject
+import java.text.Normalizer
+import kotlin.math.abs
+import com.jtech.zemer.lyrics.LyricsHttp
+import androidx.datastore.preferences.core.edit
 import com.jtech.zemer.utils.dataStore
 import com.jtech.zemer.utils.get
-import io.ktor.client.HttpClient
-import io.ktor.client.engine.cio.CIO
-import io.ktor.client.plugins.HttpTimeout
 import io.ktor.client.request.get
-import io.ktor.client.request.header
 import io.ktor.client.statement.bodyAsText
-import io.ktor.http.HttpHeaders
-import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.longOrNull
-import java.text.Normalizer
-import kotlin.math.abs
 
 /**
  * Musixmatch (the catalog behind Spotify's lyrics) — queried ON-DEVICE, last in the provider chain, with the
@@ -124,17 +121,10 @@ object MusixmatchLyrics {
     }
 
     // ---- network ----
-    private val json = Json { ignoreUnknownKeys = true; isLenient = true }
-    private val client by lazy {
-        HttpClient(CIO) {
-            install(HttpTimeout) { requestTimeoutMillis = 15000; connectTimeoutMillis = 10000; socketTimeoutMillis = 15000 }
-            expectSuccess = false
-        }
-    }
     private const val UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36"
 
     private suspend fun getJson(url: String): JsonObject? = runCatching {
-        json.parseToJsonElement(client.get(url) { header(HttpHeaders.UserAgent, UA); header(HttpHeaders.Cookie, "x-mxm-token-guid=") }.bodyAsText()).jsonObject
+        LyricsHttp.json.parseToJsonElement(LyricsHttp.client.get(url) { header(HttpHeaders.UserAgent, UA); header(HttpHeaders.Cookie, "x-mxm-token-guid=") }.bodyAsText()).jsonObject
     }.getOrNull()
 
     private fun JsonObject.unauthorized(): Boolean = header()?.get("status_code")?.jsonPrimitive?.intOrNull == 401
@@ -257,5 +247,5 @@ object MusixmatchLyrics {
     fun payload(ly: JsonObject?): LyricsPayload =
         LyricsPayload(ly?.get("lyrics_body")?.jsonPrimitive?.contentOrNull, (ly?.get("instrumental")?.jsonPrimitive?.intOrNull ?: 0) == 1, (ly?.get("restricted")?.jsonPrimitive?.intOrNull ?: 0) == 1)
 
-    fun parseMacro(raw: String): Triple<Track?, LyricsPayload, String?>? = runCatching { parseMacro(json.parseToJsonElement(raw).jsonObject) }.getOrNull()
+    fun parseMacro(raw: String): Triple<Track?, LyricsPayload, String?>? = runCatching { parseMacro(LyricsHttp.json.parseToJsonElement(raw).jsonObject) }.getOrNull()
 }

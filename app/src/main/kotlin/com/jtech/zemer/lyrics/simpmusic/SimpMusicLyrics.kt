@@ -1,18 +1,14 @@
 package com.jtech.zemer.lyrics.simpmusic
 
-import io.ktor.client.HttpClient
 import io.ktor.client.call.body
-import io.ktor.client.engine.cio.CIO
-import io.ktor.client.plugins.HttpTimeout
-import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
-import io.ktor.client.plugins.defaultRequest
-import io.ktor.client.request.get
 import io.ktor.client.request.header
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.serialization.kotlinx.json.json
-import kotlinx.serialization.json.Json
 import kotlin.math.abs
+import com.jtech.zemer.lyrics.LyricsHttp
+import io.ktor.client.request.get
+import kotlinx.coroutines.CancellationException
 
 /**
  * api-lyrics.simpmusic.org client for the SimpMusic lyrics provider: a videoId-keyed, community-filled
@@ -28,37 +24,11 @@ object SimpMusicLyrics {
     /** A track counts as THIS recording only when its duration is known and within this many seconds of ours. */
     const val IDENTITY_TOLERANCE_SEC = 5
 
-    private val client by lazy {
-        HttpClient(CIO) {
-            install(ContentNegotiation) {
-                json(
-                    Json {
-                        isLenient = true
-                        ignoreUnknownKeys = true
-                        explicitNulls = false
-                    },
-                )
-            }
-
-            install(HttpTimeout) {
-                requestTimeoutMillis = 15000
-                connectTimeoutMillis = 10000
-                socketTimeoutMillis = 15000
-            }
-
-            defaultRequest {
-                url(BASE_URL)
-                header(HttpHeaders.Accept, "application/json")
-                header(HttpHeaders.UserAgent, "SimpMusicLyrics/1.0")
-                header(HttpHeaders.ContentType, "application/json")
-            }
-
-            expectSuccess = false
+    private suspend fun getLyricsByVideoId(videoId: String): List<SimpMusicLyricsData> = try {
+        val response = LyricsHttp.client.get(BASE_URL + videoId) {
+            header(HttpHeaders.Accept, "application/json")
+            header(HttpHeaders.UserAgent, "SimpMusicLyrics/1.0")
         }
-    }
-
-    private suspend fun getLyricsByVideoId(videoId: String): List<SimpMusicLyricsData> = runCatching {
-        val response = client.get(BASE_URL + videoId)
 
         if (response.status == HttpStatusCode.OK) {
             val apiResponse = response.body<SimpMusicApiResponse>()
@@ -70,7 +40,22 @@ object SimpMusicLyrics {
         } else {
             emptyList()
         }
-    }.getOrDefault(emptyList())
+    } catch (e: CancellationException) {
+        // A cancelled walk must stay cancelled: an empty catalog here would read as "entry gone" and let the
+        // caller move on to the next source instead of stopping.
+        throw e
+    } catch (e: Exception) {
+        emptyList()
+    }
+
+    /**
+     * A Zemer resolver `simpmusic` pointer: the one audio-verified entry ([entryId]) of the track's catalog, with
+     * no duration matching (the server vetted the row). There is no per-entry endpoint, so the by-videoId catalog
+     * is fetched and the entry picked by id; an entry missing from it (deleted upstream) is null, so the walk
+     * continues. The server's [synced] flag decides whether its timings are served - see [entryBody].
+     */
+    suspend fun getLyricsByEntry(videoId: String, entryId: String, synced: Boolean): String? =
+        entryBody(getLyricsByVideoId(videoId).firstOrNull { it.id == entryId }, synced)
 
     suspend fun getLyrics(
         videoId: String,
@@ -117,6 +102,19 @@ internal fun sameRecording(trackDuration: Int?, duration: Int): Boolean =
  */
 internal fun syncAllowed(trackDuration: Int?, duration: Int): Boolean =
     duration > 0 && trackDuration != null && abs(trackDuration - duration) <= SimpMusicLyrics.SYNC_TOLERANCE_SEC
+
+/**
+ * The body of a server-vetted catalog [entry]: with [synced] the server verified its timings, so ONLY the word-
+ * or line-synced body is served - a synced pointer whose entry has since lost its timings upstream yields nothing,
+ * so the walk moves on to the next timed source instead of parking unverified plain text in the synced slot;
+ * without [synced] the timings are unverified and ONLY the plain text is served, never a drifting sync. A missing
+ * entry is null.
+ */
+internal fun entryBody(entry: SimpMusicLyricsData?, synced: Boolean): String? = when {
+    entry == null -> null
+    synced -> firstNonBlankLyrics(entry.richSyncLyrics, entry.syncedLyrics)
+    else -> firstNonBlankLyrics(entry.plainLyrics)
+}
 
 /** Distance in seconds between a track and ours for ranking; unknown durations sort last. */
 internal fun durationDelta(trackDuration: Int?, duration: Int): Int =

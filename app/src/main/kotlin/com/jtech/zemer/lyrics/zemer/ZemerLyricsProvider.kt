@@ -4,8 +4,9 @@ import com.jtech.zemer.constants.EnableZemerLyricsKey
 import com.jtech.zemer.lyrics.LabeledLyrics
 import com.jtech.zemer.lyrics.LyricsProvider
 import com.jtech.zemer.lyrics.LyricsUtils
-import com.jtech.zemer.lyrics.MusixmatchLyricsProvider
-import com.jtech.zemer.lyrics.model.LyricsUnavailableException
+import com.jtech.zemer.lyrics.musixmatch.MusixmatchLyricsProvider
+import com.jtech.zemer.lyrics.simpmusic.SimpMusicLyricsProvider
+import com.jtech.zemer.lyrics.LyricsUnavailableException
 import kotlinx.coroutines.CancellationException
 
 /**
@@ -36,6 +37,7 @@ object ZemerLyricsProvider : LyricsProvider {
         zing: suspend (Long) -> String? = ZemerLyricsClient::zingLyricsHtml,
         youtube: suspend (String) -> String? = ZemerLyricsClient::youtubeLyricsTab,
         musixmatch: suspend (Long, Long, Boolean) -> String? = MusixmatchLyricsProvider::lyricsById,
+        simpmusic: suspend (String, String, Boolean) -> String? = SimpMusicLyricsProvider::lyricsByEntry,
     ): List<Pair<String, String>> {
         val out = ArrayList<Pair<String, String>>()
         for (s in order(resolved)) {
@@ -47,6 +49,9 @@ object ZemerLyricsProvider : LyricsProvider {
                 "jkaraoke" -> s.feedUrl?.let { fetch(it) }?.let { page -> s.songId?.let { id -> JkaraokeLrc.fromFeedPage(page, id, jkaraokeOffset(s))?.synced } }
                 "apple" -> s.catalogId?.takeIf { it.isNotBlank() }?.let { fetch(AppleTtmlLrc.url(it)) }?.let(AppleTtmlLrc::fromReply)
                 "musixmatch" -> s.commontrackId?.let { c -> s.trackId?.let { t -> musixmatch(c, t, s.synced) } }?.takeIf(LyricsUtils::hasLyricBody)
+                // The verified entry of the catalog the server names (additive `videoId`), else the track's own catalog -
+                // every pointer served today is filed under the track's videoId.
+                "simpmusic" -> s.entryId?.let { simpmusic(s.videoId ?: resolved.videoId, it, s.synced) }?.takeIf(LyricsUtils::hasLyricBody)
                 "jyrics" -> s.url?.let { fetch(it) }?.let { JyricsParser.parse(it).plain.takeIf(LyricsUtils::hasLyricBody) }
                 "shironet" -> s.url?.let { fetch(it) }?.let { ShironetParser.parse(it).plain.takeIf(LyricsUtils::hasLyricBody) }
                 // Server-inlined (the site's Cloudflare challenge blocks on-device fetches); the page fetch is
@@ -92,7 +97,7 @@ object ZemerLyricsProvider : LyricsProvider {
     fun rank(s: ZemerLyricsClient.Source) = when (s.type) {
         "zemer" -> 0
         "jkaraoke", "apple" -> 1
-        "lrclib", "kugou", "musixmatch", "zingmusic", "youtube" -> 2
+        "lrclib", "kugou", "musixmatch", "simpmusic", "zingmusic", "youtube" -> 2
         "jyrics", "shironet", "tab4u", "zemirotdb", "lyricstranslate" -> 3
         "booklet", "manual", "canonical", "community" -> 4
         else -> 9

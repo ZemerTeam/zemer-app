@@ -1,4 +1,4 @@
-package com.jtech.zemer.lyrics.model
+package com.jtech.zemer.lyrics
 
 /**
  * Thrown when a provider reached the server but the track has no lyrics/transcript available.
