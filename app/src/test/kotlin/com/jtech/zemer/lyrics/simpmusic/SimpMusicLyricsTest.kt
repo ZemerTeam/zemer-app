@@ -93,8 +93,9 @@ class SimpMusicLyricsTest {
         val entry = SimpMusicLyricsData(id = "e1", duration = 299, syncedLyrics = "[00:01.00] synced", plainLyrics = "plain words", richSyncLyrics = "[00:01.00] <00:01.00>rich")
         assertEquals("[00:01.00] <00:01.00>rich", entryBody(entry, synced = true))
         assertEquals("plain words", entryBody(entry, synced = false))
-        // synced flag but the entry carries no synced body: the words still serve
-        assertEquals("plain words", entryBody(entry.copy(syncedLyrics = "", richSyncLyrics = null), synced = true))
+        // synced flag but the entry lost its synced body upstream: nothing, so the walk moves on to the next
+        // timed source instead of serving unverified plain text in the synced slot
+        assertNull(entryBody(entry.copy(syncedLyrics = "", richSyncLyrics = null), synced = true))
         // an unsynced pointer never serves the entry's timings, even when plain text is missing
         assertNull(entryBody(entry.copy(plainLyrics = null), synced = false))
         assertNull(entryBody(null, synced = true))

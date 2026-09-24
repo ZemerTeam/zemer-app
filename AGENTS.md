@@ -680,7 +680,7 @@ only for rows its audio check confirmed, an Apple Music row by `catalogId` (`App
 `begin`s) serves its `plain` text with the `[Verse]` labels dropped — never nothing for a vouched row; golden-pinned
 both ways), a SimpMusic row by `entryId`
 (`SimpMusicLyrics.getLyricsByEntry`: the catalog the pointer's additive `videoId` names - else the track's own - fetched and
-the exact audio-verified entry picked, there is no per-entry endpoint, with the server's `synced` flag deciding whether its timings are served, `entryBody`;
+the exact audio-verified entry picked, there is no per-entry endpoint, with the server's `synced` flag deciding whether its timings are served, `entryBody` - a synced pointer whose entry lost its timings upstream yields nothing, never plain text in the synced slot;
 the server never inlines simpmusic text, and a missing entry yields nothing so the walk continues), and a Musixmatch row by id
 (`MusixmatchLyrics.getLyricsById`, `track.lyrics.get` + `track.subtitle.get` under the phone's own brokered token,
 text gates only — the server already matched the recording). Walk order (`ZemerLyricsProvider.order`): SYNCED

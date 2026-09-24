@@ -5,6 +5,8 @@ import io.ktor.client.request.parameter
 import kotlin.math.abs
 import com.jtech.zemer.lyrics.LyricsHttp
 import io.ktor.client.request.get
+import io.ktor.http.isSuccess
+import kotlinx.coroutines.CancellationException
 
 /**
  * LRCLIB.net client for the LrcLib lyrics provider. Search is by cleaned title/artist over several
@@ -53,14 +55,20 @@ object LrcLib {
         artistName: String? = null,
         albumName: String? = null,
         query: String? = null,
-    ): List<LrcLibTrack> = runCatching {
-        LyricsHttp.client.get("https://lrclib.net/api/search") {
+    ): List<LrcLibTrack> = try {
+        val response = LyricsHttp.client.get("https://lrclib.net/api/search") {
             if (query != null) parameter("q", query)
             if (trackName != null) parameter("track_name", trackName)
             if (artistName != null) parameter("artist_name", artistName)
             if (albumName != null) parameter("album_name", albumName)
-        }.body<List<LrcLibTrack>>()
-    }.getOrDefault(emptyList())
+        }
+        // A failed reply is a miss even when its body happens to decode (the shared client never throws on status).
+        if (response.status.isSuccess()) response.body<List<LrcLibTrack>>() else emptyList()
+    } catch (e: CancellationException) {
+        throw e
+    } catch (e: Exception) {
+        emptyList()
+    }
 
     private suspend fun queryLyrics(
         artist: String,

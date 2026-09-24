@@ -8,6 +8,7 @@ import io.ktor.serialization.kotlinx.json.json
 import kotlin.math.abs
 import com.jtech.zemer.lyrics.LyricsHttp
 import io.ktor.client.request.get
+import kotlinx.coroutines.CancellationException
 
 /**
  * api-lyrics.simpmusic.org client for the SimpMusic lyrics provider: a videoId-keyed, community-filled
@@ -23,7 +24,7 @@ object SimpMusicLyrics {
     /** A track counts as THIS recording only when its duration is known and within this many seconds of ours. */
     const val IDENTITY_TOLERANCE_SEC = 5
 
-    private suspend fun getLyricsByVideoId(videoId: String): List<SimpMusicLyricsData> = runCatching {
+    private suspend fun getLyricsByVideoId(videoId: String): List<SimpMusicLyricsData> = try {
         val response = LyricsHttp.client.get(BASE_URL + videoId) {
             header(HttpHeaders.Accept, "application/json")
             header(HttpHeaders.UserAgent, "SimpMusicLyrics/1.0")
@@ -39,7 +40,13 @@ object SimpMusicLyrics {
         } else {
             emptyList()
         }
-    }.getOrDefault(emptyList())
+    } catch (e: CancellationException) {
+        // A cancelled walk must stay cancelled: an empty catalog here would read as "entry gone" and let the
+        // caller move on to the next source instead of stopping.
+        throw e
+    } catch (e: Exception) {
+        emptyList()
+    }
 
     /**
      * A Zemer resolver `simpmusic` pointer: the one audio-verified entry ([entryId]) of the track's catalog, with
@@ -97,13 +104,15 @@ internal fun syncAllowed(trackDuration: Int?, duration: Int): Boolean =
     duration > 0 && trackDuration != null && abs(trackDuration - duration) <= SimpMusicLyrics.SYNC_TOLERANCE_SEC
 
 /**
- * The body of a server-vetted catalog [entry]: with [synced] the server verified its timings, so the word- or
- * line-synced body is served (plain only as the fallback); without it the timings are unverified and ONLY the
- * plain text is served, never a drifting sync. A missing entry is null.
+ * The body of a server-vetted catalog [entry]: with [synced] the server verified its timings, so ONLY the word-
+ * or line-synced body is served - a synced pointer whose entry has since lost its timings upstream yields nothing,
+ * so the walk moves on to the next timed source instead of parking unverified plain text in the synced slot;
+ * without [synced] the timings are unverified and ONLY the plain text is served, never a drifting sync. A missing
+ * entry is null.
  */
 internal fun entryBody(entry: SimpMusicLyricsData?, synced: Boolean): String? = when {
     entry == null -> null
-    synced -> firstNonBlankLyrics(entry.richSyncLyrics, entry.syncedLyrics, entry.plainLyrics)
+    synced -> firstNonBlankLyrics(entry.richSyncLyrics, entry.syncedLyrics)
     else -> firstNonBlankLyrics(entry.plainLyrics)
 }
 
