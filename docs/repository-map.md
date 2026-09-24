@@ -3,7 +3,7 @@
 ## Project identity and module graph
 
 - The Gradle root project name is `Zemer`.
-- Included Gradle modules are `:app`, `:innertube`, `:lrclib`, and `:simpmusic`.
+- Included Gradle modules are `:app` and `:innertube`.
 - The build also includes the composite build `cipher`, substituting module `com.zemer:cipher` with project `:library`.
 - Dependency repositories configured in `settings.gradle.kts` are `mavenLocal`, Google, Gradle Plugin Portal for plugin management, Maven Central, and JitPack.
 
@@ -47,8 +47,6 @@
 | --- | --- | --- |
 | `app` | `com.jtech.zemer`, `com.dpi` | Android application, Compose UI, playback, Room database, DataStore preferences, Firebase auth/sync, whitelist filtering, widgets, accessibility, and density scaling. |
 | `innertube` | `com.metrolist.innertube` | Ktor/OkHttp JVM library for YouTube Music InnerTube requests, NewPipe integration, response models, and page parsers. |
-| `lrclib` | `com.metrolist.lrclib` | JVM library for LRCLIB lyric lookup and track matching models. |
-| `simpmusic` | `com.metrolist.simpmusic` | JVM library for SimpMusic lyrics API responses and lookup helpers. |
 
 ## Latest committed Room schema (`InternalDatabase` schema 32)
 
@@ -77,7 +75,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 
 ### Counts
 
-- Files counted: `1394`
+- Files counted: `1391`
 - By extension:
   - `.kt`: `894`
   - `.xml`: `192`
@@ -85,11 +83,11 @@ The following inventory is generated from repository files outside `.git`, `.gra
   - `.md`: `73`
   - `.json`: `53`
   - `.webp`: `15`
-  - `[none]`: `7`
   - `.html`: `6`
-  - `.kts`: `6`
   - `.yml`: `6`
+  - `[none]`: `6`
   - `.sh`: `5`
+  - `.kts`: `4`
   - `.properties`: `3`
   - `.txt`: `3`
   - `.dm`: `2`
@@ -124,7 +122,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `LICENSE` | 674 lines | `[none]` |
 | `README.md` | 9 lines | `.md` |
 | `app/.gitignore` | 1 lines | `[none]` |
-| `app/build.gradle.kts` | 300 lines | `.kts` |
+| `app/build.gradle.kts` | 298 lines | `.kts` |
 | `app/lint.xml` | 12 lines | `.xml` |
 | `app/proguard-rules.pro` | 255 lines | `.pro` |
 | `app/schemas/com.jtech.zemer.db.InternalDatabase/1.json` | 297 lines | `.json` |
@@ -265,9 +263,13 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/main/kotlin/com/jtech/zemer/lyrics/SyncedFirstPicker.kt` | 35 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/lyrics/YouTubeLyricsProvider.kt` | 30 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/lyrics/YouTubeSubtitleLyricsProvider.kt` | 20 lines | `.kt` |
+| `app/src/main/kotlin/com/jtech/zemer/lyrics/lrclib/LrcLib.kt` | 224 lines | `.kt` |
+| `app/src/main/kotlin/com/jtech/zemer/lyrics/lrclib/LrcLibTrack.kt` | 14 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/lyrics/model/LyricsUnavailableException.kt` | 9 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/lyrics/musixmatch/MusixmatchLyrics.kt` | 261 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/lyrics/musixmatch/MusixmatchStatus.kt` | 39 lines | `.kt` |
+| `app/src/main/kotlin/com/jtech/zemer/lyrics/simpmusic/SimpMusicLyrics.kt` | 135 lines | `.kt` |
+| `app/src/main/kotlin/com/jtech/zemer/lyrics/simpmusic/SimpMusicModels.kt` | 27 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/lyrics/zemer/AppleTtmlLrc.kt` | 68 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/lyrics/zemer/HtmlEntities.kt` | 12 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/lyrics/zemer/JkaraokeLrc.kt` | 49 lines | `.kt` |
@@ -1004,11 +1006,13 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/test/kotlin/com/jtech/zemer/lyrics/LyricsStoreTest.kt` | 233 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/lyrics/LyricsUtilsTest.kt` | 68 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/lyrics/SyncedFirstPickerTest.kt` | 87 lines | `.kt` |
+| `app/src/test/kotlin/com/jtech/zemer/lyrics/lrclib/LrcLibIdentityTest.kt` | 64 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/lyrics/musixmatch/MusixmatchGatesTest.kt` | 83 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/lyrics/musixmatch/MusixmatchLiveTest.kt` | 18 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/lyrics/musixmatch/MusixmatchStatusInitOrderTest.kt` | 26 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/lyrics/musixmatch/MusixmatchStatusTest.kt` | 39 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/lyrics/musixmatch/MusixmatchTokenLiveTest.kt` | 26 lines | `.kt` |
+| `app/src/test/kotlin/com/jtech/zemer/lyrics/simpmusic/SimpMusicLyricsTest.kt` | 89 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/lyrics/zemer/AppleTtmlLrcGoldenTest.kt` | 59 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/lyrics/zemer/HtmlEntitiesTest.kt` | 14 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/lyrics/zemer/JkaraokeLrcGoldenTest.kt` | 47 lines | `.kt` |
@@ -1212,7 +1216,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `docs/app/playback.md` | 36 lines | `.md` |
 | `docs/app/preferences-sync-auth.md` | 191 lines | `.md` |
 | `docs/app/viewmodels.md` | 30 lines | `.md` |
-| `docs/build-release.md` | 60 lines | `.md` |
+| `docs/build-release.md` | 58 lines | `.md` |
 | `docs/fcast/01-architecture.md` | 116 lines | `.md` |
 | `docs/fcast/02-on-demand-native-lib.md` | 134 lines | `.md` |
 | `docs/fcast/03-discovery-and-connection.md` | 253 lines | `.md` |
@@ -1249,8 +1253,8 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `docs/recognize_music/05-widget.md` | 72 lines | `.md` |
 | `docs/recognize_music/06-testing-and-maintenance.md` | 54 lines | `.md` |
 | `docs/recognize_music/README.md` | 71 lines | `.md` |
-| `docs/reference/kotlin-files.md` | 917 lines | `.md` |
-| `docs/reference/non-kotlin-files.md` | 440 lines | `.md` |
+| `docs/reference/kotlin-files.md` | 907 lines | `.md` |
+| `docs/reference/non-kotlin-files.md` | 437 lines | `.md` |
 | `docs/reference/resource-index.md` | 255 lines | `.md` |
 | `docs/remote_cipher_config/01-why-it-exists.md` | 88 lines | `.md` |
 | `docs/remote_cipher_config/02-file-format.md` | 116 lines | `.md` |
@@ -1260,7 +1264,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `docs/remote_cipher_config/06-harness-and-monitor.md` | 101 lines | `.md` |
 | `docs/remote_cipher_config/07-runbook.md` | 101 lines | `.md` |
 | `docs/remote_cipher_config/README.md` | 112 lines | `.md` |
-| `docs/repository-map.md` | 1508 lines | `.md` |
+| `docs/repository-map.md` | 1503 lines | `.md` |
 | `docs/sabr/README.md` | 543 lines | `.md` |
 | `docs/stations/README.md` | 69 lines | `.md` |
 | `docs/status/README.md` | 122 lines | `.md` |
@@ -1370,11 +1374,6 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `innertube/src/test/kotlin/com/zemer/innertube/models/WatchNextTabResolutionTest.kt` | 50 lines | `.kt` |
 | `innertube/src/test/kotlin/com/zemer/innertube/models/response/MusicHeaderThumbnailTest.kt` | 51 lines | `.kt` |
 | `lint.xml` | 6 lines | `.xml` |
-| `lrclib/.gitignore` | 1 lines | `[none]` |
-| `lrclib/build.gradle.kts` | 16 lines | `.kts` |
-| `lrclib/src/main/kotlin/com/metrolist/lrclib/LrcLib.kt` | 253 lines | `.kt` |
-| `lrclib/src/main/kotlin/com/metrolist/lrclib/models/Track.kt` | 137 lines | `.kt` |
-| `lrclib/src/test/kotlin/com/metrolist/lrclib/LrcLibIdentityTest.kt` | 65 lines | `.kt` |
 | `scripts/check-16kb-alignment.sh` | 67 lines | `.sh` |
 | `scripts/check-dead-resources.sh` | 94 lines | `.sh` |
 | `scripts/check-download-unification.sh` | 58 lines | `.sh` |
@@ -1383,11 +1382,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `scripts/ui-audit-baseline.tsv` | 14 lines | `.tsv` |
 | `scripts/ui-audit.sh` | 248 lines | `.sh` |
 | `scripts/ui-strings-scan.py` | 96 lines | `.py` |
-| `settings.gradle.kts` | 56 lines | `.kts` |
-| `simpmusic/build.gradle.kts` | 16 lines | `.kts` |
-| `simpmusic/src/main/kotlin/com/metrolist/simpmusic/SimpMusicLyrics.kt` | 132 lines | `.kt` |
-| `simpmusic/src/main/kotlin/com/metrolist/simpmusic/models/LyricsResponse.kt` | 32 lines | `.kt` |
-| `simpmusic/src/test/kotlin/com/zemer/simpmusic/SimpMusicLyricsTest.kt` | 94 lines | `.kt` |
+| `settings.gradle.kts` | 54 lines | `.kts` |
 | `tests/INVESTIGATION.md` | 279 lines | `.md` |
 | `tests/MWEB-INVESTIGATION.md` | 114 lines | `.md` |
 | `tests/README.md` | 175 lines | `.md` |

@@ -2,7 +2,7 @@
 
 Every tracked Kotlin file is listed with hard metadata extracted from the file text: line count, package, whether it declares any `@Composable`, import count, top-level declaration count (`Decls` - a high value flags a god-file), and the external import roots it depends on. Declaration counting is regex-based (after stripping comments and string literals). For the actual declaration names, read the file or use your editor's outline - they are not duplicated here.
 
-## `app` Kotlin files (800)
+## `app` Kotlin files (806)
 
 | File | Lines | Package | Compose | Imports | Decls | External import roots |
 | --- | ---: | --- | --- | ---: | ---: | --- |
@@ -102,9 +102,13 @@ Every tracked Kotlin file is listed with hard metadata extracted from the file t
 | `app/src/main/kotlin/com/jtech/zemer/lyrics/SyncedFirstPicker.kt` | 35 | `com.jtech.zemer.lyrics` | no | 1 | 7 |  |
 | `app/src/main/kotlin/com/jtech/zemer/lyrics/YouTubeLyricsProvider.kt` | 30 | `com.jtech.zemer.lyrics` | no | 4 | 6 |  |
 | `app/src/main/kotlin/com/jtech/zemer/lyrics/YouTubeSubtitleLyricsProvider.kt` | 20 | `com.jtech.zemer.lyrics` | no | 2 | 5 |  |
+| `app/src/main/kotlin/com/jtech/zemer/lyrics/lrclib/LrcLib.kt` | 224 | `com.jtech.zemer.lyrics.lrclib` | no | 10 | 36 | io.ktor, kotlin.math, kotlinx.serialization |
+| `app/src/main/kotlin/com/jtech/zemer/lyrics/lrclib/LrcLibTrack.kt` | 14 | `com.jtech.zemer.lyrics.lrclib` | no | 1 | 7 | kotlinx.serialization |
 | `app/src/main/kotlin/com/jtech/zemer/lyrics/model/LyricsUnavailableException.kt` | 9 | `com.jtech.zemer.lyrics.model` | no | 0 | 2 |  |
 | `app/src/main/kotlin/com/jtech/zemer/lyrics/musixmatch/MusixmatchLyrics.kt` | 261 | `com.jtech.zemer.lyrics.musixmatch` | no | 27 | 96 | android.content, androidx.datastore, io.ktor, java.text, java.util, kotlin.math, kotlinx.serialization |
 | `app/src/main/kotlin/com/jtech/zemer/lyrics/musixmatch/MusixmatchStatus.kt` | 39 | `com.jtech.zemer.lyrics.musixmatch` | no | 0 | 20 |  |
+| `app/src/main/kotlin/com/jtech/zemer/lyrics/simpmusic/SimpMusicLyrics.kt` | 135 | `com.jtech.zemer.lyrics.simpmusic` | no | 13 | 17 | io.ktor, kotlin.math, kotlinx.serialization |
+| `app/src/main/kotlin/com/jtech/zemer/lyrics/simpmusic/SimpMusicModels.kt` | 27 | `com.jtech.zemer.lyrics.simpmusic` | no | 2 | 9 | kotlinx.serialization |
 | `app/src/main/kotlin/com/jtech/zemer/lyrics/zemer/AppleTtmlLrc.kt` | 68 | `com.jtech.zemer.lyrics.zemer` | no | 4 | 22 | kotlinx.serialization |
 | `app/src/main/kotlin/com/jtech/zemer/lyrics/zemer/HtmlEntities.kt` | 12 | `com.jtech.zemer.lyrics.zemer` | no | 0 | 3 |  |
 | `app/src/main/kotlin/com/jtech/zemer/lyrics/zemer/JkaraokeLrc.kt` | 49 | `com.jtech.zemer.lyrics.zemer` | no | 3 | 25 | java.util, kotlinx.serialization |
@@ -632,11 +636,13 @@ Every tracked Kotlin file is listed with hard metadata extracted from the file t
 | `app/src/test/kotlin/com/jtech/zemer/lyrics/LyricsStoreTest.kt` | 233 | `com.jtech.zemer.lyrics` | no | 15 | 54 | kotlinx.coroutines, org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/lyrics/LyricsUtilsTest.kt` | 68 | `com.jtech.zemer.lyrics` | no | 4 | 7 | org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/lyrics/SyncedFirstPickerTest.kt` | 87 | `com.jtech.zemer.lyrics` | no | 10 | 19 | androidx.datastore, org.junit |
+| `app/src/test/kotlin/com/jtech/zemer/lyrics/lrclib/LrcLibIdentityTest.kt` | 64 | `com.jtech.zemer.lyrics.lrclib` | no | 5 | 3 | org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/lyrics/musixmatch/MusixmatchGatesTest.kt` | 83 | `com.jtech.zemer.lyrics.musixmatch` | no | 7 | 12 | org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/lyrics/musixmatch/MusixmatchLiveTest.kt` | 18 | `com.jtech.zemer.lyrics.musixmatch` | no | 3 | 3 | kotlinx.coroutines, org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/lyrics/musixmatch/MusixmatchStatusInitOrderTest.kt` | 26 | `com.jtech.zemer.lyrics.musixmatch` | no | 4 | 8 | java.io, java.net, org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/lyrics/musixmatch/MusixmatchStatusTest.kt` | 39 | `com.jtech.zemer.lyrics.musixmatch` | no | 3 | 2 | org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/lyrics/musixmatch/MusixmatchTokenLiveTest.kt` | 26 | `com.jtech.zemer.lyrics.musixmatch` | no | 9 | 4 | io.ktor, kotlinx.coroutines, org.junit |
+| `app/src/test/kotlin/com/jtech/zemer/lyrics/simpmusic/SimpMusicLyricsTest.kt` | 89 | `com.jtech.zemer.lyrics.simpmusic` | no | 5 | 1 | org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/lyrics/zemer/AppleTtmlLrcGoldenTest.kt` | 59 | `com.jtech.zemer.lyrics.zemer` | no | 3 | 9 | org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/lyrics/zemer/HtmlEntitiesTest.kt` | 14 | `com.jtech.zemer.lyrics.zemer` | no | 2 | 1 | org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/lyrics/zemer/JkaraokeLrcGoldenTest.kt` | 47 | `com.jtech.zemer.lyrics.zemer` | no | 6 | 9 | kotlinx.serialization, org.junit |
@@ -899,19 +905,3 @@ Every tracked Kotlin file is listed with hard metadata extracted from the file t
 | `innertube/src/test/kotlin/com/zemer/innertube/models/MusicCarouselShelfHeaderTest.kt` | 34 | `com.zemer.innertube.models` | no | 5 | 5 | kotlinx.serialization, org.junit |
 | `innertube/src/test/kotlin/com/zemer/innertube/models/WatchNextTabResolutionTest.kt` | 50 | `com.zemer.innertube.models` | no | 5 | 3 | kotlinx.serialization, org.junit |
 | `innertube/src/test/kotlin/com/zemer/innertube/models/response/MusicHeaderThumbnailTest.kt` | 51 | `com.zemer.innertube.models.response` | no | 5 | 5 | kotlinx.serialization, org.junit |
-
-## `lrclib` Kotlin files (3)
-
-| File | Lines | Package | Compose | Imports | Decls | External import roots |
-| --- | ---: | --- | --- | ---: | ---: | --- |
-| `lrclib/src/main/kotlin/com/metrolist/lrclib/LrcLib.kt` | 253 | `com.metrolist.lrclib` | no | 11 | 40 | io.ktor, kotlin.math, kotlinx.serialization |
-| `lrclib/src/main/kotlin/com/metrolist/lrclib/models/Track.kt` | 137 | `com.metrolist.lrclib.models` | no | 2 | 29 | kotlin.math, kotlinx.serialization |
-| `lrclib/src/test/kotlin/com/metrolist/lrclib/LrcLibIdentityTest.kt` | 65 | `com.metrolist.lrclib` | no | 6 | 3 | org.junit |
-
-## `simpmusic` Kotlin files (3)
-
-| File | Lines | Package | Compose | Imports | Decls | External import roots |
-| --- | ---: | --- | --- | ---: | ---: | --- |
-| `simpmusic/src/main/kotlin/com/metrolist/simpmusic/SimpMusicLyrics.kt` | 132 | `com.metrolist.simpmusic` | no | 15 | 17 | io.ktor, kotlin.math, kotlinx.serialization |
-| `simpmusic/src/main/kotlin/com/metrolist/simpmusic/models/LyricsResponse.kt` | 32 | `com.metrolist.simpmusic.models` | no | 2 | 15 | kotlinx.serialization |
-| `simpmusic/src/test/kotlin/com/zemer/simpmusic/SimpMusicLyricsTest.kt` | 94 | `com.zemer.simpmusic` | no | 10 | 1 | org.junit |

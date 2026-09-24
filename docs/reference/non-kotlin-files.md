@@ -1,6 +1,6 @@
 # Non-Kotlin file reference
 
-Every tracked non-Kotlin path outside `docs/` is listed. Text files report line counts; binary files report byte counts; gitlinks are recorded as non-file tracked paths. Total paths: `434`.
+Every tracked non-Kotlin path outside `docs/` is listed. Text files report line counts; binary files report byte counts; gitlinks are recorded as non-file tracked paths. Total paths: `431`.
 
 | Path | Size/status | Type metadata |
 | --- | ---: | --- |
@@ -16,7 +16,7 @@ Every tracked non-Kotlin path outside `docs/` is listed. Text files report line 
 | `LICENSE` | 674 lines | text `[none]` |
 | `README.md` | 9 lines | text `.md` |
 | `app/.gitignore` | 1 lines | text `[none]` |
-| `app/build.gradle.kts` | 300 lines | text `.kts`; plugins `com.android.application, android, kotlin.serialization, hilt, kotlin.ksp, compose.compiler, google.gms.google.services, firebase.crashlytics, rikka.tools.refine` |
+| `app/build.gradle.kts` | 298 lines | text `.kts`; plugins `com.android.application, android, kotlin.serialization, hilt, kotlin.ksp, compose.compiler, google.gms.google.services, firebase.crashlytics, rikka.tools.refine` |
 | `app/lint.xml` | 12 lines | text `.xml`; XML root `lint` |
 | `app/proguard-rules.pro` | 255 lines | text `.pro` |
 | `app/schemas/com.jtech.zemer.db.InternalDatabase/1.json` | 297 lines | text `.json`; JSON keys `formatVersion, database` |
@@ -308,8 +308,6 @@ Every tracked non-Kotlin path outside `docs/` is listed. Text files report line 
 | `innertube/.gitignore` | 1 lines | text `[none]` |
 | `innertube/build.gradle.kts` | 18 lines | text `.kts`; plugins `kotlin.serialization, jvm` |
 | `lint.xml` | 6 lines | text `.xml`; XML root `lint` |
-| `lrclib/.gitignore` | 1 lines | text `[none]` |
-| `lrclib/build.gradle.kts` | 16 lines | text `.kts`; plugins `kotlin.serialization, jvm` |
 | `scripts/check-16kb-alignment.sh` | 67 lines | text `.sh` |
 | `scripts/check-dead-resources.sh` | 94 lines | text `.sh` |
 | `scripts/check-download-unification.sh` | 58 lines | text `.sh` |
@@ -318,8 +316,7 @@ Every tracked non-Kotlin path outside `docs/` is listed. Text files report line 
 | `scripts/ui-audit-baseline.tsv` | 14 lines | text `.tsv` |
 | `scripts/ui-audit.sh` | 248 lines | text `.sh` |
 | `scripts/ui-strings-scan.py` | 96 lines | text `.py` |
-| `settings.gradle.kts` | 56 lines | text `.kts`; plugins `org.gradle.toolchains.foojay-resolver-convention` |
-| `simpmusic/build.gradle.kts` | 16 lines | text `.kts`; plugins `kotlin.serialization, jvm` |
+| `settings.gradle.kts` | 54 lines | text `.kts`; plugins `org.gradle.toolchains.foojay-resolver-convention` |
 | `tests/INVESTIGATION.md` | 279 lines | text `.md` |
 | `tests/MWEB-INVESTIGATION.md` | 114 lines | text `.md` |
 | `tests/README.md` | 175 lines | text `.md` |

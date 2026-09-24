@@ -1,6 +1,5 @@
-package com.metrolist.lrclib
+package com.jtech.zemer.lyrics.lrclib
 
-import com.metrolist.lrclib.models.Track
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.engine.cio.CIO
@@ -12,6 +11,11 @@ import io.ktor.serialization.kotlinx.json.json
 import kotlinx.serialization.json.Json
 import kotlin.math.abs
 
+/**
+ * LRCLIB.net client for the LrcLib lyrics provider. Search is by cleaned title/artist over several
+ * strategies; every hit then has to pass the identity gate ([identityMatches]) and the sync gate
+ * ([pickBody]) before a body is served - a duration-only match once served a Japanese song.
+ */
 object LrcLib {
     private val client by lazy {
         HttpClient(CIO) {
@@ -73,20 +77,20 @@ object LrcLib {
         artistName: String? = null,
         albumName: String? = null,
         query: String? = null,
-    ): List<Track> = runCatching {
+    ): List<LrcLibTrack> = runCatching {
         client.get("/api/search") {
             if (query != null) parameter("q", query)
             if (trackName != null) parameter("track_name", trackName)
             if (artistName != null) parameter("artist_name", artistName)
             if (albumName != null) parameter("album_name", albumName)
-        }.body<List<Track>>()
+        }.body<List<LrcLibTrack>>()
     }.getOrDefault(emptyList())
 
     private suspend fun queryLyrics(
         artist: String,
         title: String,
         album: String? = null,
-    ): List<Track> {
+    ): List<LrcLibTrack> {
         val cleanedTitle = cleanTitle(title)
         val cleanedArtist = cleanArtist(artist)
 
@@ -136,21 +140,14 @@ object LrcLib {
         artist: String,
         duration: Int,
         album: String? = null,
-    ) = runCatching {
+    ): Result<String> = runCatching {
         val tracks = queryLyrics(artist, title, album)
-
         val candidates = tracks.filter { identityMatches(it.trackName, it.artistName, title, artist, it.duration, duration) }
-        val res = pickBody(candidates, duration)?.let(LrcLib::Lyrics)
-
-        if (res != null) {
-            return@runCatching res.text
-        } else {
-            throw IllegalStateException("Lyrics unavailable")
-        }
+        pickBody(candidates, duration) ?: throw IllegalStateException("Lyrics unavailable")
     }
 
     /** A synced body is usable only for the same recording: non-blank and within 1 s of the player's duration. */
-    internal fun syncable(track: Track, duration: Int): Boolean =
+    internal fun syncable(track: LrcLibTrack, duration: Int): Boolean =
         !track.syncedLyrics.isNullOrBlank() && (duration == -1 || abs(track.duration.toInt() - duration) <= 1)
 
     /**
@@ -158,7 +155,7 @@ object LrcLib {
      * first candidate's plain text. A candidate inside the 3 s identity gate but outside the 1 s sync gate
      * NEVER yields its synced lyrics, even when it has no plain text: a drifting sync is worse than nothing.
      */
-    internal fun pickBody(candidates: List<Track>, duration: Int): String? {
+    internal fun pickBody(candidates: List<LrcLibTrack>, duration: Int): String? {
         val synced = candidates.firstOrNull { syncable(it, duration) }
         if (synced != null) return synced.syncedLyrics
         return candidates.firstNotNullOfOrNull { it.plainLyrics?.takeIf { p -> p.isNotBlank() } }
@@ -189,10 +186,10 @@ object LrcLib {
     private fun calculateStringSimilarity(str1: String, str2: String): Double {
         val s1 = str1.trim().lowercase()
         val s2 = str2.trim().lowercase()
-        
+
         if (s1 == s2) return 1.0
         if (s1.isEmpty() || s2.isEmpty()) return 0.0
-        
+
         return when {
             s1.contains(s2) || s2.contains(s1) -> 0.8
             else -> {
@@ -207,10 +204,10 @@ object LrcLib {
         val len1 = str1.length
         val len2 = str2.length
         val matrix = Array(len1 + 1) { IntArray(len2 + 1) }
-        
+
         for (i in 0..len1) matrix[i][0] = i
         for (j in 0..len2) matrix[0][j] = j
-        
+
         for (i in 1..len1) {
             for (j in 1..len2) {
                 val cost = if (str1[i - 1] == str2[j - 1]) 0 else 1
@@ -221,33 +218,7 @@ object LrcLib {
                 )
             }
         }
-        
+
         return matrix[len1][len2]
     }
-
-    @JvmInline
-    value class Lyrics(
-        val text: String,
-    ) {
-        val sentences
-            get() =
-                runCatching {
-                    buildMap {
-                        put(0L, "")
-                        text.trim().lines().filter { it.length >= 10 }.forEach {
-                            put(
-                                it[8].digitToInt() * 10L +
-                                    it[7].digitToInt() * 100 +
-                                    it[5].digitToInt() * 1000 +
-                                    it[4].digitToInt() * 10000 +
-                                    it[2].digitToInt() * 60 * 1000 +
-                                    it[1].digitToInt() * 600 * 1000,
-                                it.substring(10),
-                            )
-                        }
-                    }
-                }.getOrNull()
-    }
 }
-
-

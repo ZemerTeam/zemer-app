@@ -6,7 +6,7 @@
 
 | File | Hard facts visible in file |
 | --- | --- |
-| `settings.gradle.kts` | Root project `Zemer`; includes `:app`, `:innertube`, `:lrclib`, `:simpmusic`; composite build `cipher` substitutes `com.zemer:cipher` with `:library`; repositories: mavenLocal, Google, Gradle Plugin Portal, Maven Central, JitPack. |
+| `settings.gradle.kts` | Root project `Zemer`; includes `:app`, `:innertube`; composite build `cipher` substitutes `com.zemer:cipher` with `:library`; repositories: mavenLocal, Google, Gradle Plugin Portal, Maven Central, JitPack. |
 | `build.gradle.kts` | Root plugins (apply false): `hilt`, `kotlin.ksp`, `google.gms.google.services`, `firebase.crashlytics`, `rikka.tools.refine`; buildscript classpath: `libs.gradle`, `kotlin("gradle-plugin", libs.versions.kotlin.get())`, `libs.google.services`; registers task(s): `clean`; subprojects emit Compose compiler reports/metrics when `enableComposeCompilerReports=true`. |
 | `gradle.properties` | `org.gradle.jvmargs=-Xmx4096M -Dkotlin.daemon.jvm.options\="-Xmx4096M" -XX:+UseParallelGC`; `android.useAndroidX=true`; `android.enableJetifier=false`; `org.gradle.unsafe.configuration-cache=true`; `android.nonTransitiveRClass=false`; `org.gradle.parallel=true`; `org.gradle.daemon=true`; `org.gradle.configureondemand=false`; `android.suppressUnsupportedOptionWarnings=android.suppressUnsupportedOptionWarnings,android.nonFinalResIds`; `systemProp.org.gradle.internal.http.connectionTimeout=180000`; `systemProp.org.gradle.internal.http.socketTimeout=180000`; `org.gradle.caching=false`; `ksp.incremental=false`; `ksp.incremental.intermodule=false`. |
 | `gradle/libs.versions.toml` | Central version catalog for plugins and dependencies; see `reference/non-kotlin-files.md`. |
@@ -56,5 +56,3 @@ None - metadata embedding is pure Kotlin
 | Module | Package | Plugins | Dependencies (`libs.*`) | Kotlin files |
 | --- | --- | --- | --- | --- |
 | `:innertube` | `com.metrolist.innertube` | `kotlin.serialization`, `jvm`; jvmToolchain `21` | `ktor.client.core`, `ktor.client.okhttp`, `ktor.client.content.negotiation`, `ktor.serialization.json`, `ktor.client.encoding`, `okhttp.dnsoverhttps`, `junit` | 88 files (see `reference/kotlin-files.md`) |
-| `:lrclib` | `com.metrolist.lrclib` | `kotlin.serialization`, `jvm`; jvmToolchain `21` | `ktor.client.core`, `ktor.client.cio`, `ktor.client.content.negotiation`, `ktor.serialization.json`, `junit` | `../../../../../test/kotlin/com/metrolist/lrclib/LrcLibIdentityTest.kt`, `LrcLib.kt`, `models/Track.kt` |
-| `:simpmusic` | `com.metrolist.simpmusic` | `kotlin.serialization`, `jvm`; jvmToolchain `21` | `ktor.client.core`, `ktor.client.cio`, `ktor.client.content.negotiation`, `ktor.serialization.json`, `junit` | `../../../../../test/kotlin/com/zemer/simpmusic/SimpMusicLyricsTest.kt`, `SimpMusicLyrics.kt`, `models/LyricsResponse.kt` |
