@@ -370,13 +370,13 @@
     <string name="onboarding_found_saved">Found your saved preferences</string>
     <string name="onboarding_restored_settings">Restored Settings:</string>
     <string name="onboarding_restored_filters_enabled">• Content Filters: Enabled</string>
-    <string name="onboarding_restored_female">• Female Singers: %s</string>
+    <string name="onboarding_restored_female">• Female Content: %s</string>
     <string name="onboarding_restored_videos">• Videos: %s</string>
     <string name="onboarding_restored_podcasts">• Podcasts: %s</string>
     <string name="onboarding_continuing_auto">Continuing automatically…</string>
     <string name="onboarding_filters_subtitle">Set up your content preferences (optional)</string>
-    <string name="onboarding_allow_female_title">Allow Female Singers</string>
-    <string name="onboarding_allow_female_desc">Include music by female artists</string>
+    <string name="onboarding_allow_female_title">Allow Female Content</string>
+    <string name="onboarding_allow_female_desc">Include music and podcasts by female artists</string>
     <string name="onboarding_block_videos_title">Block Videos</string>
     <string name="onboarding_block_videos_desc">Hide video content</string>
     <string name="onboarding_block_podcasts_title">Block Podcasts</string>
