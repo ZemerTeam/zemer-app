@@ -54,7 +54,7 @@ def declarations(stripped):
                 if nm:
                     out.append(f"{m.group(3)} {nm.group(1)}")
     return out
-KOTLIN_MODULES = ["app", "innertube", "lrclib", "simpmusic"]
+KOTLIN_MODULES = ["app", "innertube"]
 
 
 def sh(*args):
@@ -395,7 +395,7 @@ def _modules_section():
     regular, _ = tracked()
     rows = ["| Module | Package | Plugins | Dependencies (`libs.*`) | Kotlin files |",
             "| --- | --- | --- | --- | --- |"]
-    for mod in ["innertube", "lrclib", "simpmusic"]:
+    for mod in ["innertube"]:
         g = _text(f"{mod}/build.gradle.kts")
         plugins = re.findall(r'alias\(libs\.plugins\.([\w.]+)\)', g) + re.findall(r'kotlin\("([\w-]+)"\)', g)
         tc = re.search(r'jvmToolchain\((\d+)\)', g)
