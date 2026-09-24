@@ -65,6 +65,7 @@ import androidx.media3.extractor.mp4.Mp4Extractor
 import androidx.media3.extractor.ogg.OggExtractor
 import timber.log.Timber
 import androidx.media3.session.CommandButton
+import androidx.core.app.NotificationManagerCompat
 import androidx.media3.session.DefaultMediaNotificationProvider
 import androidx.media3.session.MediaController
 import androidx.media3.session.MediaLibraryService
@@ -1728,6 +1729,7 @@ class MusicService :
 
     override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) {
         if (playWhenReady) {
+            markUserIntent() // a play from anywhere (headset, Auto, the resume chip) is intent
             setupLoudnessEnhancer()
             resyncStationOnResume()
         }
@@ -2371,6 +2373,34 @@ class MusicService :
     // Mirror of PlaybackModeKey; null = not yet observed (the dispatcher resolves that below).
     @Volatile
     private var relayModeNow: Boolean? = null
+
+    // Issue #109: media3 posts the media notification for ANY prepared player with a queue, and the
+    // persisted queue is restored + prepared on EVERY creation - including the post-boot
+    // media-resumption bind from SystemUI that no user asked for (creating intent
+    // android.media.browse.MediaBrowserService, reproduced on an API 30 emulator: a "paused"
+    // notification + launcher badge for an app nobody opened). The notification is vetoed through
+    // the pure NotificationGate until USER INTENT: the app's own UI bound (onBind handing out the
+    // in-app binder), an explicit start command (onStartCommand: widget tap, media button, the
+    // activity's own start, a sticky restart), or playback starting. A controller merely connecting
+    // (onGetSession) is not intent. Main-thread only, like every media3 service callback.
+    private var userIntentSeen = false
+
+    // The other half of #109: raised by onTaskRemoved BEFORE it pauses, so media3's asynchronous
+    // paused-notification post is never scheduled onto the service that is being stopped.
+    private var stoppingOnTaskClear = false
+
+    private fun markUserIntent() {
+        if (userIntentSeen) return
+        userIntentSeen = true
+        // Post the paused notification the veto held back - the pre-fix behaviour on opening the
+        // app with a restored queue. media3 re-evaluates whether there is anything to show.
+        if (player.mediaItemCount > 0) onUpdateNotification(mediaSession, /* startInForegroundRequired = */ false)
+    }
+
+    override fun onUpdateNotification(session: MediaSession, startInForegroundRequired: Boolean) {
+        if (!NotificationGate.shouldPost(userIntentSeen, session.player.playWhenReady, startInForegroundRequired, stoppingOnTaskClear)) return
+        super.onUpdateNotification(session, startInForegroundRequired)
+    }
 
     /** Whether playback is currently routed through the RELAY source (fixed server-side rendition). */
     fun isRelayPlaybackMode(): Boolean = relayModeNow == true
@@ -3056,6 +3086,9 @@ class MusicService :
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        // Every explicit start (widget, media button, the activity, a sticky restart) is intent;
+        // only a bare bind (the post-boot scanner) is not. See userIntentSeen.
+        markUserIntent()
         when (intent?.action) {
             MusicWidget.ACTION_PLAY_PAUSE -> {
                 if (discoveryHandler.isConnected) {
@@ -3086,7 +3119,9 @@ class MusicService :
         return super.onStartCommand(intent, flags, startId)
     }
 
-    override fun onBind(intent: Intent?) = super.onBind(intent) ?: binder
+    // media3 answers its own session/browser binds (the post-boot scanner among them); only the
+    // app's own UI gets the in-app binder, and that IS user intent.
+    override fun onBind(intent: Intent?) = super.onBind(intent) ?: binder.also { markUserIntent() }
 
     override fun onTaskRemoved(rootIntent: Intent?) {
         // Issue #109: when "stop music on task clear" is enabled, swiping the app away from recents
@@ -3102,8 +3137,16 @@ class MusicService :
             if (CastPlayback.shouldEndCastOnTaskClear(true, discoveryHandler.isConnected)) {
                 discoveryHandler.disconnect()
             }
+            // Order matters (issue #109, the "notification doesn't go off" half): media3 builds its
+            // notification ASYNCHRONOUSLY, so pause() used to schedule a paused-notification post,
+            // stopForeground(REMOVE) removed the foreground one, and the scheduled post then landed
+            // on the dead service as a zombie only a force-stop cleared. The veto is raised BEFORE
+            // pause() so nothing is scheduled, then the notification is removed both ways media3
+            // itself removes one (stopForeground(REMOVE) AND cancel(), needed on all API levels).
+            stoppingOnTaskClear = true
             player.pause()
             stopForeground(STOP_FOREGROUND_REMOVE)
+            NotificationManagerCompat.from(this).cancel(NOTIFICATION_ID)
             stopSelf()
         }
         super.onTaskRemoved(rootIntent)
