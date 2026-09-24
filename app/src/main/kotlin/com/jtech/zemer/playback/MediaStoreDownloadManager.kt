@@ -65,7 +65,7 @@ import okhttp3.Request
 import com.metrolist.innertube.utils.ResilientDns
 import com.metrolist.innertube.YouTube
 import com.jtech.zemer.lyrics.LyricsUtils
-import com.metrolist.simpmusic.SimpMusicLyrics
+import com.jtech.zemer.lyrics.simpmusic.SimpMusicLyrics
 import timber.log.Timber
 
 /**

@@ -257,8 +257,6 @@ dependencies {
     ksp(libs.hilt.compiler)
 
     implementation(project(":innertube"))
-    implementation(project(":lrclib"))
-    implementation(project(":simpmusic"))
 
     // Cover-art and metadata embedding is pure Kotlin (utils/mp4 + utils/ogg) - no native/external deps
 

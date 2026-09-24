@@ -1,7 +1,7 @@
 package com.jtech.zemer.lyrics
 
-import com.metrolist.lrclib.LrcLib
 import com.jtech.zemer.constants.EnableLrcLibKey
+import com.jtech.zemer.lyrics.lrclib.LrcLib
 
 object LrcLibLyricsProvider : LyricsProvider {
     override val name = "LrcLib"

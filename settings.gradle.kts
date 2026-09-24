@@ -29,8 +29,6 @@ dependencyResolutionManagement {
 rootProject.name = "Zemer"
 include(":app")
 include(":innertube")
-include(":lrclib")
-include(":simpmusic")
 
 // Cipher library (submodule)
 includeBuild("cipher") {

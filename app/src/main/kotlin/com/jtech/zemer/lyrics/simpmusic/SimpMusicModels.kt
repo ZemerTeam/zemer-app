@@ -1,31 +1,26 @@
-package com.metrolist.simpmusic.models
+package com.jtech.zemer.lyrics.simpmusic
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
+/**
+ * One SimpMusic catalog entry - only the fields the provider reads (the client ignores unknown keys, so
+ * the wire's title/artist/album/vote metadata is simply not modelled).
+ */
 @Serializable
-data class LyricsData(
-    val id: String? = null,
-    val videoId: String? = null,
-    @SerialName("songTitle")
-    val title: String? = null,
-    @SerialName("artistName")
-    val artist: String? = null,
-    @SerialName("albumName")
-    val album: String? = null,
+data class SimpMusicLyricsData(
     @SerialName("durationSeconds")
     val duration: Int? = null,
     val syncedLyrics: String? = null,
     @SerialName("plainLyric")
     val plainLyrics: String? = null,
     val richSyncLyrics: String? = null,
-    val vote: Int? = null,
 )
 
 @Serializable
 data class SimpMusicApiResponse(
     val type: String? = null,
-    val data: List<LyricsData> = emptyList(),
+    val data: List<SimpMusicLyricsData> = emptyList(),
 ) {
     val success: Boolean
         get() = type == "success"

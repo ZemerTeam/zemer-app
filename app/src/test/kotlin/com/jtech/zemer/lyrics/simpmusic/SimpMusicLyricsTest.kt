@@ -1,10 +1,5 @@
-package com.zemer.simpmusic
+package com.jtech.zemer.lyrics.simpmusic
 
-import com.metrolist.simpmusic.SimpMusicLyrics
-import com.metrolist.simpmusic.durationDelta
-import com.metrolist.simpmusic.firstNonBlankLyrics
-import com.metrolist.simpmusic.sameRecording
-import com.metrolist.simpmusic.syncAllowed
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull

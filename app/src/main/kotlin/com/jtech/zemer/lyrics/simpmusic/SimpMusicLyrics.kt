@@ -1,13 +1,11 @@
-package com.metrolist.simpmusic
+package com.jtech.zemer.lyrics.simpmusic
 
-import com.metrolist.simpmusic.models.LyricsData
-import com.metrolist.simpmusic.models.SimpMusicApiResponse
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.engine.cio.CIO
+import io.ktor.client.plugins.HttpTimeout
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.plugins.defaultRequest
-import io.ktor.client.plugins.HttpTimeout
 import io.ktor.client.request.get
 import io.ktor.client.request.header
 import io.ktor.http.HttpHeaders
@@ -16,6 +14,11 @@ import io.ktor.serialization.kotlinx.json.json
 import kotlinx.serialization.json.Json
 import kotlin.math.abs
 
+/**
+ * api-lyrics.simpmusic.org client for the SimpMusic lyrics provider: a videoId-keyed, community-filled
+ * catalog, so a hit is this recording only when its duration is known and agrees with ours
+ * ([sameRecording]), and its timings are trusted only within [SYNC_TOLERANCE_SEC] ([syncAllowed]).
+ */
 object SimpMusicLyrics {
     private const val BASE_URL = "https://api-lyrics.simpmusic.org/v1/"
 
@@ -54,7 +57,7 @@ object SimpMusicLyrics {
         }
     }
 
-    suspend fun getLyricsByVideoId(videoId: String): List<LyricsData> = runCatching {
+    private suspend fun getLyricsByVideoId(videoId: String): List<SimpMusicLyricsData> = runCatching {
         val response = client.get(BASE_URL + videoId)
 
         if (response.status == HttpStatusCode.OK) {

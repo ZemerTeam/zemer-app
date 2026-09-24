@@ -1,6 +1,5 @@
-package com.metrolist.lrclib
+package com.jtech.zemer.lyrics.lrclib
 
-import com.metrolist.lrclib.models.Track
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -32,7 +31,7 @@ class LrcLibIdentityTest {
         assertFalse("a wrong artist still fails even with multiple credits", LrcLib.identityMatches("Vezakeini", "Some J-Pop Artist", "Vezakeini", "Shira Choir, Baruch Levine", 210.0, 210))
     }
 
-    private fun track(duration: Double, synced: String?, plain: String?) = Track(1, "Koi Koi Koi", "Baruch Levine", duration, plain, synced)
+    private fun track(duration: Double, synced: String?, plain: String?) = LrcLibTrack(1, "Koi Koi Koi", "Baruch Levine", duration, plain, synced)
 
     /** A track inside the 3 s identity gate but outside the 1 s sync gate never serves its synced body. */
     @Test
