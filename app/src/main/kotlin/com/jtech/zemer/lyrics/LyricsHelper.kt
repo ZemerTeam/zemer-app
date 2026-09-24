@@ -5,10 +5,8 @@ package com.jtech.zemer.lyrics
 import android.content.Context
 import androidx.datastore.preferences.core.Preferences
 import com.jtech.zemer.db.entities.LyricsEntity.Companion.LYRICS_NOT_FOUND
-import com.jtech.zemer.lyrics.model.LyricsUnavailableException
 import com.jtech.zemer.constants.LyricsProviderOrderKey
 import com.jtech.zemer.lyrics.zemer.ZemerLyricsClient
-import com.jtech.zemer.utils.dataStore
 import com.jtech.zemer.models.MediaMetadata
 import com.jtech.zemer.utils.NetworkConnectivityObserver
 import com.jtech.zemer.utils.reportException
@@ -17,6 +15,8 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.first
 import timber.log.Timber
 import javax.inject.Inject
+import com.jtech.zemer.lyrics.musixmatch.MusixmatchLyricsProvider
+import com.jtech.zemer.utils.dataStore
 
 class LyricsHelper
 @Inject
@@ -100,7 +100,3 @@ constructor(
     }
 }
 
-data class LyricsResult(
-    val providerName: String,
-    val lyrics: String,
-)

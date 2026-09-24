@@ -655,6 +655,18 @@ The rules that must not regress:
 
 ### Lyrics (the provider chain, the Zemer resolver, sync) — `docs/lyrics/README.md`
 
+**Layout (`lyrics/`, reorganised 2026-09-24):** the package root holds the chain core only - `LyricsProvider`
+(the interface), `LyricsHelper`, `LyricsChainWalk`, `SyncedFirstPicker`, `LyricsProviderRegistry`/`Ordering`,
+`LyricsStore`/`LyricsEntry`, `LyricsUtils`, `LineExtras`/`LineExtrasStore`, `LyricsUnavailableException`, and
+`LyricsHttp` - and every source lives in ONE package with its client, its models and its `LyricsProvider`
+wrapper together: `lrclib/`, `simpmusic/`, `musixmatch/`, `youtube/` (the two YouTube providers) and `zemer/`
+(the resolver client + provider + the parsers it drives). All four network sources share the single Ktor client
+`LyricsHttp` (lenient JSON, 15/10/15 s timeouts, never throws on status - each caller judges its own reply); do
+not re-add a per-source `HttpClient`. `lrclib/LrcLibTrack` is the ONE LRCLIB record model for both the search
+hit and the by-id row the resolver vouches for. The two `cleanTitle`/`cleanArtist` pairs (LrcLib's fork-era
+English patterns vs Musixmatch's Hebrew-aware gates that mirror the server harvester) are deliberately separate
+contracts, not a duplicate to merge.
+
 `lyrics/LyricsHelper.kt` runs the providers in order: **Zemer resolver first** (`lyrics/zemer/`; the search
 server's `/lyrics/resolve` returns source POINTERS, the app fetches Jyrics/Shironet/jkaraoke/tab4u/zemirotdb
 itself through golden-pinned parser ports of the server's parsers — `JyricsParser`, `ShironetParser`,

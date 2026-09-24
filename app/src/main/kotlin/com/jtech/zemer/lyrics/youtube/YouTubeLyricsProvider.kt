@@ -1,9 +1,10 @@
-package com.jtech.zemer.lyrics
+package com.jtech.zemer.lyrics.youtube
 
 import com.jtech.zemer.constants.EnableYouTubeLyricsKey
 import com.metrolist.innertube.YouTube
 import com.metrolist.innertube.models.WatchEndpoint
-import com.jtech.zemer.lyrics.model.LyricsUnavailableException
+import com.jtech.zemer.lyrics.LyricsUnavailableException
+import com.jtech.zemer.lyrics.LyricsProvider
 
 object YouTubeLyricsProvider : LyricsProvider {
     override val name = "YouTube Music"

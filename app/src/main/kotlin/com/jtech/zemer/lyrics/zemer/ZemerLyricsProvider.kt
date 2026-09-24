@@ -4,9 +4,9 @@ import com.jtech.zemer.constants.EnableZemerLyricsKey
 import com.jtech.zemer.lyrics.LabeledLyrics
 import com.jtech.zemer.lyrics.LyricsProvider
 import com.jtech.zemer.lyrics.LyricsUtils
-import com.jtech.zemer.lyrics.MusixmatchLyricsProvider
-import com.jtech.zemer.lyrics.SimpMusicLyricsProvider
-import com.jtech.zemer.lyrics.model.LyricsUnavailableException
+import com.jtech.zemer.lyrics.musixmatch.MusixmatchLyricsProvider
+import com.jtech.zemer.lyrics.simpmusic.SimpMusicLyricsProvider
+import com.jtech.zemer.lyrics.LyricsUnavailableException
 import kotlinx.coroutines.CancellationException
 
 /**

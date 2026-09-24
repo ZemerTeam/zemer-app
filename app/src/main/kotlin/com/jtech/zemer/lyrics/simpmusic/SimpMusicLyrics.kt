@@ -1,18 +1,13 @@
 package com.jtech.zemer.lyrics.simpmusic
 
-import io.ktor.client.HttpClient
 import io.ktor.client.call.body
-import io.ktor.client.engine.cio.CIO
-import io.ktor.client.plugins.HttpTimeout
-import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
-import io.ktor.client.plugins.defaultRequest
-import io.ktor.client.request.get
 import io.ktor.client.request.header
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.serialization.kotlinx.json.json
-import kotlinx.serialization.json.Json
 import kotlin.math.abs
+import com.jtech.zemer.lyrics.LyricsHttp
+import io.ktor.client.request.get
 
 /**
  * api-lyrics.simpmusic.org client for the SimpMusic lyrics provider: a videoId-keyed, community-filled
@@ -28,37 +23,11 @@ object SimpMusicLyrics {
     /** A track counts as THIS recording only when its duration is known and within this many seconds of ours. */
     const val IDENTITY_TOLERANCE_SEC = 5
 
-    private val client by lazy {
-        HttpClient(CIO) {
-            install(ContentNegotiation) {
-                json(
-                    Json {
-                        isLenient = true
-                        ignoreUnknownKeys = true
-                        explicitNulls = false
-                    },
-                )
-            }
-
-            install(HttpTimeout) {
-                requestTimeoutMillis = 15000
-                connectTimeoutMillis = 10000
-                socketTimeoutMillis = 15000
-            }
-
-            defaultRequest {
-                url(BASE_URL)
-                header(HttpHeaders.Accept, "application/json")
-                header(HttpHeaders.UserAgent, "SimpMusicLyrics/1.0")
-                header(HttpHeaders.ContentType, "application/json")
-            }
-
-            expectSuccess = false
-        }
-    }
-
     private suspend fun getLyricsByVideoId(videoId: String): List<SimpMusicLyricsData> = runCatching {
-        val response = client.get(BASE_URL + videoId)
+        val response = LyricsHttp.client.get(BASE_URL + videoId) {
+            header(HttpHeaders.Accept, "application/json")
+            header(HttpHeaders.UserAgent, "SimpMusicLyrics/1.0")
+        }
 
         if (response.status == HttpStatusCode.OK) {
             val apiResponse = response.body<SimpMusicApiResponse>()

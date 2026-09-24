@@ -1,7 +1,7 @@
-package com.jtech.zemer.lyrics
+package com.jtech.zemer.lyrics.simpmusic
 
 import com.jtech.zemer.constants.EnableSimpMusicKey
-import com.jtech.zemer.lyrics.simpmusic.SimpMusicLyrics
+import com.jtech.zemer.lyrics.LyricsProvider
 
 object SimpMusicLyricsProvider : LyricsProvider {
     override val name = "SimpMusic"

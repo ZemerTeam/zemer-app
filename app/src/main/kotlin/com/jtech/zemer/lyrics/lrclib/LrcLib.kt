@@ -1,15 +1,10 @@
 package com.jtech.zemer.lyrics.lrclib
 
-import io.ktor.client.HttpClient
 import io.ktor.client.call.body
-import io.ktor.client.engine.cio.CIO
-import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
-import io.ktor.client.plugins.defaultRequest
-import io.ktor.client.request.get
 import io.ktor.client.request.parameter
-import io.ktor.serialization.kotlinx.json.json
-import kotlinx.serialization.json.Json
 import kotlin.math.abs
+import com.jtech.zemer.lyrics.LyricsHttp
+import io.ktor.client.request.get
 
 /**
  * LRCLIB.net client for the LrcLib lyrics provider. Search is by cleaned title/artist over several
@@ -17,25 +12,6 @@ import kotlin.math.abs
  * ([pickBody]) before a body is served - a duration-only match once served a Japanese song.
  */
 object LrcLib {
-    private val client by lazy {
-        HttpClient(CIO) {
-            install(ContentNegotiation) {
-                json(
-                    Json {
-                        isLenient = true
-                        ignoreUnknownKeys = true
-                    },
-                )
-            }
-
-            defaultRequest {
-                url("https://lrclib.net")
-            }
-
-            expectSuccess = true
-        }
-    }
-
     // Patterns to clean from title
     private val titleCleanupPatterns = listOf(
         Regex("""\s*\(.*?(official|video|audio|lyrics|lyric|visualizer|hd|hq|4k|remaster|remix|live|acoustic|version|edit|extended|radio|clean|explicit).*?\)""", RegexOption.IGNORE_CASE),
@@ -78,7 +54,7 @@ object LrcLib {
         albumName: String? = null,
         query: String? = null,
     ): List<LrcLibTrack> = runCatching {
-        client.get("/api/search") {
+        LyricsHttp.client.get("https://lrclib.net/api/search") {
             if (query != null) parameter("q", query)
             if (trackName != null) parameter("track_name", trackName)
             if (artistName != null) parameter("artist_name", artistName)
