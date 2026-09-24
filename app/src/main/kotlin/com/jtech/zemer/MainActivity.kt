@@ -170,6 +170,12 @@ import com.jtech.zemer.constants.AppBarHeight
 import com.jtech.zemer.constants.HomeContentTabKey
 import com.jtech.zemer.extensions.cookieHasSession
 import com.jtech.zemer.extensions.toEnum
+import com.jtech.zemer.playback.PlayerVideoUiLogic
+import com.jtech.zemer.ui.player.VideoPipOverlay
+import com.jtech.zemer.ui.player.enterVideoPip
+import com.jtech.zemer.ui.player.pipAutoEnterSupported
+import com.jtech.zemer.ui.player.rememberIsInPipMode
+import com.jtech.zemer.ui.player.setVideoPipAutoEnter
 import com.jtech.zemer.ui.screens.HomeContentTab
 import com.jtech.zemer.ui.screens.effectiveHomeTab
 import com.jtech.zemer.constants.BlockPodcastsKey
@@ -399,6 +405,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
+        ownActivityLaunchInFlight = false
         if (pendingServiceStart) {
             val serviceIntent = Intent(this, MusicService::class.java)
             try {
@@ -419,6 +426,44 @@ class MainActivity : ComponentActivity() {
         // so the order is what keeps Compose on the scaled metrics. Idempotent; no-op at native scale.
         DensityScaler.reapply(this)
         super.onConfigurationChanged(newConfig)
+    }
+
+    /**
+     * Raised while an Activity this one launched is opening (the recognition dialog, a share sheet,
+     * the SAF picker, sign-in, the installer): the platform delivers onUserLeaveHint for those too,
+     * and it must not shrink the app into PiP under our own dialog. Cleared once we are resumed
+     * again. Pre-31 only - API 31+ uses the platform's auto-enter, which fires only for Home/recents.
+     */
+    private var ownActivityLaunchInFlight = false
+
+    override fun startActivity(intent: Intent?, options: Bundle?) =
+        launchingOwnActivity { super.startActivity(intent, options) }
+
+    @Suppress("OVERRIDE_DEPRECATION", "DEPRECATION")
+    override fun startActivityForResult(intent: Intent, requestCode: Int, options: Bundle?) =
+        launchingOwnActivity { super.startActivityForResult(intent, requestCode, options) }
+
+    private inline fun launchingOwnActivity(launch: () -> Unit) {
+        ownActivityLaunchInFlight = true
+        try {
+            launch()
+        } catch (e: Throwable) {
+            ownActivityLaunchInFlight = false
+            throw e
+        }
+    }
+
+    override fun onUserLeaveHint() {
+        super.onUserLeaveHint()
+        // Leaving the app while a video shows shrinks it to the PiP window instead of the onStop
+        // revert below (an Activity in PiP is paused, not stopped; closing the window stops it).
+        // Pre-31 path; the two exclusions live in PlayerVideoUiLogic.shouldEnterPipOnLeave.
+        val enter = PlayerVideoUiLogic.shouldEnterPipOnLeave(
+            isVideoMode = playerConnection?.isVideoMode?.value == true,
+            ownLaunchInFlight = ownActivityLaunchInFlight,
+            autoEnterSupported = pipAutoEnterSupported,
+        )
+        if (enter) enterVideoPip()
     }
 
     override fun onStop() {
@@ -2166,6 +2211,11 @@ class MainActivity : ComponentActivity() {
                             }
                         }
                     }
+                    // Picture-in-picture: arm the platform's auto-enter (API 31+) exactly while video
+                    // mode is on, and own the window's content while in it (VideoPipOverlay).
+                    val isVideoMode = playerConnection?.isVideoMode?.collectAsState()?.value == true
+                    LaunchedEffect(isVideoMode) { setVideoPipAutoEnter(isVideoMode) }
+                    playerConnection?.let { VideoPipOverlay(it, isVideoMode, rememberIsInPipMode()) }
                 }
             }
     }
