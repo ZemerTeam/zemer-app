@@ -432,6 +432,32 @@ always writes. The persisted classes pin `serialVersionUID` (see `models/Persist
 unpinned edit breaks every updating user's restore, guarded by `PersistQueueCompatTest`'s v37 blob.
 A Zemer Station broadcast is never persisted (see §Zemer Stations).
 
+### The media notification is gated on user intent (#109)
+
+media3 posts the media notification for ANY prepared player with a queue, playing or paused, and
+`MusicService.onCreate` restores the persisted queue and `prepare()`s it on every creation. After a
+reboot SystemUI's media-resumption scanner binds the exported browse service (creating intent
+`android.media.browse.MediaBrowserService`, reproduced on an API 30 emulator) with no user in the
+loop, so a phone nobody touched showed a "paused" notification plus a launcher badge. The rules:
+- `onUpdateNotification` is vetoed through the pure, tested `playback/NotificationGate` until there
+  is USER INTENT: the app's own UI bound (`onBind` handing out the in-app binder), an explicit start
+  command arrived (`onStartCommand`: widget tap, media button, the activity's own start), or
+  `playWhenReady` became true. media3 asking for the foreground is never vetoed.
+- A controller merely CONNECTING (`onGetSession`: the boot scanner, an auto-reconnecting headset,
+  Android Auto) is NOT intent - it must not surface a notification for a queue nobody asked for. Do
+  not reintroduce a caller-package allowlist as the gate; the veto is what holds for any creator.
+- The moment intent is seen with a queue loaded, the paused notification is posted (the pre-fix
+  behaviour on opening the app).
+- **"Stop music on task clear" raises the veto BEFORE it pauses** (`stoppingOnTaskClear`), then
+  removes the notification both ways media3 itself does (`stopForeground(STOP_FOREGROUND_REMOVE)`
+  AND `NotificationManagerCompat.cancel(NOTIFICATION_ID)`), then `stopSelf()`. media3 builds its
+  notification ASYNCHRONOUSLY, so the old order (pause, then remove, then stop) let the pause's
+  scheduled paused-notification post land on the dead service - the "doesn't go off until
+  force-stop" half of #109. Keep that order. The task-clear veto blocks only NON-foreground updates
+  and is dropped by any later user engagement (`markUserIntent`): `stopSelf()` does not destroy a
+  service another client (Android Auto, a headset app) still has bound, and that client's next play
+  must get its foreground start exactly as before. A foreground start is never vetoed by either rule.
+
 ### Cipher / player rotation (the most common future break)
 
 The `cipher` submodule (package `com.zemer.cipher`, repo `ZemerTeam/zemer-cipher`) deciphers YouTube's `player_ias` signatures in an Android WebView and mints poTokens. It's wired **two ways**: a git submodule *and* a Gradle composite build - `includeBuild("cipher")` in `settings.gradle.kts` substitutes `com.zemer:cipher` → the local `:library`, so the app always builds the working tree.
