@@ -1,5 +1,6 @@
 package com.jtech.zemer.ui.component
 
+import androidx.annotation.StringRes
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Row
@@ -25,6 +26,21 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.jtech.zemer.R
 import com.jtech.zemer.constants.PlaylistSongSortType
+import com.jtech.zemer.constants.SongSortType
+
+/**
+ * The [SongSortType] -> label string mapping shared by every [SortHeader] over [SongSortType]
+ * (Library songs, downloaded videos, cache/auto playlists, podcasts). One place so the rows can't
+ * drift. Enums with different members keep their own mapping: PlaylistSongSortType (CUSTOM) and
+ * ArtistSongSortType (a subset, no ARTIST).
+ */
+@StringRes
+fun songSortTypeLabel(type: SongSortType): Int = when (type) {
+    SongSortType.CREATE_DATE -> R.string.sort_by_create_date
+    SongSortType.NAME -> R.string.sort_by_name
+    SongSortType.ARTIST -> R.string.sort_by_artist
+    SongSortType.PLAY_TIME -> R.string.sort_by_play_time
+}
 
 @Composable
 inline fun <reified T : Enum<T>> SortHeader(

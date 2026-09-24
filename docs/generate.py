@@ -365,6 +365,15 @@ def _workflow_section():
 
 def _native_section():
     subs = re.findall(r'\[submodule\s+"([^"]+)"\]\s*\n\s*path\s*=\s*(\S+)\s*\n\s*url\s*=\s*(\S+)', _text(".gitmodules"))
+    if not os.path.exists("app/src/main/cpp/CMakeLists.txt"):
+        # No first-party native code (the cover-art embedder is pure Kotlin now); only
+        # the submodule inventory remains meaningful.
+        lines = ["## Native code", "", "None - metadata embedding is pure Kotlin", "(`utils/mp4/`, `utils/ogg/`); no NDK/CMake build.", "", "## Git submodules", ""]
+        lines += [f"| `{name}` | path `{path}` | {url} |" for name, path, url in subs]
+        if subs:
+            lines.insert(6, "| Submodule | Path | URL |")
+            lines.insert(7, "|---|---|---|")
+        return "\n".join(lines)
     cmake = _text("app/src/main/cpp/CMakeLists.txt")
     cmin = (re.search(r'cmake_minimum_required\(VERSION\s+([\d.]+)\)', cmake) or [None, "?"])[1]
     proj = (re.search(r'project\(([^)\s]+)', cmake) or [None, "?"])[1]
@@ -403,15 +412,6 @@ def _modules_section():
     return "\n".join(rows)
 
 
-def _solver_section():
-    regular, _ = tracked()
-    solver = [p for p in regular if p.startswith("app/src/main/assets/solver/")]
-    rows = ["| File | Hard fact |", "| --- | --- |"]
-    for p in solver:
-        rows.append(f"| `{os.path.basename(p)}` | Tracked JavaScript asset under Android assets. |")
-    return "\n".join(rows)
-
-
 def gen_build_release_md():
     parts = [
         "# Build, CI, native, and auxiliary modules documentation", "",
@@ -427,10 +427,7 @@ def gen_build_release_md():
         "## Native code and submodules", "",
         _native_section(), "",
         "## Auxiliary JVM modules", "",
-        _modules_section(), "",
-        "## Solver assets", "",
-        "Tracked solver assets under `app/src/main/assets/solver`:", "",
-        _solver_section(),
+        _modules_section(),
     ]
     return "\n".join(parts).rstrip("\n") + "\n"
 

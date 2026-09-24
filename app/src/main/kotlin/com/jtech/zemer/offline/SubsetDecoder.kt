@@ -46,6 +46,11 @@ object SubsetDecoder {
             val podcasts = ArrayList<SubPodcastShow>()
             val podcastEpisodes = ArrayList<SubPodcastEpisode>()
             var blocked = SubBlocked(emptySet(), emptySet())
+            var synonymGroups: List<List<String>> = emptyList()
+            var genreCatalog: SubGenreCatalog? = null
+            var lyricsFlags: Map<String, Int> = emptyMap()
+            var realVideos: Set<String> = emptySet()
+            val radioRows = ArrayList<SubRadioRow>()
 
             for (shard in manifest.shards) {
                 val bytes = store.shardBytes(shard.name) ?: return null
@@ -71,6 +76,11 @@ object SubsetDecoder {
                     shard.name == "podcasts" -> podcasts += decodePodcastShows(text)
                     shard.name.startsWith("podcastepisodes-") -> podcastEpisodes += decodePodcastEpisodes(text)
                     shard.name == "blocked" -> blocked = decodeBlocked(text)
+                    shard.name == "synonyms" -> synonymGroups = decodeSynonymGroups(text)
+                    shard.name == "genrecatalog" -> genreCatalog = decodeGenreCatalog(text)
+                    shard.name == "lyricsflags" -> lyricsFlags = decodeLyricsFlags(text)
+                    shard.name == "realvideos" -> realVideos = decodeRealVideos(text)
+                    shard.name.startsWith("radio-") -> radioRows += decodeRadioRows(text)
                     // Unknown shard → ignored for forward compatibility.
                 }
             }
@@ -78,6 +88,7 @@ object SubsetDecoder {
                 artists, tracks, albums, albumTracks, playlists,
                 community, communityTracks, homeRank, zemerPlaylists, zemerItems, blocked,
                 podcastChannels, podcasts, podcastEpisodes,
+                synonymGroups, genreCatalog, lyricsFlags, realVideos, radioRows,
             )
         } catch (e: CancellationException) {
             throw e
@@ -113,7 +124,6 @@ object SubsetDecoder {
             title = r[1].asString(),
             artistId = r[2].asString(),
             isVideo = flags and 1 != 0,
-            explicit = flags and 2 != 0,
             durationSec = r[4].asIntOrNull(),
             playCount = r[5].asLongOrNull(),
             uploadDate = r[6].asStringOrNull(),
@@ -198,9 +208,10 @@ object SubsetDecoder {
         )
     }
 
-    // Podcast show row: [ id(MPSP), name, author, channelId(UC), thumbnail, episodeCountText, genres ].
-    // `genres` (col 6) is a comma-separated slug string, appended after the podcast client shipped —
-    // getOrNull keeps a pre-genres snapshot (6 cols) decoding cleanly.
+    // Podcast show row: [ id(MPSP), name, author, channelId(UC), thumbnail, episodeCountText, genres,
+    // isKidZone ]. `genres` (col 6) is a comma-separated slug string and `isKidZone` (col 7, 0|1) the
+    // per-show kid flag — both appended after the podcast client shipped; getOrNull keeps older
+    // snapshots (6- or 7-col rows) decoding cleanly with empty/false defaults.
     fun decodePodcastShows(text: String): List<SubPodcastShow> = rows(text).map { r ->
         SubPodcastShow(
             id = r[0].asString(),
@@ -210,6 +221,7 @@ object SubsetDecoder {
             thumbnail = r[4].asStringOrNull(),
             episodeCountText = r[5].asStringOrNull(),
             genres = r.getOrNull(6).asStringOrNull()?.split(",")?.map { it.trim() }?.filter { it.isNotEmpty() }.orEmpty(),
+            isKidZone = (r.getOrNull(7).asIntOrNull() ?: 0) != 0,
         )
     }
 
@@ -229,6 +241,46 @@ object SubsetDecoder {
         val o = json.parseToJsonElement(text).jsonObject
         fun ids(key: String) = (o[key] as? JsonArray).orEmpty().mapTo(HashSet()) { it.asString() }
         return SubBlocked(global = ids("global"), female = ids("female"))
+    }
+
+    // synonyms shard: [[form, form, ...], ...] — the raw groups of zemer-search/data/synonyms.json,
+    // compiled on-device exactly like SubsetSynonyms.compile does for the built-in default table.
+    fun decodeSynonymGroups(text: String): List<List<String>> =
+        json.parseToJsonElement(text).jsonArray.map { group -> group.jsonArray.map { it.asString() } }
+
+    // genrecatalog shard: { genres:[[slug,title,kind]], kinds:[[id],...], podcastGenres:[[slug,title,kind|null]],
+    // podcastKinds:[[id,title]] } — kind rows are single-element arrays (just the id); the display title for a
+    // music kind is owned app-side (GenreKind), so only the id is read here.
+    fun decodeGenreCatalog(text: String): SubGenreCatalog {
+        val o = json.parseToJsonElement(text).jsonObject
+        fun entries(key: String) = (o[key] as? JsonArray).orEmpty().map { row ->
+            val r = row.jsonArray
+            SubGenreEntry(id = r[0].asString(), title = r[1].asString(), kind = r.getOrNull(2).asStringOrNull())
+        }
+        val kinds = (o["kinds"] as? JsonArray).orEmpty().map { it.jsonArray[0].asString() }
+        val podcastKinds = (o["podcastKinds"] as? JsonArray).orEmpty().map { row ->
+            val r = row.jsonArray
+            r[0].asString() to r[1].asString()
+        }
+        return SubGenreCatalog(genres = entries("genres"), kinds = kinds, podcastGenres = entries("podcastGenres"), podcastKinds = podcastKinds)
+    }
+
+    // lyricsflags shard: [[videoId, bits]] — one row per VERIFIED lyrics row of a whitelisted track.
+    fun decodeLyricsFlags(text: String): Map<String, Int> =
+        rows(text).associate { r -> r[0].asString() to r[1].asInt() }
+
+    // realvideos shard: [videoId] — the motion-classified real filmed videos among isVideo tracks.
+    fun decodeRealVideos(text: String): Set<String> =
+        json.parseToJsonElement(text).jsonArray.mapTo(HashSet()) { it.asString() }
+
+    // radio-<n> shard: [[videoId, pop|null, [[id,w],...] lib, [[id,w],...] sess]], hash-bucketed by
+    // videoId across 4 shard names — decoded per-shard and concatenated by the caller (loadCorpus).
+    fun decodeRadioRows(text: String): List<SubRadioRow> = rows(text).map { r ->
+        fun neighbours(idx: Int) = (r.getOrNull(idx) as? JsonArray).orEmpty().map { pair ->
+            val p = pair.jsonArray
+            p[0].asString() to p[1].asDoubleOrNull()!!
+        }
+        SubRadioRow(videoId = r[0].asString(), pop = r[1].asDoubleOrNull(), lib = neighbours(2), sess = neighbours(3))
     }
 
     // --- helpers ---

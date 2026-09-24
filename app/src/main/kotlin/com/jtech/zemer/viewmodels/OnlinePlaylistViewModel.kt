@@ -7,14 +7,10 @@ import androidx.lifecycle.viewModelScope
 import com.metrolist.innertube.YouTube
 import com.metrolist.innertube.models.PlaylistItem
 import com.metrolist.innertube.models.SongItem
-import com.metrolist.innertube.models.filterExplicit
-import com.jtech.zemer.constants.HideExplicitKey
 import com.jtech.zemer.db.MusicDatabase
 import com.jtech.zemer.search.ZemerSearchRepository
 import com.jtech.zemer.search.zemerSearchOptions
 import com.jtech.zemer.tracking.PlaySource
-import com.jtech.zemer.utils.dataStore
-import com.jtech.zemer.utils.getSuspend
 import com.jtech.zemer.utils.filterWhitelisted
 import com.jtech.zemer.utils.reportException
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -105,11 +101,9 @@ class OnlinePlaylistViewModel @Inject constructor(
 
             YouTube.playlist(playlistId)
                 .onSuccess { playlistPage ->
-                    val hideExplicit = context.dataStore.getSuspend(HideExplicitKey, false)
                     playlist.value = playlistPage.playlist
                     playlistSongs.value = playlistPage.songs
                         .distinctBy { it.id }
-                        .filterExplicit(hideExplicit)
                         .filterWhitelisted(database)
                         .filterIsInstance<SongItem>()
                     continuation = playlistPage.songsContinuation
@@ -139,10 +133,8 @@ class OnlinePlaylistViewModel @Inject constructor(
 
                 YouTube.playlistContinuation(currentProactiveToken)
                     .onSuccess { playlistContinuationPage ->
-                        val hideExplicit = context.dataStore.getSuspend(HideExplicitKey, false)
                         val currentSongs = playlistSongs.value.toMutableList()
                         val filteredSongs = playlistContinuationPage.songs
-                            .filterExplicit(hideExplicit)
                             .filterWhitelisted(database)
                             .filterIsInstance<SongItem>()
                         currentSongs.addAll(filteredSongs)
@@ -170,10 +162,8 @@ class OnlinePlaylistViewModel @Inject constructor(
         viewModelScope.launch(Dispatchers.IO) {
             YouTube.playlistContinuation(tokenForManualLoad)
                 .onSuccess { playlistContinuationPage ->
-                    val hideExplicit = context.dataStore.getSuspend(HideExplicitKey, false)
                     val currentSongs = playlistSongs.value.toMutableList()
                     val filteredSongs = playlistContinuationPage.songs
-                        .filterExplicit(hideExplicit)
                         .filterWhitelisted(database)
                         .filterIsInstance<SongItem>()
                     currentSongs.addAll(filteredSongs)

@@ -21,7 +21,6 @@ import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import com.jtech.zemer.constants.EnableContentFiltersKey
 import com.jtech.zemer.constants.AllowFemaleSingersKey
-import com.jtech.zemer.constants.AllowChasidishKey
 import com.jtech.zemer.constants.BlockVideosKey
 import com.jtech.zemer.constants.BlockPodcastsKey
 import com.jtech.zemer.constants.FemalePasscodeHashKey
@@ -570,7 +569,6 @@ class UserPreferencesRepository @Inject constructor(
             config.femalePasscodeHash?.let { hash ->
                 preferences[FemalePasscodeHashKey] = hash
             }
-            // Note: AllowChasidishKey is excluded since chasidish is now for recommendations only
         }
     }
 

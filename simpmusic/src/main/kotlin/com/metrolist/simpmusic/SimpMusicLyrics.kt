@@ -19,6 +19,12 @@ import kotlin.math.abs
 object SimpMusicLyrics {
     private const val BASE_URL = "https://api-lyrics.simpmusic.org/v1/"
 
+    /** Synced/word-synced bodies are used only when the source track is within this many seconds of ours. */
+    const val SYNC_TOLERANCE_SEC = 1
+
+    /** A track counts as THIS recording only when its duration is known and within this many seconds of ours. */
+    const val IDENTITY_TOLERANCE_SEC = 5
+
     private val client by lazy {
         HttpClient(CIO) {
             install(ContentNegotiation) {
@@ -67,53 +73,60 @@ object SimpMusicLyrics {
         videoId: String,
         duration: Int = 0,
     ): Result<String> = runCatching {
-        val tracks = getLyricsByVideoId(videoId)
+        // The videoId key alone is not identity: the catalog is community-filled. Only a track whose known
+        // duration agrees with ours is this recording; the rest are a miss, never plain text. (A wrong-text
+        // upload that also matches the duration still passes - no client gate can tell; Report is the remedy.)
+        val tracks = getLyricsByVideoId(videoId).filter { sameRecording(it.duration, duration) }
 
         if (tracks.isEmpty()) {
             throw IllegalStateException("Lyrics unavailable")
         }
 
         val bestMatch = if (duration > 0 && tracks.size > 1) {
-            tracks.minByOrNull { track ->
-                abs((track.duration ?: 0) - duration)
-            }
+            tracks.minByOrNull { track -> durationDelta(track.duration, duration) }
         } else {
             tracks.firstOrNull()
         }
 
-        val lyrics = bestMatch?.syncedLyrics ?: bestMatch?.plainLyrics
+        // Timings are only trustworthy for the SAME recording: within 1 s of the track we are playing
+        // (SYNC_TOLERANCE_SEC). Otherwise the words are still fine — serve plain, never a drifting sync.
+        val syncOk = bestMatch != null && syncAllowed(bestMatch.duration, duration)
+        val lyrics = (if (syncOk) firstNonBlankLyrics(bestMatch?.richSyncLyrics, bestMatch?.syncedLyrics, bestMatch?.plainLyrics)
+                      else firstNonBlankLyrics(bestMatch?.plainLyrics))
             ?: throw IllegalStateException("Lyrics unavailable")
 
         lyrics
     }
-
-    suspend fun getAllLyrics(
-        videoId: String,
-        duration: Int = 0,
-        callback: (String) -> Unit,
-    ) {
-        val tracks = getLyricsByVideoId(videoId)
-        var count = 0
-        var plain = 0
-
-        val sortedTracks = if (duration > 0) {
-            tracks.sortedBy { abs((it.duration ?: 0) - duration) }
-        } else {
-            tracks
-        }
-
-        sortedTracks.forEach { track ->
-            if (count <= 4) {
-                if (track.syncedLyrics != null && abs((track.duration ?: 0) - duration) <= 5) {
-                    count++
-                    callback(track.syncedLyrics)
-                }
-                if (track.plainLyrics != null && abs((track.duration ?: 0) - duration) <= 5 && plain == 0) {
-                    count++
-                    plain++
-                    callback(track.plainLyrics)
-                }
-            }
-        }
-    }
 }
+
+/**
+ * Whether a SimpMusic track of [trackDuration] seconds is the recording we are playing ([duration] seconds):
+ * both durations known and within [SimpMusicLyrics.IDENTITY_TOLERANCE_SEC]. An entry with no duration is
+ * unverifiable and is a miss, not "probably right".
+ */
+internal fun sameRecording(trackDuration: Int?, duration: Int): Boolean =
+    duration > 0 && trackDuration != null && abs(trackDuration - duration) <= SimpMusicLyrics.IDENTITY_TOLERANCE_SEC
+
+/**
+ * Whether a synced/word-synced body from a SimpMusic track of [trackDuration] seconds may be shown for a
+ * song of [duration] seconds: the timings fit only the same cut, within [SimpMusicLyrics.SYNC_TOLERANCE_SEC];
+ * an unknown duration on either side never syncs.
+ */
+internal fun syncAllowed(trackDuration: Int?, duration: Int): Boolean =
+    duration > 0 && trackDuration != null && abs(trackDuration - duration) <= SimpMusicLyrics.SYNC_TOLERANCE_SEC
+
+/** Distance in seconds between a track and ours for ranking; unknown durations sort last. */
+internal fun durationDelta(trackDuration: Int?, duration: Int): Int =
+    if (trackDuration == null) Int.MAX_VALUE else abs(trackDuration - duration)
+
+/**
+ * The first non-blank lyrics body in preference order (word-synced, line-synced, plain). SimpMusic
+ * returns syncedLyrics = "" (empty, not null) for plain-only tracks, so a plain elvis on syncedLyrics
+ * took the empty string and left the pane permanently blank. Blank entries are skipped, or null if
+ * none has content.
+ *
+ * richSyncLyrics is enhanced LRC: each line keeps its `[mm:ss.xx]` timestamp and adds `<mm:ss.xx>`
+ * tags before every word, so any plain-LRC consumer still parses it as line-synced lyrics.
+ */
+internal fun firstNonBlankLyrics(vararg candidates: String?): String? =
+    candidates.firstOrNull { !it.isNullOrBlank() }

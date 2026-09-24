@@ -25,6 +25,8 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.jtech.zemer.LocalPlayerAwareWindowInsets
+import com.jtech.zemer.ui.component.ChipsRowBottomPadding
+import com.jtech.zemer.ui.component.ChipsRowTopPadding
 import com.jtech.zemer.ui.component.LibraryFilterChip
 import com.jtech.zemer.LocalPlayerConnection
 import com.jtech.zemer.R
@@ -73,7 +75,8 @@ fun LibraryVideosScreen(
                     label = stringResource(R.string.videos),
                     onDeselect = onDeselect,
                     modifier = Modifier
-                        .padding(horizontal = 12.dp, vertical = 8.dp)
+                        .padding(horizontal = 12.dp)
+                        .padding(top = ChipsRowTopPadding, bottom = ChipsRowBottomPadding)
                         .fillMaxWidth()
                 )
             }

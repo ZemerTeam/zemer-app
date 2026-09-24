@@ -27,6 +27,14 @@ class PlayerIconResTest {
         assertEquals(R.drawable.repeat_one_on, repeatModeIconRes(Player.REPEAT_MODE_ONE))
     }
 
+    /** The accessibility label names the CURRENT mode, never a fixed "off" over an icon that shows on. */
+    @Test
+    fun `repeat content description follows the mode`() {
+        assertEquals(R.string.repeat_mode_off, repeatModeContentDescriptionRes(Player.REPEAT_MODE_OFF))
+        assertEquals(R.string.repeat_mode_all, repeatModeContentDescriptionRes(Player.REPEAT_MODE_ALL))
+        assertEquals(R.string.repeat_mode_one, repeatModeContentDescriptionRes(Player.REPEAT_MODE_ONE))
+    }
+
     @Test
     fun `off icon differs from every active icon`() {
         val off = repeatModeIconRes(Player.REPEAT_MODE_OFF)

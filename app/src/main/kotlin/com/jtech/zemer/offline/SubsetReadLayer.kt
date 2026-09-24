@@ -16,13 +16,18 @@ import com.jtech.zemer.search.ZemerPodcastChannelResponse
 import com.jtech.zemer.search.ZemerPodcastDetail
 import com.jtech.zemer.search.ZemerPodcastEpisode
 import com.jtech.zemer.search.ZemerPodcastGenrePageResponse
+import com.jtech.zemer.search.ZemerPodcastGenreKind
 import com.jtech.zemer.search.ZemerPodcastGenreSummary
 import com.jtech.zemer.search.ZemerPodcastGenresResponse
+import com.jtech.zemer.search.ZemerRadioResponse
 import com.jtech.zemer.search.ZemerPodcastResponse
+import com.jtech.zemer.search.ZemerPodcastsResponse
 import com.jtech.zemer.search.ZemerPodcastShow
 import com.jtech.zemer.search.ZemerTrack
 import com.jtech.zemer.search.resolveZemerUrl
 import java.util.WeakHashMap
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.Json
 
 /**
  * Offline read endpoints — the on-device port of the `/album`, `/home-rows` and
@@ -170,7 +175,6 @@ fun offlineAlbum(
             videoId = t.videoId,
             title = t.title,
             artist = trackArtist?.name ?: "",
-            explicit = t.explicit,
             durationSec = t.durationSec,
             trackNumber = at.pos + 1,
         )
@@ -228,7 +232,6 @@ fun offlineArtist(
         videoId = t.videoId,
         title = t.title,
         artist = a.name,
-        explicit = t.explicit,
         durationSec = t.durationSec,
     )
 
@@ -275,7 +278,7 @@ fun offlineHomeRows(
     fun ranked(row: String) = corpus.homeRankByRow[row].orEmpty()
 
     // top-albums → ZemerAlbum(+artistId). Gate by the album's primary artist; require it still exists;
-    // drop id-blocked ref/artist. (explicit is emitted by the server but not modeled by ZemerAlbum.)
+    // drop id-blocked ref/artist.
     val topAlbums = ranked("top-albums").mapNotNull { corpus.albumsById[it.refId] }
         .filter { al ->
             val artist = corpus.artistsById[al.artistId]
@@ -296,9 +299,10 @@ fun offlineHomeRows(
             contentGatePasses(femInv, artist?.isKidZone == true, isVideo = false, allowFemale, blockVideos, kidZone) &&
                 !corpus.idDropped(t.videoId, allowFemale) && !corpus.idDropped(t.artistId, allowFemale)
         }
-        // realVideo left at its default false: the snapshot has no CLIP classifier, so no video is flagged
-        // real -> the ViewModel's empty-pool fallback shows the whole set in the hero (no special-case here).
-        .map { ZemerTrack(videoId = it.videoId, title = it.title, artist = corpus.artistsById[it.artistId]?.name ?: "", artistId = it.artistId, explicit = it.explicit, durationSec = it.durationSec) }
+        // realVideo: the `realvideos` shard (2026-09-11 addendum) carries the same motion-classified set
+        // the live `/home-rows` response flags; absent on an older snapshot -> every id misses -> the
+        // ViewModel's empty-pool fallback shows the whole set in the hero, exactly the prior behaviour.
+        .map { ZemerTrack(videoId = it.videoId, title = it.title, artist = corpus.artistsById[it.artistId]?.name ?: "", artistId = it.artistId, durationSec = it.durationSec, realVideo = it.videoId in corpus.realVideos) }
 
     // top-artists → ZemerArtist. Gate by the artist's own flags + id-override; no _female cross-credit.
     val topArtists = ranked("top-artists").mapNotNull { corpus.artistsById[it.refId] }
@@ -530,7 +534,6 @@ private fun zemerPlaylistTracks(
                 videoId = t.videoId,
                 title = t.title,
                 artist = artist?.name ?: "",
-                explicit = t.explicit,
                 durationSec = t.durationSec,
                 fromAlbum = fromAlbum,
             ),
@@ -550,17 +553,39 @@ private fun zemerPlaylistTracks(
  * female is blocked and `global` ids always). Episodes are audio (played by videoId via InnerTube), so
  * `blockVideos` never hides them — `isVideo = false` throughout. A channel-less grandfathered show has
  * no flags to inherit (female/KidZone = false).
+ *
+ * Kid semantics mirror the server's 2026-08-26 default-exclusion (contract doc, server response): a
+ * show is kid when ITS flag or its channel's is set; `kidZone = true` serves ONLY kid shows;
+ * `kidZone = false` EXCLUDES them on browse surfaces ([defaultExcludesKid] = true: new-episodes,
+ * genres) but NOT on detail opens by id (the show page and a mixed channel's shelf,
+ * [defaultExcludesKid] = false) — the server's deliberate carve-out so a saved subscription,
+ * share, or deep-link keeps working without the flag.
  */
 private fun SubsetCorpus.podcastShowPasses(
     show: SubPodcastShow,
     allowFemale: Boolean,
     blockVideos: Boolean,
     kidZone: Boolean,
+    defaultExcludesKid: Boolean = false,
 ): Boolean {
     val ch = show.channelId?.let { podcastChannelsById[it] }
     if (idDropped(show.id, allowFemale) || idDropped(show.channelId, allowFemale)) return false
-    return contentGatePasses(ch?.isFemale == true, ch?.isKidZone == true, isVideo = false, allowFemale, blockVideos, kidZone)
+    val isKid = podcastIsKid(show)
+    if (defaultExcludesKid && !podcastKidBrowseGate(isKid, kidZone)) return false
+    return contentGatePasses(ch?.isFemale == true, isKid, isVideo = false, allowFemale, blockVideos, kidZone)
 }
+
+/** THE one "is this show kid content" derivation: the per-SHOW flag OR its host channel's. */
+internal fun SubsetCorpus.podcastIsKid(show: SubPodcastShow): Boolean =
+    show.isKidZone || show.channelId?.let { podcastChannelsById[it] }?.isKidZone == true
+
+/**
+ * THE shared kid gate for BROWSE surfaces (catalog, new-episodes, genres, search categories) —
+ * kid content only under `kidZone = 1`, excluded by default (server parity, 2026-08-26). Detail
+ * opens by id deliberately do NOT use it (the server's saved-subscription/deep-link carve-out).
+ */
+internal fun podcastKidBrowseGate(isKid: Boolean, kidZone: Boolean): Boolean =
+    if (kidZone) isKid else !isKid
 
 // newest-first: publishedAt desc (ISO dates sort lexicographically), NULLs last, then videoId asc.
 private val EPISODE_RECENCY = compareByDescending<SubPodcastEpisode> { it.publishedAt != null }
@@ -634,7 +659,12 @@ fun offlinePodcastChannel(
 ): ZemerPodcastChannelResponse? {
     val ch = corpus.podcastChannelsById[id] ?: return null
     if (corpus.idDropped(id, allowFemale)) return null
-    if (!contentGatePasses(ch.isFemale, ch.isKidZone, isVideo = false, allowFemale, blockVideos, kidZone)) return null
+    // Under kidZone the channel passes when it IS kid OR HOSTS a kid show (the server contract:
+    // 404 only unless the channel hosts a kid show) — a mixed publisher must not dead-end the
+    // "View channel" drill-in from a kid show; its shelf below filters to the kid shows.
+    val hostsKid = ch.isKidZone || corpus.podcastsByChannel[id].orEmpty().any { corpus.podcastIsKid(it) }
+    if (kidZone && !hostsKid) return null
+    if (!contentGatePasses(ch.isFemale, hostsKid, isVideo = false, allowFemale, blockVideos, kidZone)) return null
 
     val shows = corpus.podcastsByChannel[id].orEmpty()
         .filter { corpus.podcastShowPasses(it, allowFemale, blockVideos, kidZone) }
@@ -654,6 +684,21 @@ fun offlinePodcastChannel(
 }
 
 /**
+ * `GET /podcasts` — the show catalog (browse semantics: kid shows only under `kidZone = 1`, excluded
+ * by default). The app's one consumer is the KidZone podcasts grid's outage fallback.
+ */
+fun offlinePodcasts(
+    corpus: SubsetCorpus,
+    allowFemale: Boolean,
+    blockVideos: Boolean,
+    kidZone: Boolean,
+): ZemerPodcastsResponse = ZemerPodcastsResponse(
+    podcasts = corpus.podcasts
+        .filter { corpus.podcastShowPasses(it, allowFemale, blockVideos, kidZone, defaultExcludesKid = true) }
+        .map { it.toWire() },
+)
+
+/**
  * `GET /podcasts/new-episodes?k=` — the newest gated episodes across every approved channel's shows,
  * newest-first, capped at [k].
  */
@@ -667,7 +712,7 @@ fun offlinePodcastsNewEpisodes(
     val episodes = corpus.podcastEpisodes.asSequence()
         .filter { ep ->
             val show = corpus.podcastsById[ep.showId] ?: return@filter false
-            corpus.podcastShowPasses(show, allowFemale, blockVideos, kidZone) &&
+            corpus.podcastShowPasses(show, allowFemale, blockVideos, kidZone, defaultExcludesKid = true) &&
                 !corpus.idDropped(ep.videoId, allowFemale)
         }
         .sortedWith(EPISODE_RECENCY)
@@ -677,9 +722,18 @@ fun offlinePodcastsNewEpisodes(
     return ZemerNewEpisodesResponse(episodes = episodes)
 }
 
-// A genre slug's display title, derived offline the same way the server labels it: the vocabulary is
-// single lowercase words, so the title is the slug with its first letter uppercased ("gemara" -> "Gemara").
-private fun podcastGenreTitle(slug: String): String = slug.replaceFirstChar { it.uppercase() }
+// A podcast genre slug's display title: the server's own word from the genrecatalog shard's
+// `podcastGenres` list (2026-09-11 addendum) when the snapshot carries one, else the same fallback the
+// server itself would use offline of the shard — the vocabulary is single lowercase words, so the title
+// is the slug with its first letter uppercased ("gemara" -> "Gemara").
+private fun SubsetCorpus.podcastGenreTitle(slug: String): String =
+    genreCatalog?.podcastGenres?.firstOrNull { it.id == slug }?.title ?: slug.replaceFirstChar { it.uppercase() }
+
+// The podcast section catalog (music's Styles/Occasions header titles equivalent), from the genrecatalog
+// shard when present; absent (older snapshot) = no kinds, matching an older server response — the caller
+// (podcastGenreSections) already treats that as "flat catalog, one headerless section".
+private fun SubsetCorpus.podcastGenreKinds(): List<ZemerPodcastGenreKind> =
+    genreCatalog?.podcastKinds?.map { (id, title) -> ZemerPodcastGenreKind(id = id, title = title) }.orEmpty()
 
 /**
  * `GET /podcast-genres` — the flat catalog. Each approved, gate-passing show contributes to every genre
@@ -695,13 +749,13 @@ fun offlinePodcastGenres(
     val counts = HashMap<String, Int>()
     for (show in corpus.podcasts) {
         if (show.genres.isEmpty()) continue
-        if (!corpus.podcastShowPasses(show, allowFemale, blockVideos, kidZone)) continue
+        if (!corpus.podcastShowPasses(show, allowFemale, blockVideos, kidZone, defaultExcludesKid = true)) continue
         for (slug in show.genres) counts[slug] = (counts[slug] ?: 0) + 1
     }
     val genres = counts.entries
         .sortedWith(compareByDescending<Map.Entry<String, Int>> { it.value }.thenBy { it.key })
-        .map { ZemerPodcastGenreSummary(id = it.key, title = podcastGenreTitle(it.key), showCount = it.value) }
-    return ZemerPodcastGenresResponse(count = genres.size, genres = genres)
+        .map { ZemerPodcastGenreSummary(id = it.key, title = corpus.podcastGenreTitle(it.key), kind = corpus.genreCatalog?.podcastGenres?.firstOrNull { g -> g.id == it.key }?.kind, showCount = it.value) }
+    return ZemerPodcastGenresResponse(count = genres.size, kinds = corpus.podcastGenreKinds(), genres = genres)
 }
 
 /**
@@ -716,11 +770,16 @@ fun offlinePodcastGenre(
     kidZone: Boolean,
 ): ZemerPodcastGenrePageResponse? {
     val shows = corpus.podcasts.filter {
-        slug in it.genres && corpus.podcastShowPasses(it, allowFemale, blockVideos, kidZone)
+        slug in it.genres && corpus.podcastShowPasses(it, allowFemale, blockVideos, kidZone, defaultExcludesKid = true)
     }
     if (shows.isEmpty()) return null
     return ZemerPodcastGenrePageResponse(
-        genre = ZemerPodcastGenreSummary(id = slug, title = podcastGenreTitle(slug), showCount = shows.size),
+        genre = ZemerPodcastGenreSummary(
+            id = slug,
+            title = corpus.podcastGenreTitle(slug),
+            kind = corpus.genreCatalog?.podcastGenres?.firstOrNull { it.id == slug }?.kind,
+            showCount = shows.size,
+        ),
         shows = shows.map { it.toWire() },
     )
 }
@@ -760,4 +819,92 @@ private fun curatedAlbums(
             thumbnail = al.thumbnail,
         )
     }
+}
+
+// ── /radio ───────────────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Opaque-to-callers continuation tokens for the OFFLINE radio path. The live server's token carries a
+ * server-side session (seed + flags + a random shuffle order); offline has no session to carry state in,
+ * so the token just carries the plain parameters back — [SubsetRadio.radio] recomputes the SAME
+ * deterministic station from them and slices at [offset], matching the live design's own
+ * "canonical station, offset-independent" guarantee. [ZemerSearchRepository.radioContinuation] tells an
+ * offline token apart from a live one by [PREFIX] before deciding which path to call.
+ */
+internal object OfflineRadioToken {
+    const val PREFIX = "offline-radio:"
+    private val json = Json { ignoreUnknownKeys = true }
+
+    @Serializable
+    data class Parts(val kind: String, val seed: String? = null, val allowFemale: Boolean, val blockVideos: Boolean, val offset: Int)
+
+    fun encode(kind: String, seed: String?, allowFemale: Boolean, blockVideos: Boolean, offset: Int): String =
+        PREFIX + json.encodeToString(Parts.serializer(), Parts(kind, seed, allowFemale, blockVideos, offset))
+
+    /** Null for anything not shaped like one of ours (a live token, or corruption, including a
+     * negative [Parts.offset] — that would reach `List.drop(offset)` downstream, which THROWS on a
+     * negative count) — the caller must never guess at a malformed token; treating it as "end of
+     * station" is the caller's job. */
+    fun parse(token: String): Parts? {
+        if (!token.startsWith(PREFIX)) return null
+        return runCatching { json.decodeFromString(Parts.serializer(), token.removePrefix(PREFIX)) }
+            .getOrNull()
+            ?.takeIf { it.offset >= 0 }
+    }
+}
+
+/**
+ * `GET /radio` (offline) — one page of [SubsetRadio.radio] mapped to the live wire shape, so it flows
+ * through the SAME [ZemerSearchRepository.radioContinuation]/mapper path a server page would. Scoped to
+ * what the shards ship (see [SubsetRadio]'s doc): `kind == "genre"` and an unrecognised kind return null
+ * (the caller's `serverOrOffline` then rethrows the original network error rather than serving a wrong
+ * or empty station under that name).
+ */
+fun offlineRadio(
+    corpus: SubsetCorpus,
+    female: FemaleMatcher,
+    kind: String,
+    seed: String?,
+    allowFemale: Boolean,
+    blockVideos: Boolean,
+    offset: Int = 0,
+    limit: Int = 25,
+): ZemerRadioResponse? {
+    val idx = radioIndexFor(corpus)
+    val femaleIds = femaleVideoIdsFor(corpus, female)
+    fun pass(videoId: String): Boolean {
+        val t = corpus.tracksById[videoId] ?: return false
+        val artist = corpus.artistsById[t.artistId]
+        val femInv = (artist?.isFemale == true) || femaleIds.contains(videoId)
+        if (!contentGatePasses(femInv, artist?.isKidZone == true, t.isVideo, allowFemale, blockVideos, kidZone = false)) return false
+        return !corpus.idDropped(videoId, allowFemale)
+    }
+    // kind=playlist: the server resolves membership from ANY YouTube playlist id; offline we can only
+    // resolve a KNOWN community/curated playlist — an unknown id degrades to a seedless (popularity)
+    // station, exactly like an unresolvable song/artist/album seed (see SubsetRadio's doc). A curated
+    // (Zemer) playlist reuses zemerPlaylistTracks — the SAME assembly its own detail screen plays —
+    // so the radio seed set covers year-rule membership and album-expansion members too, not just
+    // direct track items (a hand-filtered `kind == "track"` slice silently dropped both).
+    val seedTracks = if (kind == "playlist" && seed != null) {
+        corpus.communityTracksByPlaylist[seed]?.map { it.videoId }
+            ?: corpus.zemerPlaylists.firstOrNull { it.id == seed }
+                ?.let { zemerPlaylistTracks(corpus, femaleIds, it, allowFemale, blockVideos, kidZone = false) }
+                ?.map { it.videoId }
+    } else {
+        null
+    }
+    val result = radio(idx, kind, seed, seedTracks, ::pass, offset, limit) ?: return null
+    val tracks = result.ids.mapNotNull { videoId ->
+        val t = corpus.tracksById[videoId] ?: return@mapNotNull null
+        ZemerTrack(
+            videoId = t.videoId,
+            title = t.title,
+            artist = corpus.artistsById[t.artistId]?.name ?: "",
+            artistId = t.artistId,
+            durationSec = t.durationSec,
+            realVideo = t.videoId in corpus.realVideos,
+        )
+    }
+    val continuation = result.nextOffset?.let { OfflineRadioToken.encode(kind, seed, allowFemale, blockVideos, it) }
+    return ZemerRadioResponse(tracks = tracks, continuation = continuation)
 }

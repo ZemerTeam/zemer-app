@@ -18,6 +18,12 @@ object IsraeliArtistRegistry {
     @Volatile
     private var cachedIds: Set<String> = emptySet()
 
+    // Separate from cachedIds: an empty set is a valid loaded answer (the live list is empty), and
+    // keying "loaded" off non-empty re-fetched it on every call. Only a successful load sets it, so a
+    // failure is still retried on the next call.
+    @Volatile
+    private var loaded = false
+
     private val mutex = Mutex()
 
     fun isIsraeli(artistId: String?): Boolean {
@@ -25,32 +31,41 @@ object IsraeliArtistRegistry {
         return cachedIds.contains(artistId)
     }
 
-    suspend fun ensureLoaded() {
-        if (cachedIds.isNotEmpty()) return
+    suspend fun ensureLoaded() = ensureLoaded(::fetchIds)
+
+    internal suspend fun ensureLoaded(fetch: suspend () -> Set<String>) {
+        if (loaded) return
 
         mutex.withLock {
-            if (cachedIds.isNotEmpty()) return
+            if (loaded) return
 
             runCatching {
-                val ids = mirrorFirst<Set<String>>(
-                    "israeliArtists",
-                    mirror = { ZemerContentClient.israeliArtists() },
-                    firebase = {
-                        val snapshot = FirebaseFirestore.getInstance()
-                            .collection("israeliArtists")
-                            .get()
-                            .await()
-                        snapshot.documents.mapNotNull { doc ->
-                            doc.getString("id") ?: doc.getString("artistId")
-                        }.toSet()
-                    },
-                )
-
+                val ids = fetch()
                 cachedIds = ids
+                loaded = true
                 Timber.d("IsraeliArtistRegistry: Loaded ${ids.size} artist ids")
             }.onFailure {
                 Timber.w(it, "IsraeliArtistRegistry: Failed to load artist ids")
             }
         }
+    }
+
+    private suspend fun fetchIds(): Set<String> = mirrorFirst(
+        "israeliArtists",
+        mirror = { ZemerContentClient.israeliArtists() },
+        firebase = {
+            val snapshot = FirebaseFirestore.getInstance()
+                .collection("israeliArtists")
+                .get()
+                .await()
+            snapshot.documents.mapNotNull { doc ->
+                doc.getString("id") ?: doc.getString("artistId")
+            }.toSet()
+        },
+    )
+
+    internal fun resetForTest() {
+        cachedIds = emptySet()
+        loaded = false
     }
 }

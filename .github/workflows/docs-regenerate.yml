@@ -71,4 +71,11 @@ jobs:
           # [skip ci] is load-bearing here: App-token pushes DO re-trigger workflows (unlike the
           # default GITHUB_TOKEN), so this prevents the workflow from re-running on its own commit.
           git commit -m "docs: auto-regenerate code-derived docs [skip ci]"
-          git push
+          # A bare push races any concurrent commit to main (this job is triggered by pushes to main)
+          # and drops the regenerated docs non-fast-forward. Rebase-and-retry so it lands.
+          for i in 1 2 3 4 5; do
+            git push && exit 0
+            git pull --rebase && continue
+            sleep 5
+          done
+          echo "::error::could not push regenerated docs after retries"; exit 1

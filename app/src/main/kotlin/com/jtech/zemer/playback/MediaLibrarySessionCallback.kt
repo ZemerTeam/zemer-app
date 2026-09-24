@@ -23,11 +23,9 @@ import com.google.common.util.concurrent.ListenableFuture
 import com.metrolist.innertube.YouTube
 import com.metrolist.innertube.models.PlaylistItem
 import com.metrolist.innertube.models.SongItem
-import com.metrolist.innertube.models.filterExplicit
 import com.jtech.zemer.R
 import com.jtech.zemer.constants.AndroidAutoSectionsOrderKey
 import com.jtech.zemer.constants.AndroidAutoYouTubePlaylistsKey
-import com.jtech.zemer.constants.HideExplicitKey
 import com.jtech.zemer.constants.MediaSessionConstants
 import com.jtech.zemer.constants.SongSortType
 import com.jtech.zemer.constants.VideoDownloadsInMusicKey
@@ -405,7 +403,6 @@ constructor(
                                 try {
                                     val songs = YouTube.playlist(playlistId).getOrNull()?.songs
                                         ?.take(100)
-                                        ?.filterExplicit(context.dataStore.get(HideExplicitKey, false))
                                         ?.filterWhitelisted(database)
                                         ?.filterIsInstance<SongItem>()
                                         ?: emptyList()
@@ -510,7 +507,6 @@ constructor(
                         .getOrNull()
                         ?.items
                         ?.filterIsInstance<SongItem>()
-                        ?.filterExplicit(context.dataStore.get(HideExplicitKey, false))
                         ?: emptyList()
 
                     val whitelistedItems = searchItems.filterWhitelisted(database).filterIsInstance<SongItem>()
@@ -644,7 +640,6 @@ constructor(
 
                     val songs = try {
                         YouTube.playlist(playlistId).getOrNull()?.songs
-                            ?.filterExplicit(context.dataStore.get(HideExplicitKey, false))
                             ?.filterWhitelisted(database)
                             ?.filterIsInstance<SongItem>()
                             ?.map { it.toMediaItem() }
@@ -703,7 +698,6 @@ constructor(
                             .getOrNull()
                             ?.items
                             ?.filterIsInstance<SongItem>()
-                            ?.filterExplicit(context.dataStore.get(HideExplicitKey, false))
                             ?: emptyList()
 
                         val whitelistedItems = searchItems.filterWhitelisted(database).filterIsInstance<SongItem>()

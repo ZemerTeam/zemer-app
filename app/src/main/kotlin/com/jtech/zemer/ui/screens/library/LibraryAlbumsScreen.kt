@@ -2,6 +2,7 @@
 
 package com.jtech.zemer.ui.screens.library
 
+import com.jtech.zemer.ui.utils.LibraryScrollToTopEffect
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
@@ -53,10 +54,11 @@ import com.jtech.zemer.constants.CONTENT_TYPE_HEADER
 import com.jtech.zemer.constants.GridItemSize
 import com.jtech.zemer.constants.GridItemsSizeKey
 import com.jtech.zemer.constants.GridThumbnailHeight
-import com.jtech.zemer.constants.HideExplicitKey
 import com.jtech.zemer.constants.LibraryViewType
 import com.jtech.zemer.constants.YtmSyncKey
 import com.jtech.zemer.ui.component.ChipsRow
+import com.jtech.zemer.ui.component.ChipsRowTopPadding
+import com.jtech.zemer.ui.component.ChipsRowBottomPadding
 import com.jtech.zemer.ui.component.LibraryFilterChip
 import com.jtech.zemer.ui.component.EmptyPlaceholder
 import com.jtech.zemer.ui.component.LibraryAlbumGridItem
@@ -96,10 +98,9 @@ fun LibraryAlbumsScreen(
     val gridItemSize by rememberEnumPreference(GridItemsSizeKey, GridItemSize.BIG)
 
     val (ytmSync) = rememberPreference(YtmSyncKey, true)
-    val hideExplicit by rememberPreference(key = HideExplicitKey, defaultValue = false)
 
     val filterContent = @Composable {
-        Row {
+        Row(modifier = Modifier.padding(top = ChipsRowTopPadding, bottom = ChipsRowBottomPadding)) {
             Spacer(Modifier.width(12.dp))
             LibraryFilterChip(
                 label = stringResource(R.string.albums),
@@ -134,19 +135,7 @@ fun LibraryAlbumsScreen(
 
     val lazyListState = rememberLazyListState()
     val lazyGridState = rememberLazyGridState()
-    val backStackEntry by navController.currentBackStackEntryAsState()
-    val scrollToTop =
-        backStackEntry?.savedStateHandle?.getStateFlow("scrollToTop", false)?.collectAsState()
-
-    LaunchedEffect(scrollToTop?.value) {
-        if (scrollToTop?.value == true) {
-            when (viewType) {
-                LibraryViewType.LIST -> lazyListState.animateScrollToItem(0)
-                LibraryViewType.GRID -> lazyGridState.animateScrollToItem(0)
-            }
-            backStackEntry?.savedStateHandle?.set("scrollToTop", false)
-        }
-    }
+    LibraryScrollToTopEffect(navController, viewType, lazyListState, lazyGridState)
 
     val headerContent = @Composable {
         Row(
@@ -233,13 +222,8 @@ fun LibraryAlbumsScreen(
                             }
                         }
 
-                        val filteredAlbumsForList = if (hideExplicit) {
-                            albums.filter { !it.album.explicit }
-                        } else {
-                            albums
-                        }
                         items(
-                            items = filteredAlbumsForList.distinctBy { it.id },
+                            items = albums.distinctBy { it.id },
                             key = { it.id },
                             contentType = { CONTENT_TYPE_ALBUM },
                         ) { album ->
@@ -292,13 +276,8 @@ fun LibraryAlbumsScreen(
                             }
                         }
 
-                        val filteredAlbumsForGrid = if (hideExplicit) {
-                            albums.filter { !it.album.explicit }
-                        } else {
-                            albums
-                        }
                         items(
-                            items = filteredAlbumsForGrid.distinctBy { it.id },
+                            items = albums.distinctBy { it.id },
                             key = { it.id },
                             contentType = { CONTENT_TYPE_ALBUM },
                         ) { album ->

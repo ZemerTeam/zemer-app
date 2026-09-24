@@ -7,23 +7,18 @@ import com.jtech.zemer.constants.AudioQuality
 import com.jtech.zemer.playback.VideoDecoderCaps
 import com.jtech.zemer.playback.VideoQualityLogic
 import com.jtech.zemer.playback.VideoQualityRung
-import com.jtech.zemer.constants.StreamSourceAndroidVRKey
 import com.jtech.zemer.constants.StreamSourceTVHTML5Key
 import com.jtech.zemer.constants.StreamSourceWebRemixKey
 import kotlinx.coroutines.flow.first
 
 import timber.log.Timber
-import com.metrolist.innertube.NewPipeUtils
 import com.metrolist.innertube.YouTube
 import com.zemer.cipher.CipherDeobfuscator
 import com.zemer.cipher.potoken.PoTokenGenerator
 import com.zemer.cipher.potoken.PoTokenResult
-import com.jtech.zemer.utils.sabr.EjsNTransformSolver
 import com.metrolist.innertube.models.YouTubeClient
-import com.metrolist.innertube.models.YouTubeClient.Companion.ANDROID_VR_1_65_10
 import com.metrolist.innertube.models.YouTubeClient.Companion.VISIONOS
 import com.metrolist.innertube.models.YouTubeClient.Companion.VISIONOS_0_1
-import com.metrolist.innertube.models.YouTubeClient.Companion.MWEB
 import com.metrolist.innertube.models.YouTubeClient.Companion.TVHTML5_SIMPLY
 import com.metrolist.innertube.models.YouTubeClient.Companion.WEB_CREATOR
 import com.metrolist.innertube.models.YouTubeClient.Companion.WEB_REMIX
@@ -44,13 +39,12 @@ object YTPlayerUtils {
 
     private val httpClient = OkHttpClient.Builder()
         .dns(ResilientDns())
-        .proxy(YouTube.proxy)
         .build()
 
     private val poTokenGenerator = PoTokenGenerator()
 
     // Track videoIds where WEB_REMIX stream URLs 403 on ExoPlayer GET, so the next
-    // resolution falls through to TVHTML5/ANDROID_VR instead of looping.
+    // resolution falls through to TVHTML5/VISIONOS instead of looping.
     private val webRemixFailedIds = java.util.Collections.newSetFromMap(
         java.util.concurrent.ConcurrentHashMap<String, Boolean>()
     )
@@ -70,7 +64,7 @@ object YTPlayerUtils {
 
     // Fire-and-forget scope for the cipher config self-heal triggered when a cipher client fails
     // stream validation during resolution. Only WEB_REMIX skips HEAD validation (so its bad URL
-    // 403s on ExoPlayer and hits MusicService's handler); WEB_CREATOR / TVHTML5_SIMPLY / MWEB are validated
+    // 403s on ExoPlayer and hits MusicService's handler); WEB_CREATOR / TVHTML5_SIMPLY are validated
     // here and never reach ExoPlayer, so without this trigger a WEB_REMIX-disabled user would never
     // self-heal a stale/wrong cipher config. Kept off the resolution coroutine so the (network)
     // refresh never blocks falling through to the next client.
@@ -83,29 +77,19 @@ object YTPlayerUtils {
 
     private val ALL_FALLBACK_CLIENTS: Array<YouTubeClient> = arrayOf(
         // VISIONOS first: its CDN URL has no `spc` gate, so it streams the whole song with no
-        // poToken and no cipher (HEAD 200) — the most reliable fallback, ahead of the ANDROID_VR
-        // and TVHTML5 clients. (The proven-dead clients were removed 2026-08-15: the pre-1.65 VR
-        // variants are version-bot-gated; MOBILE 400s authenticated / SABR-only anonymous; WEB,
+        // poToken and no cipher (HEAD 200) — the most reliable fallback, ahead of the
+        // TVHTML5 client. (The proven-dead clients were removed: the ANDROID_VR family (incl. the
+        // last-living 1.65.10) 403s after 0 bytes on a whole-song drain; the pre-1.65 VR
+        // variants were also version-bot-gated; MOBILE 400s authenticated / SABR-only anonymous; WEB,
         // IOS and IPADOS are SABR-only or 403-wall past the 1 MiB free window.)
         VISIONOS,
         // The previous visionOS config as its second chance behind the current 1.02.
         VISIONOS_0_1,
         WEB_CREATOR,
-        // The one living VR client (1.65.10, eureka build): its eureka-style UA clears the "confirm
-        // you're not a bot" gate that permanently rejects the older 1.61.48/1.43.32 versions (the
-        // gate keys on the VERSION — verified by probing the old versions under the eureka UA — so
-        // the retired variants were removed as proven dead). Direct URL, used AS-IS (yt-dlp
-        // android_vr: REQUIRE_JS_PLAYER=false, no poToken) — no cipher, no n-transform, no pot.
-        ANDROID_VR_1_65_10,
         // The one TV cipher client, governed by the "TVHTML5" stream-source toggle (7.x TVHTML5 and
         // tv_downgraded were both removed as proven dead: 7.x is SABR-only, tv_downgraded 403-walls
         // even yt-dlp-master-exact — re-add from clients-retired.mjs only if YouTube reverts them).
         TVHTML5_SIMPLY,
-        // MWEB (yt-dlp-master iPad UA) last: a login-required cipher fallback that drains whole
-        // songs when authenticated (the loginRequired gate skips it for login-less sessions). Last
-        // because it has the largest dependency surface (auth + cipher + pot) and the shortest
-        // track record; promote only after it has proven itself over time.
-        MWEB
     )
 
     private val STREAM_FALLBACK_CLIENTS: Array<YouTubeClient>
@@ -195,6 +179,10 @@ object YTPlayerUtils {
         preferVideo: Boolean = false,
         maxVideoBitrateKbps: Int? = null,
         forDownload: Boolean = false,
+        // When true, an AUDIO download may select Opus/WebM (itag 251) instead of being forced to
+        // AAC/m4a. The container is rewrapped to Ogg + tagged on-device (needs API 29+); the caller
+        // sets this from AudioRemux.oggMuxSupported so higher-quality Opus downloads are possible.
+        downloadOpusOk: Boolean = false,
         // Explicit video-quality selection (preferVideo only; both null = the automatic progressive
         // pick, the pre-switcher behavior). videoItag = the EXACT rung a streaming quality swap
         // encoded in its rendition key; videoQualityTarget = a target LABEL ("1080p") resolved to the
@@ -312,13 +300,13 @@ object YTPlayerUtils {
                 // Use the player response as-is. The old NewPipe StreamInfo.getInfo
                 // pre-processing ran a full second extraction for EVERY song (fetch watch
                 // page + decipher all ~18 formats) — slow with the bundled extractor and
-                // redundant. Direct-url clients (IOS/ANDROID_VR/IPADOS/VISIONOS) already
+                // redundant. Direct-url clients (VISIONOS) already
                 // carry playable URLs; web clients are deciphered per-format by the Zemer
                 // cipher in findUrlOrNull (sig) + transformNParamInUrl (n) below.
                 val responseToUse = streamPlayerResponse
 
                 // An EXPLICIT quality-rung streaming resolution (videoItag) must come from a WEB client
-                // only: a non-web fallback (IOS/ANDROID_VR) can carry the itag, but its pot-bound URL
+                // only: a non-web fallback (VISIONOS) can carry the itag, but its pot-bound URL
                 // 403s past the 1 MiB wall — so the switched-to quality would play ~1 MiB then revert.
                 // Skip non-web clients here so the loop finds a web client or fails safe (revert to
                 // audio, re-resolve fresh on re-entry). Mirrors the ladder-seed's web-only rule.
@@ -335,6 +323,7 @@ object YTPlayerUtils {
                         preferVideo,
                         maxVideoBitrateKbps,
                         forDownload,
+                        downloadOpusOk,
                         videoItag,
                         videoQualityTarget,
                     )
@@ -355,7 +344,7 @@ object YTPlayerUtils {
                 // Apply n-transform and PoToken for web clients (n-transform FIRST, then pot=)
                 val needsNTransform = clientNeedsNTransform(client)
 
-                // ANDROID_VR (and other direct-URL clients) use the URL AS-IS: per yt-dlp
+                // VISIONOS (and other direct-URL clients) use the URL AS-IS: per yt-dlp
                 // (REQUIRE_JS_PLAYER=False, no GVS poToken policy) their URLs are already ready — no
                 // sig, no n-transform, no pot. Applying the web transforms would CORRUPT them.
                 if (needsNTransform) {
@@ -390,7 +379,7 @@ object YTPlayerUtils {
                 // WEB_REMIX authenticated CDN URLs 403 on HEAD but serve correctly
                 // on the actual byte-range GET that ExoPlayer makes. Skip HEAD validation
                 // for streaming UNLESS this videoId already failed on GET (tracked in
-                // webRemixFailedIds), in which case fall through to TVHTML5/ANDROID_VR.
+                // webRemixFailedIds), in which case fall through to TVHTML5/VISIONOS.
                 // For downloads, always fall through — WEB_REMIX signed URLs don't support
                 // the &range= query-param download pattern.
                 if (client.clientName == "WEB_REMIX" && clientIndex == -1
@@ -563,7 +552,7 @@ object YTPlayerUtils {
         videoId: String,
         playlistId: String? = null,
     ): Result<PlayerResponse> {
-        return YouTube.player(videoId, playlistId, client = WEB_REMIX) // ANDROID_VR does not work with history
+        return YouTube.player(videoId, playlistId, client = WEB_REMIX) // non-web fallbacks do not work with history
     }
 
     private fun clientNeedsNTransform(client: YouTubeClient): Boolean =
@@ -578,11 +567,8 @@ object YTPlayerUtils {
         client: YouTubeClient,
         poTokenResult: PoTokenResult?,
     ): String {
+        // The cipher is the single n-transform source (it self-heals on rotation).
         var result = CipherDeobfuscator.transformNParamInUrl(url)
-        if (result == url) {
-            // CipherDeobfuscator didn't transform; try EjsNTransformSolver as fallback.
-            result = EjsNTransformSolver.transformNParamInUrl(url)
-        }
         if (client.useWebPoTokens && poTokenResult?.streamingDataPoToken != null) {
             val separator = if ("?" in result) "&" else "?"
             result = "$result${separator}pot=${android.net.Uri.encode(poTokenResult.streamingDataPoToken)}"
@@ -609,6 +595,7 @@ object YTPlayerUtils {
         preferVideo: Boolean,
         maxVideoBitrateKbps: Int?,
         forDownload: Boolean = false,
+        downloadOpusOk: Boolean = false,
         videoItag: Int? = null,
         videoQualityTarget: String? = null,
     ): PlayerResponse.StreamingData.Format? {
@@ -662,17 +649,16 @@ object YTPlayerUtils {
             return null
         }
 
-        // For downloads: exclude webm (MediaStore doesn't support it)
-        // For streaming: prefer opus (webm) for better quality
+        // Audio selection. Historically downloads EXCLUDED WebM (bento4 could only tag MP4, and
+        // MediaStore rejects a raw .webm audio entry), pinning them to the lower-quality AAC/m4a.
+        // With the on-device Ogg rewrap + tagger (downloadOpusOk, API 29+) a download can keep
+        // Opus/WebM (itag 251), so webm is allowed and gets the same opus preference as streaming.
+        val allowWebm = !forDownload || downloadOpusOk
         val audioFormats = playerResponse.streamingData?.adaptiveFormats
             ?.filter { it.isAudio && it.isOriginal }
             ?.let { formats ->
-                if (forDownload) {
-                    // Exclude webm for downloads - MediaStore only supports mp4/m4a
-                    formats.filter { !it.mimeType.startsWith("audio/webm") }.ifEmpty { formats }
-                } else {
-                    formats
-                }
+                if (allowWebm) formats
+                else formats.filter { !it.mimeType.startsWith("audio/webm") }.ifEmpty { formats }
             }
 
         val audioFormat = audioFormats?.maxByOrNull {
@@ -680,7 +666,7 @@ object YTPlayerUtils {
                 AudioQuality.AUTO -> if (connectivityManager.isActiveNetworkMetered) -1 else 1
                 AudioQuality.HIGH -> 1
                 AudioQuality.LOW -> -1
-            } + (if (!forDownload && it.mimeType.startsWith("audio/webm")) 10240 else 0) // prefer opus for streaming only
+            } + (if (allowWebm && it.mimeType.startsWith("audio/webm")) 10240 else 0) // prefer opus when webm is allowed
         }
 
         return audioFormat
@@ -722,37 +708,37 @@ object YTPlayerUtils {
         return false
     }
     /**
-     * STS for the /player request. It must come from the same player generation the Zemer
-     * cipher deciphers with: during A/B rollouts NewPipe's independently fetched player can
-     * be a different one, and a sig minted for one player deciphered by another 403s on the
-     * CDN (observed 2026-06-09: NewPipe sts=20611/69e2a55d vs cipher player ce74690f).
-     * NewPipe is only the fallback for when the cipher player fetch fails entirely.
+     * STS for the /player request, from the cipher player - the SINGLE source. It must come
+     * from the same player generation the cipher deciphers with: a sig minted for one player
+     * deciphered by another 403s on the CDN (observed 2026-06-09 when an independently
+     * fetched player supplied sts=20611/69e2a55d while the cipher held ce74690f). A second,
+     * independently fetched sts source is therefore a hazard, not a fallback - and the cipher
+     * fetches the player over the same iframe_api route any fallback would use, so there is
+     * no failure the fallback could survive that the cipher cannot. Null sts degrades the
+     * /player response, never playback of clients that need no sig.
      */
     private suspend fun getSignatureTimestampOrNull(
-        videoId: String
+        @Suppress("UNUSED_PARAMETER") videoId: String
     ): Int? {
         val cipherSts = try {
             CipherDeobfuscator.signatureTimestamp()
         } catch (e: Exception) {
             Timber.tag(TAG).e("Cipher player STS fetch FAILED", e)
+            reportException(e)
             null
         }
         if (cipherSts != null) {
             Timber.tag(TAG).d("Signature timestamp from cipher player: $cipherSts")
-            return cipherSts
         }
-        return NewPipeUtils.getSignatureTimestamp(videoId)
-            .onSuccess { Timber.tag(TAG).d( "Signature timestamp fetched via NewPipe: $it") }
-            .onFailure {
-                Timber.tag(TAG).e( "Signature timestamp fetch FAILED", it)
-                reportException(it)
-            }
-            .getOrNull()
+        return cipherSts
     }
     /**
-     * Resolves a playable stream URL from the format.
-     * If the response was pre-processed by NewPipe, uses the direct URL.
-     * Otherwise tries custom cipher deobfuscation, then NewPipe extractor as fallback.
+     * Resolves a playable stream URL from the format: a direct URL when the client serves
+     * one, else the cipher deobfuscates the signatureCipher. The cipher is the SINGLE
+     * decipher pipeline - it self-heals on rotation (forced config refresh + retry, remote
+     * configs land within minutes), so there is deliberately no second extractor behind it
+     * (the removed one was live-probed 2026-08-27: its sig parse fails on the current
+     * player, so it could no longer produce a playable URL anyway).
      */
     private suspend fun findUrlOrNull(
         format: PlayerResponse.StreamingData.Format,
@@ -763,13 +749,13 @@ object YTPlayerUtils {
 
         var url: String? = null
 
-        // If format already has a direct URL (from NewPipe pre-processing), use it
+        // Some clients serve a plain URL with no cipher - use it as-is.
         if (format.url != null) {
-            Timber.tag(TAG).d( "Using URL from format directly (NewPipe pre-processed)")
+            Timber.tag(TAG).d( "Using direct URL from format")
             url = format.url
         }
 
-        // Try custom cipher deobfuscation (for signatureCipher URLs without direct URL)
+        // Cipher deobfuscation for signatureCipher URLs.
         if (url == null && format.signatureCipher != null) {
             try {
                 val deobfuscated = CipherDeobfuscator.deobfuscateStreamUrl(format.signatureCipher!!, videoId)
@@ -783,19 +769,6 @@ object YTPlayerUtils {
                 // Throwable-first overload: passing e as a message vararg (no %s) silently
                 // dropped the exception class/message/stack from logcat and Crashlytics.
                 Timber.tag(TAG).e(e, "Custom cipher deobfuscation FAILED for %s", videoId)
-            }
-        }
-
-        // If custom cipher failed, try NewPipe extractor as fallback
-        if (url == null) {
-            val extractorUrl = NewPipeUtils.getStreamUrl(format, videoId)
-                .onSuccess { Timber.tag(TAG).d( "NewPipe extractor succeeded for $videoId") }
-                .onFailure {
-                    Timber.tag(TAG).e(it, "NewPipe extractor FAILED for %s", videoId)
-                }
-                .getOrNull()
-            if (extractorUrl != null) {
-                url = extractorUrl
             }
         }
 

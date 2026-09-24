@@ -12,6 +12,7 @@ on:
     paths-ignore:
       - 'docs/**'
       - 'tests/**'
+      - '**/src/test/**'
       - '**.md'
       - 'scripts/**'
       - '.github/**'
@@ -27,6 +28,7 @@ on:
     paths-ignore:
       - 'docs/**'
       - 'tests/**'
+      - '**/src/test/**'
       - '**.md'
       - 'scripts/**'
       - '.github/**'
@@ -37,9 +39,6 @@ on:
       - '.editorconfig'
       - 'LICENSE'
       - 'cipher'
-
-env:
-  USE_PREBUILT_NATIVE: true
 
 jobs:
   assemble-release:
@@ -66,21 +65,9 @@ jobs:
 
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
-
-      - name: Cache native libs
-        id: cache-native
-        uses: actions/cache@v4
         with:
-          path: app/src/main/jniLibs
-          key: bento4-libs-v1.0.1
+          packages: 'platform-tools'
 
-      - name: Download prebuilt native libs
-        if: steps.cache-native.outputs.cache-hit != 'true'
-        run: |
-          gh release download v1.0.1 --repo ZemerTeam/zemer-bento4 --pattern 'bento4-libs.zip'
-          unzip bento4-libs.zip -d app/src/main
-        env:
-          GH_TOKEN: ${{ github.token }}
 
       - name: Configure Android SDK path
         run: echo "sdk.dir=$ANDROID_SDK_ROOT" > local.properties
@@ -162,15 +149,18 @@ jobs:
           RECIPIENTS=$(printf '%s %s' "$PRIMARY_CHAT_ID" "$EXTRA_CHAT_IDS" \
             | tr ',\n' '  ' | tr -s ' ' '\n' | awk 'NF && !seen[$0]++')
 
+          # --max-time so a stalled Telegram upload can't hang the job until the 6h timeout
+          # (observed on run 33894912549); || true because the APK artifact is already uploaded —
+          # a failed notification must not fail the build.
           for CID in $RECIPIENTS; do
             if [ -n "$APK_FILE" ] && [ -f "$APK_FILE" ]; then
-              curl -s -X POST "https://api.telegram.org/bot${BOT_TOKEN}/sendDocument" \
+              curl -s --max-time 300 -X POST "https://api.telegram.org/bot${BOT_TOKEN}/sendDocument" \
                 -F chat_id="$CID" \
                 -F document=@"$APK_FILE" \
-                -F caption="$MESSAGE"
+                -F caption="$MESSAGE" || true
             else
-              curl -s -X POST "https://api.telegram.org/bot${BOT_TOKEN}/sendMessage" \
+              curl -s --max-time 60 -X POST "https://api.telegram.org/bot${BOT_TOKEN}/sendMessage" \
                 -d chat_id="$CID" \
-                --data-urlencode "text=${MESSAGE}"
+                --data-urlencode "text=${MESSAGE}" || true
             fi
           done

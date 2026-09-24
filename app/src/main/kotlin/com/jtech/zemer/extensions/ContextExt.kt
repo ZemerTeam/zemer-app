@@ -14,8 +14,30 @@ import com.jtech.zemer.constants.InnerTubeCookieKey
 import com.jtech.zemer.constants.YtmSyncKey
 import com.jtech.zemer.utils.dataStore
 import com.metrolist.innertube.utils.parseCookieString
+import kotlin.contracts.ExperimentalContracts
+import kotlin.contracts.contract
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+
+/**
+ * The "has a session" idiom: true when this cookie string carries a `SAPISID`. NOTE this is ALSO true
+ * for a pooled ANONYMOUS login, so it is NOT a personal-account test — never gate remote *account*
+ * reads/writes on it (use `AccountState` / `isPersonalAccountFlow` for that). See the Accounts section
+ * of AGENTS.md.
+ */
+fun String?.cookieHasSession(): Boolean =
+    !isNullOrEmpty() && "SAPISID" in parseCookieString(this)
+
+/**
+ * True when [visitorData] looks like a real InnerTube visitor token: present, `Cg`-prefixed and long
+ * enough to be a genuine value rather than a stub. The stricter of the two visitor-token checks in the
+ * app; the deliberately-weaker prefix-only checks (which accept short tokens) stay inline.
+ */
+@OptIn(ExperimentalContracts::class)
+fun isValidVisitorData(visitorData: String?): Boolean {
+    contract { returns(true) implies (visitorData != null) }
+    return !visitorData.isNullOrEmpty() && visitorData.startsWith("Cg") && visitorData.length > 20
+}
 
 /**
  * Show a short (or [long]) toast — the one wrapper over `Toast.makeText(this, …, …).show()`. Two

@@ -4,7 +4,6 @@ sealed class YTItem {
     abstract val id: String
     abstract val title: String
     abstract val thumbnail: String?
-    abstract val explicit: Boolean
     abstract val shareLink: String
 }
 
@@ -27,7 +26,6 @@ data class SongItem(
     val chartPosition: Int? = null,
     val chartChange: String? = null,
     override val thumbnail: String,
-    override val explicit: Boolean = false,
     val endpoint: WatchEndpoint? = null,
     val setVideoId: String? = null,
     val libraryAddToken: String? = null,
@@ -51,7 +49,6 @@ data class AlbumItem(
     val artists: List<Artist>?,
     val year: Int? = null,
     override val thumbnail: String,
-    override val explicit: Boolean = false,
 ) : YTItem() {
     override val shareLink: String
         get() = "https://music.zemer.io/playlist?list=$playlistId"
@@ -68,8 +65,6 @@ data class PlaylistItem(
     val radioEndpoint: WatchEndpoint?,
     val isEditable: Boolean = false,
 ) : YTItem() {
-    override val explicit: Boolean
-        get() = false
     override val shareLink: String
         get() = "https://music.zemer.io/playlist?list=$id"
 }
@@ -83,8 +78,6 @@ data class ArtistItem(
     val shuffleEndpoint: WatchEndpoint?,
     val radioEndpoint: WatchEndpoint?,
 ) : YTItem() {
-    override val explicit: Boolean
-        get() = false
     override val shareLink: String
         get() = "https://music.zemer.io/channel/$id"
 }
@@ -102,8 +95,6 @@ data class PodcastItem(
     val channelId: String? = null,
     val categories: List<String> = emptyList(),
 ) : YTItem() {
-    override val explicit: Boolean
-        get() = false
     override val shareLink: String
         get() = "https://music.zemer.io/playlist?list=$id"
 }
@@ -116,7 +107,6 @@ data class EpisodeItem(
     val duration: Int? = null,
     val publishDateText: String? = null,
     override val thumbnail: String,
-    override val explicit: Boolean = false,
     val endpoint: WatchEndpoint? = null,
     val libraryAddToken: String? = null,
     val libraryRemoveToken: String? = null,
@@ -133,17 +123,9 @@ data class EpisodeItem(
         album = podcast,
         duration = duration,
         thumbnail = thumbnail,
-        explicit = explicit,
         endpoint = endpoint,
         libraryAddToken = libraryAddToken,
         libraryRemoveToken = libraryRemoveToken,
         isEpisode = true
     )
 }
-
-fun <T : YTItem> List<T>.filterExplicit(enabled: Boolean = true) =
-    if (enabled) {
-        filter { !it.explicit }
-    } else {
-        this
-    }

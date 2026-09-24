@@ -1,11 +1,28 @@
 package com.jtech.zemer.lyrics
 
-import android.content.Context
+import androidx.datastore.preferences.core.Preferences
+import com.jtech.zemer.lyrics.zemer.ZemerLyricsClient
+
+/**
+ * A lyrics body plus the label to persist in `LyricsEntity.provider` ("Zemer · jkaraoke", "SimpMusic", ...), and
+ * the resolver's per-line extras when the Zemer provider answered (null from every other provider).
+ */
+data class LabeledLyrics(val label: String, val lyrics: String, val lineExtras: ZemerLyricsClient.LineExtras? = null)
 
 interface LyricsProvider {
     val name: String
 
-    fun isEnabled(context: Context): Boolean
+    /** The Content-settings switch for this provider; absent = enabled. */
+    val enabledKey: Preferences.Key<Boolean>
+
+    /**
+     * Whether this provider is lower trust than the identity-gated ones: its bodies are served only when
+     * no higher-trust provider answered at all, never over a curated plain body (see [SyncedFirstPicker]).
+     */
+    val lowTrust: Boolean get() = false
+
+    /** Read against ONE DataStore snapshot per chain walk (the helper takes it once), never a blocking read per provider. */
+    fun isEnabled(prefs: Preferences): Boolean = prefs[enabledKey] ?: true
 
     suspend fun getLyrics(
         id: String,
@@ -15,14 +32,16 @@ interface LyricsProvider {
         album: String? = null,
     ): Result<String>
 
-    suspend fun getAllLyrics(
+    /**
+     * [getLyrics] with the provenance label attached. The label is part of the result, never looked up
+     * afterwards, so every path persists the same string for the same source.
+     * Providers with sub-sources (Zemer) override this; everyone else is labelled with [name].
+     */
+    suspend fun getLabeledLyrics(
         id: String,
         title: String,
         artist: String,
         duration: Int,
         album: String? = null,
-        callback: (String) -> Unit,
-    ) {
-        getLyrics(id, title, artist, duration, album).onSuccess(callback)
-    }
+    ): Result<LabeledLyrics> = getLyrics(id, title, artist, duration, album).map { LabeledLyrics(name, it) }
 }

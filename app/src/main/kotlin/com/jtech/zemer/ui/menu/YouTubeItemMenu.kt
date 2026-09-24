@@ -26,6 +26,9 @@ fun ytItemMenu(
     coroutineScope: CoroutineScope,
     onDismiss: () -> Unit,
     isVideo: Boolean = false,
+    // KidZone navigation context from the opening screen (podcast items only): View artist/channel
+    // stays kid-scoped.
+    kidZone: Boolean = false,
 ): @Composable ColumnScope.() -> Unit = {
     when (item) {
         // A podcast SHOW gets its own menu — the playlist menu would save an MPSP id as a music
@@ -39,6 +42,7 @@ fun ytItemMenu(
             song = item.asSongItem(),
             navController = navController,
             onDismiss = onDismiss,
+            kidZone = kidZone,
         )
         is SongItem -> YouTubeSongMenu(
             song = item,

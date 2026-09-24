@@ -32,11 +32,6 @@
     <string name="featured_artists">Featured Artists</string>
     <string name="featured_albums">Featured Albums</string>
 
-    <string name="weeks">Weeks</string>
-    <string name="months">Months</string>
-    <string name="years">Years</string>
-    <string name="continuous">Continuous</string>
-
     <string name="liked">Liked</string>
     <string name="offline">Downloaded</string>
     <string name="my_top">My top</string>
@@ -95,8 +90,6 @@
     <string name="player_background_style">Player background style</string>
     <string name="follow_theme">Follow theme</string>
     <string name="gradient">Gradient</string>
-    <string name="new_player_design">New player design</string>
-    <string name="new_mini_player_design">New mini player design</string>
     <string name="floating_mini_player">Floating mini player</string>
     <string name="floating_mini_player_desc">Show the mini player overlay above screens</string>
     <string name="featured_videos">Featured videos</string>
@@ -139,7 +132,6 @@
 
     <string name="token_adv_login_description">This is an ADVANCED login method. As an alternative to the web portal, you may directly enter or update your login token here. For example, this can speed up logging in on multiple devices. Please note that any invalid token formats the app fails to parse will not be accepted</string>
     <string name="yt_sync">Auto sync with account</string>
-    <string name="integrations">Integrations</string>
     <string name="more_content">More content</string>
     
     <!-- Playlist cover edit -->
@@ -225,12 +217,9 @@
     <string name="nightly_update_available">Update available: %1$s</string>
     <string name="update_action">Update</string>
     <string name="force_download_stable">Download current stable release</string>
-    <string name="release_coming_soon_title">Coming soon</string>
-    <string name="release_coming_soon_message">A newer version is on the way. Please wait for the stable release.</string>
     <string name="check_for_updates_now">Check for updates now</string>
     <string name="update_available_title">Update available</string>
     <string name="update_available">Update available</string>
-    <string name="update_available_message">You are on version %1$s. Version %2$s is available.</string>
     <string name="up_to_date">Up to date</string>
     <string name="up_to_date_message">You are running the latest version (%1$s).</string>
     <string name="update_channel_name">App updates</string>
@@ -238,7 +227,7 @@
     <string name="download_and_install">Download &amp; Install</string>
     <string name="downloading_update">Downloading update…</string>
     <string name="later">Later</string>
-    <string name="whats_new">What\'s new:</string>
+    <string name="whats_new">What\'s new</string>
     <string name="error">Error</string>
     <string name="installer_method">Installation method</string>
     <string name="installer_native_title">Standard</string>
@@ -282,14 +271,17 @@
     <string name="stream_source_web_remix_desc">YouTube Music web client: the primary client</string>
     <string name="stream_source_tvhtml5">TVHTML5</string>
     <string name="stream_source_tvhtml5_desc">YouTube TV client: anonymous fallback, no sign-in needed</string>
-    <string name="stream_source_mweb">MWEB</string>
-    <string name="stream_source_mweb_desc">YouTube mobile web client: signed-in fallback</string>
-    <string name="stream_source_android_vr">Android VR</string>
-    <string name="stream_source_android_vr_desc">Direct URL client: reliable fallback, no cipher needed</string>
     <string name="stream_source_visionos">visionOS</string>
     <string name="stream_source_visionos_desc">Apple direct-URL client: most reliable fallback, no cipher or sign-in</string>
     <string name="stream_source_web_creator">WEB_CREATOR</string>
     <string name="stream_source_web_creator_desc">YouTube Studio web client: requires sign-in</string>
+    <string name="stream_source_experimental">Experimental</string>
+    <string name="stream_source_sabr">SABR streaming</string>
+    <string name="stream_source_sabr_desc">Stream via the SABR protocol instead of a direct URL. Off by default; takes effect on the next track.</string>
+    <string name="stream_source_sabr_clients">SABR clients</string>
+    <string name="stream_source_sabr_web_remix_desc">Main web client. Streams whole songs over SABR; tried first.</string>
+    <string name="stream_source_sabr_visionos_desc">Apple direct client: no sign-in, no cipher. Reliable SABR fallback.</string>
+    <string name="stream_source_sabr_tvhtml5_desc">TV client: no sign-in. Reliable SABR fallback.</string>
 
     <!-- Mixes / suggested playlists -->
     <string name="mixes">Mixes</string>
@@ -380,13 +372,13 @@
     <string name="onboarding_found_saved">Found your saved preferences</string>
     <string name="onboarding_restored_settings">Restored Settings:</string>
     <string name="onboarding_restored_filters_enabled">• Content Filters: Enabled</string>
-    <string name="onboarding_restored_female">• Female Singers: %s</string>
+    <string name="onboarding_restored_female">• Female Content: %s</string>
     <string name="onboarding_restored_videos">• Videos: %s</string>
     <string name="onboarding_restored_podcasts">• Podcasts: %s</string>
     <string name="onboarding_continuing_auto">Continuing automatically…</string>
     <string name="onboarding_filters_subtitle">Set up your content preferences (optional)</string>
-    <string name="onboarding_allow_female_title">Allow Female Singers</string>
-    <string name="onboarding_allow_female_desc">Include music by female artists</string>
+    <string name="onboarding_allow_female_title">Allow Female Content</string>
+    <string name="onboarding_allow_female_desc">Include music and podcasts by female artists</string>
     <string name="onboarding_block_videos_title">Block Videos</string>
     <string name="onboarding_block_videos_desc">Hide video content</string>
     <string name="onboarding_block_podcasts_title">Block Podcasts</string>
@@ -412,7 +404,6 @@
     <string name="settings_desc_updater">Check for app updates</string>
     <string name="settings_desc_about">About Zemer</string>
     <string name="settings_desc_android_auto">Customize browsing &amp; quick-add</string>
-    <string name="recommendations">Recommendations</string>
 
     <!-- Bottom navigation customization -->
     <string name="bottom_nav_items">Bottom Navigation Items</string>
@@ -457,8 +448,6 @@
     <string name="video_playback_error">Playback error</string>
 
     <!-- Accessibility content descriptions -->
-    <string name="cd_repeat">Repeat</string>
-    <string name="cd_play_pause">Play/Pause</string>
     <string name="cd_fetch_from_ytm">Fetch from YouTube Music</string>
     <string name="cd_suggestions_available">Suggestions available</string>
 
@@ -467,7 +456,6 @@
     <string name="download_channel_desc">Notifications for music download progress</string>
     <string name="download_preparing">Preparing downloads…</string>
     <string name="download_in_progress">Music downloads in progress</string>
-    <string name="proxy_url_parse_failed">Failed to parse proxy url.</string>
 
     <!-- Clipboard labels -->
     <string name="clip_label_title">Title</string>
@@ -618,8 +606,10 @@
     <!-- Theme & Colors screen -->
     <string name="theme_colors">Theme &amp; Colors</string>
     <string name="theme_desc">Customize your app theme</string>
-    <string name="enable_high_refresh_rate">Enable high refresh rate</string>
-    <string name="enable_high_refresh_rate_desc">Forces the display to run at its highest supported refresh rate (e.g. 120Hz)</string>
+    <string name="refresh_rate">Refresh rate</string>
+    <string name="refresh_rate_system">System default</string>
+    <string name="refresh_rate_standard">Standard (60 Hz)</string>
+    <string name="refresh_rate_high">High</string>
     <string name="theme_mode">Theme Mode</string>
     <string name="color_palette">Color Palette</string>
     <string name="cd_palette_item">%1$s palette</string>

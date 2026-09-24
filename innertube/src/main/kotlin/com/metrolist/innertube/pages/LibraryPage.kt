@@ -31,9 +31,6 @@ data class LibraryPage(
                     year = renderer.subtitle?.runs?.lastOrNull()?.text?.toIntOrNull(),
                     thumbnail = renderer.thumbnailRenderer.musicThumbnailRenderer?.getThumbnailUrl()
                         ?: return null,
-                    explicit = renderer.subtitleBadges?.find {
-                        it.musicInlineBadgeRenderer?.icon?.iconType == "MUSIC_EXPLICIT_BADGE"
-                    } != null
                 )
 
                 renderer.isPlaylist -> PlaylistItem(
@@ -120,9 +117,6 @@ data class LibraryPage(
                     duration = renderer.fixedColumns?.firstOrNull()?.musicResponsiveListItemFlexColumnRenderer?.text?.runs?.firstOrNull()?.text?.parseTime(),
                     thumbnail = renderer.thumbnail?.musicThumbnailRenderer?.getThumbnailUrl()
                         ?: return null,
-                    explicit = renderer.badges?.find {
-                        it.musicInlineBadgeRenderer?.icon?.iconType == "MUSIC_EXPLICIT_BADGE"
-                    } != null,
                     endpoint = renderer.overlay?.musicItemThumbnailOverlayRenderer?.content?.musicPlayButtonRenderer?.playNavigationEndpoint?.watchEndpoint,
                     libraryAddToken = PageHelper.extractFeedbackToken(renderer.menu?.menuRenderer?.items?.find {
                         it.toggleMenuServiceItemRenderer?.defaultIcon?.iconType?.startsWith("LIBRARY_") == true

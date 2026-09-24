@@ -67,7 +67,6 @@ class PlaylistRemoteEditsTest {
             album = Album(name = "al", id = "alb"),
             duration = 200,
             thumbnail = "https://example.com/t.jpg",
-            explicit = false,
             setVideoId = "SVID",
         )
         assertEquals("SVID", item.toMediaMetadata().setVideoId)
@@ -82,7 +81,6 @@ class PlaylistRemoteEditsTest {
             album = null,
             duration = 200,
             thumbnail = "https://example.com/t.jpg",
-            explicit = false,
         )
         assertNull(item.toMediaMetadata().setVideoId)
     }

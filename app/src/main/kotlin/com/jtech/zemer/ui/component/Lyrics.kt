@@ -20,18 +20,15 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.add
-import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -76,6 +73,10 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextAlign
@@ -96,12 +97,21 @@ import com.jtech.zemer.constants.DarkModeKey
 import com.jtech.zemer.constants.LyricsClickKey
 import com.jtech.zemer.constants.LyricsScrollKey
 import com.jtech.zemer.constants.LyricsTextPositionKey
+import com.jtech.zemer.constants.LyricsWordSyncKey
+import com.jtech.zemer.constants.LyricsSyncOffsetKey
+import com.jtech.zemer.constants.LyricsLineExtrasKey
+import com.jtech.zemer.lyrics.LineExtrasLanguage
+import com.jtech.zemer.ui.component.lyrics.LyricsLineExtra
+import com.jtech.zemer.viewmodels.LyricsLineExtrasViewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.jtech.zemer.constants.PlayerBackgroundStyle
 import com.jtech.zemer.constants.PlayerBackgroundStyleKey
 import com.jtech.zemer.db.entities.LyricsEntity.Companion.LYRICS_NOT_FOUND
 import com.jtech.zemer.lyrics.LyricsEntry
+import com.jtech.zemer.lyrics.LyricsUtils
 import com.jtech.zemer.lyrics.LyricsUtils.findCurrentLineIndex
 import com.jtech.zemer.lyrics.LyricsUtils.parseLyrics
+import com.jtech.zemer.lyrics.LyricsUtils.sungWordCount
 import com.jtech.zemer.ui.screens.settings.DarkMode
 import com.jtech.zemer.ui.screens.settings.LyricsPosition
 import com.jtech.zemer.ui.utils.fadingEdge
@@ -118,6 +128,12 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlin.time.Duration.Companion.seconds
 
+/** Fraction of the pane height at which the active synced line is held. */
+private const val ACTIVE_LINE_ANCHOR = 0.3f
+
+/** Height of the fade at the top of the list; the list's top padding matches it so line 1 is never faded. */
+private val LYRICS_TOP_FADE = 24.dp
+
 @RequiresApi(Build.VERSION_CODES.M)
 @OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
 @SuppressLint("UnusedBoxWithConstraintsScope", "StringFormatInvalid", "ObsoleteSdkInt",
@@ -129,6 +145,8 @@ fun Lyrics(
     modifier: Modifier = Modifier,
 ) {
     val playerConnection = LocalPlayerConnection.current ?: return
+    // Zemer Station: lyrics scrubs are a transport surface — no seek on line tap during a broadcast (docs/stations)
+    val isStationBroadcast by playerConnection.isStationBroadcast.collectAsState()
     LocalMenuState.current
     val density = LocalDensity.current
     val context = LocalContext.current
@@ -137,6 +155,8 @@ fun Lyrics(
     val lyricsTextPosition by rememberEnumPreference(LyricsTextPositionKey, LyricsPosition.CENTER)
     val changeLyrics by rememberPreference(LyricsClickKey, true)
     val scrollLyrics by rememberPreference(LyricsScrollKey, true)
+    val wordSyncLyrics by rememberPreference(LyricsWordSyncKey, true)
+    val syncOffsetMs by rememberPreference(LyricsSyncOffsetKey, 0)
     val scope = rememberCoroutineScope()
 
     val mediaMetadata by playerConnection.mediaMetadata.collectAsState()
@@ -157,7 +177,7 @@ fun Lyrics(
     val lines = remember(lyrics) {
         if (lyrics == null || lyrics == LYRICS_NOT_FOUND) {
             emptyList()
-        } else if (lyrics.startsWith("[")) {
+        } else if (LyricsUtils.isSynced(lyrics)) {
             parseLyrics(lyrics).let {
                 listOf(LyricsEntry.HEAD_LYRICS_ENTRY) + it
             }
@@ -169,8 +189,22 @@ fun Lyrics(
     }
     val isSynced =
         remember(lyrics) {
-            !lyrics.isNullOrEmpty() && lyrics.startsWith("[")
+            !lyrics.isNullOrEmpty() && LyricsUtils.isSynced(lyrics)
         }
+
+    // Per-line extras (translation / transliteration) paired by text key, once per body + language; the
+    // language and the extras both come from the pane's owner so the list never hashes lines per frame.
+    val lineExtrasLanguage by rememberEnumPreference(LyricsLineExtrasKey, LineExtrasLanguage.OFF)
+    val lineExtrasViewModel: LyricsLineExtrasViewModel = hiltViewModel()
+    val lineExtras by lineExtrasViewModel.extras.collectAsState()
+    val displayedLines = remember(lines) { lines.filter { it !== LyricsEntry.HEAD_LYRICS_ENTRY }.map { it.text } }
+    LaunchedEffect(mediaMetadata?.id, lineExtrasLanguage, displayedLines) {
+        mediaMetadata?.let { lineExtrasViewModel.bind(it, lineExtrasLanguage, displayedLines) }
+    }
+    val lineExtraTexts = remember(lines, lineExtras, lineExtrasLanguage) {
+        val extras = lineExtras
+        if (extras == null || lineExtrasLanguage == LineExtrasLanguage.OFF) List(lines.size) { null } else extras.forLines(lines.map { it.text }, lineExtrasLanguage)
+    }
 
     val textColor = when (playerBackground) {
         PlayerBackgroundStyle.DEFAULT -> MaterialTheme.colorScheme.secondary
@@ -183,6 +217,10 @@ fun Lyrics(
 
     var currentLineIndex by remember {
         mutableIntStateOf(-1)
+    }
+    // Only the active line reads this, so the 50ms tick recomposes just that one item.
+    var currentPositionMs by remember {
+        mutableLongStateOf(0L)
     }
     // Because LaunchedEffect has delay, which leads to inconsistent with current line color and scroll animation,
     // we use deferredCurrentLineIndex when user is scrolling
@@ -277,7 +315,7 @@ fun Lyrics(
     }
 
     LaunchedEffect(lyrics) {
-        if (lyrics.isNullOrEmpty() || !lyrics.startsWith("[")) {
+        if (lyrics.isNullOrEmpty() || !LyricsUtils.isSynced(lyrics)) {
             currentLineIndex = -1
             return@LaunchedEffect
         }
@@ -285,10 +323,9 @@ fun Lyrics(
             delay(50)
             val sliderPosition = sliderPositionProvider()
             isSeeking = sliderPosition != null
-            currentLineIndex = findCurrentLineIndex(
-                lines,
-                sliderPosition ?: playerConnection.currentPositionMs()
-            )
+            val position = (sliderPosition ?: playerConnection.currentPositionMs()) + syncOffsetMs
+            currentPositionMs = position
+            currentLineIndex = findCurrentLineIndex(lines, position)
         }
     }
 
@@ -316,7 +353,9 @@ fun Lyrics(
                 if (itemInfo != null) {
                     // Item is visible, animate directly to center without sudden jumps
                     val viewportHeight = lazyListState.layoutInfo.viewportEndOffset - lazyListState.layoutInfo.viewportStartOffset
-                    val center = lazyListState.layoutInfo.viewportStartOffset + (viewportHeight / 2)
+                    // Anchor the active line in the upper part of the pane (not dead centre) so more of what
+                    // comes next is readable below it; the top content padding matches this fraction.
+                    val center = lazyListState.layoutInfo.viewportStartOffset + (viewportHeight * ACTIVE_LINE_ANCHOR).toInt()
                     val itemCenter = itemInfo.offset + itemInfo.size / 2
                     val offset = itemCenter - center
 
@@ -337,9 +376,12 @@ fun Lyrics(
         
         if((currentLineIndex == 0 && shouldScrollToFirstLine) || !initialScrollDone) {
             shouldScrollToFirstLine = false
-            // Initial scroll to center the first line with medium animation (600ms)
-            val initialCenterIndex = kotlin.math.max(0, currentLineIndex)
-            performSmoothPageScroll(initialCenterIndex, 800) // Initial scroll duration
+            if (currentLineIndex <= 0) {
+                // Before the first line is sung there is nothing to anchor: show the lyrics from the top.
+                lazyListState.scrollToItem(0)
+            } else {
+                performSmoothPageScroll(currentLineIndex, 800) // Initial scroll duration
+            }
             if(!isAppMinimized) {
                 initialScrollDone = true
             }
@@ -371,7 +413,12 @@ fun Lyrics(
             .padding(bottom = 12.dp)
     ) {
 
-        if (lyrics == LYRICS_NOT_FOUND) {
+        if (lyrics == null) {
+            // Still fetching: a centred indicator, not a list item pinned to the top padding.
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                ZemerLoadingSection()
+            }
+        } else if (lyrics == LYRICS_NOT_FOUND) {
             Box(
                 modifier = Modifier.fillMaxSize(),
                 contentAlignment = Alignment.Center
@@ -388,12 +435,14 @@ fun Lyrics(
         } else {
             LazyColumn(
             state = lazyListState,
-            contentPadding = WindowInsets.systemBars
-                .only(WindowInsetsSides.Top)
-                .add(WindowInsets(top = maxHeight / 3, bottom = maxHeight / 2))
-                .asPaddingValues(),
+            // Lyrics start at the top in both modes. Synced lyrics get a large bottom padding so the active
+            // line can be held at ACTIVE_LINE_ANCHOR once there is content above it to scroll away. The host
+            // (LyricsScreen) already pads the system bars around the whole column, so no inset is added here:
+            // adding it again opened a status-bar-sized gap between the source header and the first line.
+            // The top padding clears the top fade (LYRICS_TOP_FADE) so the first line is read at full strength.
+            contentPadding = PaddingValues(top = LYRICS_TOP_FADE, bottom = if (isSynced) maxHeight / 2 else 24.dp),
             modifier = Modifier
-                .fadingEdge(vertical = 64.dp)
+                .fadingEdge(top = LYRICS_TOP_FADE, bottom = 64.dp)
                 .nestedScroll(remember {
                     object : NestedScrollConnection {
                         override fun onPostScroll(
@@ -422,15 +471,18 @@ fun Lyrics(
             val displayedCurrentLineIndex =
                 if (isSeeking || isSelectionModeActive) deferredCurrentLineIndex else currentLineIndex
 
-            if (lyrics == null) {
-                item {
-                    ZemerLoadingSection()
-                }
-            } else {
+            run {
                 itemsIndexed(
                     items = lines,
                     key = { index, item -> "$index-${item.time}" } // Add stable key
                 ) { index, item ->
+                    // The synced list starts with HEAD_LYRICS_ENTRY, a text-less entry that stands for "before
+                    // the first line" in the index math. It must take no space: laid out as a normal item it
+                    // rendered an empty line plus padding, an unexplained gap above the first real line.
+                    if (item === LyricsEntry.HEAD_LYRICS_ENTRY) {
+                        Box(modifier = Modifier.fillMaxWidth().height(0.dp))
+                        return@itemsIndexed
+                    }
                     val isSelected = selectedIndices.contains(index)
                     val itemModifier = Modifier
                         .fillMaxWidth()
@@ -453,7 +505,7 @@ fun Lyrics(
                                             showMaxSelectionToast = true
                                         }
                                     }
-                                } else if (isSynced && changeLyrics) {
+                                } else if (isSynced && changeLyrics && !isStationBroadcast) {
                                     // Professional seek action with smooth animation
                                     playerConnection.seekTo(item.time)
                                     // Smooth slow scroll when clicking on lyrics (3 seconds)
@@ -534,21 +586,40 @@ fun Lyrics(
                             LyricsPosition.RIGHT -> Alignment.End
                         }
                     ) {
+                        val isActiveLine = index == displayedCurrentLineIndex && isSynced
+                        val lineTextAlign = when (lyricsTextPosition) {
+                            LyricsPosition.LEFT -> TextAlign.Left
+                            LyricsPosition.CENTER -> TextAlign.Center
+                            LyricsPosition.RIGHT -> TextAlign.Right
+                        }
+                        val lineText = if (isActiveLine && wordSyncLyrics && item.words.isNotEmpty()) {
+                            val sung = sungWordCount(item.words, currentPositionMs)
+                            val unsungColor = textColor.copy(alpha = 0.35f)
+                            buildAnnotatedString {
+                                item.words.forEachIndexed { wordIndex, word ->
+                                    if (wordIndex > 0) append(' ')
+                                    withStyle(SpanStyle(color = if (wordIndex < sung) textColor else unsungColor)) {
+                                        append(word.text)
+                                    }
+                                }
+                            }
+                        } else {
+                            AnnotatedString(item.text)
+                        }
                         Text(
-                            text = item.text,
+                            text = lineText,
                             style = MaterialTheme.typography.headlineSmall, // Uniform size for all lines matching latest enh version
                             color = if (index == displayedCurrentLineIndex && isSynced) {
                                 textColor // Full color for active line
                             } else {
                                 textColor.copy(alpha = 0.8f) // Slightly muted for inactive lines
                             },
-                            textAlign = when (lyricsTextPosition) {
-                                LyricsPosition.LEFT -> TextAlign.Left
-                                LyricsPosition.CENTER -> TextAlign.Center
-                                LyricsPosition.RIGHT -> TextAlign.Right
-                            },
-                            fontWeight = if (index == displayedCurrentLineIndex && isSynced) FontWeight.ExtraBold else FontWeight.Bold
+                            textAlign = lineTextAlign,
+                            fontWeight = if (isActiveLine) FontWeight.ExtraBold else FontWeight.Bold
                         )
+                        lineExtraTexts.getOrNull(index)?.let { extra ->
+                            LyricsLineExtra(text = extra, color = textColor, textAlign = lineTextAlign)
+                        }
                     }
                 }
             }

@@ -168,6 +168,7 @@ fun ArtistSectionScreen(
                     searching = searchingHistory,
                     drainComplete = drainComplete,
                     onRetryDrain = { drainAttempt++ },
+                    kidZone = viewModel.kidZone,
                 )
             }
             isSongList ->
@@ -221,6 +222,8 @@ private fun ChannelEpisodeList(
     // filter into "couldn't search everything" + Retry instead of a false "No results found".
     drainComplete: Boolean,
     onRetryDrain: () -> Unit,
+    // KidZone navigation context - the episode menus' View artist stays kid-scoped.
+    kidZone: Boolean = false,
 ) {
     val menuState = LocalMenuState.current
     val playerConnection = LocalPlayerConnection.current ?: return
@@ -279,7 +282,7 @@ private fun ChannelEpisodeList(
                 isPlaying = isPlaying,
                 trailingContent = {
                     MoreVertMenuButton(onClick = {
-                        menuState.show(ytItemMenu(episode, navController, coroutineScope, menuState::dismiss))
+                        menuState.show(ytItemMenu(episode, navController, coroutineScope, menuState::dismiss, kidZone = kidZone))
                     })
                 },
                 modifier = Modifier.combinedClickable(
@@ -295,7 +298,7 @@ private fun ChannelEpisodeList(
                     },
                     onLongClick = {
                         haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                        menuState.show(ytItemMenu(episode, navController, coroutineScope, menuState::dismiss))
+                        menuState.show(ytItemMenu(episode, navController, coroutineScope, menuState::dismiss, kidZone = kidZone))
                     },
                 ),
             )

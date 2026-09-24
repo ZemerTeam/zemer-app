@@ -46,6 +46,7 @@ import com.jtech.zemer.constants.VisitorDataKey
 import com.jtech.zemer.utils.dataStore
 import com.jtech.zemer.utils.rememberPreference
 import androidx.datastore.preferences.core.edit
+import com.jtech.zemer.extensions.isValidVisitorData
 import com.jtech.zemer.extensions.toast
 import com.metrolist.innertube.YouTube
 import com.metrolist.innertube.utils.parseCookieString
@@ -180,7 +181,7 @@ fun LoginGateScreen(
                                 val fetchedAccountEmail = json.jsonObject["accountEmail"]?.jsonPrimitive?.content
                                 val fetchedAccountChannelHandle = json.jsonObject["accountChannelHandle"]?.jsonPrimitive?.content
 
-                                if (!fetchedVisitorData.isNullOrEmpty() && fetchedVisitorData.startsWith("Cg") && fetchedVisitorData.length > 20) {
+                                if (isValidVisitorData(fetchedVisitorData)) {
                                     visitorData = fetchedVisitorData
                                     YouTube.visitorData = fetchedVisitorData
                                     fetchedCookie

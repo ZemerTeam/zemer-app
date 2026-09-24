@@ -50,7 +50,7 @@ internal object TrackingEvents {
     /**
      * [client]/[player] are Zemer extensions to the base spec (requested in
      * handoff-docs/zemer-tracking-play-client-fields-request.md; the live server accepts the extra
-     * fields — verified): the stream client that served the listen (WEB_REMIX, ANDROID_VR, …) and,
+     * fields — verified): the stream client that served the listen (WEB_REMIX, VISIONOS, …) and,
      * for deciphered web clients, the player_ias hash — so streaming health can be correlated with
      * client/config rollouts.
      */

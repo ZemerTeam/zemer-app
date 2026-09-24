@@ -4,15 +4,7 @@ import android.content.Context
 import android.net.ConnectivityManager
 import androidx.core.content.getSystemService
 import androidx.core.net.toUri
-import androidx.media3.database.DatabaseProvider
-import androidx.media3.datasource.ResolvingDataSource
-import androidx.media3.datasource.cache.CacheDataSource
 import androidx.media3.datasource.cache.SimpleCache
-import androidx.media3.datasource.okhttp.OkHttpDataSource
-import androidx.media3.exoplayer.offline.Download
-import androidx.media3.exoplayer.offline.DownloadManager
-import androidx.media3.exoplayer.offline.DownloadNotificationHelper
-import androidx.media3.exoplayer.offline.DownloadService
 import com.metrolist.innertube.YouTube
 import com.metrolist.innertube.utils.ResilientDns
 import com.jtech.zemer.constants.AudioQuality
@@ -26,7 +18,6 @@ import com.jtech.zemer.utils.YTPlayerUtils
 import com.jtech.zemer.utils.enumPreferenceFlow
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.Flow
@@ -40,9 +31,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
-import java.time.LocalDateTime
 import java.util.concurrent.ConcurrentHashMap
-import java.util.concurrent.Executor
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -52,7 +41,6 @@ class DownloadUtil
 constructor(
     @ApplicationContext private val appContext: Context,
     private val databaseLazy: dagger.Lazy<MusicDatabase>,
-    val databaseProvider: DatabaseProvider,
     @DownloadCache val downloadCache: SimpleCache,
     @PlayerCache val playerCache: SimpleCache,
     val mediaStoreDownloadManager: MediaStoreDownloadManager,
@@ -86,158 +74,7 @@ constructor(
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
-    // Legacy ExoPlayer cache downloads. Still maintained for the download cache + removeDownload, but
-    // the UI no longer reads this map — download/progress state is unified through MediaStore (see
-    // DownloadStateResolver). Do not reintroduce UI reads of this (ui-audit rule R13).
-    val downloads = MutableStateFlow<Map<String, Download>>(emptyMap())
-
-    private val dataSourceFactory: ResolvingDataSource.Factory by lazy {
-        ResolvingDataSource.Factory(
-            CacheDataSource
-                .Factory()
-                .setCache(playerCache)
-                .setUpstreamDataSourceFactory(
-                    OkHttpDataSource.Factory(
-                        OkHttpClient.Builder()
-                            .dns(ResilientDns())
-                            .proxy(YouTube.proxy)
-                            .proxyAuthenticator { _, response ->
-                                YouTube.proxyAuth?.let { auth ->
-                                    response.request.newBuilder()
-                                        .header("Proxy-Authorization", auth)
-                                        .build()
-                                } ?: response.request
-                            }
-                            .build(),
-                    ),
-                ),
-        ) { dataSpec ->
-            val mediaId = dataSpec.key ?: error("No media id")
-            val length = if (dataSpec.length >= 0) dataSpec.length else 1
-
-            if (playerCache.isCached(mediaId, dataSpec.position, length)) {
-                return@Factory dataSpec
-            }
-
-            songUrlCache[mediaId]?.takeIf { it.second > System.currentTimeMillis() }?.let {
-                return@Factory dataSpec.withUri(it.first.toUri())
-            }
-
-            // Use currently loaded audioQuality (initialized in init block)
-            val currentQuality = audioQuality.takeIf { it != AudioQuality.AUTO } ?: AudioQuality.AUTO
-            val playbackData = runBlocking(Dispatchers.IO) {
-                YTPlayerUtils.playerResponseForPlayback(
-                    mediaId,
-                    audioQuality = currentQuality,
-                    connectivityManager = connectivityManager,
-                    forDownload = true,
-                )
-            }.getOrThrow()
-            val format = playbackData.format
-
-            val contentLength = format.contentLength ?: -1L
-            val now = LocalDateTime.now()
-            val existing = database.getSongByIdBlocking(mediaId)?.song
-
-            val updatedSong =
-                if (existing != null) {
-                    // Preserve existing metadata and only stamp download time once
-                    if (existing.dateDownload == null) existing.copy(dateDownload = now) else existing
-                } else {
-                    SongEntity(
-                        id = mediaId,
-                        title = playbackData.videoDetails?.title ?: "Unknown",
-                        duration = playbackData.videoDetails?.lengthSeconds?.toIntOrNull() ?: 0,
-                        thumbnailUrl = playbackData.videoDetails?.thumbnail?.thumbnails?.lastOrNull()?.url,
-                        dateDownload = now,
-                        isDownloaded = false
-                    )
-                }
-            database.query {
-                upsert(
-                    FormatEntity(
-                        id = mediaId,
-                        itag = format.itag,
-                        mimeType = format.mimeType.split(";")[0],
-                        codecs = format.mimeType.split("codecs=")[1].removeSurrounding("\""),
-                        bitrate = format.bitrate,
-                        sampleRate = format.audioSampleRate,
-                        contentLength = contentLength,
-                        loudnessDb = playbackData.audioConfig?.loudnessDb,
-                        playbackUrl = playbackData.playbackTracking?.videostatsPlaybackUrl?.baseUrl
-                    ),
-                )
-                upsert(updatedSong)
-            }
-
-            // Only update shared cache if there's no valid entry - don't overwrite player's URL
-            // Different fetches return different URL signatures, overwriting breaks playback
-            val baseStreamUrl = playbackData.streamUrl
-            val existingEntry = songUrlCache[mediaId]
-            if (existingEntry == null || existingEntry.second < System.currentTimeMillis()) {
-                songUrlCache[mediaId] = baseStreamUrl to (System.currentTimeMillis() + playbackData.streamExpiresInSeconds * 1000L)
-            }
-
-            // Add range parameter only for this download request (full file)
-            val downloadUrl = "${baseStreamUrl}&range=0-${format.contentLength ?: 10000000}"
-            dataSpec.withUri(downloadUrl.toUri())
-        }
-    }
-
-    val downloadNotificationHelper =
-        DownloadNotificationHelper(appContext, ExoDownloadService.CHANNEL_ID)
-
-    @OptIn(DelicateCoroutinesApi::class)
-    val downloadManager: DownloadManager =
-        DownloadManager(
-            appContext,
-            databaseProvider,
-            downloadCache,
-            dataSourceFactory,
-            Executor(Runnable::run)
-        ).apply {
-            maxParallelDownloads = 3
-            addListener(
-                object : DownloadManager.Listener {
-                    override fun onDownloadChanged(
-                        downloadManager: DownloadManager,
-                        download: Download,
-                        finalException: Exception?,
-                    ) {
-                        downloads.update { map ->
-                            map.toMutableMap().apply {
-                                set(download.request.id, download)
-                            }
-                        }
-
-                        scope.launch {
-                            when (download.state) {
-                                Download.STATE_COMPLETED -> {
-                                    database.updateDownloadedInfo(download.request.id, true, LocalDateTime.now())
-                                }
-                                Download.STATE_FAILED,
-                                Download.STATE_STOPPED,
-                                Download.STATE_REMOVING -> {
-                                    database.updateDownloadedInfo(download.request.id, false, null)
-                                }
-                                else -> {
-                                }
-                            }
-                        }
-                    }
-                }
-            )
-        }
-
     init {
-        // Initialize downloads snapshot
-        val result = mutableMapOf<String, Download>()
-        val cursor = downloadManager.downloadIndex.getDownloads()
-        while (cursor.moveToNext()) {
-            result[cursor.download.request.id] = cursor.download
-        }
-        downloads.value = result
-
         // Initialize audioQuality from preference
         scope.launch {
             audioQualityFlow.collect { quality ->
@@ -296,9 +133,6 @@ constructor(
         // Cancel queued/active MediaStore download and delete file/flags
         runCatching { mediaStoreDownloadManager.deleteDownloaded(songId) }
 
-        // Remove legacy ExoPlayer cache download if present
-        runCatching { downloadManager.removeDownload(songId) }
-
         // Purge the id's playerCache resources: local-file plays cached FILE bytes under this key,
         // which are a different container than a future STREAM of the same id — stale spans would
         // corrupt the extractor mid-track. The video: rendition namespace is purged too (a deleted
@@ -309,8 +143,6 @@ constructor(
         runCatching { VideoRendition.allRenditionKeys(songId, playerCache.keys) }
             .getOrDefault(emptyList())
             .forEach { runCatching { playerCache.removeResource(it) } }
-
-        downloads.update { it - songId }
 
         runCatching {
             database.song(songId).firstOrNull()?.let { song ->

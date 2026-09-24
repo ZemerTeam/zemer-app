@@ -77,7 +77,6 @@ import com.jtech.zemer.LocalPlayerAwareWindowInsets
 import com.jtech.zemer.LocalPlayerConnection
 import com.jtech.zemer.R
 import com.jtech.zemer.constants.AlbumThumbnailSize
-import com.jtech.zemer.constants.HideExplicitKey
 import com.jtech.zemer.constants.ThumbnailCornerRadius
 import com.jtech.zemer.db.entities.Album
 import com.jtech.zemer.extensions.togglePlayPause
@@ -99,7 +98,6 @@ import com.jtech.zemer.ui.utils.activeRowTapTogglesPlayPause
 import com.jtech.zemer.ui.utils.ItemWrapper
 import com.jtech.zemer.ui.utils.backToMain
 import com.jtech.zemer.ui.utils.navigateToArtist
-import com.jtech.zemer.utils.rememberPreference
 import com.jtech.zemer.viewmodels.AlbumViewModel
 import kotlinx.coroutines.launch
 
@@ -120,17 +118,11 @@ fun AlbumScreen(
     val isPlaying by playerConnection.isPlaying.collectAsState()
     val mediaMetadata by playerConnection.mediaMetadata.collectAsState()
 
-    val playlistId by viewModel.playlistId.collectAsState()
     val albumWithSongs by viewModel.albumWithSongs.collectAsState()
     val albumNotFound by viewModel.notFound.collectAsState()
-    val hideExplicit by rememberPreference(key = HideExplicitKey, defaultValue = false)
 
-    val wrappedSongs = remember(albumWithSongs, hideExplicit) {
-        val filteredSongs = if (hideExplicit) {
-            albumWithSongs?.songs?.filter { !it.song.explicit } ?: emptyList()
-        } else {
-            albumWithSongs?.songs ?: emptyList()
-        }
+    val wrappedSongs = remember(albumWithSongs) {
+        val filteredSongs = albumWithSongs?.songs ?: emptyList()
         filteredSongs.map { item -> ItemWrapper(item) }.toMutableStateList()
     }
     var selection by remember {
@@ -338,13 +330,11 @@ fun AlbumScreen(
 
                     PlaylistPlayShuffleButtons(
                         onPlay = {
-                            playerConnection.service.getAutomix(playlistId)
                             playerConnection.playQueue(
                                 LocalAlbumRadio(albumWithSongs, context = context),
                             )
                         },
                         onShuffle = {
-                            playerConnection.service.getAutomix(playlistId)
                             playerConnection.playQueue(
                                 LocalAlbumRadio(albumWithSongs.copy(songs = albumWithSongs.songs.shuffled()), context = context),
                             )
@@ -403,7 +393,6 @@ fun AlbumScreen(
                                             if (activeRowTapTogglesPlayPause(songWrapper.item.id == mediaMetadata?.id, playerConnection.isStationBroadcast.value)) {
                                                 playerConnection.playPause()
                                             } else {
-                                                playerConnection.service.getAutomix(playlistId)
                                                 playerConnection.playQueue(
                                                     LocalAlbumRadio(albumWithSongs, startIndex = index, context = context),
                                                 )

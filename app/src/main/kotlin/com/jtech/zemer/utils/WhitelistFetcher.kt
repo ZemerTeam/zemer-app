@@ -59,6 +59,8 @@ object WhitelistFetcher {
                                 isGenZ = doc.isGenZ ?: false,
                                 isKids = doc.isKids ?: false,
                                 isKidZone = doc.isKidZone ?: false,
+                                displayName = doc.displayName?.takeIf { it.isNotBlank() },
+                                altName = doc.altName?.takeIf { it.isNotBlank() },
                             ).also { it.thumbnailUrl = doc.thumbnail?.takeIf { t -> t.isNotBlank() } }
                         )
                     }
@@ -98,7 +100,9 @@ object WhitelistFetcher {
                                 isChasid = isChasid,
                                 isGenZ = isGenZ,
                                 isKids = isKids,
-                                isKidZone = isKidZone
+                                isKidZone = isKidZone,
+                                displayName = doc.getString("displayName")?.takeIf { it.isNotBlank() },
+                                altName = doc.getString("altName")?.takeIf { it.isNotBlank() },
                             ).also { it.thumbnailUrl = thumbnailUrl }
                         )
                         processed++

@@ -151,22 +151,22 @@ Code fix options (pick one):
 | **VISIONOS (1.02, yt-dlp-master-exact) + VISIONOS_0_1** | yes whole song (both) | nothing — anon, direct url, no pot/cipher/BotGuard |
 | **WEB_REMIX / WEB_CREATOR** | yes with the videoId-bound pot | poToken (videoId-bound) + sig/n cipher |
 | **TVHTML5_SIMPLY** (clientId 75) | yes whole song | sig/n cipher + videoId-bound pot |
-| **ANDROID_VR_1_65_10** (eureka build) | yes on-device — flagged/datacenter IPs 403 at 0 bytes (yt-dlp: intermittent/selective POT enforcement since 2026.07) | nothing — anon, DIRECT url used AS-IS (web transforms CORRUPT it) |
 | **MWEB** (yt-dlp-master iPad UA) | yes whole song **signed-in only** (anonymous 403s at byte 0) | cookie/SAPISIDHASH + sig/n cipher + videoId-bound pot |
 
-Current `STREAM_FALLBACK_CLIENTS` order (as of 2026-08-15):
-`WEB_REMIX -> VISIONOS -> VISIONOS_0_1 -> WEB_CREATOR -> ANDROID_VR_1_65_10 -> TVHTML5_SIMPLY -> MWEB`
+Current `STREAM_FALLBACK_CLIENTS` order (as of 2026-08-25):
+`WEB_REMIX -> VISIONOS -> VISIONOS_0_1 -> WEB_CREATOR -> TVHTML5_SIMPLY -> MWEB`
 
-- **The proven-dead clients were REMOVED from the app 2026-08-15** (defs + verdicts preserved in
-  `clients-retired.mjs` so the historical probes still run): the pre-1.65 ANDROID_VR variants
-  (the bot gate keys on the VERSION — probed the old versions under the eureka UA, still gated),
-  MOBILE/ANDROID (HTTP 400 with auth, SABR-only without), WEB (SABR-only), IOS/IPADOS (403 past
-  the 1-MiB wall; yt-dlp-master ios 21.26.4 is SABR-only), ANDROID_CREATOR (400 with auth /
-  LOGIN_REQUIRED without), TVHTML5_SIMPLY_EMBEDDED_PLAYER (server-killed).
+- **The proven-dead clients were REMOVED from the app** (defs + verdicts preserved in
+  `clients-retired.mjs` so the historical probes still run). 2026-08-15: the pre-1.65 ANDROID_VR
+  variants (the bot gate keys on the VERSION — probed the old versions under the eureka UA, still
+  gated), MOBILE/ANDROID (HTTP 400 with auth, SABR-only without), WEB (SABR-only), IOS/IPADOS (403
+  past the 1-MiB wall; yt-dlp-master ios 21.26.4 is SABR-only), ANDROID_CREATOR (400 with auth /
+  LOGIN_REQUIRED without), TVHTML5_SIMPLY_EMBEDDED_PLAYER (server-killed). 2026-08-25:
+  **ANDROID_VR_1_65_10** (the last-living eureka build) — a whole-song drain showed it resolves a
+  URL but 403s after 0 bytes, so it was a dead fallback (its direct URL was used AS-IS; the web
+  transforms corrupt it — a rule that rides with its retired def should it ever come back).
 - **VISIONOS is the most reliable fallback** — direct url, no BotGuard, no decipher; 1.02 is the
   current client, the old 0.1 config rides behind it as a second chance.
-- **ANDROID_VR 1.65.10 must never get the web URL transforms** — its direct URL is final
-  (yt-dlp `android_vr`: REQUIRE_JS_PLAYER=false, no GVS pot policy); the n-transform corrupts it.
 - **TVHTML5_SIMPLY** is the one TV cipher client (`tv_downgraded` was probed yt-dlp-master-exact
   and is dead on-device too); the TVHTML5 toggle governs it (the SABR-dead 7.x was removed from the app; def preserved in `clients-retired.mjs`).
 

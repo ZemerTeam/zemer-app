@@ -1,9 +1,4 @@
-# Dead-resource ratchet baseline: one "type/name" per line; may only shrink. Empty since the
-# values/strings.xml cleanup — every new dead resource fails CI immediately.
-# mood_and_genres* live in the untouchable upstream values/strings.xml; their screen (dead
-# Metrolist MoodAndGenres, replaced by the Zemer genres feature) was deleted 2026-07-30.
-string/mood_and_genres
-string/mood_and_genres_empty_subtitle
-string/mood_and_genres_empty_title
-string/mood_and_genres_error_title
-string/mood_and_genres_retry
+# Dead-resource ratchet baseline: one "type/name" per line; may only shrink. Every new dead
+# resource fails CI immediately. Currently EMPTY - the previously grandfathered mood_and_genres*
+# and Stats-screen strings were deleted outright once zemer-app detached from Metrolist and
+# values/strings.xml became editable, so nothing needs grandfathering.

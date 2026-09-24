@@ -169,11 +169,23 @@ class CastStreamRelayTest {
         val url = relay.urlFor("song")!!
         assertEquals(200, httpExchange(url).status)
         relay.stop()
-        val refused = try {
-            httpExchange(url)
-            false
-        } catch (e: IOException) {
-            true
+        // The listening-socket teardown can briefly lag stop() on a loaded machine, so poll for the
+        // connection to START being refused rather than asserting on the very first attempt (which
+        // flaked on CI). A stopped relay refuses within the window; a genuinely-still-open one never
+        // will, so the assertion still fails loudly if stop() did not close the socket.
+        val deadline = System.currentTimeMillis() + 3000
+        var refused = false
+        while (!refused && System.currentTimeMillis() < deadline) {
+            refused = try {
+                httpExchange(url)
+                false
+            } catch (e: IOException) {
+                true
+            } catch (e: Exception) {
+                // A lingering connection returned unparseable bytes: not yet cleanly refused, retry.
+                false
+            }
+            if (!refused) Thread.sleep(25)
         }
         assertTrue("expected the stopped relay to refuse connections", refused)
     }

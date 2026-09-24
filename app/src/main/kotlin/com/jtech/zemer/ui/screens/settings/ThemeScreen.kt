@@ -43,7 +43,6 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarScrollBehavior
 import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
@@ -77,9 +76,8 @@ import com.jtech.zemer.constants.DynamicThemeKey
 import com.jtech.zemer.constants.PureBlackKey
 import com.jtech.zemer.constants.SelectedThemeColorKey
 import com.jtech.zemer.ui.component.AppBarTitle
-import com.jtech.zemer.ui.component.BackNavigationIcon
+import com.jtech.zemer.ui.component.BackTopAppBar
 import com.jtech.zemer.ui.component.focusBorder
-import com.jtech.zemer.ui.component.zemerTopAppBarColors
 import com.jtech.zemer.ui.theme.BrandThemeColor
 import com.jtech.zemer.ui.theme.SystemWallpaperThemeColor
 import com.jtech.zemer.ui.theme.DefaultAccentColor
@@ -166,10 +164,9 @@ fun ThemeScreen(
         Spacer(modifier = Modifier.height(32.dp))
     }
 
-    TopAppBar(
+    BackTopAppBar(
         title = { AppBarTitle(stringResource(R.string.theme_colors)) },
-        navigationIcon = { BackNavigationIcon(navController) },
-        colors = zemerTopAppBarColors(),
+        navController = navController,
         scrollBehavior = scrollBehavior,
     )
 }

@@ -23,7 +23,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -33,9 +32,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextField
-import androidx.compose.material3.TextFieldDefaults
-import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarScrollBehavior
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -54,17 +50,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.LinkAnnotation
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withLink
@@ -81,33 +74,30 @@ import com.jtech.zemer.LocalPlayerAwareWindowInsets
 import com.jtech.zemer.LocalPlayerConnection
 import com.jtech.zemer.R
 import com.jtech.zemer.constants.AlbumThumbnailSize
-import com.jtech.zemer.constants.HideExplicitKey
 import com.jtech.zemer.constants.ThumbnailCornerRadius
 import com.jtech.zemer.db.entities.PlaylistEntity
 import com.jtech.zemer.db.entities.PlaylistSongMap
 import com.jtech.zemer.extensions.metadata
 import com.jtech.zemer.extensions.toMediaItem
-import com.jtech.zemer.extensions.togglePlayPause
 import com.jtech.zemer.models.toMediaMetadata
 import com.jtech.zemer.playback.queues.ListQueue
-import com.jtech.zemer.ui.component.AppBarTitle
 import com.jtech.zemer.ui.component.AutoResizeText
 import com.jtech.zemer.ui.component.DraggableScrollbar
 import com.jtech.zemer.ui.component.FontSizeRange
 import com.jtech.zemer.ui.component.IconButton
 import com.jtech.zemer.ui.component.LocalMenuState
 import com.jtech.zemer.ui.component.MoreVertMenuButton
+import com.jtech.zemer.ui.component.ErrorRetryState
+import com.jtech.zemer.ui.component.SelectionActions
+import com.jtech.zemer.ui.component.SearchableSelectableTopAppBar
 import com.jtech.zemer.ui.component.YouTubeListItem
-import com.jtech.zemer.ui.component.zemerTopAppBarColors
 import com.jtech.zemer.ui.component.shimmer.LoadingListPlaceholder
 import com.jtech.zemer.ui.menu.SelectionMediaMetadataMenu
 import com.jtech.zemer.ui.menu.YouTubePlaylistMenu
 import com.jtech.zemer.ui.menu.YouTubeSongMenu
 import com.jtech.zemer.ui.utils.activeRowTapTogglesPlayPause
 import com.jtech.zemer.ui.utils.ItemWrapper
-import com.jtech.zemer.ui.utils.backToMain
 import com.jtech.zemer.ui.utils.navigateToArtist
-import com.jtech.zemer.utils.rememberPreference
 import com.jtech.zemer.viewmodels.OnlinePlaylistViewModel
 import com.metrolist.innertube.models.SongItem
 
@@ -135,7 +125,6 @@ fun OnlinePlaylistScreen(
     var selection by remember {
         mutableStateOf(false)
     }
-    val hideExplicit by rememberPreference(key = HideExplicitKey, defaultValue = false)
 
     val lazyListState = rememberLazyListState()
     val coroutineScope = rememberCoroutineScope()
@@ -444,7 +433,6 @@ fun OnlinePlaylistScreen(
                             modifier =
                             Modifier
                                 .combinedClickable(
-                                    enabled = !hideExplicit || !song.item.second.explicit,
                                     onClick = {
                                         if (!selection) {
                                             if (activeRowTapTogglesPlayPause(song.item.second.id == mediaMetadata?.id, playerConnection.isStationBroadcast.value)) {
@@ -485,40 +473,30 @@ fun OnlinePlaylistScreen(
                 } else {
                     // Show error state when playlist is null and there's an error
                     item(key = "error_state") {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(32.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally
-                        ) {
-                            Text(
-                                text = if (error != null) {
-                                    stringResource(R.string.error_unknown)
-                                } else {
-                                    stringResource(R.string.playlist_not_found)
-                                },
-                                style = MaterialTheme.typography.titleLarge,
-                                color = if (error != null) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface
+                        if (error != null) {
+                            ErrorRetryState(
+                                onRetry = { viewModel.retry() },
+                                detail = error,
                             )
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Text(
-                                text = if (error != null) {
-                                    error!!
-                                } else {
-                                    stringResource(R.string.playlist_not_found_desc)
-                                },
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                            if (error != null) {
-                                Spacer(modifier = Modifier.height(16.dp))
-                                Button(
-                                    onClick = { 
-                                        viewModel.retry()
-                                    }
-                                ) {
-                                    Text(stringResource(R.string.retry))
-                                }
+                        } else {
+                            // Not-found is not an error: neutral copy, no retry (it won't appear).
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(32.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Text(
+                                    text = stringResource(R.string.playlist_not_found),
+                                    style = MaterialTheme.typography.titleLarge,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Text(
+                                    text = stringResource(R.string.playlist_not_found_desc),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
                             }
                         }
                     }
@@ -537,113 +515,33 @@ fun OnlinePlaylistScreen(
             headerItems = 1
         )
 
-        TopAppBar(
-            title = {
-                if (selection) {
-                    val count = wrappedSongs.count { it.isSelected }
-                    AppBarTitle(
-                        text = pluralStringResource(R.plurals.n_song, count, count)
-                    )
-                } else if (isSearching) {
-                    TextField(
-                        value = query,
-                        onValueChange = { query = it },
-                        placeholder = {
-                            Text(
-                                text = stringResource(R.string.search),
-                                style = MaterialTheme.typography.titleLarge
+        SearchableSelectableTopAppBar(
+            navController = navController,
+            idleTitle = if (showTopBarTitle) playlist?.title.orEmpty() else null,
+            isSearching = isSearching,
+            onIsSearchingChange = { isSearching = it },
+            query = query,
+            onQueryChange = { query = it },
+            focusRequester = focusRequester,
+            selectionCount = { if (selection) wrappedSongs.count { it.isSelected } else null },
+            selectionCountPlural = R.plurals.n_song,
+            onExitSelection = { selection = false },
+            actions = {
+                SelectionActions(
+                    wrapped = wrappedSongs,
+                    onMore = {
+                        menuState.show {
+                            SelectionMediaMetadataMenu(
+                                songSelection = wrappedSongs.filter { it.isSelected }
+                                    .map { it.item.second.toMediaItem().metadata!! },
+                                onDismiss = menuState::dismiss,
+                                clearAction = { selection = false },
+                                currentItems = emptyList()
                             )
-                        },
-                        singleLine = true,
-                        textStyle = MaterialTheme.typography.titleLarge,
-                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-                        colors = TextFieldDefaults.colors(
-                            focusedContainerColor = Color.Transparent,
-                            unfocusedContainerColor = Color.Transparent,
-                            focusedIndicatorColor = Color.Transparent,
-                            unfocusedIndicatorColor = Color.Transparent,
-                            disabledIndicatorColor = Color.Transparent,
-                        ),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .focusRequester(focusRequester)
-                    )
-                } else if (showTopBarTitle) {
-                    AppBarTitle(text = playlist?.title.orEmpty())
-                }
-            },
-            navigationIcon = {
-                IconButton(
-                    onClick = {
-                        if (isSearching) {
-                            isSearching = false
-                            query = TextFieldValue()
-                        } else if (selection) {
-                            selection = false
-                        } else {
-                            navController.navigateUp()
                         }
                     },
-                    onLongClick = {
-                        if (!isSearching && !selection) {
-                            navController.backToMain()
-                        }
-                    }
-                ) {
-                    Icon(
-                        painter = painterResource(
-                            if (selection) R.drawable.close else R.drawable.arrow_back
-                        ),
-                        contentDescription = null
-                    )
-                }
+                )
             },
-            actions = {
-                if (selection) {
-                    val count = wrappedSongs.count { it.isSelected }
-                    IconButton(
-                        onClick = {
-                            if (count == wrappedSongs.size) {
-                                wrappedSongs.forEach { it.isSelected = false }
-                            } else {
-                                wrappedSongs.forEach { it.isSelected = true }
-                            }
-                        },
-                    ) {
-                        Icon(
-                            painter = painterResource(
-                                if (count == wrappedSongs.size) R.drawable.deselect else R.drawable.select_all
-                            ),
-                            contentDescription = null
-                        )
-                    }
-                    MoreVertMenuButton(
-                        onClick = {
-                            menuState.show {
-                                SelectionMediaMetadataMenu(
-                                    songSelection = wrappedSongs.filter { it.isSelected }
-                                        .map { it.item.second.toMediaItem().metadata!! },
-                                    onDismiss = menuState::dismiss,
-                                    clearAction = { selection = false },
-                                    currentItems = emptyList()
-                                )
-                            }
-                        },
-                    )
-                } else {
-                    if (!isSearching) {
-                        IconButton(
-                            onClick = { isSearching = true }
-                        ) {
-                            Icon(
-                                painter = painterResource(R.drawable.search),
-                                contentDescription = null
-                            )
-                        }
-                    }
-                }
-            },
-            colors = zemerTopAppBarColors(),
         )
 
         SnackbarHost(

@@ -38,9 +38,11 @@ import com.jtech.zemer.R
 import com.jtech.zemer.constants.InnerTubeCookieKey
 import com.jtech.zemer.constants.PlaybackMode
 import com.jtech.zemer.constants.PlaybackModeKey
-import com.jtech.zemer.constants.StreamSourceAndroidVRKey
 import com.jtech.zemer.constants.StreamSourceVisionOSKey
-import com.jtech.zemer.constants.StreamSourceMWEBKey
+import com.jtech.zemer.constants.StreamSabrKey
+import com.jtech.zemer.constants.StreamSabrWebRemixKey
+import com.jtech.zemer.constants.StreamSabrVisionOSKey
+import com.jtech.zemer.constants.StreamSabrTVHTML5Key
 import com.jtech.zemer.constants.StreamSourceTVHTML5Key
 import com.jtech.zemer.constants.StreamSourceWebCreatorKey
 import com.jtech.zemer.constants.StreamSourceWebRemixKey
@@ -54,7 +56,7 @@ import com.jtech.zemer.ui.component.zemerTopAppBarColors
 import com.jtech.zemer.ui.utils.backToMain
 import com.jtech.zemer.utils.rememberEnumPreference
 import com.jtech.zemer.utils.rememberPreference
-import com.metrolist.innertube.utils.parseCookieString
+import com.jtech.zemer.extensions.cookieHasSession
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -64,10 +66,12 @@ fun StreamSourceSettings(
 ) {
     val (webRemixEnabled, onWebRemixChange)     = rememberPreference(StreamSourceWebRemixKey,   defaultValue = true)
     val (tvhtml5Enabled, onTVHTML5Change)       = rememberPreference(StreamSourceTVHTML5Key,    defaultValue = true)
-    val (androidVREnabled, onAndroidVRChange)   = rememberPreference(StreamSourceAndroidVRKey,  defaultValue = true)
     val (visionosEnabled, onVisionOSChange)     = rememberPreference(StreamSourceVisionOSKey,   defaultValue = true)
     val (webCreatorEnabled, onWebCreatorChange) = rememberPreference(StreamSourceWebCreatorKey, defaultValue = true)
-    val (mwebEnabled, onMWEBChange)             = rememberPreference(StreamSourceMWEBKey,       defaultValue = true)
+    val (sabrEnabled, onSabrChange)             = rememberPreference(StreamSabrKey,             defaultValue = false)
+    val (sabrWebRemix, onSabrWebRemixChange)    = rememberPreference(StreamSabrWebRemixKey,     defaultValue = true)
+    val (sabrVisionOS, onSabrVisionOSChange)    = rememberPreference(StreamSabrVisionOSKey,     defaultValue = true)
+    val (sabrTVHTML5, onSabrTVHTML5Change)      = rememberPreference(StreamSabrTVHTML5Key,      defaultValue = true)
 
     // RELAY playback mode: stream audio through the Zemer relay instead of resolving YouTube on-device.
     // Off (DIRECT) for every normal user. When ON, the per-client fallback list below is bypassed entirely.
@@ -78,20 +82,18 @@ fun StreamSourceSettings(
     // login (both carry a SAPISID cookie) has working direct playback, so it must not see or flip this
     // switch — the whole "Filtered devices" group is hidden for them, leaving just the client list.
     val (loginCookie) = rememberPreference(InnerTubeCookieKey, defaultValue = "")
-    val loggedInNormally = remember(loginCookie) { parseCookieString(loginCookie).containsKey("SAPISID") }
+    val loggedInNormally = remember(loginCookie) { loginCookie.cookieHasSession() }
     // The "a normal login forces DIRECT" reset lives globally in App.kt (so it fires from ANY login entry
     // point), not here — a screen-local reset stranded users who logged in elsewhere and also flashed an
     // empty settings screen with no focused row.
 
     // Effective stream order shown to the user: WEB_REMIX is the primary client; the rest mirror
-    // YTPlayerUtils.ALL_FALLBACK_CLIENTS (ANDROID_VR variants deduped). Only enabled toggles appear.
+    // YTPlayerUtils.ALL_FALLBACK_CLIENTS. Only enabled toggles appear.
     val streamOrder = listOf(
         "WEB_REMIX" to webRemixEnabled,
         "visionOS" to visionosEnabled,
         "WEB_CREATOR" to webCreatorEnabled,
-        "Android VR" to androidVREnabled,
         "TVHTML5" to tvhtml5Enabled,
-        "MWEB" to mwebEnabled,
     ).filter { it.second }.map { it.first }
 
     val backFocus = remember { FocusRequester() }
@@ -190,15 +192,6 @@ fun StreamSourceSettings(
                         onCheckedChange = onTVHTML5Change,
                     )
                 },
-                {
-                    SwitchPreference(
-                        title = { Text(stringResource(R.string.stream_source_mweb)) },
-                        description = stringResource(R.string.stream_source_mweb_desc),
-                        icon = { Icon(painterResource(R.drawable.play), null) },
-                        checked = mwebEnabled,
-                        onCheckedChange = onMWEBChange,
-                    )
-                },
             ),
         )
 
@@ -212,15 +205,6 @@ fun StreamSourceSettings(
                         icon = { Icon(painterResource(R.drawable.play), null) },
                         checked = visionosEnabled,
                         onCheckedChange = onVisionOSChange,
-                    )
-                },
-                {
-                    SwitchPreference(
-                        title = { Text(stringResource(R.string.stream_source_android_vr)) },
-                        description = stringResource(R.string.stream_source_android_vr_desc),
-                        icon = { Icon(painterResource(R.drawable.play), null) },
-                        checked = androidVREnabled,
-                        onCheckedChange = onAndroidVRChange,
                     )
                 },
             ),
@@ -240,7 +224,61 @@ fun StreamSourceSettings(
                 },
             ),
         )
+        SettingsCardGroup(
+            title = stringResource(R.string.stream_source_experimental),
+            rows = listOf(
+                {
+                    SwitchPreference(
+                        title = { Text(stringResource(R.string.stream_source_sabr)) },
+                        description = stringResource(R.string.stream_source_sabr_desc),
+                        icon = { Icon(painterResource(R.drawable.play), null) },
+                        checked = sabrEnabled,
+                        onCheckedChange = onSabrChange,
+                    )
+                },
+            ),
+        )
+
+        // The SABR client list — shown when SABR streaming is on. Mirrors the DIRECT client list above:
+        // a header + one toggle per available SABR client, tried in the listed order until one delivers.
+        if (sabrEnabled) {
+            SettingsCardGroup(
+                title = stringResource(R.string.stream_source_sabr_clients),
+                rows = listOf(
+                    {
+                        SwitchPreference(
+                            title = { Text(stringResource(R.string.stream_source_web_remix)) },
+                            description = stringResource(R.string.stream_source_sabr_web_remix_desc),
+                            icon = { Icon(painterResource(R.drawable.play), null) },
+                            checked = sabrWebRemix,
+                            onCheckedChange = onSabrWebRemixChange,
+                        )
+                    },
+                    {
+                        SwitchPreference(
+                            title = { Text(stringResource(R.string.stream_source_visionos)) },
+                            description = stringResource(R.string.stream_source_sabr_visionos_desc),
+                            icon = { Icon(painterResource(R.drawable.play), null) },
+                            checked = sabrVisionOS,
+                            onCheckedChange = onSabrVisionOSChange,
+                        )
+                    },
+                    {
+                        SwitchPreference(
+                            title = { Text(stringResource(R.string.stream_source_tvhtml5)) },
+                            description = stringResource(R.string.stream_source_sabr_tvhtml5_desc),
+                            icon = { Icon(painterResource(R.drawable.play), null) },
+                            checked = sabrTVHTML5,
+                            onCheckedChange = onSabrTVHTML5Change,
+                        )
+                    },
+                ),
+            )
+        }
         } // end if (!relayEnabled): DIRECT-only client list
+
+        // Breathing room below the last card group (and clearance for the mini-player insets).
+        Spacer(Modifier.height(SettingsScreenTopSpacing))
     }
 
     TopAppBar(

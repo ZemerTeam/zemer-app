@@ -74,6 +74,24 @@ fun AddToPlaylistDialog(
         }
     }
 
+    // The dialog is the SINGLE owner of the write. Callers only insert the song rows locally in
+    // onGetSong and return their ids; they must NOT call YouTube.addToPlaylist themselves - doing so
+    // added the song to the remote playlist twice, and writing it inside onGetSong added it remotely
+    // even when the user then cancelled the duplicates prompt (remote-only, never local). Every add
+    // path - clean, skip-duplicates, add-anyway - commits through here, so the remote write is
+    // consistent and only happens after the duplicate decision.
+    fun commitAddToPlaylist(playlist: Playlist, ids: List<String>) {
+        coroutineScope.launch(Dispatchers.IO) {
+            database.addSongToPlaylist(playlist, ids)
+            // Anonymous (pooled) sessions are local-only - only a personal account writes to remote.
+            if (isPersonalAccountSignedIn) {
+                playlist.playlist.browseId?.let { browseId ->
+                    ids.forEach { YouTube.addToPlaylist(browseId, it) }
+                }
+            }
+        }
+    }
+
     if (isVisible) {
         ListDialog(
             onDismiss = onDismiss,
@@ -109,16 +127,7 @@ fun AddToPlaylistDialog(
                                 showDuplicateDialog = true
                             } else {
                                 onDismiss()
-                                database.addSongToPlaylist(playlist, songIds!!)
-
-                                // Anonymous (pooled) sessions are local-only — only a personal account writes to remote.
-                                if (isPersonalAccountSignedIn) {
-                                    playlist.playlist.browseId?.let { plist ->
-                                        songIds?.forEach {
-                                            YouTube.addToPlaylist(plist, it)
-                                        }
-                                    }
-                                }
+                                commitAddToPlaylist(playlist, songIds!!)
                             }
                         }
                     }
@@ -144,14 +153,10 @@ fun AddToPlaylistDialog(
                         onClick = {
                             showDuplicateDialog = false
                             onDismiss()
-                            database.transaction {
-                                addSongToPlaylist(
-                                    selectedPlaylist!!,
-                                    songIds!!.filter {
-                                        !duplicates.contains(it)
-                                    }
-                                )
-                            }
+                            commitAddToPlaylist(
+                                selectedPlaylist!!,
+                                songIds!!.filter { !duplicates.contains(it) }
+                            )
                         }
                     ) {
                         Text(stringResource(R.string.skip_duplicates))
@@ -161,9 +166,7 @@ fun AddToPlaylistDialog(
                         onClick = {
                             showDuplicateDialog = false
                             onDismiss()
-                            database.transaction {
-                                addSongToPlaylist(selectedPlaylist!!, songIds!!)
-                            }
+                            commitAddToPlaylist(selectedPlaylist!!, songIds!!)
                         }
                     ) {
                         Text(stringResource(R.string.add_anyway))

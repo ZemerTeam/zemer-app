@@ -23,12 +23,12 @@ class SubsetReadLayerTest {
     private val fem = SubArtist("UCf", "Franciska", "tf", isFemale = true, isChasid = false, isKidZone = false)
     private val kid = SubArtist("UCk", "KidStar", "tk", isFemale = false, isChasid = false, isKidZone = true)
 
-    // --- tracks (videoId, title, artistId, isVideo, explicit, durationSec, playCount, uploadDate) --
-    private val v1 = SubTrack("v1", "Song One", "UCa", false, false, 200, 100, null)
-    private val v2 = SubTrack("v2", "Song Two", "UCa", false, false, 100, 300, null)
-    private val v3 = SubTrack("v3", "No Plays", "UCa", false, false, 150, null, null)
-    private val v4 = SubTrack("v4", "A Video", "UCa", true, false, 50, 500, null)
-    private val v5 = SubTrack("v5", "Duet (feat. Franciska)", "UCa", false, false, 120, 999, null) // credited female
+    // --- tracks (videoId, title, artistId, isVideo, durationSec, playCount, uploadDate) --
+    private val v1 = SubTrack("v1", "Song One", "UCa", false, 200, 100, null)
+    private val v2 = SubTrack("v2", "Song Two", "UCa", false, 100, 300, null)
+    private val v3 = SubTrack("v3", "No Plays", "UCa", false, 150, null, null)
+    private val v4 = SubTrack("v4", "A Video", "UCa", true, 50, 500, null)
+    private val v5 = SubTrack("v5", "Duet (feat. Franciska)", "UCa", false, 120, 999, null) // credited female
 
     // --- albums (id, playlistId, title, artistId, type, year, thumbnail, uploadDate) --------------
     private val al1 = SubAlbum("al1", "OLAK1", "Album X", "UCa", "album", 2020, "art1", null)
@@ -170,5 +170,92 @@ class SubsetReadLayerTest {
         val r = offlineArtist(corpus, female, "UCa", allowFemale = true, blockVideos = true, kidZone = false)!!
         assertTrue(r.videos.isEmpty())
         assertNull(offlineArtist(corpus, female, "UCnope", allowFemale = true, blockVideos = false, kidZone = false))
+    }
+
+    // --- additive shards, 2026-09-11: realVideos + radio ---------------------------------------------
+
+    @Test
+    fun `home rows flag a track real only when the realvideos shard carries its id`() {
+        // v4 is the only video (SubsetReadLayerTest's shared corpus); a snapshot that ships `realvideos`
+        // for it flags realVideo=true on the SAME topVideos row every other field already comes from.
+        val real = corpus.copy(realVideos = setOf("v4"))
+        val r = offlineHomeRows(real, female, allowFemale = true, blockVideos = false, kidZone = false)
+        assertTrue(r.topVideos.first { it.videoId == "v4" }.realVideo)
+
+        // A snapshot without the shard (or one that doesn't carry this id) is conservative: false, exactly
+        // the prior behaviour — the ViewModel's empty-pool fallback still shows the whole set in the hero.
+        val noShard = offlineHomeRows(corpus, female, allowFemale = true, blockVideos = false, kidZone = false)
+        assertFalse(noShard.topVideos.first { it.videoId == "v4" }.realVideo)
+    }
+
+    @Test
+    fun `offline radio applies the same content gate as every other offline surface`() {
+        val radioCorpus = corpus.copy(
+            radioRows = listOf(SubRadioRow("v1", pop = 50.0, lib = listOf("v2" to 0.9), sess = emptyList())),
+            realVideos = setOf("v4"),
+        )
+        val open = offlineRadio(radioCorpus, female, "song", "v1", allowFemale = true, blockVideos = false)!!
+        assertEquals("v1", open.tracks.first().videoId) // the tapped song plays first
+        assertTrue(open.tracks.any { it.videoId == "v2" }) // its cooc neighbour follows
+
+        // blockVideos drops v4 from every fallback tier, exactly like offlineHomeRows/offlineArtist.
+        val blockedVideos = offlineRadio(radioCorpus, female, "shuffle", null, allowFemale = true, blockVideos = true)!!
+        assertTrue(blockedVideos.tracks.none { it.videoId == "v4" })
+
+        // allowFemale=false drops v5 (feat. Franciska) via the same credited-female rule as offlineArtist.
+        val blockedFemale = offlineRadio(radioCorpus, female, "shuffle", null, allowFemale = false, blockVideos = false)!!
+        assertTrue(blockedFemale.tracks.none { it.videoId == "v5" })
+
+        // realVideo rides the SAME mapping as offlineHomeRows.
+        assertTrue(open.tracks.none { it.videoId == "v4" } || open.tracks.first { it.videoId == "v4" }.realVideo)
+    }
+
+    @Test
+    fun `offline radio kind=genre is unsupported and returns null`() {
+        assertNull(offlineRadio(corpus, female, "genre", "nigunim", allowFemale = true, blockVideos = false))
+    }
+
+    @Test
+    fun `offline radio continuation token round-trips through OfflineRadioToken and pages deterministically`() {
+        val radioCorpus = corpus.copy(radioRows = listOf(SubRadioRow("v1", pop = 50.0, lib = emptyList(), sess = emptyList())))
+        val first = offlineRadio(radioCorpus, female, "shuffle", null, allowFemale = true, blockVideos = false, limit = 2)!!
+        val token = first.continuation!!
+        assertTrue(token.startsWith(OfflineRadioToken.PREFIX))
+        val parts = OfflineRadioToken.parse(token)!!
+        assertEquals("shuffle", parts.kind); assertNull(parts.seed); assertEquals(2, parts.offset)
+
+        val second = offlineRadio(radioCorpus, female, parts.kind, parts.seed, parts.allowFemale, parts.blockVideos, offset = parts.offset)!!
+        // The continuation page never repeats a track the first page already served.
+        val firstIds = first.tracks.map { it.videoId }.toSet()
+        assertTrue(second.tracks.none { it.videoId in firstIds })
+
+        // A live-shaped (non-offline) or corrupt token is never guessed at.
+        assertNull(OfflineRadioToken.parse("some-opaque-live-server-token"))
+        assertNull(OfflineRadioToken.parse(OfflineRadioToken.PREFIX + "{not json"))
+    }
+
+    @Test
+    fun `a negative offset in an offline token is rejected, never reaches List-drop and crashes`() {
+        // A tampered/corrupted token could carry offset:-1; List.drop(-1) throws, so parse() must
+        // reject it here rather than let offlineRadio hand it to radio()'s paging.
+        val tampered = OfflineRadioToken.PREFIX + """{"kind":"shuffle","allowFemale":true,"blockVideos":false,"offset":-1}"""
+        assertNull(OfflineRadioToken.parse(tampered))
+
+        // A legitimate zero/positive offset still parses (the fix must not reject valid tokens).
+        val real = OfflineRadioToken.encode("shuffle", null, allowFemale = true, blockVideos = false, offset = 3)
+        assertEquals(3, OfflineRadioToken.parse(real)!!.offset)
+    }
+
+    @Test
+    fun `offline radio seeds a curated playlist from its FULL membership, not just direct track items`() {
+        // "auto-mix" has a direct track (v1) AND an album expansion (al1 -> v1, v2); the radio seed
+        // set must cover both, exactly like the playlist's own detail screen (zemerPlaylistTracks) —
+        // a hand-filtered `kind == "track"` slice would silently drop v2, the album-only member.
+        val radioCorpus = corpus.copy(
+            radioRows = listOf(SubRadioRow("v2", pop = 1.0, lib = listOf("v3" to 0.9), sess = emptyList())),
+        )
+        val page = offlineRadio(radioCorpus, female, "playlist", "auto-mix", allowFemale = true, blockVideos = false)!!
+        // v2 (album-only membership) must have contributed as a cooc seed, reaching its own neighbour v3.
+        assertTrue("v2's own neighbour (v3) is reached only if v2 entered the seed set", page.tracks.any { it.videoId == "v3" })
     }
 }

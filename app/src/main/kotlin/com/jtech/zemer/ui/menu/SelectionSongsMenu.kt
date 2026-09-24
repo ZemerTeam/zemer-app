@@ -99,17 +99,8 @@ fun SelectionSongMenu(
 
     AddToPlaylistDialog(
         isVisible = showChoosePlaylistDialog,
-        onGetSong = { playlist ->
-            // Anonymous (pooled) sessions are local-only — only a personal account writes to remote.
-            if (isPersonalAccountSignedIn) {
-                coroutineScope.launch(Dispatchers.IO) {
-                    songSelection.forEach { song ->
-                        playlist.playlist.browseId?.let { browseId ->
-                            YouTube.addToPlaylist(browseId, song.id)
-                        }
-                    }
-                }
-            }
+        onGetSong = { _ ->
+            // The remote write is owned by AddToPlaylistDialog (single writer); callers return ids only.
             songSelection.map { it.id }
         },
         onDismiss = {

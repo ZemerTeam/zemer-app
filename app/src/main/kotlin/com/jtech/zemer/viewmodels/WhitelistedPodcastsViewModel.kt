@@ -56,6 +56,10 @@ constructor(
                 // surfaces.) This browse grid reads the mirror whitelist directly, so it is the one podcast
                 // discovery surface with no server filter in front of it — the gate must run here.
                 .filter { !it.isFemale || filters.allowsFemale() }
+                // Kid gate: a wholly-kid channel lives in KidZone, not the normal browse - the
+                // exact mirror of the music artist browse's `WHERE isKidZone = 0` (issue: kid
+                // channels leaked here because this grid reads the mirror whitelist directly).
+                .filter { !it.isKidZone }
                 .filter { query.isBlank() || it.name.contains(query, ignoreCase = true) }
         }.stateIn(viewModelScope, SharingStarted.Lazily, null)
 

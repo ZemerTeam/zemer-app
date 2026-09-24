@@ -25,4 +25,15 @@ object EpisodeResume {
 
     /** Whether a position is worth persisting (past the "at the beginning" edge). */
     fun shouldSave(positionMs: Long): Boolean = positionMs > RESUME_EDGE_MS
+
+    /**
+     * Remaining playback in ms to surface as a "N left" resume hint, or null when no hint should
+     * show ([positionMs] or [durationMs] unknown, or [shouldResume] is false). Callers format the
+     * result with makeTimeString; the resume-edge rule stays single-sourced here.
+     */
+    fun timeLeftMs(positionMs: Long?, durationMs: Long?): Long? {
+        if (positionMs == null || durationMs == null) return null
+        if (!shouldResume(positionMs, durationMs)) return null
+        return (durationMs - positionMs).coerceAtLeast(0)
+    }
 }

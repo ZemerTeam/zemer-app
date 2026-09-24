@@ -170,7 +170,7 @@ class ZemerPodcastMapperTest {
                 episodes = listOf(episode("ep1")),
             ),
         )
-        val titles = ZemerResultMapper.summaryPage(resp, hideExplicit = false).summaries.map { it.title }
+        val titles = ZemerResultMapper.summaryPage(resp).summaries.map { it.title }
         assertTrue("Podcasts" in titles)
         assertTrue("Episodes" in titles)
     }

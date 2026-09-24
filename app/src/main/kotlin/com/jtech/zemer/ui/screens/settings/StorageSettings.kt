@@ -89,7 +89,7 @@ fun StorageSettings(
     val coroutineScope = rememberCoroutineScope()
     val (maxImageCacheSize, onMaxImageCacheSizeChange) = rememberPreference(
         key = MaxImageCacheSizeKey,
-        defaultValue = 512
+        defaultValue = 256
     )
     val (maxSongCacheSize, onMaxSongCacheSizeChange) = rememberPreference(
         key = MaxSongCacheSizeKey,

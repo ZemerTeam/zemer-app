@@ -36,4 +36,7 @@ object PodcastWhitelistCache {
         val entry = memory[channelId] ?: return false
         return allowFemale || !entry.isFemale
     }
+
+    /** Whether [channelId] is a WHOLLY-kid channel — navigateToArtist auto-scopes those to KidZone. */
+    fun isKidChannel(channelId: String): Boolean = memory[channelId]?.isKidZone == true
 }

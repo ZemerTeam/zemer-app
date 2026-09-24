@@ -98,13 +98,6 @@ internal fun RowScope.ReleaseBadges(release: LatestRelease) {
                 modifier = Modifier.size(18.dp).padding(end = 2.dp),
             )
         }
-        if (song?.song?.explicit == true) {
-            Icon(
-                painter = painterResource(R.drawable.explicit),
-                contentDescription = null,
-                modifier = Modifier.size(18.dp).padding(end = 2.dp),
-            )
-        }
         SongDownloadBadge(videoId, song?.song?.isDownloaded == true)
     } else {
         val album by remember(release.browseId) { database.album(release.browseId) }.collectAsState(initial = null)

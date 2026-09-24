@@ -92,6 +92,8 @@ fun YouTubeSongMenu(
     onDismiss: () -> Unit,
     onHistoryRemoved: () -> Unit = {},
     isVideo: Boolean = false,
+    // KidZone navigation context from the opening screen: View artist stays kid-scoped.
+    kidZone: Boolean = false,
 ) {
     val context = LocalContext.current
     val database = LocalDatabase.current
@@ -129,20 +131,13 @@ fun YouTubeSongMenu(
 
     AddToPlaylistDialog(  
         isVisible = showChoosePlaylistDialog,  
-        onGetSong = { playlist ->  
+        onGetSong = { _ ->
             database.transaction {
                 insert(song.toMediaMetadata())
             }
-            // Anonymous (pooled) sessions are local-only — only a personal account writes to remote.
-            if (isPersonalAccountSignedIn) {
-                coroutineScope.launch(Dispatchers.IO) {
-                    playlist.playlist.browseId?.let { browseId ->
-                        YouTube.addToPlaylist(browseId, song.id)
-                    }
-                }
-            }
+            // The remote write is owned by AddToPlaylistDialog (single writer); callers return ids only.
             listOf(song.id)
-        },  
+        },
         onDismiss = { showChoosePlaylistDialog = false }  
     )  
 
@@ -156,7 +151,7 @@ fun YouTubeSongMenu(
             onDismiss = { showSelectArtistDialog = false },
             onArtistClick = { artistId ->
                 // An episode's author is a podcast HOST channel — route to the podcast channel page.
-                navController.navigateToArtist(artistId, isPodcastChannel = song.isEpisode)
+                navController.navigateToArtist(artistId, isPodcastChannel = song.isEpisode, kidZone = kidZone)
                 onDismiss()
             },
         )
@@ -480,7 +475,7 @@ fun YouTubeSongMenu(
                                     val valid = artists.filter { !it.id.isNullOrBlank() }
                                     when {
                                         valid.size == 1 -> {
-                                            navController.navigateToArtist(valid[0].id, isPodcastChannel = song.isEpisode)
+                                            navController.navigateToArtist(valid[0].id, isPodcastChannel = song.isEpisode, kidZone = kidZone)
                                             onDismiss()
                                         }
                                         valid.size > 1 -> showSelectArtistDialog = true

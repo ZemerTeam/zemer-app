@@ -1,0 +1,128 @@
+package com.jtech.zemer.lyrics.zemer
+
+import com.jtech.zemer.constants.EnableZemerLyricsKey
+import com.jtech.zemer.lyrics.LabeledLyrics
+import com.jtech.zemer.lyrics.LyricsProvider
+import com.jtech.zemer.lyrics.LyricsUtils
+import com.jtech.zemer.lyrics.MusixmatchLyricsProvider
+import com.jtech.zemer.lyrics.model.LyricsUnavailableException
+import kotlinx.coroutines.CancellationException
+
+/**
+ * First provider in the chain. Resolves the videoId through the Zemer server, then fetches the text from
+ * the sources the server vouches for. Sources are walked SYNCED FIRST (a source the server flags `synced`, one
+ * carrying `syncedLrc`/`richSync` inline, or the one pointer the resolver's measured `lineTimes` cover), then
+ * by [rank]: zemer (Zemer's own certified text + word timings) > jkaraoke / apple (line-synced from the source) >
+ * lrclib / kugou / musixmatch / zingmusic / youtube > the text pages jyrics / shironet / tab4u / zemirotdb /
+ * lyricstranslate > the operator-hosted booklet / manual / canonical / community bodies (kept behind the
+ * pointers: a pointer is the fresher copy, the inline body the fallback through a provider outage).
+ * Every body goes through the same parser the server used to verify it (golden-pinned ports), so what the
+ * user sees is exactly what was cross-checked. A type this build does not know yields nothing and is skipped.
+ */
+object ZemerLyricsProvider : LyricsProvider {
+    override val name = "Zemer"
+
+    override val enabledKey = EnableZemerLyricsKey
+
+    /**
+     * Bodies in preference order for a resolved entry (fetchers injected for tests), each paired with its
+     * source label suffix. With [firstOnly] the walk stops at the first source that yields a body, so the
+     * auto-fetch path does not download and parse every source when only the best one is shown.
+     */
+    suspend fun bodies(
+        resolved: ZemerLyricsClient.Resolved,
+        fetch: suspend (String) -> String? = ZemerLyricsClient::fetchText,
+        firstOnly: Boolean = false,
+        zing: suspend (Long) -> String? = ZemerLyricsClient::zingLyricsHtml,
+        youtube: suspend (String) -> String? = ZemerLyricsClient::youtubeLyricsTab,
+        musixmatch: suspend (Long, Long, Boolean) -> String? = MusixmatchLyricsProvider::lyricsById,
+    ): List<Pair<String, String>> {
+        val out = ArrayList<Pair<String, String>>()
+        for (s in order(resolved)) {
+            if (firstOnly && out.isNotEmpty()) break
+            // one source's fetch/parse failure is skipped, never the whole walk (the next source is the fallback);
+            // a cancelled walk stops here instead of falling through to the next source
+            val body = runCatching { when (s.type) {
+                "zemer" -> s.richSync?.takeIf { it.isNotBlank() } ?: inline(s)
+                "jkaraoke" -> s.feedUrl?.let { fetch(it) }?.let { page -> s.songId?.let { id -> JkaraokeLrc.fromFeedPage(page, id, jkaraokeOffset(s))?.synced } }
+                "apple" -> s.catalogId?.takeIf { it.isNotBlank() }?.let { fetch(AppleTtmlLrc.url(it)) }?.let(AppleTtmlLrc::fromReply)
+                "musixmatch" -> s.commontrackId?.let { c -> s.trackId?.let { t -> musixmatch(c, t, s.synced) } }?.takeIf(LyricsUtils::hasLyricBody)
+                "jyrics" -> s.url?.let { fetch(it) }?.let { JyricsParser.parse(it).plain.takeIf(LyricsUtils::hasLyricBody) }
+                "shironet" -> s.url?.let { fetch(it) }?.let { ShironetParser.parse(it).plain.takeIf(LyricsUtils::hasLyricBody) }
+                // Server-inlined (the site's Cloudflare challenge blocks on-device fetches); the page fetch is
+                // a fallback in case an older server serves the pointer form without text.
+                "lyricstranslate" -> s.plain?.takeIf(LyricsUtils::hasLyricBody)
+                    ?: s.url?.let { fetch(it) }?.let { LyricsTranslateParser.parse(it)?.takeIf(LyricsUtils::hasLyricBody) }
+                "zingmusic" -> s.trackId?.let { zing(it) }?.let { ZingParser.toPlain(it).takeIf(LyricsUtils::hasLyricBody) }
+                "youtube" -> s.browseId?.let { youtube(it) }?.takeIf(LyricsUtils::hasLyricBody)
+                "tab4u" -> s.url?.let { fetch(it) }?.let(Tab4uParser::parse)
+                "zemirotdb" -> s.url?.let { fetch(it) }?.let(ZemirotDbParser::parse)
+                "lrclib" -> s.trackId?.let { fetch("https://lrclib.net/api/get/$it") }?.let { ZemerLyricsClient.lrclibBody(it) }
+                "kugou" -> s.hash?.let { h -> s.krcId?.let { id -> fetch(KugouLrc.searchUrl(h))?.let { KugouLrc.accessKey(it, id) }?.let { key -> fetch(KugouLrc.downloadUrl(id, key))?.let { KugouLrc.lrc(it) } } } }
+                "booklet", "manual", "canonical", "community" -> inline(s)
+                else -> null
+            } }.onFailure { if (it is CancellationException) throw it }.getOrNull()?.let { withLineTimes(s, it, resolved.lineTimes) }
+            if (body != null) out += sourceLabel(s) to body
+        }
+        return out
+    }
+
+    /**
+     * The resolver's `offsetSec` is added to every karaoke line whether it is this song's own MEASURED lead or the
+     * fleet DEFAULT: over 67 per-line-measured recordings the default cut the mean cue error from 0.70 s to 0.53 s
+     * and put 70 % of songs within 0.3 s of the voice (28 % without it), helping four songs for every one it hurt.
+     */
+    fun jkaraokeOffset(s: ZemerLyricsClient.Source): Double = s.offsetSec ?: 0.0
+
+    private fun inline(s: ZemerLyricsClient.Source): String? = s.syncedLrc?.takeIf { it.isNotBlank() } ?: s.plain?.takeIf { it.isNotBlank() }
+
+    /** The resolver's measured line times apply to the ONE source they were measured against, and only when they cover its body. */
+    private fun withLineTimes(s: ZemerLyricsClient.Source, body: String, lineTimes: ZemerLyricsClient.LineTimes?): String =
+        if (lineTimes != null && lineTimes.type == s.type && !LyricsUtils.isSynced(body)) LineTimesLrc.apply(body, lineTimes) ?: body else body
+
+    /** Synced sources first, then [rank]; the server's own order breaks ties (a stable sort). */
+    fun order(resolved: ZemerLyricsClient.Resolved): List<ZemerLyricsClient.Source> =
+        resolved.sources.sortedWith(compareBy({ !isSynced(it, resolved.lineTimes) }, { rank(it) }))
+
+    /** Flagged synced by the server, carrying a synced body inline, or the one pointer the measured `lineTimes` were taken against. */
+    fun isSynced(s: ZemerLyricsClient.Source, lineTimes: ZemerLyricsClient.LineTimes?): Boolean =
+        s.synced || !s.syncedLrc.isNullOrBlank() || !s.richSync.isNullOrBlank() || lineTimes?.type == s.type
+
+    /** The preference table agreed with the server; an unknown type sorts last. */
+    fun rank(s: ZemerLyricsClient.Source) = when (s.type) {
+        "zemer" -> 0
+        "jkaraoke", "apple" -> 1
+        "lrclib", "kugou", "musixmatch", "zingmusic", "youtube" -> 2
+        "jyrics", "shironet", "tab4u", "zemirotdb", "lyricstranslate" -> 3
+        "booklet", "manual", "canonical", "community" -> 4
+        else -> 9
+    }
+
+    /** The label suffix for a source: its type, except a `manual` row names where the text came from. */
+    fun sourceLabel(s: ZemerLyricsClient.Source): String =
+        if (s.type == "manual" && !s.origin.isNullOrBlank()) originName(s.origin) else s.type
+
+    /** Display names agreed with the server for `manual.origin`; an unknown slug is shown as-is. */
+    fun originName(origin: String): String = when (origin) {
+        "telegram" -> "Telegram"
+        "asrverified" -> "verified"
+        "apple" -> "Apple Music"
+        "youtube" -> "YouTube"
+        else -> origin
+    }
+
+    /**
+     * "Zemer · jkaraoke": the sub-source matters for provenance; Zemer's own certified text is just "Zemer".
+     * Verification is a server fact, not shown in the label.
+     */
+    fun label(source: String, @Suppress("UNUSED_PARAMETER") verified: Boolean): String = if (source == "zemer") name else "$name · $source"
+
+    override suspend fun getLyrics(id: String, title: String, artist: String, duration: Int, album: String?): Result<String> =
+        getLabeledLyrics(id, title, artist, duration, album).map { it.lyrics }
+
+    override suspend fun getLabeledLyrics(id: String, title: String, artist: String, duration: Int, album: String?): Result<LabeledLyrics> = runCatching {
+        val resolved = ZemerLyricsClient.resolve(id) ?: throw LyricsUnavailableException
+        val best = bodies(resolved, firstOnly = true).firstOrNull() ?: throw LyricsUnavailableException
+        LabeledLyrics(label(best.first, resolved.verified), best.second, resolved.lineExtras)
+    }.onFailure { if (it is CancellationException) throw it }
+}

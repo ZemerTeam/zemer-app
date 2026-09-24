@@ -2,6 +2,7 @@ package com.jtech.zemer.ui.screens.library
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -15,6 +16,8 @@ import com.jtech.zemer.constants.BlockPodcastsKey
 import com.jtech.zemer.constants.ChipSortTypeKey
 import com.jtech.zemer.constants.LibraryFilter
 import com.jtech.zemer.ui.component.ChipsRow
+import com.jtech.zemer.ui.component.ChipsRowBottomPadding
+import com.jtech.zemer.ui.component.ChipsRowTopPadding
 import com.jtech.zemer.utils.rememberEnumPreference
 import com.jtech.zemer.utils.rememberPreference
 
@@ -35,7 +38,7 @@ fun LibraryScreen(navController: NavController) {
     }
 
     val filterContent = @Composable {
-        Row {
+        Row(modifier = Modifier.padding(top = ChipsRowTopPadding, bottom = ChipsRowBottomPadding)) {
             ChipsRow(
                 chips =
                 availableFilters.associateWith { filter ->

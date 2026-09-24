@@ -3,12 +3,10 @@ package com.jtech.zemer.viewmodels
 import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.jtech.zemer.constants.HideExplicitKey
 import com.jtech.zemer.constants.SongSortDescendingKey
 import com.jtech.zemer.constants.SongSortType
 import com.jtech.zemer.constants.SongSortTypeKey
 import com.jtech.zemer.db.MusicDatabase
-import com.jtech.zemer.extensions.filterExplicit
 import com.jtech.zemer.extensions.toEnum
 import com.jtech.zemer.utils.dataStore
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -31,16 +29,11 @@ class DownloadedVideosViewModel @Inject constructor(
     val downloadedVideos =
         context.dataStore.data
             .map {
-                Pair(
-                    it[SongSortTypeKey].toEnum(SongSortType.CREATE_DATE) to (it[SongSortDescendingKey] ?: true),
-                    it[HideExplicitKey] ?: false
-                )
+                it[SongSortTypeKey].toEnum(SongSortType.CREATE_DATE) to (it[SongSortDescendingKey] ?: true)
             }
             .distinctUntilChanged()
-            .flatMapLatest { (sortDesc, hideExplicit) ->
-                val (sortType, descending) = sortDesc
+            .flatMapLatest { (sortType, descending) ->
                 database.downloadedVideosSorted(sortType, descending)
-                    .map { it.filterExplicit(hideExplicit) }
             }
             .stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
 }

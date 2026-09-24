@@ -66,6 +66,14 @@ node tests/search/verify-album-fix.mjs          # proves the artist-page album g
 `diag-auth.mjs` holds authenticated `search`/`browse` helpers for these probes — **diagnostic only**,
 not a model of the app's real (unauthenticated) search path.
 
+### Lyrics-source research probes (one-off, not CI; need the sibling `zemer-search` checkout)
+
+The `lyrics-*.mjs`, `jyrics-*.mjs`, `jkaraoke-resolve.mjs`, `corpus-*.mjs`, `drive-*-resolve*.mjs` and
+`names-resolve-yt.mjs` scripts are the coverage/accuracy probes that chose the app's lyrics sources (Zemer resolver
+sources, SimpMusic, LrcLib, Musixmatch, YouTube). They read the sibling `zemer-search` repo's `data/corpus.db` +
+`corpus/lyrics.mjs` through `jyrics-common.mjs` (`ZEMER_SEARCH=/path/to/zemer-search` overrides the default
+workspace sibling) and write under the gitignored `tests/search/.cache/`. Diagnostic only, never wired into CI.
+
 ## Out of scope (by design)
 
 Zemer's **artist-whitelist filter** (`app/.../utils/WhitelistFilter.kt`) runs *after* `search()` at

@@ -24,8 +24,8 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarScrollBehavior
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -56,16 +56,18 @@ import com.jtech.zemer.ui.component.SyncAccountWarning
 import com.jtech.zemer.ui.component.DefaultDialog
 import com.jtech.zemer.auth.AuthState
 import com.jtech.zemer.auth.UserAuthManager
-import com.jtech.zemer.constants.AllowChasidishKey
 import com.jtech.zemer.constants.AllowFemaleSingersKey
 import com.jtech.zemer.constants.BlockVideosKey
 import com.jtech.zemer.constants.BlockPodcastsKey
 import com.jtech.zemer.constants.AppLanguageKey
-import com.jtech.zemer.constants.ContentCountryKey
-import com.jtech.zemer.constants.ContentLanguageKey
-import com.jtech.zemer.constants.CountryCodeToName
 import com.jtech.zemer.constants.EnableContentFiltersKey
 import com.jtech.zemer.constants.EnableLrcLibKey
+import com.jtech.zemer.constants.EnableSimpMusicKey
+import com.jtech.zemer.constants.EnableYouTubeLyricsKey
+import com.jtech.zemer.constants.EnableZemerLyricsKey
+import com.jtech.zemer.constants.LyricsProviderOrderKey
+import com.jtech.zemer.constants.MusixmatchLastStatusKey
+import com.jtech.zemer.constants.EnableMusixmatchKey
 import com.jtech.zemer.constants.LanguageCodeToName
 import com.jtech.zemer.constants.QuickPicks
 import com.jtech.zemer.constants.QuickPicksKey
@@ -74,7 +76,7 @@ import com.jtech.zemer.constants.TopSize
 import com.jtech.zemer.sync.SyncState
 import com.jtech.zemer.sync.SyncStatus
 import com.jtech.zemer.ui.component.AppBarTitle
-import com.jtech.zemer.ui.component.BackNavigationIcon
+import com.jtech.zemer.ui.component.BackTopAppBar
 import com.jtech.zemer.ui.component.EditTextPreference
 import com.jtech.zemer.ui.component.ListPreference
 import com.jtech.zemer.ui.component.PreferenceEntry
@@ -82,13 +84,11 @@ import com.jtech.zemer.ui.component.PreferenceGroupTitle
 import com.jtech.zemer.ui.component.SettingsCardGroup
 import com.jtech.zemer.ui.component.SettingsScreenTopSpacing
 import com.jtech.zemer.ui.component.SwitchPreference
-import com.jtech.zemer.ui.component.zemerTopAppBarColors
 import com.jtech.zemer.ui.utils.backToMain
 import com.jtech.zemer.utils.ContentFilterState
 import com.jtech.zemer.utils.rememberEnumPreference
 import com.jtech.zemer.utils.rememberPreference
 import com.jtech.zemer.utils.setAppLocale
-import com.metrolist.innertube.YouTube
 import dagger.hilt.android.lifecycle.HiltViewModel
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -187,18 +187,32 @@ fun ContentSettings(
     // Used only before Android 13
     val (appLanguage, onAppLanguageChange) = rememberPreference(key = AppLanguageKey, defaultValue = SYSTEM_DEFAULT)
 
-    val (contentLanguage, onContentLanguageChange) = rememberPreference(key = ContentLanguageKey, defaultValue = "system")
-    val (contentCountry, onContentCountryChange) = rememberPreference(key = ContentCountryKey, defaultValue = "system")
+    val (enableZemerLyrics, onEnableZemerLyricsChange) = rememberPreference(key = EnableZemerLyricsKey, defaultValue = true)
+    val (enableSimpMusic, onEnableSimpMusicChange) = rememberPreference(key = EnableSimpMusicKey, defaultValue = true)
     val (enableLrclib, onEnableLrclibChange) = rememberPreference(key = EnableLrcLibKey, defaultValue = true)
+    val (enableYouTubeLyrics, onEnableYouTubeLyricsChange) = rememberPreference(key = EnableYouTubeLyricsKey, defaultValue = true)
+    val (enableMusixmatch, onEnableMusixmatchChange) = rememberPreference(key = EnableMusixmatchKey, defaultValue = true)
+    val (musixmatchStatus, _) = rememberPreference(key = MusixmatchLastStatusKey, defaultValue = "")
+    val (lyricsProviderOrder, onLyricsProviderOrderChange) = rememberPreference(key = LyricsProviderOrderKey, defaultValue = "")
+    var showProviderSelectionDialog by rememberSaveable { mutableStateOf(false) }
+    var showProviderPriorityDialog by rememberSaveable { mutableStateOf(false) }
+    val lyricsProviderToggles = listOf(
+        LyricsProviderToggle(listOf("Zemer"), R.string.enable_zemer_lyrics, R.string.enable_zemer_lyrics_desc, enableZemerLyrics, onEnableZemerLyricsChange),
+        LyricsProviderToggle(listOf("SimpMusic"), R.string.enable_simpmusic, R.string.enable_simpmusic_desc, enableSimpMusic, onEnableSimpMusicChange),
+        LyricsProviderToggle(listOf("LrcLib"), R.string.enable_lrclib, R.string.enable_lrclib_desc, enableLrclib, onEnableLrclibChange),
+        LyricsProviderToggle(listOf("Musixmatch"), R.string.enable_musixmatch, R.string.enable_musixmatch_desc, enableMusixmatch, onEnableMusixmatchChange, statusCode = musixmatchStatus),
+        LyricsProviderToggle(listOf("YouTubeSubtitle", "YouTube"), R.string.enable_youtube_lyrics, R.string.enable_youtube_lyrics_desc, enableYouTubeLyrics, onEnableYouTubeLyricsChange),
+    )
+    if (showProviderSelectionDialog) LyricsProviderSelectionDialog(lyricsProviderToggles) { showProviderSelectionDialog = false }
+    if (showProviderPriorityDialog) LyricsProviderPriorityDialog(lyricsProviderToggles, lyricsProviderOrder, onLyricsProviderOrderChange) { showProviderPriorityDialog = false }
     val (lengthTop, onLengthTopChange) = rememberPreference(key = TopSize, defaultValue = "50")
     val (quickPicks, onQuickPicksChange) = rememberEnumPreference(key = QuickPicksKey, defaultValue = QuickPicks.QUICK_PICKS)
     val (enableContentFilters, onEnableContentFiltersChange) = rememberPreference(key = EnableContentFiltersKey, defaultValue = true)
     val (allowFemaleSingers, onAllowFemaleSingersChange) = rememberPreference(key = AllowFemaleSingersKey, defaultValue = false)
-    val (allowChasidish, onAllowChasidishChange) = rememberPreference(key = AllowChasidishKey, defaultValue = false)
     val (blockVideos, onBlockVideosChange) = rememberPreference(key = BlockVideosKey, defaultValue = false)
     val (blockPodcasts, onBlockPodcastsChange) = rememberPreference(key = BlockPodcastsKey, defaultValue = false)
 
-    // Update ContentFilterState when preferences change (excluding chasidish since it's for recommendations only)
+    // Update ContentFilterState when preferences change
     LaunchedEffect(enableContentFilters, allowFemaleSingers, blockVideos, blockPodcasts) {
         ContentFilterState.updateContentFilters(
             filtersEnabled = enableContentFilters,
@@ -227,58 +241,6 @@ fun ContentSettings(
             .verticalScroll(rememberScrollState()),
     ) {
         Spacer(Modifier.height(SettingsScreenTopSpacing))
-        SettingsCardGroup(
-            title = stringResource(R.string.general),
-            rows = listOf(
-                {
-                    ListPreference(
-                        title = { Text(stringResource(R.string.content_language)) },
-                        icon = { Icon(painterResource(R.drawable.language), null) },
-                        selectedValue = contentLanguage,
-                        values = listOf(SYSTEM_DEFAULT) + LanguageCodeToName.keys.toList(),
-                        valueText = {
-                            LanguageCodeToName.getOrElse(it) { stringResource(R.string.system_default) }
-                        },
-                        onValueSelected = { newValue ->
-                            val locale = Locale.getDefault()
-                            val languageTag = locale.toLanguageTag().replace("-Hant", "")
-
-                            YouTube.locale = YouTube.locale.copy(
-                                hl = newValue.takeIf { it != SYSTEM_DEFAULT }
-                                    ?: locale.language.takeIf { it in LanguageCodeToName }
-                                    ?: languageTag.takeIf { it in LanguageCodeToName }
-                                    ?: "en"
-                            )
-
-                            onContentLanguageChange(newValue)
-                        }
-                    )
-                },
-                {
-                    ListPreference(
-                        title = { Text(stringResource(R.string.content_country)) },
-                        icon = { Icon(painterResource(R.drawable.location_on), null) },
-                        selectedValue = contentCountry,
-                        values = listOf(SYSTEM_DEFAULT) + CountryCodeToName.keys.toList(),
-                        valueText = {
-                            CountryCodeToName.getOrElse(it) { stringResource(R.string.system_default) }
-                        },
-                        onValueSelected = { newValue ->
-                            val locale = Locale.getDefault()
-
-                            YouTube.locale = YouTube.locale.copy(
-                                gl = newValue.takeIf { it != SYSTEM_DEFAULT }
-                                    ?: locale.country.takeIf { it in CountryCodeToName }
-                                    ?: "US"
-                            )
-
-                            onContentCountryChange(newValue)
-                        }
-                    )
-                },
-            ),
-        )
-
         SettingsCardGroup(
             title = stringResource(R.string.app_language),
             rows = buildList {
@@ -329,11 +291,19 @@ fun ContentSettings(
             title = stringResource(R.string.lyrics),
             rows = listOf(
                 {
-                    SwitchPreference(
-                        title = { Text(stringResource(R.string.enable_lrclib)) },
+                    PreferenceEntry(
+                        title = { Text(stringResource(R.string.lyrics_provider_selection)) },
+                        description = stringResource(R.string.lyrics_provider_selection_desc),
                         icon = { Icon(painterResource(R.drawable.lyrics), null) },
-                        checked = enableLrclib,
-                        onCheckedChange = onEnableLrclibChange,
+                        onClick = { showProviderSelectionDialog = true },
+                    )
+                },
+                {
+                    PreferenceEntry(
+                        title = { Text(stringResource(R.string.lyrics_provider_priority)) },
+                        description = stringResource(R.string.lyrics_provider_priority_desc),
+                        icon = { Icon(painterResource(R.drawable.lyrics), null) },
+                        onClick = { showProviderPriorityDialog = true },
                     )
                 },
             ),
@@ -356,15 +326,6 @@ fun ContentSettings(
 
         SettingsCardGroup(
             rows = listOf(
-                {
-                    SwitchPreference(
-                        title = { Text(stringResource(R.string.enable_personal_filters)) },
-                        icon = { Icon(painterResource(R.drawable.settings), null) },
-                        checked = true, // Always shown as ON
-                        onCheckedChange = { }, // No-op, cannot be changed
-                        isEnabled = false // Always greyed out
-                    )
-                },
                 {
                     SwitchPreference(
                         title = { Text(stringResource(R.string.allow_female_singers)) },
@@ -390,21 +351,6 @@ fun ContentSettings(
                         checked = blockPodcasts,
                         onCheckedChange = onBlockPodcastsChange,
                         isEnabled = enableContentFilters && togglesEnabled
-                    )
-                },
-            ),
-        )
-
-        SettingsCardGroup(
-            title = stringResource(R.string.recommendations),
-            rows = listOf(
-                {
-                    SwitchPreference(
-                        title = { Text(stringResource(R.string.i_am_chasidish)) },
-                        icon = { Icon(painterResource(R.drawable.person), null) },
-                        checked = allowChasidish,
-                        onCheckedChange = onAllowChasidishChange,
-                        isEnabled = true // Chasidish is not locked, it's for recommendations only
                     )
                 },
             ),
@@ -516,10 +462,9 @@ fun ContentSettings(
         )
     }
 
-    TopAppBar(
+    BackTopAppBar(
         title = { AppBarTitle(stringResource(R.string.content)) },
-        navigationIcon = { BackNavigationIcon(navController) },
-        colors = zemerTopAppBarColors(),
+        navController = navController,
     )
 }
 

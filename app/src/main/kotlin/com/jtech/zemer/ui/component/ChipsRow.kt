@@ -2,23 +2,12 @@
 
 package com.jtech.zemer.ui.component
 
-import android.annotation.SuppressLint
-import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.expandIn
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.shrinkOut
-import androidx.compose.animation.slideInHorizontally
-import androidx.compose.animation.slideOutHorizontally
-import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.horizontalScroll
-import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
@@ -31,19 +20,13 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.AssistChip
-import androidx.compose.material3.AssistChipDefaults
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.ToggleButtonDefaults
 import androidx.compose.material3.TonalToggleButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -53,9 +36,6 @@ import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -63,8 +43,14 @@ import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.layout.positionInParent
 import kotlinx.coroutines.launch
-import com.jtech.zemer.R
-import com.jtech.zemer.ui.screens.OptionStats
+
+/**
+ * The standard breathing room above/below a chips strip sitting directly under a top bar - Home's
+ * content-selector geometry. Every chips-below-the-top-bar screen (Home, KidZone, the Library
+ * filter rows) shares these two values so the gap can't drift per screen.
+ */
+val ChipsRowTopPadding = 12.dp
+val ChipsRowBottomPadding = 4.dp
 
 @Composable
 fun <E> ChipsRow(
@@ -153,134 +139,27 @@ fun <E> ChipsRow(
     }
 }
 
-@SuppressLint("UnusedContentLambdaTargetStateParameter")
+/**
+ * THE content-tab selector row (Home's Music/Radio/Podcasts/Videos, KidZone's Artists/Podcasts):
+ * a [ChipsRow] with the standard breathing room (top 12 / bottom 4) on a full-width surface strip,
+ * so every screen's content-type chips share one geometry and can't drift.
+ */
 @Composable
-fun <Int> ChoiceChipsRow(
-    chips: List<Pair<Int, String>>,
-    options: List<Pair<OptionStats, String>>,
-    selectedOption: OptionStats,
-    onSelectionChange: (OptionStats) -> Unit,
-    currentValue: Int,
-    onValueUpdate: (Int) -> Unit,
-    modifier: Modifier = Modifier,
-    containerColor: Color = MaterialTheme.colorScheme.surfaceContainer,
+fun <E> ContentTabChipsRow(
+    chips: List<Pair<E, String>>,
+    currentValue: E,
+    onValueUpdate: (E) -> Unit,
 ) {
-    var expandIconDegree by remember { mutableFloatStateOf(0f) }
-    val rotationAnimation by animateFloatAsState(
-        targetValue = expandIconDegree,
-        animationSpec = tween(durationMillis = 400),
-        label = "",
-    )
-
-    Row(
-        modifier =
-        modifier
+    Box(
+        Modifier
             .fillMaxWidth()
-            .padding(start = 12.dp)
-            .windowInsetsPadding(WindowInsets.systemBars.only(WindowInsetsSides.Horizontal)),
+            .background(MaterialTheme.colorScheme.surface)
+            .padding(top = ChipsRowTopPadding, bottom = ChipsRowBottomPadding),
     ) {
-        var expanded by remember { mutableStateOf(false) }
-
-        Column {
-            var isFocused by remember { mutableStateOf(false) }
-            val borderColor by animateColorAsState(
-                targetValue = if (isFocused && focusVisualsEnabled()) MaterialTheme.colorScheme.outline else Color.Transparent,
-                label = "chip_focus_border"
-            )
-            AssistChip(
-                onClick = {
-                    expanded = !expanded
-                    expandIconDegree -= 180
-                },
-                label = {
-                    Text(
-                        text =
-                        when (selectedOption) {
-                            OptionStats.WEEKS -> stringResource(id = R.string.weeks)
-                            OptionStats.MONTHS -> stringResource(id = R.string.months)
-                            OptionStats.YEARS -> stringResource(id = R.string.years)
-                            OptionStats.CONTINUOUS -> stringResource(id = R.string.continuous)
-                        },
-                    )
-                },
-                trailingIcon = {
-                    Icon(
-                        painter = painterResource(R.drawable.expand_more),
-                        contentDescription = null,
-                        modifier = Modifier.graphicsLayer(rotationZ = rotationAnimation),
-                    )
-                },
-                shape = RoundedCornerShape(16.dp),
-                border = null,
-                colors = AssistChipDefaults.assistChipColors(
-                    containerColor = containerColor,
-                    labelColor = MaterialTheme.colorScheme.onSurface
-                ),
-                modifier = Modifier
-                    .onFocusChanged { isFocused = it.isFocused }
-                    .focusable()
-                    .border(width = 1.5.dp, color = borderColor, shape = RoundedCornerShape(16.dp))
-            )
-
-            AnimatedVisibility(
-                visible = expanded,
-                enter = expandIn() + fadeIn(),
-                exit = shrinkOut() + fadeOut(),
-            ) {
-                DropdownMenu(
-                    modifier = Modifier.padding(start = 12.dp),
-                    expanded = expanded,
-                    onDismissRequest = {
-                        expanded = false
-                        expandIconDegree -= 180
-                    },
-                ) {
-                    options.forEach { option ->
-                        DropdownMenuItem(
-                            text = { Text(text = option.second) },
-                            onClick = {
-                                onSelectionChange(option.first)
-                                expandIconDegree -= 180
-                                expanded = false
-                            },
-                        )
-                    }
-                }
-            }
-        }
-
-        AnimatedContent(
-            targetState = selectedOption,
-            transitionSpec = { slideInHorizontally() + fadeIn() togetherWith slideOutHorizontally() + fadeOut() },
-            label = "",
-        ) {
-            Row(
-                modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .horizontalScroll(rememberScrollState())
-                    .windowInsetsPadding(WindowInsets.systemBars.only(WindowInsetsSides.Horizontal)),
-            ) {
-                chips.forEach { (value, label) ->
-                    Spacer(Modifier.width(8.dp))
-                    var isFocused by remember { mutableStateOf(false) }
-                    val borderColor by animateColorAsState(
-                        targetValue = if (isFocused && focusVisualsEnabled()) MaterialTheme.colorScheme.outline else Color.Transparent,
-                        label = "chip_focus_border"
-                    )
-                    TonalToggleButton(
-                        checked = currentValue == value,
-                        onCheckedChange = { onValueUpdate(value) },
-                        colors = ToggleButtonDefaults.tonalToggleButtonColors(containerColor = containerColor),
-                        modifier = Modifier
-                            .onFocusChanged { isFocused = it.isFocused }
-                            .focusable()
-                            .border(width = 1.5.dp, color = borderColor, shape = RoundedCornerShape(16.dp))
-                    ) {
-                        Text(label)
-                    }
-                }
-            }
-        }
+        ChipsRow(
+            chips = chips,
+            currentValue = currentValue,
+            onValueUpdate = onValueUpdate,
+        )
     }
 }

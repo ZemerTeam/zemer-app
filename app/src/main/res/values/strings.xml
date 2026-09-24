@@ -23,8 +23,6 @@
 
     <!-- Home -->
     <string name="history">History</string>
-    <string name="stats">Stats</string>
-    <string name="mood_and_genres">Mood and Genres</string>
     <string name="account">Account</string>
     <string name="quick_picks">Quick picks</string>
     <string name="forgotten_favorites">Forgotten favorites</string>
@@ -37,7 +35,6 @@
     <string name="last_week">Last week</string>
 
     <!-- Stats -->
-    <string name="most_played_songs">Most played songs</string>
 
     <!-- Search -->
     <string name="search">Search</string>
@@ -90,7 +87,6 @@
     <string name="add_to_library">Add to library</string>
     <string name="remove_from_library">Remove from library</string>
     <string name="action_download">Download</string>
-    <string name="downloading">Downloading</string>
     <string name="remove_download">Remove download</string>
 
     <!-- MediaStore downloads -->
@@ -100,7 +96,6 @@
     <string name="download_failed">Download failed</string>
     <string name="retry_download">Retry download</string>
     <string name="storage_permission_required">Storage permission required</string>
-    <string name="import_playlist">Import playlist</string>
     <string name="add_to_playlist">Add to playlist</string>
     <string name="view_artist">View artist</string>
     <string name="view_album">View album</string>
@@ -111,7 +106,6 @@
     <string name="delete">Delete</string>
     <string name="remove_from_history">Remove from history</string>
     <string name="remove_from_playlist">Remove from playlist</string>
-    <string name="search_online">Search online</string>
     <string name="advanced">Advanced</string>
     <string name="tempo_and_pitch">Tempo and Pitch</string>
 
@@ -137,7 +131,6 @@
     <string name="unknown">Unknown</string>
     <string name="copied">Copied to clipboard</string>
 
-    <string name="search_lyrics">Search lyrics</string>
 
     <string name="edit_song">Edit song</string>
     <string name="song_title">Song title</string>
@@ -191,6 +184,16 @@
 
     <!-- Player -->
     <string name="lyrics_not_found">Lyrics not found</string>
+    <string name="lyrics_from">Lyrics from %1$s</string>
+    <string name="lyrics_synced">synced</string>
+    <string name="lyrics_plain">not synced</string>
+    <string name="lyrics_machine_translation">machine translation</string>
+    <string name="lyrics_line_extras">Translation under lines</string>
+    <string name="lyrics_line_extras_off">Off</string>
+    <string name="lyrics_line_extras_english">English</string>
+    <string name="lyrics_line_extras_hebrew">Hebrew</string>
+    <string name="lyrics_line_extras_yiddish">Yiddish</string>
+    <string name="lyrics_line_extras_romanized">Transliteration</string>
     <string name="sleep_timer">Sleep timer</string>
     <string name="end_of_song">End of song</string>
     <plurals name="minute">
@@ -223,6 +226,10 @@
     <string name="theme">Theme</string>
     <string name="player">Player</string>
     <string name="lyrics_text_position">Lyrics text position</string>
+    <string name="lyrics_word_sync">Word-by-word lyrics</string>
+    <string name="lyrics_sync_offset_title">Lyrics timing offset</string>
+    <string name="lyrics_sync_offset">Lyrics timing offset: %1$d ms</string>
+    <string name="lyrics_word_sync_description">Highlight each word as it is sung when the lyrics source provides word timings</string>
     <string name="left">Left</string>
     <string name="center">Center</string>
     <string name="right">Right</string>
@@ -261,12 +268,13 @@
     <string name="report_failure">Failed to send report.</string>
     <string name="report_choose_reason">Please select a reason.</string>
 
-    <string name="content_language">Default content language</string>
-    <string name="content_country">Default content country</string>
     <string name="system_default">System default</string>
 
     <string name="player_and_audio">Player and audio</string>
     <string name="audio_quality">Audio quality</string>
+    <string name="download_quality">Download quality</string>
+    <string name="download_quality_best">Best available (Opus)</string>
+    <string name="download_quality_compatible">Most compatible (AAC)</string>
     <string name="audio_quality_auto">Auto</string>
     <string name="audio_quality_high">High</string>
     <string name="audio_quality_low">Low</string>
@@ -307,9 +315,36 @@
     <string name="pause_search_history">Pause search history</string>
     <string name="clear_search_history">Clear search history</string>
     <string name="clear_search_history_confirm">Are you sure you want to clear all search history?</string>
-    <string name="disable_screenshot">Disable screenshot</string>
-    <string name="disable_screenshot_desc">When this option is on, screenshots and the app\'s view in Recents are disabled.</string>
-    <string name="enable_lrclib">Enable LrcLib lyrics provider</string>
+    <string name="enable_zemer_lyrics">Zemer</string>
+    <string name="enable_simpmusic">SimpMusic</string>
+    <string name="enable_lrclib">LrcLib</string>
+    <string name="enable_musixmatch">Musixmatch</string>
+    <string name="enable_youtube_lyrics">YouTube</string>
+    <string name="lyrics_report_wrong">Report</string>
+    <string name="lyrics_report_confirm">Are you sure you want to report these lyrics as wrong?</string>
+    <string name="lyrics_reported">Thanks, reported. Lyrics are hidden once a second listener agrees.</string>
+    <string name="lyrics_submitted">Lyrics saved and sent to Zemer for review</string>
+    <string name="lyrics_provider_selection">Provider selection</string>
+    <string name="lyrics_provider_selection_desc">Choose which lyrics providers are enabled</string>
+    <string name="lyrics_provider_priority">Lyrics provider priority</string>
+    <string name="lyrics_provider_priority_desc">Drag to reorder providers by preference. Higher position means higher priority</string>
+    <string name="enable_zemer_lyrics_desc">Curated Jewish-music sources, cross-verified</string>
+    <string name="enable_simpmusic_desc">Exact-track community lyrics</string>
+    <string name="enable_lrclib_desc">Community synced-lyrics database</string>
+    <string name="enable_musixmatch_desc">Spotify\'s catalog, fetched on-device</string>
+    <string name="enable_youtube_lyrics_desc">Subtitles and the Music lyrics tab; tried last</string>
+    <string name="lyrics_provider_youtube_note">YouTube lyrics are lower trust and are tried last by default</string>
+    <string name="musixmatch_status_hit">Last lookup: lyrics found</string>
+    <string name="musixmatch_status_hit_synced">Last lookup: synced lyrics found</string>
+    <string name="musixmatch_status_unauthorized">Last lookup: token quota reached, a new token is fetched next time</string>
+    <string name="musixmatch_status_network">Last lookup: network error</string>
+    <string name="musixmatch_status_no_match">Last lookup: no matching track</string>
+    <string name="musixmatch_status_no_lyrics">Last lookup: track known, no lyrics on file</string>
+    <string name="musixmatch_status_no_token">Last lookup: no token (issuance refused, retried in 30 minutes)</string>
+    <string name="musixmatch_status_rejected_artist">Last lookup: rejected, artist did not match (%1$s)</string>
+    <string name="musixmatch_status_rejected_title">Last lookup: rejected, title did not match (%1$s)</string>
+    <string name="musixmatch_status_rejected_length">Last lookup: rejected, length did not match (%1$s)</string>
+    <string name="musixmatch_status_rejected_unusable">Last lookup: rejected, instrumental or restricted (%1$s)</string>
 
     <string name="backup_restore">Backup and restore</string>
     <string name="action_backup">Backup</string>
@@ -324,10 +359,8 @@
 
     <string name="new_version_available">New version available</string>
     <string name="content_filters">Content filters</string>
-    <string name="allow_female_singers">Allow female singers</string>
+    <string name="allow_female_singers">Allow female content</string>
     <string name="block_videos">Block videos</string>
-    <string name="enable_personal_filters">Enable personal feed filters</string>
-    <string name="i_am_chasidish">Promote chassidish content</string>
     <string name="radio_mode">Radio mode</string>
 
     <!-- D-pad Button Mapper -->
@@ -401,17 +434,6 @@
     <string name="splash_continue">Let\'s go</string>
     <string name="splash_syncing_background_action">Continue while we sync</string>
     <string name="splash_syncing_background_waiting">Syncing in background…</string>
-    <string name="new_release_error_title">New releases unavailable</string>
-    <string name="new_release_empty_title">No new releases</string>
-    <string name="new_release_empty_subtitle">We could not find new releases right now. Try again in a bit.</string>
-    <string name="new_release_retry">Try again</string>
-    <string name="new_release_title">Recent releases</string>
-    <string name="new_release_songs_title">Latest singles</string>
-    <string name="new_release_albums_title">Latest albums</string>
-    <string name="mood_and_genres_error_title">Could not load moods &amp; genres</string>
-    <string name="mood_and_genres_empty_title">No moods &amp; genres found</string>
-    <string name="mood_and_genres_empty_subtitle">Try refreshing to pull fresh categories.</string>
-    <string name="mood_and_genres_retry">Retry</string>
     <string name="search_error_title">Search is having trouble</string>
     <string name="search_empty_title">No results</string>
     <string name="search_retry">Search again</string>
@@ -434,4 +456,17 @@
     <string name="widget_name">Zemer Music</string>
     <string name="widget_description">Control your music playback</string>
     <string name="widget_tap_to_open">Tap to open</string>
+    <!-- Update dialog -->
+    <string name="update_installed_version">Installed</string>
+    <string name="update_new_version">New version</string>
+    <string name="percent_value">%1$d%%</string>
+    <string name="update_nightly_build">Nightly build</string>
+    <string name="update_stable_release">Stable release</string>
+    <string name="update_download_progress">%1$s of %2$s</string>
+    <string name="update_download_progress_unsized">%1$s downloaded</string>
+    <string name="update_error_timeout">The download timed out. Check your connection and try again.</string>
+    <string name="update_error_network">Couldn\'t reach the update server. Check your connection and try again.</string>
+    <string name="update_error_storage">Not enough free storage to save the update.</string>
+    <string name="update_error_corrupt">The downloaded file was incomplete or damaged. Try again.</string>
+    <string name="update_error_unknown">The download failed. Try again.</string>
 </resources>

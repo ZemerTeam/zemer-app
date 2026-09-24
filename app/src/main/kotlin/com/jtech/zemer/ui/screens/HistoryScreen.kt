@@ -15,15 +15,10 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextField
-import androidx.compose.material3.TextFieldDefaults
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -36,14 +31,11 @@ import androidx.compose.runtime.toMutableStateList
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.navigation.NavController
@@ -55,25 +47,24 @@ import com.jtech.zemer.constants.HistorySource
 import com.jtech.zemer.db.entities.EventWithSong
 import com.jtech.zemer.extensions.metadata
 import com.jtech.zemer.extensions.toMediaItem
-import com.jtech.zemer.extensions.togglePlayPause
 import com.jtech.zemer.models.toMediaMetadata
 import com.jtech.zemer.playback.queues.ListQueue
 import com.jtech.zemer.playback.queues.ZemerRadioQueue
-import com.jtech.zemer.ui.component.AppBarTitle
 import com.jtech.zemer.ui.component.ChipsRow
 import com.jtech.zemer.ui.component.HideOnScrollFAB
 import com.jtech.zemer.ui.component.IconButton
 import com.jtech.zemer.ui.component.LocalMenuState
 import com.jtech.zemer.ui.component.MoreVertMenuButton
 import com.jtech.zemer.ui.component.NavigationTitle
+import com.jtech.zemer.ui.component.SearchableSelectableTopAppBar
+import com.jtech.zemer.ui.component.SelectionActions
 import com.jtech.zemer.ui.component.SongListItem
 import com.jtech.zemer.ui.component.YouTubeListItem
-import com.jtech.zemer.ui.component.zemerTopAppBarColors
 import com.jtech.zemer.ui.menu.SelectionMediaMetadataMenu
 import com.jtech.zemer.ui.menu.SongMenu
 import com.jtech.zemer.ui.menu.YouTubeSongMenu
+import com.jtech.zemer.ui.utils.ItemWrapper
 import com.jtech.zemer.ui.utils.activeRowTapTogglesPlayPause
-import com.jtech.zemer.ui.utils.backToMain
 import com.jtech.zemer.utils.rememberPreference
 import com.jtech.zemer.viewmodels.DateAgo
 import com.jtech.zemer.viewmodels.HistoryViewModel
@@ -138,10 +129,6 @@ fun HistoryScreen(
         }
     }
 
-    class WrappedHistoryItem(val item: EventWithSong) {
-        var isSelected by mutableStateOf(false)
-    }
-
     val filteredEvents = remember(events, query) {
         if (query.text.isEmpty()) {
             events
@@ -177,7 +164,8 @@ fun HistoryScreen(
 
     val wrappedItemsMap = remember(filteredEvents) {
         filteredEvents.mapValues { (_, events) ->
-            events.map { WrappedHistoryItem(it) }.toMutableStateList()
+            // ItemWrapper defaults to selected; history enters selection mode with nothing selected.
+            events.map { ItemWrapper(it).apply { isSelected = false } }.toMutableStateList()
         }
     }
 
@@ -388,117 +376,33 @@ fun HistoryScreen(
         )
     }
 
-    TopAppBar(
-        title = {
-            if (selection) {
-                val count = allWrappedItems.count { it.isSelected }
-                AppBarTitle(
-                    text = pluralStringResource(R.plurals.n_song, count, count)
-                )
-            } else if (isSearching) {
-                TextField(
-                    value = query,
-                    onValueChange = { query = it },
-                    placeholder = {
-                        Text(
-                            text = stringResource(R.string.search),
-                            style = MaterialTheme.typography.titleLarge
+    SearchableSelectableTopAppBar(
+        navController = navController,
+        idleTitle = stringResource(R.string.history),
+        isSearching = isSearching,
+        onIsSearchingChange = { isSearching = it },
+        query = query,
+        onQueryChange = { query = it },
+        focusRequester = focusRequester,
+        selectionCount = { if (selection) allWrappedItems.count { it.isSelected } else null },
+        selectionCountPlural = R.plurals.n_song,
+        onExitSelection = { selection = false },
+        actions = {
+            SelectionActions(
+                wrapped = allWrappedItems,
+                onMore = {
+                    menuState.show {
+                        SelectionMediaMetadataMenu(
+                            songSelection = allWrappedItems
+                                .filter { it.isSelected }
+                                .map { it.item.song.toMediaItem().metadata!! },
+                            onDismiss = menuState::dismiss,
+                            clearAction = { selection = false },
+                            currentItems = emptyList()
                         )
-                    },
-                    singleLine = true,
-                    textStyle = MaterialTheme.typography.titleLarge,
-                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-                    colors = TextFieldDefaults.colors(
-                        focusedContainerColor = Color.Transparent,
-                        unfocusedContainerColor = Color.Transparent,
-                        focusedIndicatorColor = Color.Transparent,
-                        unfocusedIndicatorColor = Color.Transparent,
-                        disabledIndicatorColor = Color.Transparent,
-                    ),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .focusRequester(focusRequester)
-                )
-            } else {
-                AppBarTitle(text = stringResource(R.string.history))
-            }
-        },
-        navigationIcon = {
-            IconButton(
-                onClick = {
-                    when {
-                        isSearching -> {
-                            isSearching = false
-                            query = TextFieldValue()
-                        }
-
-                        selection -> {
-                            selection = false
-                        }
-
-                        else -> {
-                            navController.navigateUp()
-                        }
                     }
                 },
-                onLongClick = {
-                    if (!isSearching && !selection) {
-                        navController.backToMain()
-                    }
-                }
-            ) {
-                Icon(
-                    painter = painterResource(
-                        if (selection) R.drawable.close else R.drawable.arrow_back
-                    ),
-                    contentDescription = null
-                )
-            }
+            )
         },
-        actions = {
-            if (selection) {
-                val count = allWrappedItems.count { it.isSelected }
-                IconButton(
-                    onClick = {
-                        if (count == allWrappedItems.size) {
-                            allWrappedItems.forEach { it.isSelected = false }
-                        } else {
-                            allWrappedItems.forEach { it.isSelected = true }
-                        }
-                    }
-                ) {
-                    Icon(
-                        painter = painterResource(
-                            if (count == allWrappedItems.size) R.drawable.deselect else R.drawable.select_all
-                        ),
-                        contentDescription = null
-                    )
-                }
-                MoreVertMenuButton(
-                    onClick = {
-                        menuState.show {
-                            SelectionMediaMetadataMenu(
-                                songSelection = allWrappedItems
-                                    .filter { it.isSelected }
-                                    .map { it.item.song.toMediaItem().metadata!! },
-                                onDismiss = menuState::dismiss,
-                                clearAction = { selection = false },
-                                currentItems = emptyList()
-                            )
-                        }
-                    }
-                )
-            } else if (!isSearching) {
-                IconButton(
-                    onClick = { isSearching = true }
-                ) {
-                    Icon(
-                        painter = painterResource(R.drawable.search),
-                        contentDescription = null
-                    )
-                }
-            }
-        },
-        colors = zemerTopAppBarColors(),
     )
 }

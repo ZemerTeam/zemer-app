@@ -242,9 +242,6 @@ fun AlbumMenu(
                         onClick = {
                             onDismiss()
                             if (songs.isNotEmpty()) {
-                                album.album.playlistId?.let { playlistId ->
-                                    playerConnection.service.getAutomix(playlistId)
-                                }
                                 playerConnection.playQueue(
                                     ListQueue(
                                         title = album.album.title,
@@ -267,7 +264,7 @@ fun AlbumMenu(
                         onClick = {
                             onDismiss()
                             Tracker.action(TrackingActionKind.SHARE, album.id)
-                            context.shareText("https://music.zemer.io/playlist?list=${album.album.playlistId}")
+                            album.album.shareLink?.let { context.shareText(it) }
                         }
                     )
                 ),

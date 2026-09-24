@@ -12,13 +12,16 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.focusable
+import androidx.compose.foundation.gestures.TargetedFlingBehavior
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.carousel.CarouselDefaults
 import androidx.compose.material3.carousel.CarouselItemScope
+import androidx.compose.material3.carousel.CarouselState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -33,6 +36,18 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
+
+/**
+ * The ONE fling behavior for the full-bleed hero carousels (Latest Releases + the video hero):
+ * [CarouselDefaults.singleAdvanceFlingBehavior] with its DEFAULT spring snap. Single advance comes
+ * from the behavior's internal PagerSnapDistance.atMost(1), NOT from the animation spec; the default
+ * spring is deliberate - it consumes the fling's release velocity for a continuous finger-to-animation
+ * hand-off and settles proportionally to the remaining distance. Do NOT pass a fixed-duration tween
+ * snap here: a tween ignores that velocity and hitches on every swipe (the "choppy carousel" bug).
+ */
+@Composable
+fun heroCarouselFlingBehavior(state: CarouselState): TargetedFlingBehavior =
+    CarouselDefaults.singleAdvanceFlingBehavior(state)
 
 /**
  * The shared frame for a full-bleed carousel HERO - the Latest Releases hero and the Trending/Featured

@@ -1,0 +1,206 @@
+package com.jtech.zemer.lyrics.zemer
+
+import com.jtech.zemer.BuildConfig
+import io.ktor.client.HttpClient
+import io.ktor.client.call.body
+import io.ktor.client.engine.cio.CIO
+import io.ktor.client.plugins.HttpTimeout
+import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
+import io.ktor.client.request.get
+import io.ktor.client.request.header
+import io.ktor.client.statement.bodyAsText
+import io.ktor.http.HttpHeaders
+import io.ktor.http.HttpStatusCode
+import io.ktor.serialization.kotlinx.json.json
+import io.ktor.client.request.post
+import io.ktor.client.request.setBody
+import com.jtech.zemer.lyrics.LyricsUtils
+import com.metrolist.innertube.YouTube
+import com.metrolist.innertube.models.BrowseEndpoint
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
+
+/**
+ * The Zemer lyrics RESOLVER (search server `/lyrics/resolve`): for a corpus videoId it returns which
+ * sources carry this song and where, plus verification facts. Third-party text is fetched by the app
+ * from the source itself (provider model, like the YouTube Music lyrics tab); only operator-hosted text
+ * (booklet/manual) comes inline. Whitelist purity is by construction: the server only knows corpus ids.
+ */
+object ZemerLyricsClient {
+    @Serializable
+    data class Source(
+        val type: String,
+        val url: String? = null,          // jyrics page
+        val songId: Long? = null,         // jkaraoke
+        val feedPage: Int? = null,
+        val feedUrl: String? = null,
+        val offsetSec: Double? = null,    // jkaraoke: the voice-vs-cue lead added to every line (this song's own, or the fleet median)
+        val offsetFrom: String? = null,   // jkaraoke: "measured" (this song's own alignment) or "default" (fleet median); both applied
+        val browseId: String? = null,     // youtube lyrics tab
+        val trackId: Long? = null,        // zingmusic (server-vetted track id) / musixmatch
+        val hash: String? = null,         // kugou (audio hash; the app re-runs the krcs search with it)
+        val krcId: Long? = null,          // kugou (server-vetted krcs candidate id)
+        val plain: String? = null,        // operator-hosted text (booklet/manual/canonical/community/zemer)
+        val syncedLrc: String? = null,
+        val richSync: String? = null,     // zemer: enhanced LRC with certified `<mm:ss.xx>` word tags
+        val synced: Boolean = false,
+        val origin: String? = null,       // manual: where the text came from (telegram / forum / asrverified / community)
+        val ref: String? = null,          // manual/community: the operator's reference for that origin
+        val commontrackId: Long? = null,  // musixmatch (fetched by id with the phone's own token, see MusixmatchLyrics.byId)
+        val catalogId: String? = null,    // apple: the Apple Music song id (TTML via the paxsenix mirror, see AppleTtmlLrc)
+        val publicDomain: Double? = null, // manual: share of lines (0..1) that are Tanach/siddur/haggadah text (nobody's copyright)
+        val borrowedFrom: String? = null, // manual: the text was verified on another recording of the same song (then never synced)
+        val syncedTruncated: Double? = null, // 0..1: stored timings cover too few lines, so the server withheld syncedLrc
+        val wordSyncPartial: Boolean? = null, // word tags exist but not for the whole song, so the server withheld richSync
+        val provenance: String? = null,   // zemer: how the certified text was produced (label only)
+        val admittedBy: String? = null,   // zemer: what admitted it (label only)
+    )
+
+    /**
+     * Measured line START times for the row's OWN text when that text is a pointer the app fetches itself. No
+     * text travels: each timed line carries a text-free key ([LineTimesLrc.lineKey]) the app recomputes over its
+     * own parsed lines, so the two splitters never have to agree. [type] names the one source the timings were
+     * measured against; they are never applied to another pointer's body.
+     */
+    @Serializable
+    data class LineTimes(
+        val type: String, val count: Int = 0, val times: List<Double> = emptyList(), val keys: List<String> = emptyList(),
+        val offsetSec: Double? = null,    // informational: ALREADY added into [times] by the server, never applied again
+        val offsetFrom: String? = null,
+    )
+
+    /**
+     * Translations / romanization UNDER each sung line (additive, verified rows only; older servers never send
+     * it). [keys] are the same text-free [LineTimesLrc.lineKey]s as `lineTimes`, one per non-empty stored line;
+     * [en] / [he] / [roman] are parallel to them ("" where a line has no entry; a language list is absent when
+     * the song has no such extra). [source] `"machine"` = machine translation, labelled once per song.
+     */
+    @Serializable
+    data class LineExtras(
+        val keys: List<String> = emptyList(),
+        val en: List<String>? = null,
+        val he: List<String>? = null,
+        val yi: List<String>? = null,
+        val roman: List<String>? = null,
+        val source: String? = null,
+    )
+
+    /** The `/lyrics/extras` reply: absent (404) = no extras for this song; [failed] = could not ask (network), so nothing is cached. */
+    data class ExtrasReply(val extras: LineExtras?, val failed: Boolean)
+
+    @Serializable
+    private data class ExtrasRequest(val videoId: String, val lang: String, val lines: List<String>)
+
+    @Serializable
+    data class Resolved(
+        val videoId: String,
+        val lang: String? = null,
+        val verified: Boolean = false,
+        val hasSynced: Boolean = false,
+        val sources: List<Source> = emptyList(),
+        val lineTimes: LineTimes? = null,
+        val syncTruncated: Double? = null, // the measured timings cover too few of the pointer's lines (< 85 %), so no lineTimes were sent
+        val lineExtras: LineExtras? = null,
+    )
+
+    internal val json = Json { ignoreUnknownKeys = true; isLenient = true; explicitNulls = false }
+
+    /** One LRCLIB record (`https://lrclib.net/api/get/<id>`); the server hands out the id of a duration-matched row. */
+    @Serializable
+    data class LrcLibTrack(val id: Long = 0, val syncedLyrics: String? = null, val plainLyrics: String? = null, val instrumental: Boolean = false)
+
+    /** LRC when LRCLIB has line times, else the plain text; null for an instrumental or an empty record. */
+    fun lrclibBody(body: String): String? = runCatching { json.decodeFromString<LrcLibTrack>(body) }.getOrNull()
+        ?.takeUnless { it.instrumental }
+        ?.let { t -> t.syncedLyrics?.takeIf { it.isNotBlank() } ?: t.plainLyrics?.takeIf(LyricsUtils::hasLyricBody) }
+
+    private val client by lazy {
+        HttpClient(CIO) {
+            install(ContentNegotiation) { json(json) }
+            install(HttpTimeout) { requestTimeoutMillis = 15000; connectTimeoutMillis = 10000; socketTimeoutMillis = 15000 }
+            expectSuccess = false
+        }
+    }
+
+    var baseUrl: String = BuildConfig.ZEMER_LYRICS_BASE_URL.trimEnd('/')
+
+    suspend fun resolve(videoId: String): Resolved? {
+        val r = client.get("$baseUrl/lyrics/resolve") { url { parameters.append("videoId", videoId) }; header(HttpHeaders.Accept, "application/json") }
+        return if (r.status == HttpStatusCode.OK) r.body<Resolved>() else null
+    }
+
+    /**
+     * Extras aligned to the lines the app DISPLAYS (any provider's body): `POST /lyrics/extras` with the lines in
+     * order and the wanted [lang] (`en` / `he` / `yi`); the reply's arrays are parallel to [lines] ("" where
+     * nothing; `roman` comes along when held), and lines the server could not pair to its own text are
+     * machine-translated on first request and cached server-side. 404 = no extras for this song.
+     */
+    suspend fun extrasForLines(videoId: String, lines: List<String>, lang: String): ExtrasReply = runCatching {
+        val body = json.encodeToString(ExtrasRequest.serializer(), ExtrasRequest(videoId, lang, lines))
+        val r = client.post("$baseUrl/lyrics/extras") { header(HttpHeaders.ContentType, "application/json"); header(HttpHeaders.Accept, "application/json"); setBody(body) }
+        when (r.status) {
+            HttpStatusCode.OK -> ExtrasReply(json.decodeFromString(LineExtras.serializer(), r.bodyAsText()), failed = false)
+            HttpStatusCode.NotFound -> ExtrasReply(null, failed = false)
+            else -> ExtrasReply(null, failed = true)
+        }
+    }.getOrElse { if (it is kotlinx.coroutines.CancellationException) throw it; ExtrasReply(null, failed = true) }
+
+    suspend fun fetchText(url: String): String? {
+        val r = client.get(url) { header(HttpHeaders.UserAgent, "Zemer/${BuildConfig.VERSION_NAME} lyrics"); header(HttpHeaders.Accept, "text/html,application/json") }
+        return if (r.status == HttpStatusCode.OK) r.bodyAsText() else null
+    }
+
+    /**
+     * The YouTube Music lyrics tab for a server-vouched `browseId` (`MPLYt…`). The server verified the tab exists
+     * for this exact videoId, so this is a direct browse: no `next()` round-trip, no title search.
+     */
+    suspend fun youtubeLyricsTab(browseId: String): String? =
+        YouTube.lyrics(BrowseEndpoint(browseId)).getOrNull()?.takeIf { it.isNotBlank() }
+
+    /**
+     * zingmusic (jewishmusic.fm) public GraphQL: the lyrics HTML for ONE server-vetted track id. The server resolved
+     * and verified which zingmusic track is this song; the app only fetches that id — no title matching here.
+     */
+    suspend fun zingLyricsHtml(trackId: Long): String? {
+        val body = """{"query":"{ track(where:{id:$trackId}){ heLyrics enLyrics } }"}"""
+        val r = client.post("https://jewishmusic.fm:8443/graphql") { header(HttpHeaders.ContentType, "application/json"); setBody(body) }
+        if (r.status != HttpStatusCode.OK) return null
+        val j = json.parseToJsonElement(r.bodyAsText()).jsonObject["data"]?.jsonObject?.get("track")?.let { runCatching { it.jsonObject }.getOrNull() } ?: return null
+        return j["heLyrics"]?.jsonPrimitive?.contentOrNull?.takeIf { it.isNotBlank() } ?: j["enLyrics"]?.jsonPrimitive?.contentOrNull
+    }
+
+    /**
+     * Send a user's lyrics (an edit they saved) to the Zemer server's submission queue. The server never serves a
+     * submission on its own: it is admitted only when a second device agrees or the recording confirms it.
+     * Fire-and-forget: failures are silent, the local edit is already saved on the device.
+     */
+    suspend fun submitLyrics(videoId: String, text: String, device: String, lang: String? = null): Boolean = runCatching {
+        val body = buildString {
+            append("{\"videoId\":").append(Json.encodeToString(kotlinx.serialization.serializer<String>(), videoId))
+            append(",\"device\":").append(Json.encodeToString(kotlinx.serialization.serializer<String>(), device))
+            append(",\"text\":").append(Json.encodeToString(kotlinx.serialization.serializer<String>(), text))
+            if (lang != null) append(",\"lang\":").append(Json.encodeToString(kotlinx.serialization.serializer<String>(), lang))
+            append("}")
+        }
+        val r = client.post("$baseUrl/lyrics/submit") { header(HttpHeaders.ContentType, "application/json"); setBody(body) }
+        r.status == HttpStatusCode.OK
+    }.getOrDefault(false)
+
+    /** "Wrong lyrics" report: two distinct devices within 30 days make the server hide the row until re-verified. */
+    suspend fun reportLyrics(videoId: String, device: String): Boolean = runCatching {
+        val body = "{\"videoId\":" + Json.encodeToString(kotlinx.serialization.serializer<String>(), videoId) + ",\"device\":" + Json.encodeToString(kotlinx.serialization.serializer<String>(), device) + "}"
+        client.post("$baseUrl/lyrics/report") { header(HttpHeaders.ContentType, "application/json"); setBody(body) }.status == HttpStatusCode.OK
+    }.getOrDefault(false)
+
+    @Serializable
+    data class MusixmatchToken(val token: String, val issuedAt: Long = 0)
+
+    /** The shared Musixmatch token brokered by the server (one clean IP issues it; every app reuses it). */
+    suspend fun musixmatchToken(renew: String? = null): String? {
+        val r = client.get("$baseUrl/lyrics/musixmatch-token") { if (renew != null) url { parameters.append("renew", renew) }; header(HttpHeaders.Accept, "application/json") }
+        return if (r.status == HttpStatusCode.OK) r.body<MusixmatchToken>().token else null
+    }
+}

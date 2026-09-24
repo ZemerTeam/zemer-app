@@ -71,4 +71,58 @@ class PlayerVideoUiLogicTest {
         assertFalse(PlayerVideoUiLogic.shouldRevertVideoForLyrics(lyricsExpanded = true, isVideoMode = false))
         assertFalse(PlayerVideoUiLogic.shouldRevertVideoForLyrics(lyricsExpanded = false, isVideoMode = false))
     }
+
+    // --- picture-in-picture -------------------------------------------------
+
+    @Test
+    fun `PiP shows the video only in video mode`() {
+        assertTrue(PlayerVideoUiLogic.showPipVideo(isVideoMode = true, inPip = true))
+        assertFalse(PlayerVideoUiLogic.showPipVideo(isVideoMode = false, inPip = true))
+        assertFalse(PlayerVideoUiLogic.showPipVideo(isVideoMode = true, inPip = false))
+    }
+
+    @Test
+    fun `in PiP the inline and fullscreen surfaces yield, so exactly one owner remains`() {
+        for (isFullscreen in listOf(false, true)) {
+            assertFalse(PlayerVideoUiLogic.showInlineVideo(isVideoMode = true, isFullscreen = isFullscreen, inPip = true))
+            assertFalse(
+                PlayerVideoUiLogic.showFullscreenVideo(
+                    expanded = true, isVideoMode = true, isFullscreen = isFullscreen, inPip = true,
+                )
+            )
+        }
+    }
+
+    @Test
+    fun `leaving PiP hands the surface back to its normal owner`() {
+        assertTrue(PlayerVideoUiLogic.showInlineVideo(isVideoMode = true, isFullscreen = false, inPip = false))
+        assertTrue(
+            PlayerVideoUiLogic.showFullscreenVideo(expanded = true, isVideoMode = true, isFullscreen = true, inPip = false)
+        )
+    }
+
+    @Test
+    fun `video mode ending inside the window shows the audio artwork, never the app UI`() {
+        assertTrue(PlayerVideoUiLogic.showPipArtwork(isVideoMode = false, inPip = true))
+        assertFalse(PlayerVideoUiLogic.showPipArtwork(isVideoMode = true, inPip = true))
+        assertFalse(PlayerVideoUiLogic.showPipArtwork(isVideoMode = false, inPip = false))
+        // While in the window there is always exactly one content owner.
+        for (isVideoMode in listOf(false, true)) {
+            assertTrue(
+                PlayerVideoUiLogic.showPipVideo(isVideoMode, inPip = true) xor
+                    PlayerVideoUiLogic.showPipArtwork(isVideoMode, inPip = true)
+            )
+        }
+    }
+
+    @Test
+    fun `onUserLeaveHint enters PiP only for a real leave, on the pre-auto-enter path`() {
+        assertTrue(PlayerVideoUiLogic.shouldEnterPipOnLeave(isVideoMode = true, ownLaunchInFlight = false, autoEnterSupported = false))
+        // Audio only: nothing to show in a window.
+        assertFalse(PlayerVideoUiLogic.shouldEnterPipOnLeave(isVideoMode = false, ownLaunchInFlight = false, autoEnterSupported = false))
+        // The hint also fires when we open our own dialog / share sheet / picker: never PiP under it.
+        assertFalse(PlayerVideoUiLogic.shouldEnterPipOnLeave(isVideoMode = true, ownLaunchInFlight = true, autoEnterSupported = false))
+        // API 31+: the platform's auto-enter owns the decision; a manual enter beside it doubles up.
+        assertFalse(PlayerVideoUiLogic.shouldEnterPipOnLeave(isVideoMode = true, ownLaunchInFlight = false, autoEnterSupported = true))
+    }
 }

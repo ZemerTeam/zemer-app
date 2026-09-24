@@ -66,7 +66,10 @@ import com.jtech.zemer.extensions.shareText
 import com.jtech.zemer.extensions.toMediaItem
 import com.jtech.zemer.extensions.togglePlayPause
 import com.jtech.zemer.playback.queues.ListQueue
+import com.jtech.zemer.tracking.PlaySource
 import com.jtech.zemer.ui.component.ChipsRow
+import com.jtech.zemer.ui.component.ChipsRowTopPadding
+import com.jtech.zemer.ui.component.ChipsRowBottomPadding
 import com.jtech.zemer.ui.component.LibraryFilterChip
 import com.jtech.zemer.ui.component.EmptyPlaceholder
 import com.jtech.zemer.ui.component.HideOnScrollFAB
@@ -78,6 +81,7 @@ import com.jtech.zemer.ui.component.Material3MenuItemData
 import com.jtech.zemer.ui.component.MoreVertMenuButton
 import com.jtech.zemer.ui.component.SongListItem
 import com.jtech.zemer.ui.component.SortHeader
+import com.jtech.zemer.ui.component.songSortTypeLabel
 import com.jtech.zemer.ui.menu.SongMenu
 import com.jtech.zemer.ui.utils.navigateToArtist
 import com.jtech.zemer.ui.utils.navigateToPodcast
@@ -133,7 +137,7 @@ fun LibraryPodcastsScreen(
     val lazyListState = rememberLazyListState()
 
     val chipsHeader = @Composable {
-        Row {
+        Row(modifier = Modifier.padding(top = ChipsRowTopPadding, bottom = ChipsRowBottomPadding)) {
             Spacer(Modifier.width(12.dp))
             LibraryFilterChip(
                 label = stringResource(R.string.filter_podcasts),
@@ -191,6 +195,9 @@ fun LibraryPodcastsScreen(
                                         ListQueue(
                                             title = newEpisodesTitle,
                                             items = newEpisodes.map { it.toMediaItem() },
+                                            // Mixed-show feed: the bare slug, never one show's id
+                                            // (it would claim other shows' episodes in this queue).
+                                            playSource = PlaySource.podcast(null),
                                         ),
                                     )
                                 },
@@ -225,6 +232,7 @@ fun LibraryPodcastsScreen(
                                                 title = song.song.title,
                                                 items = savedEpisodes.map { it.toMediaItem() },
                                                 startIndex = index,
+                                                playSource = PlaySource.podcast(null),
                                             ),
                                         )
                                     }
@@ -335,14 +343,7 @@ fun LibraryPodcastsScreen(
                                 sortDescending = sortDescending,
                                 onSortTypeChange = onSortTypeChange,
                                 onSortDescendingChange = onSortDescendingChange,
-                                sortTypeText = { st ->
-                                    when (st) {
-                                        SongSortType.CREATE_DATE -> R.string.sort_by_create_date
-                                        SongSortType.NAME -> R.string.sort_by_name
-                                        SongSortType.ARTIST -> R.string.sort_by_artist
-                                        SongSortType.PLAY_TIME -> R.string.sort_by_play_time
-                                    }
-                                },
+                                sortTypeText = ::songSortTypeLabel,
                             )
                             Spacer(Modifier.weight(1f))
                             Text(
@@ -385,6 +386,7 @@ fun LibraryPodcastsScreen(
                                                     title = downloadedEpisodesStr,
                                                     items = downloadedEpisodes.map { it.toMediaItem() },
                                                     startIndex = index,
+                                                    playSource = PlaySource.podcast(null),
                                                 ),
                                             )
                                         }
@@ -424,6 +426,7 @@ fun LibraryPodcastsScreen(
                             ListQueue(
                                 title = downloadedEpisodesStr,
                                 items = downloadedEpisodes.shuffled().map { it.toMediaItem() },
+                                playSource = PlaySource.podcast(null),
                             ),
                         )
                     },

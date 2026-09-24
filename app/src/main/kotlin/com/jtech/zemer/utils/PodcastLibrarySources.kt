@@ -47,10 +47,17 @@ object PodcastLibrarySources {
             .map { it.id }
             .toSet()
         if (subscribedIds.isEmpty()) return emptyList()
-        return runCatching { repository.podcastsNewEpisodes(NEW_EPISODES_FETCH, options) }
-            .getOrNull()
-            .orEmpty()
+        val normal = runCatching { repository.podcastsNewEpisodes(NEW_EPISODES_FETCH, options) }
+            .getOrNull().orEmpty()
+        // The feed default-excludes kid shows (server + offline, 2026-08-26), which would silently
+        // starve a kid show the user explicitly subscribed to from KidZone. Merge the kid feed in;
+        // the subscribed-ids scoping below keeps kid episodes out for everyone NOT subscribed.
+        val kid = runCatching { repository.podcastsNewEpisodes(NEW_EPISODES_FETCH, options.copy(kidZone = true)) }
+            .getOrNull().orEmpty()
+        return (normal + kid)
             .filter { it.podcast?.id in subscribedIds }
+            .distinctBy { it.id }
+            .sortedByDescending { it.publishDateText ?: "" }
             .map { it.asSongItem() }
     }
 

@@ -2,6 +2,7 @@ package com.metrolist.innertube
 
 import com.metrolist.innertube.models.AccountInfo
 import com.metrolist.innertube.models.AlbumItem
+import com.metrolist.innertube.models.browseEndpointMatching
 import com.metrolist.innertube.models.Artist
 import com.metrolist.innertube.models.ArtistItem
 import com.metrolist.innertube.models.BrowseEndpoint
@@ -43,7 +44,6 @@ import com.metrolist.innertube.pages.HistoryPage
 import com.metrolist.innertube.pages.HomePage
 import com.metrolist.innertube.pages.LibraryContinuationPage
 import com.metrolist.innertube.pages.LibraryPage
-import com.metrolist.innertube.pages.NewReleaseAlbumPage
 import com.metrolist.innertube.pages.NextPage
 import com.metrolist.innertube.pages.NextResult
 import com.metrolist.innertube.pages.PlaylistContinuationPage
@@ -55,7 +55,6 @@ import io.ktor.client.call.body
 import io.ktor.client.statement.bodyAsText
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.Json
-import java.net.Proxy
 import kotlin.random.Random
 
 /**
@@ -84,17 +83,6 @@ object YouTube {
         get() = innerTube.cookie
         set(value) {
             innerTube.cookie = value
-        }
-    var proxy: Proxy?
-        get() = innerTube.proxy
-        set(value) {
-            innerTube.proxy = value
-        }
-
-    var proxyAuth: String?
-        get() = innerTube.proxyAuth
-        set(value) {
-            innerTube.proxyAuth = value
         }
     var useLoginForBrowse: Boolean
         get() = innerTube.useLoginForBrowse
@@ -149,7 +137,6 @@ object YouTube {
                 },
                 year = response.header.musicDetailHeaderRenderer.subtitle.runs?.lastOrNull()?.text?.toIntOrNull(),
                 thumbnail = response.header.musicDetailHeaderRenderer.thumbnail.croppedSquareThumbnailRenderer?.thumbnail?.thumbnails?.lastOrNull()!!.url,
-                explicit = false, // TODO: Extract explicit badge for albums from YouTube response
             )
             return@runCatching AlbumPage(
                 album = albumItem,
@@ -173,7 +160,6 @@ object YouTube {
                     }!!,
                 year = response.contents.twoColumnBrowseResultsRenderer.tabs.firstOrNull()?.tabRenderer?.content?.sectionListRenderer?.contents?.firstOrNull()?.musicResponsiveHeaderRenderer?.subtitle?.runs?.lastOrNull()?.text?.toIntOrNull(),
                 thumbnail = response.contents.twoColumnBrowseResultsRenderer.tabs.firstOrNull()?.tabRenderer?.content?.sectionListRenderer?.contents?.firstOrNull()?.musicResponsiveHeaderRenderer?.thumbnail?.musicThumbnailRenderer?.thumbnail?.thumbnails?.lastOrNull()?.url!!,
-                explicit = false, // TODO: Extract explicit badge for albums from YouTube response
             )
             return@runCatching AlbumPage(
                 album = albumItem,
@@ -283,7 +269,7 @@ object YouTube {
                     ?: response.header?.musicHeaderRenderer?.secondSubtitle)
                     ?.runs?.firstOrNull()?.text,
                 thumbnail = header?.thumbnail?.musicThumbnailRenderer?.thumbnail?.thumbnails?.lastOrNull()?.url
-                    ?: response.header?.musicHeaderRenderer?.thumbnail?.musicThumbnailRenderer?.thumbnails?.lastOrNull()?.url,
+                    ?: response.header?.musicHeaderRenderer?.thumbnail?.musicThumbnailRenderer?.thumbnail?.thumbnails?.lastOrNull()?.url,
                 playEndpoint = null,
                 shuffleEndpoint = header?.buttons?.lastOrNull()
                     ?.menuRenderer?.items?.firstOrNull()
@@ -416,14 +402,6 @@ object YouTube {
                 HomePage.Section.fromMusicCarouselShelfRenderer(it)
             }.orEmpty(), continuation
         )
-    }
-
-    suspend fun newReleaseAlbums(): Result<List<AlbumItem>> = runCatching {
-        val response = innerTube.browse(WEB_REMIX, browseId = "FEmusic_new_releases_albums").body<BrowseResponse>()
-        response.contents?.singleColumnBrowseResultsRenderer?.tabs?.firstOrNull()?.tabRenderer?.content?.sectionListRenderer?.contents?.firstOrNull()?.gridRenderer?.items
-            ?.mapNotNull { it.musicTwoRowItemRenderer }
-            ?.mapNotNull(NewReleaseAlbumPage::fromMusicTwoRowItemRenderer)
-            .orEmpty()
     }
 
     suspend fun browse(browseId: String, params: String?): Result<BrowseResult> = runCatching {
@@ -709,14 +687,23 @@ object YouTube {
         // Authoritative song→video counterpart mapping (empty for the common wrapper-less response).
         val counterparts = NextPage.counterpartsFrom(playlistPanelRenderer.contents)
 
+        // Watch-next tabs, resolved by page type so an inserted tab (e.g. a Comments tab at index 2)
+        // can no longer shift the Related tab off its slot and null relatedEndpoint for every track.
+        // A positional index-1 lyrics fallback keeps the port non-regressive.
+        val watchNextTabs = response.contents.singleColumnMusicWatchNextResultsRenderer
+            ?.tabbedRenderer?.watchNextTabbedResultsRenderer?.tabs
+        val lyricsEndpoint = watchNextTabs?.browseEndpointMatching { it.isTrackLyricsEndpoint }
+            ?: watchNextTabs?.getOrNull(1)?.tabRenderer?.endpoint?.browseEndpoint
+        val relatedEndpoint = watchNextTabs?.browseEndpointMatching { it.isTrackRelatedEndpoint }
+
         // load automix items
         playlistPanelRenderer.contents.lastOrNull()?.automixPreviewVideoRenderer?.content?.automixPlaylistVideoRenderer?.navigationEndpoint?.watchPlaylistEndpoint?.let { watchPlaylistEndpoint ->
             return@runCatching next(watchPlaylistEndpoint).getOrThrow().let { result ->
                 result.copy(
                     title = title,
                     items = songs + result.items,
-                    lyricsEndpoint = response.contents.singleColumnMusicWatchNextResultsRenderer?.tabbedRenderer?.watchNextTabbedResultsRenderer?.tabs?.getOrNull(1)?.tabRenderer?.endpoint?.browseEndpoint,
-                    relatedEndpoint = response.contents.singleColumnMusicWatchNextResultsRenderer?.tabbedRenderer?.watchNextTabbedResultsRenderer?.tabs?.getOrNull(2)?.tabRenderer?.endpoint?.browseEndpoint,
+                    lyricsEndpoint = lyricsEndpoint,
+                    relatedEndpoint = relatedEndpoint,
                     currentIndex = currentIndex,
                     endpoint = watchPlaylistEndpoint,
                     counterparts = counterparts + result.counterparts,
@@ -727,8 +714,8 @@ object YouTube {
             title = title,
             items = songs,
             currentIndex = currentIndex,
-            lyricsEndpoint = response.contents.singleColumnMusicWatchNextResultsRenderer?.tabbedRenderer?.watchNextTabbedResultsRenderer?.tabs?.getOrNull(1)?.tabRenderer?.endpoint?.browseEndpoint,
-            relatedEndpoint = response.contents.singleColumnMusicWatchNextResultsRenderer?.tabbedRenderer?.watchNextTabbedResultsRenderer?.tabs?.getOrNull(2)?.tabRenderer?.endpoint?.browseEndpoint,
+            lyricsEndpoint = lyricsEndpoint,
+            relatedEndpoint = relatedEndpoint,
             continuation = playlistPanelRenderer.continuations?.getContinuation(),
             endpoint = endpoint,
             counterparts = counterparts,

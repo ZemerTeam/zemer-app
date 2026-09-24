@@ -27,7 +27,7 @@ class SubsetDecoderTest {
     }
 
     @Test
-    fun `tracks decode positions, video and explicit bits, and nullable playCount and date`() {
+    fun `tracks decode positions, video bit, and nullable playCount and date`() {
         val t = SubsetDecoder.decodeTracks(
             """[["--CBg_MWYAI","Mi Ha'ish","UCPgvMW042hVrcLn73zGyeqg",0,239,7300,"2015-07-02T05:27:44-07:00"],
                 ["--sU8olZCYM","Nafshi Acapella","UCu6IT3jTOtAcNfjIQSIyCQQ",1,262,null,null],
@@ -35,13 +35,13 @@ class SubsetDecoderTest {
         )
         assertEquals("--CBg_MWYAI", t[0].videoId)
         assertEquals("UCPgvMW042hVrcLn73zGyeqg", t[0].artistId)
-        assertFalse(t[0].isVideo); assertFalse(t[0].explicit)
+        assertFalse(t[0].isVideo)
         assertEquals(239, t[0].durationSec); assertEquals(7300L, t[0].playCount)
         assertEquals("2015-07-02T05:27:44-07:00", t[0].uploadDate)
-        assertTrue(t[1].isVideo); assertFalse(t[1].explicit)
+        assertTrue(t[1].isVideo)
         assertNull(t[1].playCount); assertNull(t[1].uploadDate)
-        // flags = 2 → explicit, not video
-        assertFalse(t[2].isVideo); assertTrue(t[2].explicit)
+        // flags = 2 → the (unused) explicit bit only, so isVideo stays false
+        assertFalse(t[2].isVideo)
     }
 
     @Test
@@ -115,22 +115,27 @@ class SubsetDecoderTest {
 
     @Test
     fun `podcast shows decode with nullable author and channelId`() {
-        // Real rows sampled from live /subset/podcasts. Col 6 = comma-separated genre slugs (appended);
-        // a legacy 6-column row (row 3) must still decode, with genres empty.
+        // Real rows sampled from live /subset/podcasts. Col 6 = comma-separated genre slugs and
+        // col 7 = the per-show kid flag (both appended); legacy 6- and 7-column rows (rows 2-3)
+        // must still decode, with genres empty / kid false.
         val s = SubsetDecoder.decodePodcastShows(
-            """[["MPSPOLSIMs3bBf6gYi_OroS7rJPzDfCfO78ozaQ","History For The Curious",null,null,"https://i.ytimg/hq720.jpg",null,"history,stories"],
+            """[["MPSPOLSIMs3bBf6gYi_OroS7rJPzDfCfO78ozaQ","History For The Curious",null,null,"https://i.ytimg/hq720.jpg",null,"history,stories",1],
                 ["MPSPPL-PrlHukcayUrySa1UcDHcUzA5gItQQ0R","Nexus Podcast","James Dice","UCbnQAiPQEsvAqK84-q5IHcw","https://yt3/x=w544","12 episodes","shiur"],
                 ["MPSPlegacy6col","Legacy Show",null,null,null,null]]""",
         )
         assertEquals("History For The Curious", s[0].name)
         assertNull(s[0].author); assertNull(s[0].channelId); assertNull(s[0].episodeCountText)
         assertEquals(listOf("history", "stories"), s[0].genres)
+        assertTrue(s[0].isKidZone)
         assertEquals("James Dice", s[1].author)
         assertEquals("UCbnQAiPQEsvAqK84-q5IHcw", s[1].channelId)
         assertEquals("12 episodes", s[1].episodeCountText)
         assertEquals(listOf("shiur"), s[1].genres)
-        // Legacy 6-column row → no genres, no crash.
+        // Pre-kid-flag 7-column row → kid false.
+        assertFalse(s[1].isKidZone)
+        // Legacy 6-column row → no genres, no kid flag, no crash.
         assertEquals(emptyList<String>(), s[2].genres)
+        assertFalse(s[2].isKidZone)
     }
 
     @Test
@@ -144,5 +149,53 @@ class SubsetDecoderTest {
         assertEquals("MPSPPLtqXAoDAjg7WAPk-2uxysN3-5c_Sue-Ka", e[0].showId)
         assertNull(e[0].durationSec); assertNull(e[0].publishedAt)
         assertEquals(4164, e[1].durationSec); assertEquals("2026-05-10", e[1].publishedAt)
+    }
+
+    // --- additive shards, 2026-09-11 ---------------------------------------------------------------
+
+    @Test
+    fun `synonym groups decode as a list of form lists`() {
+        val g = SubsetDecoder.decodeSynonymGroups("""[["mbd","mordechai ben david"],["lipa","lipa schmeltzer"]]""")
+        assertEquals(listOf(listOf("mbd", "mordechai ben david"), listOf("lipa", "lipa schmeltzer")), g)
+    }
+
+    @Test
+    fun `genre catalog decodes genres, kinds and the podcast counterparts, kind nullable`() {
+        val c = SubsetDecoder.decodeGenreCatalog(
+            """{"genres":[["nigunim","Nigunim","style"],["chagim","Chagim","occasion"]],
+                "kinds":[["style"],["occasion"],["non-music"]],
+                "podcastGenres":[["gemara","Gemara","torah"],["news","News",null]],
+                "podcastKinds":[["torah","Torah"],["life","Life"]]}""",
+        )
+        assertEquals(listOf(SubGenreEntry("nigunim", "Nigunim", "style"), SubGenreEntry("chagim", "Chagim", "occasion")), c.genres)
+        assertEquals(listOf("style", "occasion", "non-music"), c.kinds)
+        assertEquals(SubGenreEntry("gemara", "Gemara", "torah"), c.podcastGenres[0])
+        assertNull(c.podcastGenres[1].kind)
+        assertEquals(listOf("torah" to "Torah", "life" to "Life"), c.podcastKinds)
+    }
+
+    @Test
+    fun `lyrics flags decode as a videoId to bits map`() {
+        val f = SubsetDecoder.decodeLyricsFlags("""[["v1",1],["v2",7],["v3",3]]""")
+        assertEquals(mapOf("v1" to 1, "v2" to 7, "v3" to 3), f)
+    }
+
+    @Test
+    fun `real videos decode as a plain videoId set`() {
+        val r = SubsetDecoder.decodeRealVideos("""["v1","v2"]""")
+        assertEquals(setOf("v1", "v2"), r)
+    }
+
+    @Test
+    fun `radio rows decode pop nullable and up-to-20 neighbour pairs`() {
+        val rows = SubsetDecoder.decodeRadioRows(
+            """[["v1",12.5,[["v2",0.8],["v3",0.401]],[]],
+                ["v2",null,[],[["v1",0.8]]]]""",
+        )
+        assertEquals("v1", rows[0].videoId); assertEquals(12.5, rows[0].pop!!, 0.0)
+        assertEquals(listOf("v2" to 0.8, "v3" to 0.401), rows[0].lib)
+        assertTrue(rows[0].sess.isEmpty())
+        assertNull(rows[1].pop)
+        assertEquals(listOf("v1" to 0.8), rows[1].sess)
     }
 }

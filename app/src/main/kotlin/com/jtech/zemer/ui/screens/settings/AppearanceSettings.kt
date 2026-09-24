@@ -72,7 +72,8 @@ import com.jtech.zemer.constants.ChipSortTypeKey
 import com.jtech.zemer.constants.CropAlbumArtKey
 import com.jtech.zemer.constants.CustomDensityScaleKey
 import com.jtech.zemer.constants.DarkModeKey
-import com.jtech.zemer.constants.EnableHighRefreshRateKey
+import com.jtech.zemer.constants.RefreshRateMode
+import com.jtech.zemer.constants.RefreshRateModeKey
 import com.jtech.zemer.constants.DefaultOpenTabKey
 import com.jtech.zemer.constants.DensityScale
 import com.jtech.zemer.constants.DensityScaleKey
@@ -84,6 +85,11 @@ import com.jtech.zemer.constants.LibraryFilter
 import com.jtech.zemer.constants.LyricsClickKey
 import com.jtech.zemer.constants.LyricsScrollKey
 import com.jtech.zemer.constants.LyricsTextPositionKey
+import com.jtech.zemer.constants.LyricsWordSyncKey
+import com.jtech.zemer.constants.LyricsSyncOffsetKey
+import com.jtech.zemer.constants.LyricsLineExtrasKey
+import com.jtech.zemer.lyrics.LineExtrasLanguage
+import com.jtech.zemer.ui.component.lyrics.lineExtrasLanguageText
 import com.jtech.zemer.constants.PlayerBackgroundStyle
 import com.jtech.zemer.constants.PlayerBackgroundStyleKey
 import com.jtech.zemer.constants.PlayerButtonsStyle
@@ -107,8 +113,6 @@ import com.jtech.zemer.constants.SwipeToSongKey
 import com.jtech.zemer.constants.BottomNavigationBarEnabledKey
 import com.jtech.zemer.constants.RecognizeMusicFabKey
 import com.jtech.zemer.constants.BottomNavigationItemsKey
-import com.jtech.zemer.constants.UseNewMiniPlayerDesignKey
-import com.jtech.zemer.constants.UseNewPlayerDesignKey
 import com.jtech.zemer.ui.component.AppBarTitle
 import com.jtech.zemer.ui.component.BackNavigationIcon
 import com.jtech.zemer.ui.component.DefaultDialog
@@ -120,6 +124,7 @@ import com.jtech.zemer.ui.component.PreferenceEntry
 import com.jtech.zemer.ui.component.SettingsCardGroup
 import com.jtech.zemer.ui.component.SettingsScreenTopSpacing
 import com.jtech.zemer.ui.component.SwitchPreference
+import com.jtech.zemer.ui.component.SliderPreference
 import com.jtech.zemer.ui.component.TextFieldDialog
 import com.jtech.zemer.ui.component.focusBorder
 import com.jtech.zemer.ui.component.zemerTopAppBarColors
@@ -152,17 +157,9 @@ fun AppearanceSettings(
             .roundToInt().coerceAtLeast(0)
         appearanceScrollState.animateScrollTo(target)
     }
-    val (enableHighRefreshRate, onEnableHighRefreshRateChange) = rememberPreference(
-        EnableHighRefreshRateKey,
-        defaultValue = true,
-    )
-    val (useNewPlayerDesign, onUseNewPlayerDesignChange) = rememberPreference(
-        UseNewPlayerDesignKey,
-        defaultValue = true
-    )
-    val (useNewMiniPlayerDesign, onUseNewMiniPlayerDesignChange) = rememberPreference(
-        UseNewMiniPlayerDesignKey,
-        defaultValue = true
+    val (refreshRateMode, onRefreshRateModeChange) = rememberEnumPreference(
+        RefreshRateModeKey,
+        defaultValue = RefreshRateMode.SYSTEM,
     )
     val (floatingMiniPlayerEnabled, onFloatingMiniPlayerEnabledChange) = rememberPreference(
         FloatingMiniPlayerKey,
@@ -223,6 +220,9 @@ fun AppearanceSettings(
     )
     val (lyricsClick, onLyricsClickChange) = rememberPreference(LyricsClickKey, defaultValue = true)
     val (lyricsScroll, onLyricsScrollChange) = rememberPreference(LyricsScrollKey, defaultValue = true)
+    val (lyricsWordSync, onLyricsWordSyncChange) = rememberPreference(LyricsWordSyncKey, defaultValue = true)
+    val (lyricsSyncOffset, onLyricsSyncOffsetChange) = rememberPreference(LyricsSyncOffsetKey, defaultValue = 0)
+    val (lyricsLineExtras, onLyricsLineExtrasChange) = rememberEnumPreference(LyricsLineExtrasKey, defaultValue = LineExtrasLanguage.OFF)
 
     val (sliderStyle, onSliderStyleChange) = rememberEnumPreference(
         SliderStyleKey,
@@ -238,7 +238,7 @@ fun AppearanceSettings(
     )
     val (gridItemSize, onGridItemSizeChange) = rememberEnumPreference(
         GridItemsSizeKey,
-        defaultValue = GridItemSize.SMALL
+        defaultValue = GridItemSize.BIG
     )
 
     // Check SharedPreferences first for onboarding bottom nav value, then fallback to DataStore
@@ -482,12 +482,12 @@ fun AppearanceSettings(
             title = stringResource(R.string.theme),
             rows = listOfNotNull(
                 {
-                    SwitchPreference(
-                        title = { Text(stringResource(R.string.enable_high_refresh_rate)) },
-                        description = stringResource(R.string.enable_high_refresh_rate_desc),
+                    EnumListPreference(
+                        title = { Text(stringResource(R.string.refresh_rate)) },
                         icon = { Icon(painterResource(R.drawable.speed), null) },
-                        checked = enableHighRefreshRate,
-                        onCheckedChange = onEnableHighRefreshRateChange,
+                        selectedValue = refreshRateMode,
+                        onValueSelected = onRefreshRateModeChange,
+                        valueText = { stringResource(it.labelRes) },
                     )
                 },
                 {
@@ -525,22 +525,6 @@ fun AppearanceSettings(
         SettingsCardGroup(
             title = stringResource(R.string.player),
             rows = listOfNotNull(
-                {
-                    SwitchPreference(
-                        title = { Text(stringResource(R.string.new_player_design)) },
-                        icon = { Icon(painterResource(R.drawable.palette), null) },
-                        checked = useNewPlayerDesign,
-                        onCheckedChange = onUseNewPlayerDesignChange,
-                    )
-                },
-                {
-                    SwitchPreference(
-                        title = { Text(stringResource(R.string.new_mini_player_design)) },
-                        icon = { Icon(painterResource(R.drawable.nav_bar), null) },
-                        checked = useNewMiniPlayerDesign,
-                        onCheckedChange = onUseNewMiniPlayerDesignChange,
-                    )
-                },
                 {
                     SwitchPreference(
                         title = { Text(stringResource(R.string.floating_mini_player)) },
@@ -716,6 +700,15 @@ fun AppearanceSettings(
                     )
                 },
                 {
+                    EnumListPreference(
+                        title = { Text(stringResource(R.string.lyrics_line_extras)) },
+                        icon = { Icon(painterResource(R.drawable.language), null) },
+                        selectedValue = lyricsLineExtras,
+                        onValueSelected = onLyricsLineExtrasChange,
+                        valueText = { lineExtrasLanguageText(it) },
+                    )
+                },
+                {
                     SwitchPreference(
                         title = { Text(stringResource(R.string.lyrics_click_change)) },
                         icon = { Icon(painterResource(R.drawable.lyrics), null) },
@@ -729,6 +722,29 @@ fun AppearanceSettings(
                         icon = { Icon(painterResource(R.drawable.lyrics), null) },
                         checked = lyricsScroll,
                         onCheckedChange = onLyricsScrollChange,
+                    )
+                },
+                {
+                    SwitchPreference(
+                        title = { Text(stringResource(R.string.lyrics_word_sync)) },
+                        description = stringResource(R.string.lyrics_word_sync_description),
+                        icon = { Icon(painterResource(R.drawable.lyrics), null) },
+                        checked = lyricsWordSync,
+                        onCheckedChange = onLyricsWordSyncChange,
+                    )
+                },
+                {
+                    // -1500..+1500 ms in 50 ms steps. Positive = highlight earlier, negative = later.
+                    SliderPreference(
+                        title = { Text(stringResource(R.string.lyrics_sync_offset_title)) },
+                        icon = { Icon(painterResource(R.drawable.lyrics), null) },
+                        value = lyricsSyncOffset / 1000f,
+                        onValueChange = { onLyricsSyncOffsetChange(lyricsSyncOffsetMs(it)) },
+                        valueRange = -1.5f..1.5f,
+                        steps = 59,
+                        resetValue = 0f,
+                        dialogTitle = { stringResource(R.string.lyrics_sync_offset_title) },
+                        valueLabel = { stringResource(R.string.lyrics_sync_offset, lyricsSyncOffsetMs(it)) },
                     )
                 },
             ),
@@ -1122,3 +1138,6 @@ enum class LyricsPosition {
     CENTER,
     RIGHT,
 }
+
+/** Slider seconds (-1.5..1.5) to the stored offset: whole 50 ms steps, so -1.5f is -1500 and 0f is 0. */
+internal fun lyricsSyncOffsetMs(seconds: Float): Int = Math.round(seconds * 20f) * 50

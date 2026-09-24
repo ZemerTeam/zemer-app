@@ -7,6 +7,7 @@ This documentation is code-derived. It records facts visible in tracked reposito
 | Document | Scope |
 | --- | --- |
 | [`repository-map.md`](repository-map.md) | Top-level project structure, Gradle modules, Android manifest facts, database schema, source/resource counts, and generated inventory pointers. |
+| [`lyrics/README.md`](lyrics/README.md) | Lyrics provider chain, the Zemer resolver provider and its golden-pinned parser ports, sync rendering, the lyrics screen components, cache hygiene. |
 | [`app/README.md`](app/README.md) | `:app` module map: packages, Android components, DI, auth, sync, playback, lyrics, database, viewmodels, resources, assets, and native code. |
 | [`app/database.md`](app/database.md) | Room database facts: schema 32 entities, fields, primary keys, indices, migrations, DAO annotation counts, and DAO method inventory. |
 | [`app/playback.md`](app/playback.md) | Playback, queues, download services, media session constants, player UI, and playback consumers. |

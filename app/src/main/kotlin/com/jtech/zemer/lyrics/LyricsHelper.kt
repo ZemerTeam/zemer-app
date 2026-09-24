@@ -3,19 +3,19 @@
 package com.jtech.zemer.lyrics
 
 import android.content.Context
-import android.util.LruCache
+import androidx.datastore.preferences.core.Preferences
 import com.jtech.zemer.db.entities.LyricsEntity.Companion.LYRICS_NOT_FOUND
 import com.jtech.zemer.lyrics.model.LyricsUnavailableException
+import com.jtech.zemer.constants.LyricsProviderOrderKey
+import com.jtech.zemer.lyrics.zemer.ZemerLyricsClient
+import com.jtech.zemer.utils.dataStore
 import com.jtech.zemer.models.MediaMetadata
 import com.jtech.zemer.utils.NetworkConnectivityObserver
 import com.jtech.zemer.utils.reportException
 import dagger.hilt.android.qualifiers.ApplicationContext
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.async
-import kotlinx.coroutines.cancel
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.flow.first
+import timber.log.Timber
 import javax.inject.Inject
 
 class LyricsHelper
@@ -24,26 +24,23 @@ constructor(
     @ApplicationContext private val context: Context,
     private val networkConnectivity: NetworkConnectivityObserver,
 ) {
-    private val lyricsProviders =
-        listOf(
-            SimpMusicLyricsProvider,
-            LrcLibLyricsProvider,
-            YouTubeSubtitleLyricsProvider,
-            YouTubeLyricsProvider
-        )
+    init {
+        MusixmatchLyricsProvider.init(context)
+    }
 
-    private val cache = LruCache<String, List<LyricsResult>>(MAX_CACHE_SIZE)
-    private var currentLyricsJob: Job? = null
+    /**
+     * The enabled providers in the user's chain order, from ONE DataStore snapshot per walk (the order key
+     * plus every provider's enable switch). The chain used to do a blocking read per provider per walk.
+     */
+    private suspend fun enabledProviders(): List<LyricsProvider> = enabledProviders(context.dataStore.data.first())
 
-    suspend fun getLyrics(mediaMetadata: MediaMetadata): String {
-        currentLyricsJob?.cancel()
+    /** Lyrics body plus the provider label to persist/show ("Zemer · jkaraoke", "SimpMusic", …) and the resolver's per-line extras, if any. */
+    data class Fetched(val lyrics: String, val provider: String?, val lineExtras: ZemerLyricsClient.LineExtras? = null)
 
-        val videoId = mediaMetadata.setVideoId ?: mediaMetadata.id
-
-        val cached = cache.get(mediaMetadata.id)?.firstOrNull()
-        if (cached != null) {
-            return cached.lyrics
-        }
+    suspend fun getLyrics(mediaMetadata: MediaMetadata): Fetched {
+        // The resolver and SimpMusic are keyed by the YouTube videoId. setVideoId is the playlist-entry
+        // token of the queue item, not a video identifier, so it must never be used as the key.
+        val videoId = mediaMetadata.id
 
         // Check network connectivity before making network requests
         // Use synchronous check as fallback if flow doesn't emit
@@ -56,102 +53,50 @@ constructor(
         
         if (!isNetworkAvailable) {
             // Still proceed but return not found to avoid hanging
-            return LYRICS_NOT_FOUND
+            return Fetched(LYRICS_NOT_FOUND, null)
         }
 
-        val scope = CoroutineScope(SupervisorJob())
-        val deferred = scope.async {
-            for (provider in lyricsProviders) {
-                if (provider.isEnabled(context)) {
-                    try {
-                        val result = provider.getLyrics(
-                            videoId,
-                            mediaMetadata.title,
-                            mediaMetadata.artists.joinToString { it.name },
-                            mediaMetadata.duration,
-                            mediaMetadata.album?.title,
-                        )
-                        result.onSuccess { lyrics ->
-                            return@async lyrics
-                        }.onFailure {
-                            // Don't return LYRICS_NOT_FOUND here - continue to next provider
-                            // Only report non-lyrics exceptions
-                            if (it !is LyricsUnavailableException &&
-                                !(it is IllegalStateException && it.message?.contains("Lyrics") == true)) {
-                                reportException(it)
-                            }
-                            // Continue to next provider
-                        }
-                    } catch (e: Exception) {
-                        // Catch network-related exceptions like UnresolvedAddressException
-                        reportException(e)
+        val providers = enabledProviders()
+        // The pick rule (synced-first among trusted providers, low-trust YouTube only as a last resort) is
+        // the pure SyncedFirstPicker; the schedule (primary alone, then the rest concurrently, low-trust
+        // deferred) is the pure LyricsChainWalk. Both are tested without a network. The walk runs
+        // STRUCTURED under the caller: it used to run on a parentless scope whose cancel() sat after the
+        // await, so a cancelled caller (the track-start prefetch skipping to the next song) left every
+        // in-flight provider fetch running to completion with its body - heap churn during background
+        // playback on low-RAM devices. Cancelling the caller now cancels the fetches (LyricsChainWalkTest).
+        return LyricsChainWalk.run(providers) { provider ->
+            val startedAt = System.currentTimeMillis()
+            try {
+                val result = provider.getLabeledLyrics(
+                    videoId,
+                    mediaMetadata.title,
+                    mediaMetadata.artists.joinToString { it.name },
+                    mediaMetadata.duration,
+                    mediaMetadata.album?.title,
+                )
+                Timber.d("Lyrics %s %s in %d ms", provider.name, if (result.isSuccess) "answered" else "no answer", System.currentTimeMillis() - startedAt)
+                result.onFailure {
+                    // Not found here is normal — keep looking. Report only unexpected exceptions.
+                    if (it !is LyricsUnavailableException &&
+                        !(it is IllegalStateException && it.message?.contains("Lyrics") == true)) {
+                        reportException(it)
                     }
-                }
+                }.getOrNull()
+            } catch (e: CancellationException) {
+                throw e // the caller was cancelled (skipped track): propagate, never report or swallow
+            } catch (e: Exception) {
+                // Catch network-related exceptions like UnresolvedAddressException
+                Timber.d("Lyrics %s threw in %d ms", provider.name, System.currentTimeMillis() - startedAt)
+                reportException(e)
+                null
             }
-            return@async LYRICS_NOT_FOUND
         }
-
-        val lyrics = deferred.await()
-        scope.cancel()
-        return lyrics
-    }
-
-    suspend fun getAllLyrics(
-        mediaId: String,
-        songTitle: String,
-        songArtists: String,
-        duration: Int,
-        album: String? = null,
-        callback: (LyricsResult) -> Unit,
-    ) {
-        currentLyricsJob?.cancel()
-
-        val cacheKey = "$songArtists-$songTitle".replace(" ", "")
-        cache.get(cacheKey)?.let { results ->
-            results.forEach {
-                callback(it)
-            }
-            return
-        }
-
-        // Check network connectivity before making network requests
-        // Use synchronous check as fallback if flow doesn't emit
-        val isNetworkAvailable = try {
-            networkConnectivity.isCurrentlyConnected()
-        } catch (_: Exception) {
-            // If network check fails, try to proceed anyway
-            true
-        }
-        
-        if (!isNetworkAvailable) {
-            // Still try to proceed in case of false negative
-            return
-        }
-
-        val allResult = mutableListOf<LyricsResult>()
-        currentLyricsJob = CoroutineScope(SupervisorJob()).launch {
-            lyricsProviders.forEach { provider ->
-                if (provider.isEnabled(context)) {
-                    try {
-                        provider.getAllLyrics(mediaId, songTitle, songArtists, duration, album) { lyrics ->
-                            val result = LyricsResult(provider.name, lyrics)
-                            allResult += result
-                            callback(result)
-                        }
-                    } catch (e: Exception) {
-                        // Catch network-related exceptions like UnresolvedAddressException
-                        reportException(e)
-                    }
-                }
-            }
-            cache.put(cacheKey, allResult)
-        }
-
-        currentLyricsJob?.join()
     }
 
     companion object {
-        private const val MAX_CACHE_SIZE = 3
+        /** Pure: the user's ordered chain filtered to the providers enabled in [prefs] (blank order = default). */
+        fun enabledProviders(prefs: Preferences): List<LyricsProvider> =
+            LyricsProviderRegistry.getOrderedProviders(prefs[LyricsProviderOrderKey].orEmpty()).filter { it.isEnabled(prefs) }
     }
 }
 

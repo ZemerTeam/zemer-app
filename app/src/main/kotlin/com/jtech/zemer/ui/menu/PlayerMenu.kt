@@ -51,7 +51,6 @@ import com.jtech.zemer.R
 import com.jtech.zemer.constants.BlockVideosKey
 import com.jtech.zemer.constants.PlaybackMode
 import com.jtech.zemer.constants.PlaybackModeKey
-import com.jtech.zemer.extensions.isPersonalAccountSignedIn
 import com.jtech.zemer.extensions.copyToClipboard
 import com.jtech.zemer.extensions.toast
 import com.jtech.zemer.models.MediaMetadata
@@ -71,7 +70,6 @@ import com.jtech.zemer.ui.utils.navigateToArtist
 import com.jtech.zemer.utils.VideoLinkBuilder
 import com.jtech.zemer.utils.rememberEnumPreference
 import com.jtech.zemer.utils.rememberPreference
-import com.metrolist.innertube.YouTube
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -122,16 +120,11 @@ fun PlayerMenu(
 
     AddToPlaylistDialog(
         isVisible = showChoosePlaylistDialog,
-        onGetSong = { playlist ->
+        onGetSong = { _ ->
             database.transaction {
                 insert(mediaMetadata)
             }
-            // Anonymous (pooled) sessions are local-only — only a personal account writes to remote.
-            if (isPersonalAccountSignedIn) {
-                coroutineScope.launch(Dispatchers.IO) {
-                    playlist.playlist.browseId?.let { YouTube.addToPlaylist(it, mediaMetadata.id) }
-                }
-            }
+            // The remote write is owned by AddToPlaylistDialog (single writer); callers return ids only.
             listOf(mediaMetadata.id)
         },
         onDismiss = {

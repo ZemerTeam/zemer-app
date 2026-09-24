@@ -1,58 +1,40 @@
 package com.jtech.zemer.ui.menu
 
-import android.app.SearchManager
-import android.content.Intent
-import androidx.compose.animation.animateContentSize
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBars
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.TextFieldValue
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.jtech.zemer.LocalDatabase
 import com.jtech.zemer.R
 import com.jtech.zemer.db.entities.LyricsEntity
 import com.jtech.zemer.models.MediaMetadata
-import com.jtech.zemer.ui.component.DefaultDialog
-import com.jtech.zemer.ui.component.ZemerLoadingIndicator
-import com.jtech.zemer.ui.component.ListDialog
+import com.jtech.zemer.constants.LyricsLineExtrasKey
+import com.jtech.zemer.lyrics.LineExtrasLanguage
+import com.jtech.zemer.ui.component.ConfirmDialog
+import com.jtech.zemer.ui.component.ListPickerDialog
+import com.jtech.zemer.ui.component.Material3MenuGroup
+import com.jtech.zemer.ui.component.Material3MenuItemData
+import com.jtech.zemer.ui.component.lyrics.lineExtrasLanguageText
+import com.jtech.zemer.utils.rememberEnumPreference
 import com.jtech.zemer.ui.component.NewAction
 import com.jtech.zemer.ui.component.NewActionGrid
 import com.jtech.zemer.ui.component.TextFieldDialog
@@ -81,233 +63,51 @@ fun LyricsMenu(
             title = { Text(text = mediaMetadataProvider().title) },
             initialTextFieldValue = TextFieldValue(lyricsProvider()?.lyrics.orEmpty()),
             singleLine = false,
-            onDone = {
+            onDone = { edited ->
+                val id = mediaMetadataProvider().id
                 database.query {
                     upsert(
                         LyricsEntity(
-                            id = mediaMetadataProvider().id,
-                            lyrics = it,
+                            id = id,
+                            lyrics = edited,
+                            provider = "manual",
                         ),
                     )
                 }
+                // A saved edit is also a submission to the Zemer queue: served to others only once a second
+                // device agrees or the recording confirms it (server-side gate), never on this edit alone.
+                viewModel.feedback.submitEdit(id, edited) { context.toast(R.string.lyrics_submitted) }
             },
         )
     }
 
-    var showSearchDialog by rememberSaveable {
-        mutableStateOf(false)
-    }
-    var showSearchResultDialog by rememberSaveable {
+    var showReportDialog by rememberSaveable {
         mutableStateOf(false)
     }
 
-    val searchMediaMetadata =
-        remember(showSearchDialog) {
-            mediaMetadataProvider()
-        }
-    val (titleField, onTitleFieldChange) =
-        rememberSaveable(showSearchDialog, stateSaver = TextFieldValue.Saver) {
-            mutableStateOf(
-                TextFieldValue(
-                    text = mediaMetadataProvider().title,
-                ),
-            )
-        }
-    val (artistField, onArtistFieldChange) =
-        rememberSaveable(showSearchDialog, stateSaver = TextFieldValue.Saver) {
-            mutableStateOf(
-                TextFieldValue(
-                    text = mediaMetadataProvider().artists.joinToString { it.name },
-                ),
-            )
-        }
-
-    val isNetworkAvailable by viewModel.isNetworkAvailable.collectAsState()
-
-    if (showSearchDialog) {
-        DefaultDialog(
-            modifier = Modifier.verticalScroll(rememberScrollState()),
-            onDismiss = { showSearchDialog = false },
-            icon = {
-                Icon(
-                    painter = painterResource(R.drawable.search),
-                    contentDescription = null
-                )
+    if (showReportDialog) {
+        ConfirmDialog(
+            text = stringResource(R.string.lyrics_report_confirm),
+            onDismiss = { showReportDialog = false },
+            onConfirm = {
+                showReportDialog = false
+                // Launched on the ViewModel's scope BEFORE dismissing: the sheet's scope dies with it.
+                viewModel.feedback.reportWrong(mediaMetadataProvider().id) { context.toast(R.string.lyrics_reported) }
+                onDismiss()
             },
-            title = { Text(stringResource(R.string.search_lyrics)) },
-            buttons = {
-                TextButton(
-                    onClick = { showSearchDialog = false },
-                ) {
-                    Text(stringResource(android.R.string.cancel))
-                }
-
-                Spacer(Modifier.width(8.dp))
-
-                TextButton(
-                    onClick = {
-                        showSearchDialog = false
-                        onDismiss()
-                        try {
-                            context.startActivity(
-                                Intent(Intent.ACTION_WEB_SEARCH).apply {
-                                    putExtra(
-                                        SearchManager.QUERY,
-                                        "${artistField.text} ${titleField.text} lyrics"
-                                    )
-                                },
-                            )
-                        } catch (_: Exception) {
-                        }
-                    },
-                ) {
-                    Text(stringResource(R.string.search_online))
-                }
-
-                Spacer(Modifier.width(8.dp))
-
-                TextButton(
-                    onClick = {
-                        // Try search regardless of network status indicator
-                        // as it might be a false negative
-                        val videoId = searchMediaMetadata.setVideoId ?: searchMediaMetadata.id
-                        viewModel.search(
-                            videoId,
-                            titleField.text,
-                            artistField.text,
-                            searchMediaMetadata.duration
-                        )
-                        showSearchResultDialog = true
-                        
-                        // Show warning only if network is definitely unavailable
-                        if (!isNetworkAvailable) {
-                            context.toast(context.getString(R.string.error_no_internet))
-                        }
-                    },
-                ) {
-                    Text(stringResource(android.R.string.ok))
-                }
-            },
-        ) {
-            OutlinedTextField(
-                value = titleField,
-                onValueChange = onTitleFieldChange,
-                singleLine = true,
-                label = { Text(stringResource(R.string.song_title)) },
-            )
-
-            Spacer(Modifier.height(12.dp))
-
-            OutlinedTextField(
-                value = artistField,
-                onValueChange = onArtistFieldChange,
-                singleLine = true,
-                label = { Text(stringResource(R.string.song_artists)) },
-            )
-        }
+        )
     }
 
-    if (showSearchResultDialog) {
-        val results by viewModel.results.collectAsState()
-        val isLoading by viewModel.isLoading.collectAsState()
-
-        var expandedItemIndex by rememberSaveable {
-            mutableIntStateOf(-1)
-        }
-
-        ListDialog(
-            onDismiss = { showSearchResultDialog = false },
-        ) {
-            itemsIndexed(results) { index, result ->
-                Row(
-                    modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .clickable {
-                            onDismiss()
-                            viewModel.cancelSearch()
-                            database.query {
-                                upsert(
-                                    LyricsEntity(
-                                        id = searchMediaMetadata.id,
-                                        lyrics = result.lyrics,
-                                    ),
-                                )
-                            }
-                        }
-                        .padding(12.dp)
-                        .animateContentSize(),
-                ) {
-                    Column(
-                        modifier = Modifier.weight(1f),
-                    ) {
-                        Text(
-                            text = result.lyrics,
-                            style = MaterialTheme.typography.bodyMedium,
-                            maxLines = if (index == expandedItemIndex) Int.MAX_VALUE else 2,
-                            overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.padding(bottom = 4.dp),
-                        )
-
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Text(
-                                text = result.providerName,
-                                style = MaterialTheme.typography.labelMedium,
-                                color = MaterialTheme.colorScheme.secondary,
-                                maxLines = 1,
-                            )
-                            if (result.lyrics.startsWith("[")) {
-                                Icon(
-                                    painter = painterResource(R.drawable.sync),
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.secondary,
-                                    modifier =
-                                    Modifier
-                                        .padding(start = 4.dp)
-                                        .size(18.dp),
-                                )
-                            }
-                        }
-                    }
-
-                    IconButton(
-                        onClick = {
-                            expandedItemIndex = if (expandedItemIndex == index) -1 else index
-                        },
-                    ) {
-                        Icon(
-                            painter = painterResource(if (index == expandedItemIndex) R.drawable.expand_less else R.drawable.expand_more),
-                            contentDescription = null,
-                        )
-                    }
-                }
-            }
-
-            if (isLoading) {
-                item {
-                    Box(
-                        contentAlignment = Alignment.Center,
-                        modifier = Modifier.fillMaxWidth(),
-                    ) {
-                        ZemerLoadingIndicator()
-                    }
-                }
-            }
-
-            if (!isLoading && results.isEmpty()) {
-                item {
-                    Text(
-                        text = context.getString(R.string.lyrics_not_found),
-                        textAlign = TextAlign.Center,
-                        modifier =
-                        Modifier
-                            .fillMaxWidth(),
-                    )
-                }
-            }
-        }
+    val (lineExtrasLanguage, onLineExtrasLanguageChange) = rememberEnumPreference(LyricsLineExtrasKey, defaultValue = LineExtrasLanguage.OFF)
+    var showLineExtrasDialog by rememberSaveable { mutableStateOf(false) }
+    if (showLineExtrasDialog) {
+        ListPickerDialog(
+            selectedValue = lineExtrasLanguage,
+            values = LineExtrasLanguage.entries,
+            valueText = { lineExtrasLanguageText(it) },
+            onValueSelected = onLineExtrasLanguageChange,
+            onDismiss = { showLineExtrasDialog = false },
+        )
     }
 
     LazyColumn(
@@ -347,25 +147,41 @@ fun LyricsMenu(
                         text = stringResource(R.string.refetch),
                         onClick = {
                             onDismiss()
-                            viewModel.refetchLyrics(mediaMetadataProvider(), lyricsProvider())
+                            viewModel.refetchLyrics(mediaMetadataProvider())
                         }
                     ),
                     NewAction(
                         icon = {
                             Icon(
-                                painter = painterResource(R.drawable.search),
+                                painter = painterResource(R.drawable.warning),
                                 contentDescription = null,
                                 modifier = Modifier.size(28.dp),
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         },
-                        text = stringResource(R.string.search),
+                        text = stringResource(R.string.lyrics_report_wrong),
                         onClick = {
-                            showSearchDialog = true
+                            showReportDialog = true
                         }
                     )
                 ),
+                columns = 3, // three actions on one balanced row (Edit · Refetch · Report)
                 modifier = Modifier.padding(horizontal = 4.dp, vertical = 16.dp)
+            )
+        }
+        item {
+            // The per-line translation / transliteration pick, also in Appearance settings; here so the
+            // language can be flipped without leaving the pane. The picker is the settings rows' own dialog.
+            Material3MenuGroup(
+                items = listOf(
+                    Material3MenuItemData(
+                        icon = { Icon(painterResource(R.drawable.language), contentDescription = null) },
+                        title = { Text(stringResource(R.string.lyrics_line_extras)) },
+                        description = { Text(lineExtrasLanguageText(lineExtrasLanguage)) },
+                        onClick = { showLineExtrasDialog = true },
+                    ),
+                ),
+                modifier = Modifier.padding(horizontal = 16.dp),
             )
         }
     }

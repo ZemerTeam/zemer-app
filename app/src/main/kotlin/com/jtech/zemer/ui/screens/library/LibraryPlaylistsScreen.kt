@@ -1,5 +1,6 @@
 package com.jtech.zemer.ui.screens.library
 
+import com.jtech.zemer.ui.utils.LibraryScrollToTopEffect
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
@@ -48,7 +49,6 @@ import com.jtech.zemer.constants.CONTENT_TYPE_PLAYLIST
 import com.jtech.zemer.constants.GridItemSize
 import com.jtech.zemer.constants.GridItemsSizeKey
 import com.jtech.zemer.constants.GridThumbnailHeight
-import com.jtech.zemer.constants.InnerTubeCookieKey
 import com.jtech.zemer.constants.LibraryViewType
 import com.jtech.zemer.constants.PlaylistSortDescendingKey
 import com.jtech.zemer.constants.PlaylistSortType
@@ -73,7 +73,6 @@ import com.jtech.zemer.utils.rememberEnumPreference
 import com.jtech.zemer.utils.rememberPreference
 import com.jtech.zemer.viewmodels.LibraryAutoPlaylistViewModel
 import com.jtech.zemer.viewmodels.LibraryPlaylistsViewModel
-import com.metrolist.innertube.utils.parseCookieString
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -109,15 +108,16 @@ fun LibraryPlaylistsScreen(
     val autoPlaylistsState by autoPlaylistsViewModel.autoPlaylists.collectAsState()
 
     val likedPlaylist =
-        Playlist(
-            playlist = PlaylistEntity(
-                id = PlaylistEntity.LIKED_PLAYLIST_ID,
-                name = stringResource(R.string.liked),
-                isEditable = false,
-            ),
-            songCount = 0,
-            songThumbnails = emptyList(),
-        )
+        autoPlaylistsState.liked
+            ?: Playlist(
+                playlist = PlaylistEntity(
+                    id = PlaylistEntity.LIKED_PLAYLIST_ID,
+                    name = stringResource(R.string.liked),
+                    isEditable = false,
+                ),
+                songCount = 0,
+                songThumbnails = emptyList(),
+            )
 
     val offlineName = stringResource(R.string.offline)
     val downloadPlaylist =
@@ -174,15 +174,6 @@ fun LibraryPlaylistsScreen(
     val lazyListState = rememberLazyListState()
     val lazyGridState = rememberLazyGridState()
 
-    val backStackEntry by navController.currentBackStackEntryAsState()
-    val scrollToTop =
-        backStackEntry?.savedStateHandle?.getStateFlow("scrollToTop", false)?.collectAsState()
-
-    val (innerTubeCookie) = rememberPreference(InnerTubeCookieKey, "")
-    remember(innerTubeCookie) {
-        "SAPISID" in parseCookieString(innerTubeCookie)
-    }
-
     val (ytmSync) = rememberPreference(YtmSyncKey, true)
 
     LaunchedEffect(Unit) {
@@ -193,15 +184,7 @@ fun LibraryPlaylistsScreen(
         }
     }
 
-    LaunchedEffect(scrollToTop?.value) {
-        if (scrollToTop?.value == true) {
-            when (viewType) {
-                LibraryViewType.LIST -> lazyListState.animateScrollToItem(0)
-                LibraryViewType.GRID -> lazyGridState.animateScrollToItem(0)
-            }
-            backStackEntry?.savedStateHandle?.set("scrollToTop", false)
-        }
-    }
+    LibraryScrollToTopEffect(navController, viewType, lazyListState, lazyGridState)
 
     var showCreatePlaylistDialog by rememberSaveable { mutableStateOf(false) }
 

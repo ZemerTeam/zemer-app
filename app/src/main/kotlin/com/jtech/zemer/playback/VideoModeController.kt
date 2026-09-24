@@ -31,6 +31,7 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import timber.log.Timber
 import org.fcast.sender_sdk.DeviceConnectionState
 
 /**
@@ -305,6 +306,17 @@ class VideoModeController(
         qualityOverrides[itemId] = label
         userQualityPicks[itemId] = label
         val renditionId = videoRenditionId ?: return
+        // SABR pins an exact itag, so a quality pick RE-RESOLVES the dual-track session at the new target
+        // and swaps (there is no DIRECT :q cache key to re-key). Tapping the rung already playing no-ops.
+        if (service.isSabrPlaybackMode()) {
+            if (label != VideoQualityLogic.AUTO) {
+                val target = qualityLadders[renditionId]?.let { VideoQualityLogic.selectRung(it, label) }
+                if (target != null && target.itag == currentRenditionItag) { _currentVideoQuality.value = target.label; return }
+            }
+            val audioItem = videoModeAudioItem ?: return
+            resolveAndSwapSabr(renditionId, audioItem, player.currentMediaItemIndex, label, entry = false)
+            return
+        }
         if (label == VideoQualityLogic.AUTO) {
             // Back to the plain automatic key — itag is unknown until the resolver reports it.
             currentRenditionItag = null
@@ -395,6 +407,12 @@ class VideoModeController(
         val below = VideoQualityLogic.rungBelow(rungs, current) ?: return
         // Pin the item to the lower rung so onVideoQualitiesResolved can't bounce back up.
         videoModeItemId?.let { qualityOverrides[it] = below.label }
+        // SABR re-resolves the dual-track session at the lower rung (no DIRECT :q key to re-swap).
+        if (service.isSabrPlaybackMode()) {
+            val audioItem = videoModeAudioItem ?: return
+            resolveAndSwapSabr(renditionId, audioItem, player.currentMediaItemIndex, below.label, entry = false)
+            return
+        }
         swapToRung(below)
     }
 
@@ -594,6 +612,9 @@ class VideoModeController(
             videoRenditionId?.let {
                 service.invalidateStreamCache(VideoRendition.key(it))
                 service.invalidateStreamCache(VideoRendition.mergeAudioKey(it))
+                // SABR parity: drop the SABR resolve cache too, so a re-entry re-resolves fresh instead
+                // of reusing the session inputs that just failed. No-op when the id isn't cached.
+                com.jtech.zemer.playback.sabr.SabrVideoResolver.invalidate(it)
             }
             // Do NOT override the user's quality on error — a video-mode error is almost always a
             // stale/expired signed URL (fixed by the cache invalidation above → a fresh resolution on
@@ -636,6 +657,19 @@ class VideoModeController(
         }
 
         val renditionId = rendition.renditionVideoId ?: run { clearState(); return }
+
+        // SABR video mode: resolve the dual-track (video + audio) session asynchronously, then swap. The
+        // swapped item keeps a `video:<id>:q<itag>` CACHE KEY (so the exit/own-swap machinery recognises
+        // it AND each rung is a distinct item) but a `sabrvideo://<id>` URI, which routes it to the
+        // isolated SABR MergingMediaSource in createMediaSourceFactory (never the DIRECT/relay resolver).
+        // SABR pins an exact itag, so the in-player quality switcher IS offered (unlike RELAY's fixed
+        // rendition); a pick re-resolves. Gated on SABR mode, so DIRECT/RELAY video is byte-for-byte
+        // unchanged. RELAY takes priority over SABR (mirrors the playback data-source dispatcher:
+        // relay -> sabr -> direct), so relay video keeps its own &kind=video path.
+        if (service.isSabrPlaybackMode() && !service.isRelayPlaybackMode()) {
+            enterVideoModeSabr(audioItem, index, renditionId)
+            return
+        }
         // Quality: when this id's ladder is already known (a re-entry this session), enter DIRECTLY
         // at the effective target's rung; otherwise start on the automatic pick — the ladder arrives
         // with the resolution (onVideoQualitiesResolved) and upgrades position-continuously. RELAY
@@ -667,6 +701,91 @@ class VideoModeController(
         videoStallTimes.clear()
         videoReachedReady = false
         _isVideoMode.value = true
+    }
+
+    /**
+     * SABR video entry: optimistically flip [_isVideoMode] on (audio keeps playing until the swap lands),
+     * then resolve + swap at the effective quality target. Unlike RELAY, SABR pins an exact itag, so the
+     * in-player switcher IS offered — the ladder is published on resolve and a pick re-resolves ([setVideoQuality]).
+     */
+    private fun enterVideoModeSabr(audioItem: MediaItem, index: Int, renditionId: String) {
+        _videoQualities.value = emptyList()
+        _currentVideoQuality.value = VideoQualityLogic.AUTO
+        currentRenditionItag = null
+        _isVideoMode.value = true
+        resolveAndSwapSabr(renditionId, audioItem, index, effectiveQualityTarget(audioItem.mediaId), entry = true)
+    }
+
+    /**
+     * Resolve a SABR dual-track session at [targetLabel] off the main thread, then swap on the main thread
+     * — shared by the initial entry and every quality switch. Each rung gets its OWN `video:<id>:q<itag>`
+     * cache key (so media3 re-prepares) over the same `sabrvideo://<id>` URI (merge routing); the ladder +
+     * chosen rung are published for the switcher. Mirrors [enterVideoMode]'s pendingSwap/onSwap discipline
+     * so the swap is never mis-classified as a real transition. [entry] true reverts to audio on failure;
+     * a failed quality SWITCH keeps the current rung playing.
+     */
+    private fun resolveAndSwapSabr(renditionId: String, audioItem: MediaItem, index: Int, targetLabel: String, entry: Boolean) {
+        scope.launch {
+            val result = try {
+                // The four per-client toggle reads are blocking DataStore reads — do them off the main
+                // thread (scope is the service Main scope) before handing them to the IO resolve.
+                val enabledClients = withContext(Dispatchers.IO) { service.sabrEnabledClients() }
+                com.jtech.zemer.playback.sabr.SabrVideoResolver.resolve(
+                    renditionId,
+                    enabledClients,
+                    targetLabel,
+                    // DIRECT parity: only the AUTO pick is metered-capped; an explicit label is honoured
+                    // on every connection.
+                    maxAutoBitrateKbps = VideoRendition.defaultMaxBitrateKbps(service.isMeteredNetwork()),
+                    // DIRECT stampCpn parity: the media POST carries the listen's watch-time cpn (the
+                    // own-swap keeps ONE cpn across audio/video renditions of the same listen).
+                    cpn = { service.sabrCpnFor(renditionId) },
+                )
+            } catch (e: Exception) {
+                Timber.tag("VideoModeController").w(e, "SABR video resolve failed for %s", renditionId)
+                null
+            }
+            withContext(Dispatchers.Main) {
+                // The user may have toggled off / skipped / the queue moved while resolving.
+                val stillOurs = _isVideoMode.value && videoModeItemId == audioItem.mediaId &&
+                    player.currentMediaItemIndex == index && player.currentMediaItem?.mediaId == audioItem.mediaId
+                if (!stillOurs) {
+                    // The resolve was never registered (SabrVideoResult doc), so ONLY the abandoned new
+                    // stream is torn down — whatever stream is currently registered keeps playing (the
+                    // exit/transition machinery owns its removal via clearState).
+                    result?.stream?.destroy()
+                    return@withContext
+                }
+                if (result == null) {
+                    if (entry) { exitVideoModeSameItem(); _videoErrorEvents.emit(Unit) }
+                    // A failed switch leaves the current rung playing (its stream is still registered).
+                    return@withContext
+                }
+                qualityLadders[renditionId] = result.ladder
+                _videoQualities.value = result.ladder
+                _currentVideoQuality.value = result.chosen.label
+                currentRenditionItag = result.chosen.itag
+                val cacheKey = VideoRendition.key(renditionId, result.chosen.itag, progressive = false)
+                videoModeVideoKey = cacheKey
+                // Capture position + playWhenReady NOW, at swap time on the main thread (DIRECT's
+                // swapToVideoKey discipline) — the resolve took seconds, and applying values captured
+                // BEFORE it rewound playback by the resolve duration and force-resumed over a user pause.
+                val position = player.currentPosition
+                val playWhenReady = player.playWhenReady
+                // Commit point: install the new stream (destroying the replaced rung's stream) only
+                // now that the swap is definitely happening.
+                com.jtech.zemer.playback.sabr.SabrVideoRegistry.put(renditionId, result.stream)
+                listenAccumulator.onSwap(audioItem.mediaId)
+                pendingSwap = true
+                player.replaceMediaItem(index, audioItem.buildUpon().setUri(result.uri).setCustomCacheKey(cacheKey).build())
+                player.seekTo(index, position)
+                player.prepare()
+                player.playWhenReady = playWhenReady
+                mainHandler.post { pendingSwap = false }
+                videoStallTimes.clear()
+                videoReachedReady = false
+            }
+        }
     }
 
     /** Exit video mode on the CURRENT item, position-continuous (user toggle-off / cast / block / error). */
@@ -748,6 +867,10 @@ class VideoModeController(
     }
 
     private fun clearState() {
+        // End of this video-mode session: release the SABR dual-track stream (kills its drain thread +
+        // drops the config). Every exit path funnels through clearState, so this is the ONE removal
+        // point; a no-op for DIRECT/RELAY renditions (nothing registered under the id).
+        videoRenditionId?.let { com.jtech.zemer.playback.sabr.SabrVideoRegistry.remove(it) }
         videoModeItemId = null
         videoModeItemIndex = C.INDEX_UNSET
         videoModeAudioItem = null

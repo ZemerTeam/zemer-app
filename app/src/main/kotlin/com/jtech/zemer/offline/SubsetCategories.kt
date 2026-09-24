@@ -35,7 +35,7 @@ internal class CatArtistDoc(
 
 internal class CatTrackDoc(
     val videoId: String, override val title: String, override val artistName: String,
-    val explicit: Boolean, val durationSec: Int?, val isVideo: Boolean,
+    val durationSec: Int?, val isVideo: Boolean,
     val isKidZone: Boolean, val femaleInvolved: Boolean,
 ) : SearchDoc {
     override val sortId get() = videoId
@@ -124,12 +124,15 @@ class BuiltCategories internal constructor(
     // female-involved videoIds (primary OR credited) UNION blocked.female — matches the server's `_female`
     // set (api.mjs setFemaleSet), used by the community post-filter kept-count recompute.
     private val femaleVideoIds: Set<String>,
+    // Compiled once from the corpus's own `synonyms` shard (falls back to SubsetSynonyms.DEFAULT when the
+    // snapshot predates it), so search stays on the server's current table without a hand-copied one.
+    private val synonyms: SubsetSynonyms.Compiled,
 ) {
 
     fun search(q: String, k: Int, allowFemale: Boolean, blockVideos: Boolean, kidZone: Boolean): ZemerCategories {
         // pick = search n*4 -> filter allowed & !blocked -> slice n -> map (categories.mjs `pick`).
         fun <T : SearchDoc> pick(index: SubsetIndex<T>, n: Int, keep: (T) -> Boolean, blockIds: (T) -> List<String?>) =
-            searchIndex(index, q, n * 4).asSequence().map { it.doc }
+            searchIndex(index, q, n * 4, synonyms).asSequence().map { it.doc }
                 .filter { keep(it) && !blockedDoc(blockIds(it), allowFemale) }
                 .take(n).toList()
 
@@ -141,7 +144,7 @@ class BuiltCategories internal constructor(
         fun trackRows(index: SubsetIndex<CatTrackDoc>) = pick(index, k,
             { allowed(it.femaleInvolved, it.isKidZone, it.isVideo, allowFemale, blockVideos, kidZone) },
             { listOf(it.videoId) })
-            .map { ZemerTrack(videoId = it.videoId, title = it.title, artist = it.artistName, explicit = it.explicit, durationSec = it.durationSec) }
+            .map { ZemerTrack(videoId = it.videoId, title = it.title, artist = it.artistName, durationSec = it.durationSec) }
 
         fun albumRows(index: SubsetIndex<CatAlbumDoc>) = pick(index, k,
             { allowed(it.femaleInvolved, it.isKidZone, isVideo = false, allowFemale, blockVideos, kidZone) },
@@ -157,7 +160,7 @@ class BuiltCategories internal constructor(
         // Community: title-only ranking; communitySurvives() gate; then the api.mjs post-filter recompute of
         // whitelisted count + cover (no-op when no filter is active).
         val filterActive = !allowFemale || kidZone || blockVideos
-        val communityRows = searchIndex(community, q, k * 4).asSequence().map { it.doc }
+        val communityRows = searchIndex(community, q, k * 4, synonyms).asSequence().map { it.doc }
             .filter { communitySurvives(it, allowFemale, blockVideos, kidZone) && !blockedDoc(listOf(it.id), allowFemale) }
             .take(k).toList()
             .map { d ->
@@ -172,14 +175,15 @@ class BuiltCategories internal constructor(
             }
 
         // Podcasts: shows + episodes folded into the same matcher (server reply 4). Both gated on the
-        // channel-inherited female/KidZone flags (isVideo=false: episodes are audio) + the blocked shard.
+        // female/kid flags (isVideo=false: episodes are audio) + the blocked shard. Search is a
+        // BROWSE surface: the shared podcastKidBrowseGate default-excludes kid shows (server parity).
         val podcastRows = pick(podcasts, k,
-            { allowed(it.femaleInvolved, it.isKidZone, isVideo = false, allowFemale, blockVideos, kidZone) },
+            { podcastKidBrowseGate(it.isKidZone, kidZone) && allowed(it.femaleInvolved, it.isKidZone, isVideo = false, allowFemale, blockVideos, kidZone) },
             { listOf(it.id, it.channelId) })
             .map { ZemerPodcastShow(id = it.id, name = it.title, author = it.author, channelId = it.channelId, thumbnail = it.thumbnail, episodeCountText = it.episodeCountText) }
 
         val episodeRows = pick(episodes, k,
-            { allowed(it.femaleInvolved, it.isKidZone, isVideo = false, allowFemale, blockVideos, kidZone) },
+            { podcastKidBrowseGate(it.isKidZone, kidZone) && allowed(it.femaleInvolved, it.isKidZone, isVideo = false, allowFemale, blockVideos, kidZone) },
             // A show blocked by id (per-show exception on a mixed channel) must also drop its
             // episodes here — every other offline podcast surface checks the show id, so matching
             // only the videoId let blocked shows' episodes leak through offline search.
@@ -274,7 +278,7 @@ class BuiltCategories internal constructor(
                 trackDocs.add(
                     CatTrackDoc(
                         videoId = t.videoId, title = t.title, artistName = artist?.name ?: "",
-                        explicit = t.explicit, durationSec = t.durationSec, isVideo = t.isVideo,
+                        durationSec = t.durationSec, isVideo = t.isVideo,
                         isKidZone = artist?.isKidZone ?: false, femaleInvolved = t.videoId in involvedVideoIds,
                     ),
                 )
@@ -356,14 +360,15 @@ class BuiltCategories internal constructor(
                 }
             }
 
-            // Podcast docs: female/KidZone inherited from the host channel. Orphan episodes (no in-corpus
-            // show) are dropped — they can't render a show name or be routed.
+            // Podcast docs: female inherited from the host channel; kid = the per-SHOW flag OR the
+            // channel's (server 2026-08-26). Orphan episodes (no in-corpus show) are dropped — they
+            // can't render a show name or be routed.
             val podcastDocs = corpus.podcasts.map { s ->
                 val ch = s.channelId?.let { corpus.podcastChannelsById[it] }
                 CatPodcastDoc(
                     id = s.id, title = s.name, author = s.author, channelId = s.channelId,
                     thumbnail = s.thumbnail, episodeCountText = s.episodeCountText,
-                    femaleInvolved = ch?.isFemale ?: false, isKidZone = ch?.isKidZone ?: false,
+                    femaleInvolved = ch?.isFemale ?: false, isKidZone = corpus.podcastIsKid(s),
                 )
             }
             val episodeDocs = corpus.podcastEpisodes.mapNotNull { e ->
@@ -372,7 +377,7 @@ class BuiltCategories internal constructor(
                 CatEpisodeDoc(
                     videoId = e.videoId, title = e.title, showId = e.showId, showName = s.name,
                     channelId = s.channelId, thumbnail = e.thumbnail, durationSec = e.durationSec, publishedAt = e.publishedAt,
-                    femaleInvolved = ch?.isFemale ?: false, isKidZone = ch?.isKidZone ?: false,
+                    femaleInvolved = ch?.isFemale ?: false, isKidZone = corpus.podcastIsKid(s),
                 )
             }
 
@@ -389,6 +394,7 @@ class BuiltCategories internal constructor(
                 podcasts = buildSubsetIndex(podcastDocs),
                 episodes = buildSubsetIndex(episodeDocs),
                 femaleVideoIds = femaleVideoIds,
+                synonyms = corpus.synonymGroups.takeIf { it.isNotEmpty() }?.let(SubsetSynonyms::compile) ?: SubsetSynonyms.DEFAULT,
             )
         }
     }

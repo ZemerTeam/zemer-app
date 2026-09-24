@@ -34,10 +34,9 @@ import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.carousel.CarouselDefaults
 import androidx.compose.material3.carousel.HorizontalMultiBrowseCarousel
 import androidx.compose.material3.carousel.rememberCarouselState
-import androidx.compose.animation.core.tween
+import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults.LoadingIndicator
 import androidx.compose.material3.pulltorefresh.pullToRefresh
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.Composable
@@ -91,12 +90,15 @@ import com.jtech.zemer.ui.component.AlbumGridItem
 import com.jtech.zemer.ui.component.ArtistGridItem
 import com.jtech.zemer.ui.component.LocalBottomSheetPageState
 import com.jtech.zemer.ui.component.LocalMenuState
+import com.jtech.zemer.ui.component.heroCarouselFlingBehavior
 import com.jtech.zemer.ui.component.MoreVertMenuButton
 import com.jtech.zemer.extensions.toMediaItem
 import com.jtech.zemer.playback.queues.ListQueue
 import com.jtech.zemer.tracking.PlaySource
 import com.jtech.zemer.ui.component.NavigationTitle
 import com.jtech.zemer.ui.component.ChipsRow
+import com.jtech.zemer.ui.component.ContentTabChipsRow
+import com.jtech.zemer.ui.utils.rememberLiveSong
 import com.jtech.zemer.ui.utils.whitelistedPodcastRoute
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
@@ -570,21 +572,14 @@ fun HomeScreen(
         ) {
                 // Content-type selector (Music / Podcasts / Radio / Video) — reuses the Library
                 // ChipsRow. Each tab renders only its own shelves below; Video is dropped when videos
-                // are blocked. See HomeContentTab.
-                stickyHeader(key = "home_content_tabs", contentType = "header") {
-                    // Opaque background so shelves scrolling under the pinned selector stay hidden.
-                    Box(
-                        Modifier
-                            .fillMaxWidth()
-                            .background(MaterialTheme.colorScheme.surface)
-                            .padding(top = 12.dp, bottom = 4.dp)
-                    ) {
-                        ChipsRow(
-                            chips = homeContentChips,
-                            currentValue = homeTab,
-                            onValueUpdate = { it?.let(setHomeTab) },
-                        )
-                    }
+                // are blocked. See HomeContentTab. A plain item (not a sticky header) so the chips
+                // scroll away with the content instead of staying pinned at the top.
+                item(key = "home_content_tabs", contentType = "header") {
+                    ContentTabChipsRow(
+                        chips = homeContentChips,
+                        currentValue = homeTab,
+                        onValueUpdate = { it?.let(setHomeTab) },
+                    )
                 }
 
                 if (homeTab == HomeContentTab.MUSIC) {
@@ -643,14 +638,12 @@ fun HomeScreen(
                                 key = { it.id },
                                 contentType = { "song" }
                             ) { originalSong ->
-                                // fetch song from database to keep updated
-                                val song by database.song(originalSong.id)
-                                    .collectAsState(initial = originalSong)
+                                val song = rememberLiveSong(database, originalSong)
 
                                 SongListItem(
-                                    song = song!!,
+                                    song = song,
                                     showInLibraryIcon = true,
-                                    isActive = song!!.id == mediaMetadata?.id,
+                                    isActive = song.id == mediaMetadata?.id,
                                     isPlaying = isPlaying,
                                     isSwipeable = false,
                                     trailingContent = {
@@ -658,7 +651,7 @@ fun HomeScreen(
                                             onClick = {
                                                 menuState.show {
                                                     SongMenu(
-                                                        originalSong = song!!,
+                                                        originalSong = song,
                                                         navController = navController,
                                                         onDismiss = menuState::dismiss
                                                     )
@@ -670,12 +663,12 @@ fun HomeScreen(
                                         .width(horizontalLazyGridItemWidth)
                                         .combinedClickable(
                                             onClick = {
-                                                if (activeRowTapTogglesPlayPause(song!!.id == mediaMetadata?.id, playerConnection.isStationBroadcast.value)) {
+                                                if (activeRowTapTogglesPlayPause(song.id == mediaMetadata?.id, playerConnection.isStationBroadcast.value)) {
                                                     playerConnection.playPause()
                                                 } else {
                                                     playerConnection.playQueue(
                                                         ZemerRadioQueue.song(
-                                                            song!!.toMediaMetadata(), playerConnection.service
+                                                            song.toMediaMetadata(), playerConnection.service
                                                         )
                                                     )
                                                 }
@@ -684,7 +677,7 @@ fun HomeScreen(
                                                 haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                                                 menuState.show {
                                                     SongMenu(
-                                                        originalSong = song!!,
+                                                        originalSong = song,
                                                         navController = navController,
                                                         onDismiss = menuState::dismiss
                                                     )
@@ -741,13 +734,8 @@ fun HomeScreen(
                             state = latestCarouselState,
                             preferredItemWidth = 180.dp,
                             itemSpacing = 8.dp,
-                            // Advance ONE item per swipe at a FIXED animation speed, so the carousel moves
-                            // the same regardless of how hard it is flung (no velocity-scaled multi-item
-                            // fling).
-                            flingBehavior = CarouselDefaults.singleAdvanceFlingBehavior(
-                                latestCarouselState,
-                                tween(durationMillis = 400),
-                            ),
+                            // One item per swipe; the spec + rationale live in heroCarouselFlingBehavior.
+                            flingBehavior = heroCarouselFlingBehavior(latestCarouselState),
                             contentPadding = WindowInsets.systemBars
                                 .only(WindowInsetsSides.Horizontal)
                                 .asPaddingValues(),
@@ -969,13 +957,12 @@ fun HomeScreen(
                                 key = { it.id },
                                 contentType = { "song" }
                             ) { originalSong ->
-                                val song by database.song(originalSong.id)
-                                    .collectAsState(initial = originalSong)
+                                val song = rememberLiveSong(database, originalSong)
 
                                 SongListItem(
-                                    song = song!!,
+                                    song = song,
                                     showInLibraryIcon = true,
-                                    isActive = song!!.id == mediaMetadata?.id,
+                                    isActive = song.id == mediaMetadata?.id,
                                     isPlaying = isPlaying,
                                     isSwipeable = false,
                                     trailingContent = {
@@ -984,7 +971,7 @@ fun HomeScreen(
                                                 haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                                                 menuState.show {
                                                     SongMenu(
-                                                        originalSong = song!!,
+                                                        originalSong = song,
                                                         navController = navController,
                                                         onDismiss = menuState::dismiss
                                                     )
@@ -996,12 +983,12 @@ fun HomeScreen(
                                         .width(horizontalLazyGridItemWidth)
                                         .combinedClickable(
                                             onClick = {
-                                                if (activeRowTapTogglesPlayPause(song!!.id == mediaMetadata?.id, playerConnection.isStationBroadcast.value)) {
+                                                if (activeRowTapTogglesPlayPause(song.id == mediaMetadata?.id, playerConnection.isStationBroadcast.value)) {
                                                     playerConnection.playPause()
                                                 } else {
                                                     playerConnection.playQueue(
                                                         ZemerRadioQueue.song(
-                                                            song!!.toMediaMetadata(), playerConnection.service
+                                                            song.toMediaMetadata(), playerConnection.service
                                                         )
                                                     )
                                                 }
@@ -1010,7 +997,7 @@ fun HomeScreen(
                                                 haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                                                 menuState.show {
                                                     SongMenu(
-                                                        originalSong = song!!,
+                                                        originalSong = song,
                                                         navController = navController,
                                                         onDismiss = menuState::dismiss
                                                     )

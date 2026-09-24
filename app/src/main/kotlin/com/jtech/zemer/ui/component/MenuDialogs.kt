@@ -13,6 +13,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -127,3 +128,44 @@ fun AlreadyInPlaylistDialog(
         songs()
     }
 }
+
+/**
+ * The ONE "are you sure?" confirmation, the app's established shape: the question as the body, Cancel / OK
+ * (clear history, delete playlist, remove downloads, report lyrics all render through it). The action stays
+ * with the caller via [onConfirm] (which also flips its own show-dialog state); [onDismiss] backs both
+ * Cancel and the scrim. Never hand-roll a [DefaultDialog] pair for a yes/no question again.
+ */
+@Composable
+fun ConfirmDialog(
+    text: String,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    DefaultDialog(
+        onDismiss = onDismiss,
+        content = {
+            Text(
+                text = text,
+                style = MaterialTheme.typography.bodyLarge,
+                modifier = Modifier.padding(horizontal = 18.dp),
+            )
+        },
+        buttons = {
+            TextButton(onClick = onDismiss) {
+                Text(text = stringResource(android.R.string.cancel))
+            }
+
+            TextButton(onClick = onConfirm) {
+                Text(text = stringResource(android.R.string.ok))
+            }
+        },
+    )
+}
+
+/** The shared "Remove downloads from <playlist>?" confirmation of every playlist screen (auto, top, local); the removal loop stays with the caller. */
+@Composable
+fun RemoveDownloadConfirmDialog(
+    playlistName: String,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit,
+) = ConfirmDialog(stringResource(R.string.remove_download_playlist_confirm, playlistName), onConfirm, onDismiss)

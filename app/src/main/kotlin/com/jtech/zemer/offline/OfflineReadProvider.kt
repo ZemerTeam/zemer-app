@@ -12,6 +12,8 @@ import com.jtech.zemer.search.ZemerPodcastChannelResponse
 import com.jtech.zemer.search.ZemerPodcastGenrePageResponse
 import com.jtech.zemer.search.ZemerPodcastGenresResponse
 import com.jtech.zemer.search.ZemerPodcastResponse
+import com.jtech.zemer.search.ZemerPodcastsResponse
+import com.jtech.zemer.search.ZemerRadioResponse
 import com.jtech.zemer.search.ZemerSearchResponse
 import com.jtech.zemer.utils.PodcastWhitelistCache
 import com.jtech.zemer.utils.WhitelistCache
@@ -33,11 +35,12 @@ import javax.inject.Singleton
  * The decoded corpus is cached behind a [SoftReference] — warm across repeated offline reads, but never
  * pinning heap the app needs elsewhere (the snapshot is tens of MB in memory). It is reloaded when the
  * on-disk manifest version changes (a sync landed) or the GC reclaimed it. All flags mirror the client:
- * `kidZone` is always false (the client sends `kidZone=0` for these surfaces) and `hideExplicit` is
- * applied by the shared mapper afterwards, not here.
+ * `kidZone` is always false (the client sends `kidZone=0` for these surfaces).
  *
- * The endpoints that are NOT reproducible offline — `/playlist` (live YouTube) and `/radio` (needs the
- * co-occurrence graph, not shipped) — have no method here; the repository leaves those server-only.
+ * `/radio` is now PARTIALLY reproducible (2026-09-11 addendum: the `radio-<n>` shards carry the
+ * popularity + co-occurrence graph — see [SubsetRadio]'s doc for exactly which kinds/tiers). `/playlist`
+ * (any YouTube playlist, not just corpus ones) stays entirely live-only and has no method here; the
+ * repository leaves it server-only.
  */
 @Singleton
 class OfflineReadProvider @Inject constructor(
@@ -111,19 +114,25 @@ class OfflineReadProvider @Inject constructor(
 
     // Podcasts (server reply 4 — pre-gated to approved channels in the snapshot). The browse-grid + channel
     // allow-set come from the Room-backed content mirror, not here; these serve the drill-in reads.
-    suspend fun podcast(id: String, offset: Int, allowFemale: Boolean, blockVideos: Boolean): ZemerPodcastResponse? =
+    suspend fun podcast(id: String, offset: Int, allowFemale: Boolean, blockVideos: Boolean, kidZone: Boolean = false): ZemerPodcastResponse? =
         withContext(Dispatchers.IO) {
-            snapshot()?.let { offlinePodcast(it.corpus, id, offset, allowFemale, blockVideos, kidZone = false) }
+            snapshot()?.let { offlinePodcast(it.corpus, id, offset, allowFemale, blockVideos, kidZone) }
         }
 
-    suspend fun podcastChannel(id: String, allowFemale: Boolean, blockVideos: Boolean): ZemerPodcastChannelResponse? =
+    suspend fun podcastChannel(id: String, allowFemale: Boolean, blockVideos: Boolean, kidZone: Boolean = false): ZemerPodcastChannelResponse? =
         withContext(Dispatchers.IO) {
-            snapshot()?.let { offlinePodcastChannel(it.corpus, id, allowFemale, blockVideos, kidZone = false) }
+            snapshot()?.let { offlinePodcastChannel(it.corpus, id, allowFemale, blockVideos, kidZone) }
         }
 
-    suspend fun podcastsNewEpisodes(k: Int, allowFemale: Boolean, blockVideos: Boolean): ZemerNewEpisodesResponse? =
+    /** The `/podcasts` catalog (the KidZone grid's outage fallback with kidZone = true). */
+    suspend fun podcasts(allowFemale: Boolean, blockVideos: Boolean, kidZone: Boolean): ZemerPodcastsResponse? =
         withContext(Dispatchers.IO) {
-            snapshot()?.let { offlinePodcastsNewEpisodes(it.corpus, k, allowFemale, blockVideos, kidZone = false) }
+            snapshot()?.let { offlinePodcasts(it.corpus, allowFemale, blockVideos, kidZone) }
+        }
+
+    suspend fun podcastsNewEpisodes(k: Int, allowFemale: Boolean, blockVideos: Boolean, kidZone: Boolean = false): ZemerNewEpisodesResponse? =
+        withContext(Dispatchers.IO) {
+            snapshot()?.let { offlinePodcastsNewEpisodes(it.corpus, k, allowFemale, blockVideos, kidZone) }
         }
 
     suspend fun podcastGenres(allowFemale: Boolean, blockVideos: Boolean): ZemerPodcastGenresResponse? =
@@ -135,4 +144,26 @@ class OfflineReadProvider @Inject constructor(
         withContext(Dispatchers.IO) {
             snapshot()?.let { offlinePodcastGenre(it.corpus, id, allowFemale, blockVideos, kidZone = false) }
         }
+
+    /** `GET /radio` (offline, first page). Null when there's no snapshot, or [kind] isn't reproducible
+     * offline (see [SubsetRadio]'s doc) — the repository's `serverOrOffline` then rethrows. */
+    suspend fun radio(kind: String, seed: String?, allowFemale: Boolean, blockVideos: Boolean): ZemerRadioResponse? =
+        withContext(Dispatchers.IO) {
+            snapshot()?.let { offlineRadio(it.corpus, it.female, kind, seed, allowFemale, blockVideos) }
+        }
+
+    /** The next offline radio page for an [OfflineRadioToken]-shaped [token] (the repository routes only a
+     * token carrying [OfflineRadioToken.PREFIX] here; a live token always goes to the server instead). */
+    suspend fun radioContinuation(token: String): ZemerRadioResponse? = withContext(Dispatchers.IO) {
+        val parts = OfflineRadioToken.parse(token) ?: return@withContext null
+        snapshot()?.let { offlineRadio(it.corpus, it.female, parts.kind, parts.seed, parts.allowFemale, parts.blockVideos, offset = parts.offset) }
+    }
+
+    /** Affordance hint for a download-completion prefetch: does the snapshot flag [videoId] as having a
+     * verified, servable Zemer text (the `lyricsflags` shard, bit0)? False (never null) when there's no
+     * snapshot or the song isn't flagged — a caller that wants to skip a wasted network attempt when a
+     * hint firmly says "no" should still fall back to trying when unsure, so this stays a plain Boolean. */
+    suspend fun hasLikelyLyrics(videoId: String): Boolean = withContext(Dispatchers.IO) {
+        snapshot()?.corpus?.hasLikelyLyrics(videoId) ?: false
+    }
 }

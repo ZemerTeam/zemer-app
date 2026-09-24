@@ -10,7 +10,7 @@ import dagger.hilt.components.SingletonComponent
 /**
  * Resolves the singleton [ZemerSearchRepository] from a plain application [android.content.Context], for
  * the few non-injected constructors that need it — e.g. [com.jtech.zemer.playback.queues.LocalAlbumRadio],
- * built inside leaf composables that have no ViewModel to inject it. Mirrors [LyricsHelperEntryPoint].
+ * built inside leaf composables that have no ViewModel to inject it. Mirrors [LyricsStoreEntryPoint].
  */
 @EntryPoint
 @InstallIn(SingletonComponent::class)

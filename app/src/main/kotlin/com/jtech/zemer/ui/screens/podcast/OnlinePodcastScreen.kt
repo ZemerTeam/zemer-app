@@ -28,7 +28,6 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.AssistChipDefaults
-import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -86,6 +85,7 @@ import com.jtech.zemer.ui.component.AppBarTitle
 import com.jtech.zemer.ui.component.zemerTopAppBarColors
 import com.jtech.zemer.ui.component.MoreVertMenuButton
 import com.jtech.zemer.ui.component.EpisodeListItem
+import com.jtech.zemer.ui.component.ErrorRetryState
 import com.jtech.zemer.ui.component.shimmer.ButtonPlaceholder
 import com.jtech.zemer.ui.component.shimmer.ListItemPlaceHolder
 import com.jtech.zemer.ui.component.shimmer.ShimmerHost
@@ -109,6 +109,10 @@ fun OnlinePodcastScreen(
     val isPlaying by playerConnection.isPlaying.collectAsState()
     val mediaMetadata by playerConnection.mediaMetadata.collectAsState()
 
+    // KidZone navigation context: drill-outs (View channel, episode menus) keep the restriction.
+    // Read from the ViewModel's SavedStateHandle - the ONE stable source (a composition-time
+    // currentBackStackEntry read can land on another entry mid-transition).
+    val kidZone = viewModel.kidZone
     val podcast by viewModel.podcast.collectAsState()
     val episodes by viewModel.episodes.collectAsState()
     val resumePositions by viewModel.resumePositions.collectAsState()
@@ -328,7 +332,7 @@ fun OnlinePodcastScreen(
                                 if (!channelId.isNullOrBlank()) {
                                     Spacer(Modifier.height(8.dp))
                                     OutlinedButton(
-                                        onClick = { navController.navigateToArtist(channelId, isPodcastChannel = true) },
+                                        onClick = { navController.navigateToArtist(channelId, isPodcastChannel = true, kidZone = kidZone) },
                                         shape = RoundedCornerShape(50),
                                         modifier = Modifier.height(40.dp)
                                     ) {
@@ -401,6 +405,7 @@ fun OnlinePodcastScreen(
                                 onClick = {
                                     menuState.show {
                                         YouTubeSongMenu(
+                                            kidZone = kidZone,
                                             song = episode.asSongItem(),
                                             navController = navController,
                                             onDismiss = menuState::dismiss,
@@ -429,6 +434,7 @@ fun OnlinePodcastScreen(
                                 onLongClick = {
                                     menuState.show {
                                         YouTubeSongMenu(
+                                            kidZone = kidZone,
                                             song = episode.asSongItem(),
                                             navController = navController,
                                             onDismiss = menuState::dismiss,
@@ -441,30 +447,10 @@ fun OnlinePodcastScreen(
                 }
             } else if (error != null) {
                 item(key = "error_state") {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(32.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Text(
-                            text = stringResource(R.string.error_unknown),
-                            style = MaterialTheme.typography.titleLarge,
-                            color = MaterialTheme.colorScheme.error
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            text = error!!,
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        Spacer(modifier = Modifier.height(16.dp))
-                        Button(
-                            onClick = { viewModel.retry() }
-                        ) {
-                            Text(stringResource(R.string.retry))
-                        }
-                    }
+                    ErrorRetryState(
+                        onRetry = { viewModel.retry() },
+                        detail = error,
+                    )
                 }
             }
         }

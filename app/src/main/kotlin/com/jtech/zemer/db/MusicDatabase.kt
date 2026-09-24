@@ -97,7 +97,7 @@ class MusicDatabase(
         SortedSongAlbumMap::class,
         PlaylistSongMapPreview::class,
     ],
-    version = 34,
+    version = 36,
     exportSchema = true,
     autoMigrations = [
         AutoMigration(from = 2, to = 3),
@@ -125,7 +125,9 @@ class MusicDatabase(
         AutoMigration(from = 24, to = 25),
         AutoMigration(from = 25, to = 26),
         // Additive: adds the recognition_history table only (no changes to existing tables).
-        AutoMigration(from = 32, to = 33)
+        AutoMigration(from = 32, to = 33),
+        // Additive: nullable lyrics.provider (which lyrics provider answered).
+        AutoMigration(from = 35, to = 36),
     ],
 )
 @TypeConverters(Converters::class)
@@ -142,7 +144,7 @@ abstract class InternalDatabase : RoomDatabase() {
             val builtDb = try {
                 Room
                     .databaseBuilder(context, InternalDatabase::class.java, DB_NAME)
-                    .addMigrations(MIGRATION_1_2, MIGRATION_26_27, MIGRATION_27_28, MIGRATION_28_29, MIGRATION_29_30, MIGRATION_30_31, MIGRATION_31_32, MIGRATION_33_34)
+                    .addMigrations(MIGRATION_1_2, MIGRATION_26_27, MIGRATION_27_28, MIGRATION_28_29, MIGRATION_29_30, MIGRATION_30_31, MIGRATION_31_32, MIGRATION_33_34, MIGRATION_34_35)
                     .setJournalMode(JournalMode.TRUNCATE)
                     .enableMultiInstanceInvalidation()
                     .build().also {
@@ -465,6 +467,16 @@ val MIGRATION_33_34 =
 
             // Flags a bookmarked artist row as a podcast host channel (for the Channels library tab).
             db.execSQL("ALTER TABLE artist ADD COLUMN isPodcastChannel INTEGER NOT NULL DEFAULT 0")
+        }
+    }
+
+val MIGRATION_34_35 =
+    object : Migration(34, 35) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            // Display-name split: the clean single-script name (displayName) + the other-script name
+            // (altName) served by the whitelist; artistName keeps the legacy (possibly dual-form) value.
+            db.execSQL("ALTER TABLE artist_whitelist ADD COLUMN displayName TEXT")
+            db.execSQL("ALTER TABLE artist_whitelist ADD COLUMN altName TEXT")
         }
     }
 
