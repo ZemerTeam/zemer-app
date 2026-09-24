@@ -457,6 +457,17 @@ loop, so a phone nobody touched showed a "paused" notification plus a launcher b
   and is dropped by any later user engagement (`markUserIntent`): `stopSelf()` does not destroy a
   service another client (Android Auto, a headset app) still has bound, and that client's next play
   must get its foreground start exactly as before. A foreground start is never vetoed by either rule.
+- **A post already in flight is invalidated, not raced.** media3 drops a pending notification
+  callback only inside its own removal path (it advances the notification sequence there), which
+  runs for a session that is no longer added to the service: `onDestroy` therefore calls
+  `removeSession(mediaSession)` + `super.onUpdateNotification(mediaSession, false)` BEFORE
+  `mediaSession.release()`. And because the service can outlive `stopSelf()` while a client stays
+  bound, `onTaskRemoved` schedules one bounded second `cancel(NOTIFICATION_ID)`
+  (`TASK_CLEAR_LATE_POST_WINDOW_MS`) guarded on `stoppingOnTaskClear` still being raised - any
+  bind, start command or play clears it first, so a notification the user asked for is never
+  touched. Re-engagement after such a lingering task clear also RE-POSTS the paused notification
+  the task clear removed (`markUserIntent`), exactly as a fresh service posts it on first
+  engagement.
 
 ### Cipher / player rotation (the most common future break)
 
