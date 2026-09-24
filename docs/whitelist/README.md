@@ -211,7 +211,7 @@ The whitelist appears in these synchronization paths:
 | --- | --- | --- |
 | `artists` / `WhitelistedArtistsScreen` | `app/src/main/kotlin/com/jtech/zemer/ui/screens/WhitelistedArtistsScreen.kt` | Main artists tab is wired to whitelisted artists. |
 | `kid_zone` / `KidZoneScreen` | `app/src/main/kotlin/com/jtech/zemer/ui/screens/KidZoneScreen.kt` | Kid-zone artist presentation. |
-| Content settings | `app/src/main/kotlin/com/jtech/zemer/ui/screens/settings/ContentSettings.kt` | UI for enable content filters and allow female singers preferences. |
+| Content settings | `app/src/main/kotlin/com/jtech/zemer/ui/screens/settings/ContentSettings.kt` | UI for the content filter preferences (allow female content, block videos, block podcasts). |
 | Onboarding | `app/src/main/kotlin/com/jtech/zemer/ui/screens/OnboardingScreen.kt` | Presents content filter setup and runs `syncArtistWhitelist(forceSync = true)`. |
 
 ## Whitelist-related Kotlin files

@@ -626,7 +626,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/settings/AppearanceSettings.kt` | 1143 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/settings/BackupAndRestore.kt` | 203 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/settings/ButtonSetupScreen.kt` | 374 lines | `.kt` |
-| `app/src/main/kotlin/com/jtech/zemer/ui/screens/settings/ContentSettings.kt` | 678 lines | `.kt` |
+| `app/src/main/kotlin/com/jtech/zemer/ui/screens/settings/ContentSettings.kt` | 669 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/settings/GeneralSettings.kt` | 82 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/settings/LogViewerScreen.kt` | 378 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/settings/LyricsProviderDialogs.kt` | 114 lines | `.kt` |
@@ -972,7 +972,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/main/res/values/app_name.xml` | 4 lines | `.xml` |
 | `app/src/main/res/values/colors.xml` | 9 lines | `.xml` |
 | `app/src/main/res/values/metrolist_strings.xml` | 696 lines | `.xml` |
-| `app/src/main/res/values/strings.xml` | 473 lines | `.xml` |
+| `app/src/main/res/values/strings.xml` | 472 lines | `.xml` |
 | `app/src/main/res/values/styles.xml` | 26 lines | `.xml` |
 | `app/src/main/res/values/values.xml` | 8 lines | `.xml` |
 | `app/src/main/res/xml-v25/shortcuts.xml` | 23 lines | `.xml` |

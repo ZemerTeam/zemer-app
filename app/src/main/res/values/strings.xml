@@ -359,9 +359,8 @@
 
     <string name="new_version_available">New version available</string>
     <string name="content_filters">Content filters</string>
-    <string name="allow_female_singers">Allow female singers</string>
+    <string name="allow_female_singers">Allow female content</string>
     <string name="block_videos">Block videos</string>
-    <string name="enable_personal_filters">Enable personal feed filters</string>
     <string name="radio_mode">Radio mode</string>
 
     <!-- D-pad Button Mapper -->
