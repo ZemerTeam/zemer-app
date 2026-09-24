@@ -85,5 +85,9 @@ class LyricsUtilsTest {
         assertEquals("[00:01.20] a\n[00:02.50] b\n[00:03.00] c\n[00:04.00] d\n[00:05.00] ", LyricsUtils.cleanLrc("[00:01.20] a\n[00:02.5] b\n[00:03.00] c\n[00:04.00] d\n[00:05.00]\nnot a line"))
         assertNull(LyricsUtils.cleanLrc("[00:05.00] a\n[00:02.00] b\n[00:03.00] c\n[00:04.00] d"))
         assertNull(LyricsUtils.cleanLrc("[00:01.00] a\n[00:02.00] b"))
+        // CR-only and CRLF bodies split into rows too
+        val four = "[00:01.00] a\n[00:02.00] b\n[00:03.00] c\n[00:04.00] d"
+        assertEquals(four, LyricsUtils.cleanLrc(four.replace("\n", "\r")))
+        assertEquals(four, LyricsUtils.cleanLrc(four.replace("\n", "\r\n")))
     }
 }

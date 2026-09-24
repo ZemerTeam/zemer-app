@@ -141,7 +141,8 @@ object LyricsUtils {
      */
     fun cleanLrc(sub: String?): String? {
         val rows = ArrayList<String>(); var last = -1.0
-        for (l in (sub ?: "").split("\n")) {
+        // lineSequence: LF, CRLF and CR-only bodies all split into rows (a CR-only reply used to be one rejected row).
+        for (l in (sub ?: "").lineSequence()) {
             val m = Regex("""^\[(\d+):(\d+(?:\.\d+)?)]\s?(.*)$""").find(l) ?: continue
             val t = m.groupValues[1].toInt() * 60 + m.groupValues[2].toDouble()
             if (t < last) return null
