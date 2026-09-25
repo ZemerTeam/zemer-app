@@ -2,7 +2,7 @@
 
 ## Preference key inventory
 
-Preference keys extracted from `PreferenceKeys.kt`: `167`.
+Preference keys extracted from `PreferenceKeys.kt`: `163`.
 
 | Kotlin val | Key type | Stored name |
 | --- | --- | --- |
@@ -43,10 +43,6 @@ Preference keys extracted from `PreferenceKeys.kt`: `167`.
 | `EnableLrcLibKey` | `booleanPreferencesKey` | `enableLrclib` |
 | `EnableYouTubeLyricsKey` | `booleanPreferencesKey` | `enableYouTubeLyrics` |
 | `LyricsProviderOrderKey` | `stringPreferencesKey` | `lyricsProviderOrder` |
-| `EnableMusixmatchKey` | `booleanPreferencesKey` | `enableMusixmatch` |
-| `MusixmatchTokenKey` | `stringPreferencesKey` | `musixmatchToken` |
-| `MusixmatchLastStatusKey` | `stringPreferencesKey` | `musixmatchLastStatus` |
-| `MusixmatchCooldownUntilKey` | `longPreferencesKey` | `musixmatchCooldownUntil` |
 | `YtmSyncKey` | `booleanPreferencesKey` | `ytmSync` |
 | `BlockedContentIdsKey` | `stringPreferencesKey` | `blockedContentIds` |
 | `StatusSourcesConfigKey` | `stringPreferencesKey` | `statusSourcesConfig` |
@@ -174,18 +170,40 @@ Preference keys extracted from `PreferenceKeys.kt`: `167`.
 | `AccountChannelHandleKey` | `stringPreferencesKey` | `accountChannelHandle` |
 | `UseLoginForBrowse` | `booleanPreferencesKey` | `useLoginForBrowse` |
 
+## Preference keys declared outside `PreferenceKeys.kt`
+
+Every other `*PreferencesKey(...)` call under `app/src/main/kotlin`. The `MusicWidget.kt` keys are Glance widget state keys.
+
+| File | Kotlin val | Key type | Stored name |
+| --- | --- | --- | --- |
+| `statuses/StatusDownloadsStore.kt` | `key` | `stringPreferencesKey` | `status_downloads` |
+| `statuses/StatusSeenStore.kt` | `key` | `stringSetPreferencesKey` | `status_seen_post_ids` |
+| `sync/UserPreferencesRepository.kt` | `lastSyncTimeKey` | `longPreferencesKey` | `last_content_filter_sync_time` |
+| `sync/UserPreferencesRepository.kt` | `deviceIdKey` | `stringPreferencesKey` | `current_device_id` |
+| `sync/UserPreferencesRepository.kt` | `syncEnabledKey` | `booleanPreferencesKey` | `content_filter_sync_enabled` |
+| `utils/DeviceIdGenerator.kt` | `deviceIdKey` | `stringPreferencesKey` | `device_id` |
+| `widget/MusicWidget.kt` | `PREF_TITLE` | `stringPreferencesKey` | `title` |
+| `widget/MusicWidget.kt` | `PREF_ARTIST` | `stringPreferencesKey` | `artist` |
+| `widget/MusicWidget.kt` | `PREF_IS_PLAYING` | `booleanPreferencesKey` | `is_playing` |
+| `widget/MusicWidget.kt` | `PREF_POSITION` | `longPreferencesKey` | `position_ms` |
+| `widget/MusicWidget.kt` | `PREF_DURATION` | `longPreferencesKey` | `duration_ms` |
+
 ## Auth/sync/preference Kotlin files
+
+Declarations are capped at 25 per file (same extraction as `reference/kotlin-files.md`).
 
 | File | Lines | Package | Declarations |
 | --- | ---: | --- | --- |
-| `app/src/main/kotlin/com/jtech/zemer/App.kt` | 412 | `com.jtech.zemer` | class App, fun checkForUpdatesOnStartup, val settings, fun fetchAnonymousTokenOnStartup, fun sanitizeCookie, val trimmed, val httpClient, val responseText, val json, val visitorData, val clientVersion, val timestamp, val expiresAt, val cookie, val dataSyncId, val accountName, val accountEmail, val accountChannelHandle, val isValidToken, val expiresIn, val minutesLeft, fun initializeSettings, val settings, val locale, val languageTag |
-| `app/src/main/kotlin/com/jtech/zemer/auth/AuthState.kt` | 44 | `com.jtech.zemer.auth` | class AuthState, class SignedIn, val userId, val email, val displayName, val isEmailVerified, object SignedOut, object Loading, class Error, val exception, val isSignedIn, val isLoading, val isError |
-| `app/src/main/kotlin/com/jtech/zemer/auth/UserAuthManager.kt` | 119 | `com.jtech.zemer.auth` | class UserAuthManager, val auth, val googleSignInOptions, val googleSignInClient, val currentUser, val isUserSignedIn, val currentUserId, val currentUserEmail, val authStateFlow, val listener, val user, val state, fun signInWithGoogle, val firebaseCredential, val authResult, val user, fun signOut, fun getIdToken, val user, val tokenResult |
+| `app/src/main/kotlin/com/jtech/zemer/App.kt` | 409 | `com.jtech.zemer` | class App, var applicationScope, var offlineSubsetSyncer, var databaseLazy, fun onCreate, var waitedMs, val persisted, val persistedVersion, fun checkForUpdatesOnStartup, val settings, val result, fun initializeSettings, val settings, val locale, val languageTag, val seededBlockPodcasts, val channel, val nm, fun observeSettingsChanges, fun newImageLoader, val cacheSize, val okHttpClient, class PendingUpdate, val version, val notes, … (+4 more) |
+| `app/src/main/kotlin/com/jtech/zemer/auth/AuthState.kt` | 45 | `com.jtech.zemer.auth` | class AuthState, class SignedIn, val userId, val email, val displayName, val isEmailVerified, object SignedOut, object Loading, class Error, val exception, val isSignedIn, val isLoading, val isError |
+| `app/src/main/kotlin/com/jtech/zemer/auth/UserAuthManager.kt` | 120 | `com.jtech.zemer.auth` | class UserAuthManager, val context, val auth, val googleSignInOptions, val googleSignInClient, val currentUser, val isUserSignedIn, val currentUserId, val currentUserEmail, val authStateFlow, val listener, val user, val state, fun signInWithGoogle, val firebaseCredential, val authResult, val user, fun signOut, fun getIdToken, val user, val tokenResult |
 | `app/src/main/kotlin/com/jtech/zemer/auth/WebViewGoogleAuthManager.kt` | 33 | `com.jtech.zemer.auth` | class WebViewGoogleAuthManager, val auth, fun signInAnonymously, val authResult, val user |
-| `app/src/main/kotlin/com/jtech/zemer/constants/PreferenceKeys.kt` | 661 | `com.jtech.zemer.constants` | val PlaybackModeKey, val RelayDeviceIdKey, val DynamicThemeKey, val EnableHighRefreshRateKey, val RefreshRateModeKey, val SelectedThemeColorKey, val DarkModeKey, val PureBlackKey, val DensityScaleKey, val CustomDensityScaleKey, val DefaultOpenTabKey, val HomeContentTabKey, val BottomNavigationBarEnabledKey, val SlimNavBarKey, val BottomNavigationItemsKey, val BottomNavArtistsRemovedKey, val RecognizeMusicFabKey, val GridItemsSizeKey, val SliderStyleKey, val SwipeToSongKey, val SwipeToRemoveSongKey, val FloatingMiniPlayerKey, val CastEnabledKey, val HidePlayerThumbnailKey, val CropAlbumArtKey |
-| `app/src/main/kotlin/com/jtech/zemer/sync/ContentFilterSyncService.kt` | 446 | `com.jtech.zemer.sync` | class ContentFilterSyncService, val userPreferencesRepository, val authManager, val serviceScope, val _syncState, val syncState, val _lastSyncResult, val lastSyncResult, var _isApplyingServerPreferences, fun initialize, val result, val config, val result, val error, fun performManualSync, val result, fun pullFromServer, val result, fun syncToServer, val result, fun syncFromServer, val result, fun setSyncEnabled, fun isSyncEnabled, fun getSyncStatusFlow |
-| `app/src/main/kotlin/com/jtech/zemer/sync/UserPreferencesRepository.kt` | 694 | `com.jtech.zemer.sync` | fun ContentFilterConfig, fun com, class UserPreferencesRepository, val firestore, val authManager, val deviceIdGenerator, fun getDocumentId, fun classifyFirebaseError, val lastSyncTimeKey, val deviceIdKey, val syncEnabledKey, fun fetchDevicePreferences, val userId, val deviceId, val document, val entity, val deviceData, val config, val errorClassification, fun fetchDevicePreferencesByDeviceId, val deviceId, val query, var foundConfig, val entity, val deviceData |
-| `app/src/main/kotlin/com/jtech/zemer/sync/models/DevicePreferencesEntity.kt` | 100 | `com.jtech.zemer.sync.models` | class DeviceContentFilters, val enableContentFilters, val allowFemaleSingers, val blockVideos, val femalePasscodeHash, fun fromConfig, fun toConfig, class DeviceMetadata, val deviceName, val manufacturer, val model, val androidVersion, val sdkVersion, val appVersion, val firstSeen, val lastSeen, fun fromLocalInfo, class UserDeviceData, val deviceId, val deviceInfo, val contentFilters, val createdAt, val lastSyncTime, class DevicePreferencesEntity, val userId |
-| `app/src/main/kotlin/com/jtech/zemer/utils/ContentFilterConfig.kt` | 87 | `com.jtech.zemer.utils` | class ContentFilterConfig, val filtersEnabled, val allowFemaleSingers, val blockVideos, val femalePasscodeHash, val lastSyncTime, val isSynced, object ContentFilterState, val _state, val state, var current, fun updateConfig, val currentConfig, fun updateContentFilters, val currentConfig, fun updateSyncMetadata, fun markAsModified, fun resetToDefaults, val hasUnsyncedChanges, val hasActiveFilters |
-| `app/src/main/kotlin/com/jtech/zemer/utils/DataStore.kt` | 180 | `com.jtech.zemer.utils` | val dataStore, fun DataStore, fun DataStore, fun DataStore, fun DataStore, fun preference, fun rememberPreference, val context, val coroutineScope, val state, var value, fun component1, fun component2, val context, val coroutineScope, val state, var value, fun component1, fun component2 |
-| `app/src/main/kotlin/com/jtech/zemer/utils/SyncUtils.kt` | 724 | `com.jtech.zemer.utils` | class WhitelistSyncProgress, val current, val total, val currentArtistName, val isComplete, class SyncUtils, val databaseLazy, val database, val syncScope, val isSyncingLikedSongs, val isSyncingLibrarySongs, val isSyncingUploadedSongs, val isSyncingLikedAlbums, val isSyncingUploadedAlbums, val isSyncingArtists, val isSyncingPlaylists, val isSyncingWhitelist, val isBackfillingThumbs, val isWhitelistSyncing, val _whitelistSyncProgress, val whitelistSyncProgress, fun likeSong, fun syncLikedSongs, val remoteSongs |
+| `app/src/main/kotlin/com/jtech/zemer/constants/PreferenceKeys.kt` | 659 | `com.jtech.zemer.constants` | val PlaybackModeKey, val RelayDeviceIdKey, val DynamicThemeKey, val EnableHighRefreshRateKey, val RefreshRateModeKey, val SelectedThemeColorKey, val DarkModeKey, val PureBlackKey, val DensityScaleKey, val CustomDensityScaleKey, val DefaultOpenTabKey, val HomeContentTabKey, val BottomNavigationBarEnabledKey, val SlimNavBarKey, val BottomNavigationItemsKey, val BottomNavArtistsRemovedKey, val RecognizeMusicFabKey, val GridItemsSizeKey, val SliderStyleKey, val SwipeToSongKey, val SwipeToRemoveSongKey, val FloatingMiniPlayerKey, val CastEnabledKey, val HidePlayerThumbnailKey, val CropAlbumArtKey, … (+169 more) |
+| `app/src/main/kotlin/com/jtech/zemer/sync/ContentFilterSyncService.kt` | 336 | `com.jtech.zemer.sync` | class ContentFilterSyncService, val userPreferencesRepository, val authManager, val serviceScope, val _syncState, val syncState, var _isApplyingServerPreferences, fun initialize, val result, val config, val result, val error, fun performManualSync, val result, fun syncToServer, val result, fun setSyncEnabled, fun isSyncEnabled, fun getSyncStatusFlow, fun getUserDevices, fun handleAuthStateChange, fun handlePreferenceChange, fun performInitialSync, val result, val uploadResult, … (+15 more) |
+| `app/src/main/kotlin/com/jtech/zemer/sync/ContentReportRepository.kt` | 54 | `com.jtech.zemer.sync` | class ContentReportRepository, val firestore, val auth, fun submitReport, val payload, fun buildReportPayload, val payload |
+| `app/src/main/kotlin/com/jtech/zemer/sync/PodcastSyncLogic.kt` | 105 | `com.jtech.zemer.sync` | object PodcastSyncLogic, class UpsertAction, fun upsertAction, class EpisodeSyncPlan, val imported, val cleanupReference, class UnsaveAction, fun unsaveAction, fun episodePassesPodcastWhitelist, fun podcastCategoryAllowed |
+| `app/src/main/kotlin/com/jtech/zemer/sync/UserPreferencesRepository.kt` | 692 | `com.jtech.zemer.sync` | fun ContentFilterConfig, fun com, class UserPreferencesRepository, val context, val firestore, val syncDataStore, val mainDataStore, val authManager, val deviceIdGenerator, val USER_PREFERENCES_COLLECTION, val DEVICE_PREFERENCES_SUBCOLLECTION, fun getDocumentId, fun classifyFirebaseError, val lastSyncTimeKey, val deviceIdKey, val syncEnabledKey, fun fetchDevicePreferences, val userId, val deviceId, val document, val entity, val deviceData, val config, val errorClassification, fun fetchDevicePreferencesByDeviceId, … (+75 more) |
+| `app/src/main/kotlin/com/jtech/zemer/sync/models/DevicePreferencesEntity.kt` | 100 | `com.jtech.zemer.sync.models` | class DeviceContentFilters, val enableContentFilters, val allowFemaleSingers, val blockVideos, val blockPodcasts, val femalePasscodeHash, fun fromConfig, fun toConfig, class DeviceMetadata, val deviceName, val manufacturer, val model, val androidVersion, val sdkVersion, val appVersion, val firstSeen, val lastSeen, class UserDeviceData, val deviceId, val deviceInfo, val contentFilters, val createdAt, val lastSyncTime, class DevicePreferencesEntity, val userId, … (+6 more) |
+| `app/src/main/kotlin/com/jtech/zemer/utils/ContentFilterConfig.kt` | 87 | `com.jtech.zemer.utils` | class ContentFilterConfig, val filtersEnabled, val allowFemaleSingers, val blockVideos, val blockPodcasts, val femalePasscodeHash, val lastSyncTime, val isSynced, fun ContentFilterConfig, object ContentFilterState, val _state, val state, var current, fun updateConfig, val currentConfig, fun updateContentFilters, val hasActiveFilters |
+| `app/src/main/kotlin/com/jtech/zemer/utils/DataStore.kt` | 180 | `com.jtech.zemer.utils` | val Context, val context, val coroutineScope, val state, var value, fun component1, fun component2, val context, val coroutineScope, val state, var value, fun component1, fun component2 |
+| `app/src/main/kotlin/com/jtech/zemer/utils/SyncUtils.kt` | 1162 | `com.jtech.zemer.utils` | class WhitelistSyncProgress, val current, val total, val isComplete, class SyncUtils, val databaseLazy, val context, val database, val syncScope, val isSyncingLikedSongs, val isSyncingLibrarySongs, val isSyncingLikedAlbums, val isSyncingArtists, val isSyncingPlaylists, val isSyncingWhitelist, val isSyncingPodcastSubscriptions, val isSyncingEpisodes, val isWhitelistSyncing, val _whitelistSyncProgress, val whitelistSyncProgress, val isSyncingPodcastWhitelist, val isPodcastWhitelistSyncing, val _podcastWhitelistSyncProgress, val podcastWhitelistSyncProgress, fun syncPodcastSubscriptions, … (+106 more) |

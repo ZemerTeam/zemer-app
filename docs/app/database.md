@@ -4,14 +4,15 @@
 
 | Fact | Value |
 | --- | --- |
-| Database class | `MusicDatabase.InternalDatabase` |
+| Database class | `InternalDatabase` (top-level `abstract class` in `db/MusicDatabase.kt`) |
 | Wrapper class | `MusicDatabase` delegates `DatabaseDao` to `delegate.dao` |
 | Schema version | `36` |
 | Identity hash | `e6157b9dfb31273b8dad37b1ca5af7d0` |
 | Entity count in schema 36 | `19` |
+| View count in schema 36 | `3` |
 | Schema files tracked | `36` |
 | DAO file | `app/src/main/kotlin/com/jtech/zemer/db/DatabaseDao.kt` |
-| DAO methods found by regex | `228` |
+| DAO `fun` declarations found by parser | `228` (`192` distinct names) |
 
 ## DAO annotation counts
 
@@ -22,6 +23,7 @@
 | `@Insert` | 16 |
 | `@Delete` | 11 |
 | `@Upsert` | 7 |
+| `@Update` | 7 |
 | `@RewriteQueriesToDropUnusedColumns` | 1 |
 | `@RawQuery` | 1 |
 
@@ -380,204 +382,247 @@
 | `bookmarkedAt` | `bookmarkedAt` | `INTEGER` | `False` | `None` |
 | `lastUpdateTime` | `lastUpdateTime` | `INTEGER` | `True` | `None` |
 
+## Schema 36 views
+
+Declared in `@Database(views = [SortedSongArtistMap::class, SortedSongAlbumMap::class, PlaylistSongMapPreview::class])`.
+
+| View | Create SQL (from `36.json`) |
+| --- | --- |
+| `sorted_song_artist_map` | `` CREATE VIEW `${VIEW_NAME}` AS SELECT * FROM song_artist_map ORDER BY position `` |
+| `sorted_song_album_map` | `` CREATE VIEW `${VIEW_NAME}` AS SELECT * FROM song_album_map ORDER BY `index` `` |
+| `playlist_song_map_preview` | `` CREATE VIEW `${VIEW_NAME}` AS SELECT * FROM playlist_song_map WHERE position <= 3 ORDER BY position `` |
+
 ## DAO method inventory
+
+Every `fun` in `db/DatabaseDao.kt` in source order (overloads repeat the name). Return `(inferred)` = expression body without a declared type; `Unit` = block body without a declared type.
 
 | Method | Parameters | Return/type text |
 | --- | --- | --- |
-| `songsByRowIdAsc` | `` | `Flow<List<Song>>` |
-| `songsByCreateDateAsc` | `` | `Flow<List<Song>>` |
-| `songsByNameAsc` | `` | `Flow<List<Song>>` |
-| `songsByPlayTimeAsc` | `` | `Flow<List<Song>>` |
-| `songs` | `sortType: SongSortType, descending: Boolean,` | `` |
-| `likedSongsByRowIdAsc` | `` | `Flow<List<Song>>` |
-| `likedSongsByCreateDateAsc` | `` | `Flow<List<Song>>` |
-| `likedSongsByNameAsc` | `` | `Flow<List<Song>>` |
-| `likedSongsByPlayTimeAsc` | `` | `Flow<List<Song>>` |
-| `likedSongs` | `sortType: SongSortType, descending: Boolean,` | `` |
-| `likedSongsCount` | `` | `Flow<Int>` |
+| `songsByRowIdAsc` |  | `Flow<List<Song>>` |
+| `songsByCreateDateAsc` |  | `Flow<List<Song>>` |
+| `songsByNameAsc` |  | `Flow<List<Song>>` |
+| `songsByPlayTimeAsc` |  | `Flow<List<Song>>` |
+| `songs` | `sortType: SongSortType, descending: Boolean` | `(inferred)` |
+| `likedSongsByRowIdAsc` |  | `Flow<List<Song>>` |
+| `likedSongsByCreateDateAsc` |  | `Flow<List<Song>>` |
+| `likedSongsByNameAsc` |  | `Flow<List<Song>>` |
+| `likedSongsByPlayTimeAsc` |  | `Flow<List<Song>>` |
+| `likedSongs` | `sortType: SongSortType, descending: Boolean` | `(inferred)` |
+| `likedSongsCount` |  | `Flow<Int>` |
 | `albumSongs` | `albumId: String` | `Flow<List<Song>>` |
 | `playlistSongs` | `playlistId: String` | `Flow<List<PlaylistSong>>` |
 | `artistSongsByCreateDateAsc` | `artistId: String` | `Flow<List<Song>>` |
 | `artistSongsByNameAsc` | `artistId: String` | `Flow<List<Song>>` |
 | `artistSongsByPlayTimeAsc` | `artistId: String` | `Flow<List<Song>>` |
-| `artistSongs` | `artistId: String, sortType: ArtistSongSortType, descending: Boolean,` | `` |
-| `artistSongsPreview` | `artistId: String, previewSize: Int = 3,` | `Flow<List<Song>>` |
-| `quickPicks` | `now: Long = System.currentTimeMillis(` | `): Flow<List<Song>>` |
-| `getRecommendationAlbum` | `now: Long = System.currentTimeMillis(` | `,` |
-| `mostPlayedSongsStats` | `fromTimeStamp: Long, limit: Int = 6, offset: Int = 0, toTimeStamp: Long? = LocalDateTime.now(` | `.toInstant(ZoneOffset.UTC).toEpochMilli(),` |
-| `mostPlayedSongs` | `fromTimeStamp: Long, limit: Int = 6, offset: Int = 0, toTimeStamp: Long? = LocalDateTime.now(` | `.toInstant(ZoneOffset.UTC).toEpochMilli(),` |
-| `mostPlayedArtists` | `fromTimeStamp: Long, limit: Int = 6, offset: Int = 0, toTimeStamp: Long? = LocalDateTime.now(` | `.toInstant(ZoneOffset.UTC).toEpochMilli(),` |
-| `mostPlayedAlbums` | `fromTimeStamp: Long, limit: Int = 6, offset: Int = 0, toTimeStamp: Long? = LocalDateTime.now(` | `.toInstant(ZoneOffset.UTC).toEpochMilli(),` |
+| `artistSongs` | `artistId: String, sortType: ArtistSongSortType, descending: Boolean` | `(inferred)` |
+| `artistSongsPreview` | `artistId: String, previewSize: Int = 3` | `Flow<List<Song>>` |
+| `quickPicks` | `now: Long = System.currentTimeMillis()` | `Flow<List<Song>>` |
+| `mostPlayedSongsStats` | `fromTimeStamp: Long, limit: Int = 6, offset: Int = 0, toTimeStamp: Long? = LocalDateTime.now().toInstant(ZoneOffset.UTC).toEpochMilli()` | `Flow<List<SongWithStats>>` |
+| `mostPlayedSongs` | `fromTimeStamp: Long, limit: Int = 6, offset: Int = 0, toTimeStamp: Long? = LocalDateTime.now().toInstant(ZoneOffset.UTC).toEpochMilli()` | `Flow<List<Song>>` |
+| `mostPlayedArtists` | `fromTimeStamp: Long, limit: Int = 6, offset: Int = 0, toTimeStamp: Long? = LocalDateTime.now().toInstant(ZoneOffset.UTC).toEpochMilli()` | `Flow<List<Artist>>` |
+| `mostPlayedAlbums` | `fromTimeStamp: Long, limit: Int = 6, offset: Int = 0, toTimeStamp: Long? = LocalDateTime.now().toInstant(ZoneOffset.UTC).toEpochMilli()` | `Flow<List<Album>>` |
 | `artistAlbumsPreview` | `artistId: String, previewSize: Int = 6` | `Flow<List<Album>>` |
-| `getLifetimePlayCount` | `songId: String?` | `Flow<Int>` |
-| `getPlayCountByYear` | `songId: String?, year: Int` | `Flow<Int>` |
 | `getPlayCountByMonth` | `songId: String?, year: Int, month: Int` | `Flow<Int>` |
-| `forgottenFavorites` | `now: Long = System.currentTimeMillis(` | `): Flow<List<Song>>` |
-| `recommendedAlbum` | `now: Long = System.currentTimeMillis(` | `,` |
+| `forgottenFavorites` | `now: Long = System.currentTimeMillis()` | `Flow<List<Song>>` |
 | `song` | `songId: String?` | `Flow<Song?>` |
 | `getSongByIdBlocking` | `songId: String` | `Song?` |
+| `getSongsByIdsChunk` | `songIds: List<String>` | `List<Song>` |
 | `getSongsByIds` | `songIds: List<String>` | `List<Song>` |
-| `videos` | `` | `Flow<List<Song>>` |
-| `downloadedVideos` | `` | `Flow<List<Song>>` |
-| `downloadedVideosByCreateDateAsc` | `` | `Flow<List<Song>>` |
-| `downloadedVideosByNameAsc` | `` | `Flow<List<Song>>` |
-| `downloadedVideosByPlayTimeAsc` | `` | `Flow<List<Song>>` |
+| `videos` |  | `Flow<List<Song>>` |
+| `downloadedVideos` |  | `Flow<List<Song>>` |
+| `downloadedVideosByCreateDateAsc` |  | `Flow<List<Song>>` |
+| `downloadedVideosByNameAsc` |  | `Flow<List<Song>>` |
+| `downloadedVideosByPlayTimeAsc` |  | `Flow<List<Song>>` |
 | `downloadedVideosSorted` | `sortType: SongSortType, descending: Boolean` | `Flow<List<Song>>` |
 | `songArtistMap` | `songId: String` | `List<SongArtistMap>` |
-| `allSongs` | `` | `Flow<List<Song>>` |
-| `allArtistsByPlayTime` | `` | `Flow<List<Artist>>` |
+| `allSongs` |  | `Flow<List<Song>>` |
+| `allArtistsByPlayTime` |  | `Flow<List<Artist>>` |
 | `getSetVideoId` | `videoId: String` | `SetVideoIdEntity?` |
+| `upsertSetVideoId` | `entity: SetVideoIdEntity` | `Unit` |
 | `format` | `id: String?` | `Flow<FormatEntity?>` |
 | `lyrics` | `id: String?` | `Flow<LyricsEntity?>` |
-| `purgeRefreshableLyrics` | `` | `Int` |
-| `artistsByCreateDateAsc` | `` | `Flow<List<Artist>>` |
-| `artistsByNameAsc` | `` | `Flow<List<Artist>>` |
-| `allWhitelistedArtistsByName` | `` | `Flow<List<Artist>>` |
-| `allKidsArtistsByName` | `` | `Flow<List<Artist>>` |
-| `artistsBySongCountAsc` | `` | `Flow<List<Artist>>` |
-| `artistsByPlayTimeAsc` | `` | `Flow<List<Artist>>` |
-| `artistsBookmarkedByCreateDateAsc` | `` | `Flow<List<Artist>>` |
-| `artistsBookmarkedByNameAsc` | `` | `Flow<List<Artist>>` |
-| `artistsBookmarkedBySongCountAsc` | `` | `Flow<List<Artist>>` |
-| `artistsBookmarkedByPlayTimeAsc` | `` | `Flow<List<Artist>>` |
-| `artists` | `sortType: ArtistSortType, descending: Boolean` | `` |
-| `artistsBookmarked` | `sortType: ArtistSortType, descending: Boolean` | `` |
+| `purgeRefreshableLyrics` |  | `Int` |
+| `artistsByCreateDateAsc` |  | `Flow<List<Artist>>` |
+| `artistsByNameAsc` |  | `Flow<List<Artist>>` |
+| `allWhitelistedArtistsByName` |  | `Flow<List<Artist>>` |
+| `allKidsArtistsByName` |  | `Flow<List<Artist>>` |
+| `artistsBySongCountAsc` |  | `Flow<List<Artist>>` |
+| `artistsByPlayTimeAsc` |  | `Flow<List<Artist>>` |
+| `artistsBookmarkedByCreateDateAsc` |  | `Flow<List<Artist>>` |
+| `artistsBookmarkedByNameAsc` |  | `Flow<List<Artist>>` |
+| `artistsBookmarkedBySongCountAsc` |  | `Flow<List<Artist>>` |
+| `artistsBookmarkedByPlayTimeAsc` |  | `Flow<List<Artist>>` |
+| `artists` | `sortType: ArtistSortType, descending: Boolean` | `(inferred)` |
+| `artistsBookmarked` | `sortType: ArtistSortType, descending: Boolean` | `(inferred)` |
 | `artist` | `id: String` | `Flow<Artist?>` |
-| `albumsByCreateDateAsc` | `` | `Flow<List<Album>>` |
-| `albumsByNameAsc` | `` | `Flow<List<Album>>` |
-| `albumsByYearAsc` | `` | `Flow<List<Album>>` |
-| `albumsBySongCountAsc` | `` | `Flow<List<Album>>` |
-| `albumsByLengthAsc` | `` | `Flow<List<Album>>` |
-| `albumsByPlayTimeAsc` | `` | `Flow<List<Album>>` |
-| `albumsLikedByCreateDateAsc` | `` | `Flow<List<Album>>` |
-| `albumsLikedByNameAsc` | `` | `Flow<List<Album>>` |
-| `albumsLikedByYearAsc` | `` | `Flow<List<Album>>` |
-| `albumsLikedBySongCountAsc` | `` | `Flow<List<Album>>` |
-| `albumsLikedByLengthAsc` | `` | `Flow<List<Album>>` |
-| `albumsLikedByPlayTimeAsc` | `` | `Flow<List<Album>>` |
-| `albumsUploadedByCreateDateAsc` | `` | `Flow<List<Album>>` |
-| `albumsUploadedByNameAsc` | `` | `Flow<List<Album>>` |
-| `albumsUploadedByYearAsc` | `` | `Flow<List<Album>>` |
-| `albumsUploadedBySongCountAsc` | `` | `Flow<List<Album>>` |
-| `albumsUploadedByLengthAsc` | `` | `Flow<List<Album>>` |
-| `albumsUploadedByPlayTimeAsc` | `` | `Flow<List<Album>>` |
-| `albums` | `sortType: AlbumSortType, descending: Boolean,` | `` |
-| `albumsLiked` | `sortType: AlbumSortType, descending: Boolean,` | `` |
-| `albumsUploaded` | `sortType: AlbumSortType, descending: Boolean,` | `` |
+| `albumsByCreateDateAsc` |  | `Flow<List<Album>>` |
+| `albumsByNameAsc` |  | `Flow<List<Album>>` |
+| `albumsByYearAsc` |  | `Flow<List<Album>>` |
+| `albumsBySongCountAsc` |  | `Flow<List<Album>>` |
+| `albumsByLengthAsc` |  | `Flow<List<Album>>` |
+| `albumsByPlayTimeAsc` |  | `Flow<List<Album>>` |
+| `albumsLikedByCreateDateAsc` |  | `Flow<List<Album>>` |
+| `albumsLikedByNameAsc` |  | `Flow<List<Album>>` |
+| `albumsLikedByYearAsc` |  | `Flow<List<Album>>` |
+| `albumsLikedBySongCountAsc` |  | `Flow<List<Album>>` |
+| `albumsLikedByLengthAsc` |  | `Flow<List<Album>>` |
+| `albumsLikedByPlayTimeAsc` |  | `Flow<List<Album>>` |
+| `albumsUploadedByCreateDateAsc` |  | `Flow<List<Album>>` |
+| `albumsUploadedByNameAsc` |  | `Flow<List<Album>>` |
+| `albumsUploadedByYearAsc` |  | `Flow<List<Album>>` |
+| `albumsUploadedBySongCountAsc` |  | `Flow<List<Album>>` |
+| `albumsUploadedByLengthAsc` |  | `Flow<List<Album>>` |
+| `albumsUploadedByPlayTimeAsc` |  | `Flow<List<Album>>` |
+| `albums` | `sortType: AlbumSortType, descending: Boolean` | `(inferred)` |
+| `albumsLiked` | `sortType: AlbumSortType, descending: Boolean` | `(inferred)` |
+| `albumsUploaded` | `sortType: AlbumSortType, descending: Boolean` | `(inferred)` |
 | `album` | `id: String` | `Flow<Album?>` |
 | `albumUnfiltered` | `id: String` | `Flow<Album?>` |
 | `albumWithSongs` | `albumId: String` | `Flow<AlbumWithSongs?>` |
 | `albumArtistMaps` | `albumId: String` | `List<AlbumArtistMap>` |
-| `playlistsByCreateDateAsc` | `` | `Flow<List<Playlist>>` |
-| `playlistsByUpdatedDateAsc` | `` | `Flow<List<Playlist>>` |
-| `playlistsByNameAsc` | `` | `Flow<List<Playlist>>` |
-| `playlistsBySongCountAsc` | `` | `Flow<List<Playlist>>` |
-| `randomPlaylistsByArtists` | `artistIds: List<String>, limit: Int = 6` | `List<Playlist>` |
-| `playlists` | `sortType: PlaylistSortType, descending: Boolean,` | `` |
+| `playlistsByCreateDateAsc` |  | `Flow<List<Playlist>>` |
+| `playlistsByUpdatedDateAsc` |  | `Flow<List<Playlist>>` |
+| `playlistsByNameAsc` |  | `Flow<List<Playlist>>` |
+| `playlistsBySongCountAsc` |  | `Flow<List<Playlist>>` |
+| `playlists` | `sortType: PlaylistSortType, descending: Boolean` | `(inferred)` |
 | `playlist` | `playlistId: String` | `Flow<Playlist?>` |
-| `editablePlaylistsByCreateDateAsc` | `` | `Flow<List<Playlist>>` |
+| `editablePlaylistsByCreateDateAsc` |  | `Flow<List<Playlist>>` |
 | `playlistByBrowseId` | `browseId: String` | `Flow<Playlist?>` |
-| `checkInPlaylist` | `playlistId: String, songId: String,` | `Int` |
-| `playlistDuplicates` | `playlistId: String, songIds: List<String>,` | `List<String>` |
-| `addSongToPlaylist` | `playlist: Playlist, songIds: List<String>` | `` |
-| `downloadedSongs` | `sortType: SongSortType, descending: Boolean` | `Flow<List<Song>>` |
-| `downloadedSongsByCreateDateAsc` | `` | `Flow<List<Song>>` |
-| `downloadedSongsByNameAsc` | `` | `Flow<List<Song>>` |
-| `downloadedSongsByPlayTimeAsc` | `` | `Flow<List<Song>>` |
-| `updateDownloadedInfo` | `songId: String, downloaded: Boolean, date: LocalDateTime?` | `@Query("UPDATE song SET isVideo` |
-| `setIsVideo` | `songId: String, isVideo: Boolean` | `@Transaction` |
-| `uploadedSongsByCreateDateAsc` | `` | `Flow<List<Song>>` |
-| `uploadedSongsByNameAsc` | `` | `Flow<List<Song>>` |
-| `uploadedSongsByPlayTimeAsc` | `` | `Flow<List<Song>>` |
-| `uploadedSongsByRowIdAsc` | `` | `Flow<List<Song>>` |
-| `uploadedSongs` | `sortType: SongSortType, descending: Boolean,` | `` |
-| `searchArtists` | `query: String, previewSize: Int = Int.MAX_VALUE,` | `Flow<List<Artist>>` |
-| `searchAlbums` | `query: String, previewSize: Int = Int.MAX_VALUE,` | `Flow<List<Album>>` |
-| `searchPlaylists` | `query: String, previewSize: Int = Int.MAX_VALUE,` | `Flow<List<Playlist>>` |
-| `events` | `` | `Flow<List<EventWithSong>>` |
-| `firstEvent` | `` | `Flow<EventWithSong?>` |
-| `clearListenHistory` | `` | `@Transaction` |
+| `playlistDuplicatesChunk` | `playlistId: String, songIds: List<String>` | `List<String>` |
+| `playlistDuplicates` | `playlistId: String, songIds: List<String>` | `List<String>` |
+| `addSongToPlaylist` | `playlist: Playlist, songIds: List<String>` | `Unit` |
+| `downloadedSongs` | `sortType: SongSortType, descending: Boolean, includeVideos: Boolean = true` | `Flow<List<Song>>` |
+| `downloadedSongsByCreateDateAsc` | `includeVideos: Boolean` | `Flow<List<Song>>` |
+| `downloadedSongsWhitelistedByCreateDateAsc` | `includeVideos: Boolean` | `Flow<List<Song>>` |
+| `downloadedSongsByNameAsc` | `includeVideos: Boolean` | `Flow<List<Song>>` |
+| `downloadedSongsByPlayTimeAsc` | `includeVideos: Boolean` | `Flow<List<Song>>` |
+| `downloadedEpisodes` | `sortType: SongSortType, descending: Boolean` | `Flow<List<Song>>` |
+| `downloadedEpisodesByCreateDateAsc` |  | `Flow<List<Song>>` |
+| `downloadedEpisodesByNameAsc` |  | `Flow<List<Song>>` |
+| `downloadedEpisodesByPlayTimeAsc` |  | `Flow<List<Song>>` |
+| `updateDownloadedInfo` | `songId: String, downloaded: Boolean, date: LocalDateTime?` | `Unit` |
+| `stampCacheDownloadDate` | `songId: String, date: LocalDateTime` | `Unit` |
+| `setIsVideo` | `songId: String, isVideo: Boolean` | `Unit` |
+| `uploadedSongsByCreateDateAsc` |  | `Flow<List<Song>>` |
+| `uploadedSongsByNameAsc` |  | `Flow<List<Song>>` |
+| `uploadedSongsByPlayTimeAsc` |  | `Flow<List<Song>>` |
+| `uploadedSongsByRowIdAsc` |  | `Flow<List<Song>>` |
+| `uploadedSongs` | `sortType: SongSortType, descending: Boolean` | `(inferred)` |
+| `searchArtists` | `query: String, previewSize: Int = Int.MAX_VALUE` | `Flow<List<Artist>>` |
+| `searchAlbums` | `query: String, previewSize: Int = Int.MAX_VALUE` | `Flow<List<Album>>` |
+| `searchPlaylists` | `query: String, previewSize: Int = Int.MAX_VALUE` | `Flow<List<Playlist>>` |
+| `events` |  | `Flow<List<EventWithSong>>` |
+| `eventCount` |  | `Flow<Int>` |
+| `eventsForBackfill` | `afterId: Long, maxId: Long, limit: Int` | `List<Event>` |
+| `maxEventId` |  | `Long` |
+| `likedSongsForBackfill` |  | `List<ActionSnapshotRow>` |
+| `downloadedSongsForBackfill` |  | `List<ActionSnapshotRow>` |
+| `firstEvent` |  | `Flow<EventWithSong?>` |
+| `clearListenHistory` |  | `Unit` |
 | `searchHistory` | `query: String = ""` | `Flow<List<SearchHistory>>` |
-| `clearSearchHistory` | `` | `@Query("UPDATE song SET totalPlayTime` |
-| `incrementTotalPlayTime` | `songId: String, playTime: Long` | `@Query("UPDATE playCount SET count` |
-| `incrementPlayCount` | `songId: String, year: Int, month: Int` | `/**` |
-| `incrementPlayCount` | `songId: String` | `` |
-| `inLibrary` | `songId: String, inLibrary: LocalDateTime?,` | `@Transaction` |
-| `addLibraryTokens` | `songId: String, libraryAddToken: String?, libraryRemoveToken: String?,` | `@Transaction` |
+| `clearSearchHistory` |  | `Unit` |
+| `incrementTotalPlayTime` | `songId: String, playTime: Long` | `Unit` |
+| `updateEpisodePosition` | `songId: String, positionMs: Long` | `Int` |
+| `episodePosition` | `songId: String` | `Long?` |
+| `episodeResumePositions` |  | `Flow<Map<@MapColumn("") String, @MapColumn("") Long>>` |
+| `incrementPlayCount` | `songId: String, year: Int, month: Int` | `Unit` |
+| `incrementPlayCount` | `songId: String` | `Unit` |
+| `inLibrary` | `songId: String, inLibrary: LocalDateTime?` | `Unit` |
+| `addLibraryTokens` | `songId: String, libraryAddToken: String?, libraryRemoveToken: String?` | `Unit` |
 | `hasRelatedSongs` | `songId: String` | `Boolean` |
 | `getRelatedSongs` | `songId: String` | `Flow<List<Song>>` |
-| `relatedSongs` | `songId: String` | `List<Song>` |
-| `move` | `playlistId: String, fromPosition: Int, toPosition: Int,` | `@Transaction` |
-| `clearPlaylist` | `playlistId: String` | `@Transaction` |
+| `move` | `playlistId: String, fromPosition: Int, toPosition: Int` | `Unit` |
+| `clearPlaylist` | `playlistId: String` | `Unit` |
 | `artistByName` | `name: String` | `ArtistEntity?` |
-| `getArtistById` | `id: String` | `ArtistEntity?` |
-| `getAllArtistIdsSync` | `` | `List<String>` |
+| `artistEntity` | `id: String` | `Flow<ArtistEntity?>` |
+| `bookmarkedPodcastChannels` |  | `Flow<List<ArtistEntity>>` |
+| `getAllArtistIdsSync` |  | `List<String>` |
 | `insert` | `song: SongEntity` | `Long` |
-| `insert` | `artist: ArtistEntity` | `@Insert(onConflict` |
-| `insertArtists` | `artists: List<ArtistEntity>` | `@Insert(onConflict` |
+| `insert` | `artist: ArtistEntity` | `Unit` |
+| `insertArtists` | `artists: List<ArtistEntity>` | `Unit` |
 | `insert` | `album: AlbumEntity` | `Long` |
-| `insert` | `playlist: PlaylistEntity` | `@Insert(onConflict` |
-| `insert` | `map: SongArtistMap` | `@Insert(onConflict` |
-| `insert` | `map: SongAlbumMap` | `@Insert(onConflict` |
-| `insert` | `map: AlbumArtistMap` | `@Insert(onConflict` |
-| `insert` | `map: PlaylistSongMap` | `@Insert(onConflict` |
-| `insert` | `searchHistory: SearchHistory` | `@Insert(onConflict` |
-| `insert` | `event: Event` | `@Insert(onConflict` |
-| `insert` | `map: RelatedSongMap` | `@Insert(onConflict` |
+| `insert` | `playlist: PlaylistEntity` | `Unit` |
+| `insert` | `map: SongArtistMap` | `Unit` |
+| `insert` | `map: SongAlbumMap` | `Unit` |
+| `insert` | `map: AlbumArtistMap` | `Unit` |
+| `insert` | `map: PlaylistSongMap` | `Unit` |
+| `insert` | `searchHistory: SearchHistory` | `Unit` |
+| `insert` | `event: Event` | `Unit` |
+| `insert` | `map: RelatedSongMap` | `Unit` |
 | `insert` | `playCountEntity: PlayCountEntity` | `Long` |
-| `insert` | `mediaMetadata: MediaMetadata, block: (SongEntity` | `-> SongEntity` |
-| `insert` | `albumPage: AlbumPage` | `` |
-| `update` | `song: Song, mediaMetadata: MediaMetadata,` | `` |
-| `update` | `song: SongEntity` | `@Update` |
-| `update` | `artist: ArtistEntity` | `@Update` |
-| `update` | `album: AlbumEntity` | `@Update` |
-| `update` | `playlist: PlaylistEntity` | `@Update` |
-| `update` | `map: PlaylistSongMap` | `@Transaction` |
-| `update` | `artist: ArtistEntity, artistPage: ArtistPage` | `` |
-| `update` | `album: AlbumEntity, albumPage: AlbumPage, artists: List<ArtistEntity>? = emptyList(` | `,` |
-| `update` | `playlistEntity: PlaylistEntity, playlistItem: PlaylistItem` | `` |
-| `upsert` | `map: SongAlbumMap` | `@Upsert` |
-| `upsert` | `lyrics: LyricsEntity` | `@Upsert` |
-| `upsert` | `format: FormatEntity` | `@Upsert` |
-| `upsert` | `song: SongEntity` | `@Delete` |
-| `delete` | `song: SongEntity` | `@Delete` |
-| `delete` | `songArtistMap: SongArtistMap` | `@Delete` |
-| `delete` | `artist: ArtistEntity` | `@Delete` |
-| `delete` | `album: AlbumEntity` | `@Delete` |
-| `delete` | `albumArtistMap: AlbumArtistMap` | `@Delete` |
-| `delete` | `playlist: PlaylistEntity` | `@Delete` |
-| `delete` | `playlistSongMap: PlaylistSongMap` | `@Query("DELETE FROM playlist WHERE browseId` |
-| `deletePlaylistById` | `browseId: String` | `@Delete` |
-| `delete` | `lyrics: LyricsEntity` | `@Delete` |
-| `delete` | `searchHistory: SearchHistory` | `@Delete` |
-| `delete` | `event: Event` | `@Transaction` |
+| `insert` | `mediaMetadata: MediaMetadata, block: (SongEntity) -> SongEntity = { it }` | `Unit` |
+| `insert` | `albumPage: AlbumPage` | `Unit` |
+| `update` | `song: Song, mediaMetadata: MediaMetadata` | `Unit` |
+| `update` | `song: SongEntity` | `Unit` |
+| `update` | `artist: ArtistEntity` | `Unit` |
+| `updateArtistThumbnailUrl` | `artistId: String, thumbnailUrl: String` | `Unit` |
+| `applyWhitelistDisplayNames` |  | `Unit` |
+| `whitelistDisplayNameSync` | `artistId: String` | `String?` |
+| `replaceArtistThumbnailUrl` | `artistId: String, thumbnailUrl: String` | `Unit` |
+| `update` | `album: AlbumEntity` | `Unit` |
+| `update` | `playlist: PlaylistEntity` | `Unit` |
+| `update` | `map: PlaylistSongMap` | `Unit` |
+| `update` | `artist: ArtistEntity, artistPage: ArtistPage` | `Unit` |
+| `update` | `album: AlbumEntity, albumPage: AlbumPage, artists: List<ArtistEntity>? = emptyList()` | `Unit` |
+| `update` | `playlistEntity: PlaylistEntity, playlistItem: PlaylistItem` | `Unit` |
+| `upsert` | `map: SongAlbumMap` | `Unit` |
+| `upsert` | `lyrics: LyricsEntity` | `Unit` |
+| `upsert` | `format: FormatEntity` | `Unit` |
+| `upsert` | `song: SongEntity` | `Unit` |
+| `delete` | `song: SongEntity` | `Unit` |
+| `delete` | `songArtistMap: SongArtistMap` | `Unit` |
+| `delete` | `artist: ArtistEntity` | `Unit` |
+| `delete` | `album: AlbumEntity` | `Unit` |
+| `delete` | `albumArtistMap: AlbumArtistMap` | `Unit` |
+| `delete` | `playlist: PlaylistEntity` | `Unit` |
+| `delete` | `playlistSongMap: PlaylistSongMap` | `Unit` |
+| `delete` | `lyrics: LyricsEntity` | `Unit` |
+| `delete` | `searchHistory: SearchHistory` | `Unit` |
+| `delete` | `event: Event` | `Unit` |
 | `playlistSongMaps` | `songId: String` | `List<PlaylistSongMap>` |
-| `playlistSongMaps` | `playlistId: String, from: Int,` | `List<PlaylistSongMap>` |
+| `playlistSongMaps` | `playlistId: String, from: Int` | `List<PlaylistSongMap>` |
 | `raw` | `supportSQLiteQuery: SupportSQLiteQuery` | `Int` |
-| `checkpoint` | `` | `` |
-| `upsert` | `whitelist: ArtistWhitelistEntity` | `@Insert(onConflict` |
-| `insertWhitelist` | `whitelistEntries: List<ArtistWhitelistEntity>` | `@Query("SELECT artistId FROM artist_whitelist")` |
-| `getAllWhitelistedArtistIds` | `` | `Flow<List<String>>` |
-| `getAllWhitelistedArtistIdsSync` | `` | `List<String>` |
+| `checkpoint` |  | `Unit` |
+| `upsert` | `whitelist: ArtistWhitelistEntity` | `Unit` |
+| `insertWhitelist` | `whitelistEntries: List<ArtistWhitelistEntity>` | `Unit` |
+| `getAllWhitelistedArtistIds` |  | `Flow<List<String>>` |
+| `getAllWhitelistedArtistIdsSync` |  | `List<String>` |
 | `getWhitelistEntry` | `artistId: String` | `ArtistWhitelistEntity?` |
-| `getWhitelistEntriesSync` | `` | `List<ArtistWhitelistEntity>` |
+| `getWhitelistEntriesSync` |  | `List<ArtistWhitelistEntity>` |
 | `isArtistWhitelisted` | `artistId: String` | `Boolean` |
-| `getRandomWhitelistedArtistIds` | `limit: Int` | `List<String>` |
+| `whitelistedArtistIdsSyncChunk` | `ids: List<String>` | `List<String>` |
+| `whitelistedArtistIdsSync` | `ids: List<String>` | `List<String>` |
+| `artistsByNameSync` | `name: String` | `List<ArtistEntity>` |
 | `getWhitelistedArtistIdsMissingThumb` | `limit: Int` | `List<String>` |
-| `clearWhitelist` | `` | `@Query("DELETE FROM artist_whitelist WHERE artistId` |
-| `removeFromWhitelist` | `artistId: String` | `// Artist deletion methods` |
+| `clearWhitelist` |  | `Unit` |
+| `recognitionHistory` |  | `Flow<List<RecognitionHistoryEntity>>` |
+| `insertRecognitionHistory` | `entity: RecognitionHistoryEntity` | `Long` |
+| `deleteRecognitionHistoryBySong` | `songId: String` | `Unit` |
+| `deleteRecognitionHistory` | `entity: RecognitionHistoryEntity` | `Unit` |
+| `clearRecognitionHistory` |  | `Unit` |
 | `getSongIdsByArtist` | `artistId: String` | `List<String>` |
 | `getAlbumIdsByArtist` | `artistId: String` | `List<String>` |
-| `deletePlayCountBySong` | `songId: String` | `@Query("DELETE FROM format WHERE id` |
-| `deleteFormatBySong` | `songId: String` | `@Query("DELETE FROM lyrics WHERE id` |
-| `deleteLyricsBySong` | `songId: String` | `@Query("DELETE FROM song WHERE id` |
-| `deleteSongById` | `songId: String` | `@Query("SELECT COUNT(*) FROM song_album_map WHERE albumId` |
+| `songAlbumIndex` | `songId: String, albumId: String` | `Int?` |
 | `getAlbumSongCount` | `albumId: String` | `Int` |
-| `deleteAlbumById` | `albumId: String` | `@Query("DELETE FROM artist WHERE id` |
-| `deleteArtistById` | `artistId: String` | `// Batch operations for efficiency` |
-| `deletePlayCountBySongs` | `songIds: List<String>` | `@Query("DELETE FROM format WHERE id IN (:songIds)")` |
-| `deleteFormatBySongs` | `songIds: List<String>` | `@Query("DELETE FROM lyrics WHERE id IN (:songIds)")` |
-| `deleteLyricsBySongs` | `songIds: List<String>` | `@Query("DELETE FROM song WHERE id IN (:songIds)")` |
-| `deleteSongsByIds` | `songIds: List<String>` | `@Query("DELETE FROM album WHERE id IN (:albumIds)")` |
-| `deleteAlbumsByIds` | `albumIds: List<String>` | `@Query("DELETE FROM artist WHERE id IN (:artistIds)")` |
-| `deleteArtistsByIds` | `artistIds: List<String>` | `}` |
+| `deleteArtistById` | `artistId: String` | `Unit` |
+| `deletePlayCountBySongsChunk` | `songIds: List<String>` | `Unit` |
+| `deletePlayCountBySongs` | `songIds: List<String>` | `(inferred)` |
+| `deleteFormatBySongsChunk` | `songIds: List<String>` | `Unit` |
+| `deleteFormatBySongs` | `songIds: List<String>` | `(inferred)` |
+| `deleteLyricsBySongsChunk` | `songIds: List<String>` | `Unit` |
+| `deleteLyricsBySongs` | `songIds: List<String>` | `(inferred)` |
+| `deleteSongsByIdsChunk` | `songIds: List<String>` | `Unit` |
+| `deleteSongsByIds` | `songIds: List<String>` | `(inferred)` |
+| `deleteAlbumsByIdsChunk` | `albumIds: List<String>` | `Unit` |
+| `deleteAlbumsByIds` | `albumIds: List<String>` | `(inferred)` |
+| `insertPodcastWhitelist` | `whitelistEntries: List<PodcastWhitelistEntity>` | `Unit` |
+| `getAllWhitelistedPodcastIdsSync` |  | `List<String>` |
+| `allWhitelistedPodcastsByName` |  | `Flow<List<PodcastWhitelistEntity>>` |
+| `getPodcastWhitelistEntriesSync` |  | `List<PodcastWhitelistEntity>` |
+| `clearPodcastWhitelist` |  | `Unit` |
+| `subscribedPodcasts` |  | `Flow<List<PodcastEntity>>` |
+| `podcast` | `id: String` | `Flow<PodcastEntity?>` |
+| `upsertPodcast` | `podcast: PodcastEntity` | `Unit` |
+| `updatePodcast` | `podcast: PodcastEntity` | `Unit` |
+| `savedEpisodes` |  | `Flow<List<Song>>` |
+| `continueListeningEpisodes` | `limit: Int = 20` | `Flow<List<Song>>` |
