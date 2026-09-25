@@ -9,6 +9,7 @@ Rewrites, in place (re-running until a fixed point, so one invocation is idempot
   - docs/repository-map.md         (the "### Counts" + "### Every counted file" section)
   - docs/reference/kotlin-files.md
   - docs/reference/non-kotlin-files.md
+  - docs/reference/resource-index.md  (every tracked file under app/src/*/res)
   - docs/build-release.md          (Gradle / CI / native / JVM-module facts; needs PyYAML -                                     `pip install pyyaml` - else it is skipped with a note)
 
 Everything is derived from `git ls-files` and the file contents. No behaviour is inferred.
@@ -237,6 +238,54 @@ def gen_non_kotlin_md():
     return "\n".join(out) + "\n"
 
 
+# ---------- reference/resource-index.md ----------
+RES_RE = re.compile(r"^app/src/[^/]+/res/(.+)$")
+RES_NAMES_CAP = 20
+
+
+def resource_names(path):
+    """Every `name` attribute in document order (deduped), capped - the declared resource /
+    item names of a values/xml resource. Empty for files that declare none."""
+    try:
+        root = ET.parse(os.path.join(ROOT, path)).getroot()
+    except Exception:
+        return ""
+    names = []
+    for el in root.iter():
+        for k, v in el.attrib.items():
+            if k.split("}")[-1] == "name" and v not in names:
+                names.append(v)
+    if len(names) > RES_NAMES_CAP:
+        return ", ".join(names[:RES_NAMES_CAP]) + f", … +{len(names) - RES_NAMES_CAP} more"
+    return ", ".join(names)
+
+
+def gen_resource_index_md():
+    regular, _ = tracked()
+    groups = {}
+    for p in regular:
+        m = RES_RE.match(p)
+        if m:
+            groups.setdefault(m.group(1).split("/", 1)[0], []).append(p)
+    total = sum(len(v) for v in groups.values())
+    out = ["# Android resource index", "",
+           f"Tracked Android resource paths under `app/src/**/res`: `{total}`.", ""]
+    for g in sorted(groups):
+        out += [f"## `{g}` ({len(groups[g])} paths)", "",
+                "| Path | Lines/bytes | XML root | Resource names / metadata |",
+                "| --- | ---: | --- | --- |"]
+        for p in sorted(groups[g]):
+            data = read_bytes(p)
+            if is_binary(data):
+                out.append(f"| `{p}` | {len(data)} bytes | `` |  |")
+                continue
+            root = xml_root(p) if p.endswith(".xml") else None
+            names = resource_names(p) if root else ""
+            out.append(f"| `{p}` | {nr_lines(data)} lines | `{root or ''}` | {_cell(names)} |")
+        out.append("")
+    return "\n".join(out).rstrip("\n") + "\n"
+
+
 # ---------- repository-map.md inventory ----------
 def gen_repo_inventory():
     regular, _ = tracked()  # gitlinks excluded from this inventory
@@ -447,6 +496,7 @@ def generate_pass():
     (which inventories every file, including those) records their post-write sizes."""
     write_text("docs/reference/kotlin-files.md", gen_kotlin_md())
     write_text("docs/reference/non-kotlin-files.md", gen_non_kotlin_md())
+    write_text("docs/reference/resource-index.md", gen_resource_index_md())
     if HAVE_YAML:
         write_text("docs/build-release.md", gen_build_release_md())
     rewrite_repo_map()
@@ -456,6 +506,7 @@ def generate_pass():
 GENERATED = [
     "docs/reference/kotlin-files.md",
     "docs/reference/non-kotlin-files.md",
+    "docs/reference/resource-index.md",
     "docs/build-release.md",
     "docs/repository-map.md",
 ]

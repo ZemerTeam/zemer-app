@@ -17,28 +17,31 @@
 | Compile SDK | `36` |
 | Minimum SDK | `26` |
 | Target SDK | `36` |
-| Version code/name | `27` / `27` |
+| Version code/name | `38` / `38` |
 | Java/Kotlin target | JVM 21 |
 | Compose | Enabled |
-| BuildConfig | Enabled |
+| BuildConfig | Enabled; fields `ARCHITECTURE`, `COMMIT_HASH`, `RUN_NUMBER`, `GOOGLE_TOKEN_EXCHANGE_URL`, `CONTENT_MIRROR_URL`, `ZEMER_LYRICS_BASE_URL` |
 | Room schema output | `app/schemas` |
 | ABI filters | `arm64-v8a`, `armeabi-v7a` |
 | Locale filters | `en`, `iw` |
-| Native build | CMake at `app/src/main/cpp/CMakeLists.txt` unless `USE_PREBUILT_NATIVE=true` |
+| Native build | None - the app has no `app/src/main/cpp` and no `externalNativeBuild`; the ABI filters only select bundled dependency native libraries. |
 
 ## Manifest-declared Android components
 
 | Component type | Declared component / behavior |
 | --- | --- |
 | Application class | `.App` |
-| Main activity | `.MainActivity`, exported, singleTop, fullSensor, handles launcher, voice/search, media search, YouTube/Zemer deep links, and text sharing. |
+| Main activity | `.MainActivity`, exported, `launchMode="singleTask"`, `supportsPictureInPicture="true"`, `configChanges` `orientation|screenSize|smallestScreenSize|screenLayout|keyboardHidden`; handles launcher/`MUSIC_PLAYER`, `MEDIA_PLAY_FROM_SEARCH`, YouTube (`youtube.com`, `m.`/`www.`/`music.youtube.com`, `youtu.be`, `vnd.youtube`) and Zemer (`music.zemer.io`, `video.zemer.io`) deep links, and `SEND` of `text/plain`. |
+| Resume trampoline | `.ResumePlaybackActivity`, exported, `Theme.NoDisplay`, no history, excluded from recents. |
+| Recognition dialog | `.ui.screens.recognition.RecognizeMusicDialogActivity`, not exported, singleTop, transparent theme, excluded from recents. |
+| Crop activity | `com.yalantis.ucrop.UCropActivity`, `screenOrientation="fullSensor"`. |
 | File provider | `androidx.core.content.FileProvider` with `${applicationId}.FileProvider`. |
+| Shizuku provider | `rikka.shizuku.ShizukuProvider` with `${applicationId}.shizuku`, exported, permission `INTERACT_ACROSS_USERS_FULL`. |
 | Density provider | `com.dpi.DensityScaler`. |
-| Crop activity | `com.yalantis.ucrop.UCropActivity`. |
 | Media service | `.playback.MusicService`, exported, foreground type `mediaPlayback`, handles Media3 session/library and legacy media browser actions. |
-| Download services | `.playback.ExoDownloadService` and `.playback.MediaStoreDownloadService`, foreground type `dataSync`. |
+| Download service | `.playback.MediaStoreDownloadService`, not exported, foreground type `dataSync`. |
 | Accessibility service | `.accessibility.ButtonMapperAccessibilityService`, bound with `android.permission.BIND_ACCESSIBILITY_SERVICE`. |
-| Receivers | `androidx.media3.session.MediaButtonReceiver` and `.widget.MusicWidgetReceiver`. |
+| Receivers | `.utils.updater.InstallReceiver` (action `com.jtech.zemer.INSTALL_STATUS`, not exported), `androidx.media3.session.MediaButtonReceiver`, and `.widget.MusicWidgetReceiver`. |
 | Automotive metadata | `com.google.android.gms.car.application` pointing to `@xml/automotive_app_desc`. |
 
 ## Source module purposes visible from files
@@ -46,14 +49,16 @@
 | Module | Source package(s) | Observable responsibility |
 | --- | --- | --- |
 | `app` | `com.jtech.zemer`, `com.dpi` | Android application, Compose UI, playback, Room database, DataStore preferences, Firebase auth/sync, whitelist filtering, widgets, accessibility, and density scaling. |
-| `innertube` | `com.metrolist.innertube` | Ktor/OkHttp JVM library for YouTube Music InnerTube requests, NewPipe integration, response models, and page parsers. |
+| `innertube` | `com.metrolist.innertube` | Ktor/OkHttp JVM library for YouTube Music InnerTube requests, response models, and page parsers (dependencies: five Ktor artifacts, `okhttp-dnsoverhttps`, JUnit for tests). |
 
-## Latest committed Room schema (`InternalDatabase` schema 32)
+## Latest committed Room schema (`InternalDatabase` schema 36)
 
-| Table | Fields in schema 32 |
+`app/schemas/com.jtech.zemer.db.InternalDatabase/36.json` declares 19 entities and 3 views (`sorted_song_artist_map`, `sorted_song_album_map`, `playlist_song_map_preview`). Per-entity detail: [`app/database.md`](app/database.md).
+
+| Table | Fields in schema 36 |
 | --- | --- |
-| `song` | `id`, `title`, `duration`, `thumbnailUrl`, `albumId`, `albumName`, `explicit`, `year`, `date`, `dateModified`, `liked`, `likedDate`, `totalPlayTime`, `inLibrary`, `dateDownload`, `isLocal`, `libraryAddToken`, `libraryRemoveToken`, `romanizeLyrics`, `isDownloaded`, `mediaStoreUri`, `isUploaded`, `isVideo` |
-| `artist` | `id`, `name`, `thumbnailUrl`, `channelId`, `lastUpdateTime`, `bookmarkedAt`, `isLocal` |
+| `song` | `id`, `title`, `duration`, `thumbnailUrl`, `albumId`, `albumName`, `explicit`, `year`, `date`, `dateModified`, `liked`, `likedDate`, `totalPlayTime`, `lastPositionMs`, `inLibrary`, `dateDownload`, `isLocal`, `libraryAddToken`, `libraryRemoveToken`, `romanizeLyrics`, `isDownloaded`, `mediaStoreUri`, `isUploaded`, `isVideo`, `isEpisode` |
+| `artist` | `id`, `name`, `thumbnailUrl`, `channelId`, `lastUpdateTime`, `bookmarkedAt`, `isLocal`, `isPodcastChannel` |
 | `album` | `id`, `playlistId`, `title`, `year`, `thumbnailUrl`, `themeColor`, `songCount`, `duration`, `explicit`, `lastUpdateTime`, `bookmarkedAt`, `likedDate`, `inLibrary`, `isLocal`, `isUploaded` |
 | `playlist` | `id`, `name`, `browseId`, `createdAt`, `lastUpdateTime`, `isEditable`, `bookmarkedAt`, `remoteSongCount`, `playEndpointParams`, `thumbnailUrl`, `shuffleEndpointParams`, `radioEndpointParams`, `isLocal` |
 | `song_artist_map` | `songId`, `artistId`, `position` |
@@ -62,12 +67,15 @@
 | `playlist_song_map` | `id`, `playlistId`, `songId`, `position`, `setVideoId` |
 | `search_history` | `id`, `query` |
 | `format` | `id`, `itag`, `mimeType`, `codecs`, `bitrate`, `sampleRate`, `contentLength`, `loudnessDb`, `playbackUrl`, `streamClient` |
-| `lyrics` | `id`, `lyrics` |
+| `lyrics` | `id`, `lyrics`, `provider` |
 | `event` | `id`, `songId`, `timestamp`, `playTime` |
 | `related_song_map` | `id`, `songId`, `relatedSongId` |
 | `set_video_id` | `videoId`, `setVideoId` |
 | `playCount` | `song`, `year`, `month`, `count` |
-| `artist_whitelist` | `artistId`, `artistName`, `addedAt`, `source`, `lastSyncedAt`, `isFemale`, `isChasid`, `isGenZ`, `isKids`, `isKidZone` |
+| `artist_whitelist` | `artistId`, `artistName`, `addedAt`, `source`, `lastSyncedAt`, `isFemale`, `isChasid`, `isGenZ`, `isKids`, `isKidZone`, `displayName`, `altName` |
+| `recognition_history` | `id`, `songId`, `title`, `artist`, `thumbnailUrl`, `artistIds`, `recognizedAt` |
+| `podcast_whitelist` | `channelId`, `name`, `thumbnailUrl`, `isFemale`, `isKidZone`, `isVerified`, `showCount`, `lastSyncedAt` |
+| `podcast` | `id`, `title`, `author`, `thumbnailUrl`, `channelId`, `bookmarkedAt`, `lastUpdateTime` |
 
 ## File and declaration inventory
 
@@ -1215,7 +1223,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `docs/fcast/06-ui.md` | 131 lines | `.md` |
 | `docs/fcast/07-testing-and-troubleshooting.md` | 176 lines | `.md` |
 | `docs/fcast/README.md` | 79 lines | `.md` |
-| `docs/generate.py` | 483 lines | `.py` |
+| `docs/generate.py` | 534 lines | `.py` |
 | `docs/genres/README.md` | 120 lines | `.md` |
 | `docs/home_rows/README.md` | 106 lines | `.md` |
 | `docs/innertube/README.md` | 170 lines | `.md` |
@@ -1245,7 +1253,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `docs/recognize_music/README.md` | 71 lines | `.md` |
 | `docs/reference/kotlin-files.md` | 900 lines | `.md` |
 | `docs/reference/non-kotlin-files.md` | 434 lines | `.md` |
-| `docs/reference/resource-index.md` | 255 lines | `.md` |
+| `docs/reference/resource-index.md` | 303 lines | `.md` |
 | `docs/remote_cipher_config/01-why-it-exists.md` | 88 lines | `.md` |
 | `docs/remote_cipher_config/02-file-format.md` | 116 lines | `.md` |
 | `docs/remote_cipher_config/03-runtime-store.md` | 156 lines | `.md` |
