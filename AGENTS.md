@@ -431,16 +431,17 @@ config are in `docs/status/`. The feature is **fail-soft and isolated**; the rul
   `StatusCreatorCircle`'s per-segment ring colors seen (`outlineVariant`) vs unseen (accent).
 - **The ring respects the content filter.** `StatusCreator.recentPostKinds` (YidStatus from the feed;
   JewishStatus via a batched `public_posts?id=in.(...)&select=id,kind`) feeds `visibleRecentIds(filter)`;
-  the ring, `caughtUpOnLatest` and `sortedByUnseenFirst` key off the VISIBLE ids and a creator with
-  nothing viewable drops. Unknown kinds show all - never hide more than we can prove.
+  the ring, `caughtUpOnLatest` and `sortedByUnseenFirst` key off the VISIBLE ids; a creator with
+  nothing viewable stays, drawn with a single muted arc. Unknown kinds show all - never hide more than we
+  can prove.
 - **Viewer no-flash invariants** (`StoryScreen`): creators live in a cube `HorizontalPager`; the active
   face renders only when `postsCreatorIdx == creatorIdx`; both neighbors are prefetched (posts AND
   thumbnail bytes); the resume position is resolved EXACTLY ONCE against the AWAITED `seenSnapshot()`
   (never the `seenPostIds` StateFlow, empty for the first frames); the play effect keys on the CURRENT
   status id so an appending refresh doesn't restart the video; progress runs on `withFrameNanos`
   (dt-capped). Video fills the screen (`RESIZE_MODE_ZOOM` in `StatusVideoSurface`, controller auto-show +
-  buffering spinner disabled BEFORE the player binds) and `StatusLoadingIndicator` covers it until the
-  first frame - never a low-res poster. Its own short-lived ExoPlayer: the music player pauses on open and
+  buffering spinner disabled BEFORE the player binds); until the first frame it is a black cover, with
+  `StatusLoadingIndicator` only if still loading after ~0.75 s - never a low-res poster. Its own short-lived ExoPlayer: the music player pauses on open and
   resumes on close; the video pauses on `ON_STOP`.
 - **Caption + text are interactive** (shared with the saved viewer): `ExpandableStatusCaption` (3-line
   collapse with Read more/less - expanding freezes auto-advance; links via `linkifyStatusText`; inline
@@ -476,7 +477,7 @@ config are in `docs/status/`. The feature is **fail-soft and isolated**; the rul
   `SavedStatusViewModel` grouping by creator): cube-pager creators, `StatusStoryTopOverlay`,
   auto-advance, tap/press-hold, background-pause, `ExpandableStatusCaption` / copy pill,
   `StatusLoadingIndicator`, the `cubeFace` transform; only the media comes from the files. The
-  `faceCreator` gate keeps swipes flash-free (a video shows the loading indicator, never a poster).
+  `faceCreator` gate keeps swipes flash-free (a video preview face stays black, never a poster).
 - **The library is a flat grid** (no grouped view): kind chips (All/Video/Image/Text), a
   Recently-saved/Recently-posted sort, a creator-avatar filter row when >1 creator; long-press opens
   `SavedStatusMenu` (`Material3MenuGroup` Select / Remove); Select enters multi-select via the shared
