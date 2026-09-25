@@ -22,9 +22,9 @@ serves **what the Zemer audience actually plays**, and touches InnerTube for **z
    between two subsets on every pull). The rows read the live Room row via `rememberLiveSong`, which
    falls back to the snapshot when the whitelist sync deleted the row mid-display.
 3. **Latest Releases** comes from the flipphoneguy feed; **Zemer Playlists** from `/zemer-playlists`.
-4. **Zemer Radio** (under Zemer Playlists) comes from `GET /stations` — the synchronized broadcast
-   stations, with a live now-playing line per card (lifecycle-scoped 60s on-screen ticker) and a
-   See-all grid (`zemer_stations`). Fail-soft like every Zemer row; full detail in
+4. **Zemer Radio** is the Home **Radio** tab, from `GET /stations` — the synchronized broadcast
+   stations as a titled 3-column station grid (no See-all arrow: the tab IS the full list), with a
+   live now-playing line per card (lifecycle-scoped 60s on-screen ticker). Fail-soft like every Zemer row; full detail in
    `docs/stations/README.md`.
 5. The **mainstream Trending row is removed** (it filtered to empty and never displayed).
 
@@ -58,7 +58,7 @@ content to begin with.
 
 ```
 GET https://search.zemer.io/home-rows?allowFemale=0&blockVideos=1&kidZone=0
-→ { topAlbums:[ZemerAlbum+artistId+explicit], topVideos:[ZemerTrack+artistId],
+→ { topAlbums:[ZemerAlbum+artistId+explicit], topVideos:[ZemerTrack+artistId+realVideo],
     topArtists:[ZemerArtist], topCommunity:[ZemerPlaylist] }
 ```
 
@@ -67,6 +67,9 @@ GET https://search.zemer.io/home-rows?allowFemale=0&blockVideos=1&kidZone=0
 - Cards carry the **artist channel id** (`artistId` / `ZemerArtist.id`). This is load-bearing: the home
   one-per-artist `rotateByArtist` dedup and the female/israeli defence-in-depth both key on it and **no-op
   when it is null**.
+- `topVideos[].realVideo` flags a REAL filmed video (server classifier). It filters only the Featured
+  Videos **hero** (`ZemerResultMapper` → `HomeRows.realVideoIds`; the whole pool when none are flagged);
+  the See-all keeps the full video pool.
 - `topCommunity` = discovery-sourced community playlists, ranked by each playlist's own YouTube view
   count (no telemetry tagging, no cold-start). Backs the **Featured Playlists** row.
 
@@ -79,8 +82,8 @@ GET https://search.zemer.io/home-rows?allowFemale=0&blockVideos=1&kidZone=0
 - **Ranked content gate ≠ home gate.** `isAllowedRanked` applies female/israeli/blocked-ids ONLY, NOT the
   famous/american quality proxy in `isBlockedArtist`. Real listening reach supersedes the proxy; applying
   it cut the rows to near-empty (measured: albums 40→7, videos 19→2). See handoff REPLY 3.
-- **Server routing on tap.** Zemer-sourced albums/playlists open via `onlineAlbumRoute` /
-  `onlinePlaylistRoute` (`?zemer=true`), gated on `featuredAlbumsAreZemer` / `featuredPlaylistsAreZemer`,
+- **Server routing on tap.** Zemer-sourced albums/playlists open via `zemerAlbumRoute` /
+  `zemerPlaylistRoute` (`search/ZemerRoutes.kt`, `?zemer=true`), gated on `featuredAlbumsAreZemer` / `featuredPlaylistsAreZemer`,
   so the opened screen is whitelist-scoped and bot-gate-proof.
 - **The shuffle button is "Radio mode"** — `HomeViewModel.shuffleRadioQueue()` →
   `ZemerRadioQueue(kind = "shuffle", seed = null)`, a whole-catalog, whitelist-pure Zemer `/radio`
@@ -89,9 +92,10 @@ GET https://search.zemer.io/home-rows?allowFemale=0&blockVideos=1&kidZone=0
 - **"See all" reads the published snapshot.** `HomeSeeAllStore` holds the FULL (un-rotated) filtered pool
   `HomeViewModel` publishes each load; the see-all pages render straight from it (no re-fetch, no
   re-filter), so they can never disagree with the row. Featured grids are 2-column.
-- **Row sizing.** Featured rows `rotateByArtist(maxPerArtist=1, target=20)`; Featured Playlists `target=8`.
-  Community playlists have no curator id, so the dedup is a pass-through (server already applies the
-  female-owner hide + member survival + blocked-ids).
+- **Row sizing.** Featured rows `rotateByArtist(maxPerArtist=1, target=20)`. Featured Playlists have no
+  curator id, so no `rotateByArtist`: the pool is shuffled, the ids shown on the previous load
+  (`recentCommunityIds`) sort last, then `take(8)` — a pull-to-refresh turns the row over (server already
+  applies the female-owner hide + member survival + blocked-ids).
 
 ## Why the removed subsystems produced nothing
 

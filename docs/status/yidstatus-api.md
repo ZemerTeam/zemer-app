@@ -48,7 +48,7 @@ The plain PostgREST RPCs (below) are **not** Origin-gated; they work with just t
 A small, weighted, shuffled subset of creators for the story strip. Works with just `apikey`.
 
 ```
-POST /rest/v1/avatar_strip
+POST /rest/v1/rpc/avatar_strip
 apikey: <key>
 Content-Type: application/json
 
@@ -195,16 +195,19 @@ on-topic, filter influencers to the **music** categories. Category counts in the
 Match case-insensitively against BOTH `category` and every entry of `categories` (a creator can carry
 several). Everything else (News, Services, Real Estate, Kosher Food, Business, ...) is excluded.
 
-**Shipped filter (`YidStatusApi.YID_MUSIC_KEYWORDS`):** the app keeps a creator whose category contains
-any of `music, singer, kumzits, simcha, concert` (substring, case-insensitive). **Comedy and general
-Entertainment are deliberately excluded** (owner decision - the row is music-only). JewishStatus needs no
-such filter (its three source categories are already music-scoped server-side).
+**Shipped filter (server-driven):** the app keeps a creator whose category contains any of the
+`musicKeywords` of the `keyword-feed` provider in the status-sources config (`content.zemer.io/status-sources`,
+`statuses/StatusSourcesConfig.kt`; substring, case-insensitive) - the keyword set is not baked into the app
+(`YidStatusApiTest` pins the matching with an example set). **Comedy and general Entertainment are
+deliberately excluded** (owner decision - the row is music-only). JewishStatus needs no such filter (its
+configured source categories are already music-scoped server-side).
 
 ## How the app uses it
 
 `com.jtech.zemer.statuses.YidStatusApi`:
 
-- `fetchYidStatusFeed(days = 1)` - one `POST /functions/v1/feed` via **OkHttp** (for the `Origin` header),
+- `fetchYidStatusFeed(base, key, keywords)` (`days` defaults to `YID_FEED_DAYS` = 1; base/key/keywords
+  from the status-sources config) - one `POST /functions/v1/feed` via **OkHttp** (for the `Origin` header),
   reduced to music creators + their statuses (oldest-first per creator), ads/audio/hidden filtered.
 - Merged with JewishStatus in `StatusesRepository` (`mergeStatusCreators`, dedup by normalized name) and
   parsed under unit test in `app/src/test/.../statuses/YidStatusApiTest.kt`.

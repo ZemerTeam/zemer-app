@@ -34,8 +34,8 @@ covers, and all content filtering. The app's job is fetch → render → play:
   match what plays). The repository (`ZemerSearchRepository.curatedPlaylists/curatedPlaylist`)
   deliberately does **not** cache: the doc'd freshness contract is a plain re-fetch on screen open
   (in-memory server reads, single-digit ms), and no cache means a response fetched under one flag
-  set can never be shown under another. Only the surgical id-overrides (`dropBlocked`) and
-  `hideExplicit` run client-side, like every Zemer surface.
+  set can never be shown under another. Only the surgical id-overrides (`dropBlocked`) run
+  client-side, like every Zemer surface.
   One deliberate exception: when `search.zemer.io` is UNREACHABLE, both curated calls fall back to
   the on-device offline snapshot (`serverOrOffline` → `OfflineReadProvider`, see
   `docs/offline/README.md`) — up to 14 days old, filtered client-side by the offline read layer's
@@ -69,11 +69,16 @@ picks plus `albumIds` expanded to their tracks:
 - **All** — the full flattened tracklist, curated order.
 - **Albums** — the curated albums themselves as browsable rows (`albums` array in the detail
   response, decoded with the `/search` album model `ZemerAlbum`); tap opens the normal album screen
-  through the server path (`SearchProvider.ZEMER.onlineAlbumRoute`). Play/Shuffle under this chip
+  through the server path (`zemerAlbumRoute`, `search/ZemerRoutes.kt`). Play/Shuffle under this chip
   play the album-sourced tracks.
 - **Songs** — the direct picks: tracks whose server `fromAlbum` flag is false
   (`ZemerCuratedPlaylistPage.albumTrackIds` carries the album-sourced videoIds because `SongItem`
   has no such field).
+
+The chip row shows ONLY when the playlist has albums (`curatedChipsVisible(albumCount)`, pure +
+unit-tested): a direct-picks playlist has no albums, so All == Songs and Albums would be an empty dead
+end - those render the plain track list, and `effectiveFilter` pins the filter to ALL whenever the chips
+are hidden.
 
 The chip row, the visible rows, **Play and Shuffle all read the same filtered list**
 (`filterCuratedTracks()`, pure + unit-tested), so shuffling under a chip plays exactly what is

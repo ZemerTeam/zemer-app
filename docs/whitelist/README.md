@@ -39,12 +39,10 @@ The DAO exposes these whitelist-specific operations:
 | Suspended lookup by ID | `getWhitelistEntry(artistId: String)` |
 | Suspended list of rows | `getWhitelistEntriesSync()` |
 | Boolean membership test | `isArtistWhitelisted(artistId: String)` |
-| Random IDs | `getRandomWhitelistedArtistIds(limit: Int)` |
 | Missing thumbnail IDs | `getWhitelistedArtistIdsMissingThumb(limit: Int)` |
 | Fill-only thumbnail write (sync) | `updateArtistThumbnailUrl(artistId, thumbnailUrl)` — only when the row has none |
 | Overwriting thumbnail write (fallback resolver) | `replaceArtistThumbnailUrl(artistId, thumbnailUrl)` |
 | Delete all whitelist rows | `clearWhitelist()` |
-| Delete one whitelist row | `removeFromWhitelist(artistId: String)` |
 | Apply curated display names (set-based) | `applyWhitelistDisplayNames()` — renames artist rows to the split docs' `displayName`; idempotent, self-terminating, run after `insertWhitelist` on every full fetch |
 | Curated display name for one artist (sync) | `whitelistDisplayNameSync(artistId)` — the stale-artist YTM refresh prefers it over the channel title |
 
@@ -63,17 +61,19 @@ tested), so a stale pre-split mirror snapshot cannot burn the one-time backfill.
 
 The DAO also uses `artist_whitelist` in many library queries so local songs, albums, artists, related songs, and search previews are constrained to whitelisted artists.
 
-## Firestore fetch path
+## Fetch path (content mirror first, Firestore fallback)
 
-`WhitelistFetcher` uses `FirebaseFirestore.getInstance()` and reads:
+Every `WhitelistFetcher` read is `mirrorFirst`: it asks the plain-JSON content mirror (`ZemerContentClient`,
+`content.zemer.io`) first and falls back to the Firebase SDK (`FirebaseFirestore.getInstance()`) only when the
+mirror call throws (network, non-2xx, empty/invalid body, parse error):
 
-| Firestore path | Code-visible purpose |
-| --- | --- |
-| `databasenumber/latest` | `fetchVersion()` reads timestamp field `updatedAt` or field `update` as string/long and converts to `Long`. |
-| `artistsWhitelist` | `fetchWhitelist()` reads all documents and maps each valid document to `ArtistWhitelistEntity`. |
-| `blockedContentIds` | `fetchBlockedIds()` reads all documents; each is one id-level **override** (see "Conditional id overrides"). Read-only — the app never writes/deletes this collection. |
+| Read | Mirror (`ZemerContentClient`) | Firestore fallback |
+| --- | --- | --- |
+| `fetchVersion()` | `version()` → `/whitelist/version` (`gate`) | `databasenumber/latest`: timestamp field `updatedAt` or field `update` as string/long, converted to `Long`. |
+| `fetchWhitelist()` | `whitelist()` → `/whitelist` (throws on an empty list) | `artistsWhitelist`: all documents, each valid one mapped to `ArtistWhitelistEntity`. |
+| `fetchBlockedIds()` | `blockedIds()` → `/blockedContentIds` | `blockedContentIds`: all documents; each is one id-level **override** (see "Conditional id overrides"). Read-only — the app never writes/deletes this collection. |
 
-For each `artistsWhitelist` document, the fetcher accepts artist ID from `id` or `artistId`, artist name from `name` or `artistName`, and boolean flags from `isFemale`, `isChasid`, `isGenZ`, `isKids`, and `isKidZone`. Missing boolean flags default to `false`. Documents missing ID or name are skipped by the `return@forEach` statements.
+For each whitelist document (mirror or `artistsWhitelist`), the fetcher accepts artist ID from `id` or `artistId`, artist name from `name` or `artistName`, and boolean flags from `isFemale`, `isChasid`, `isGenZ`, `isKids`, and `isKidZone`. Missing boolean flags default to `false`. Documents missing ID or name are skipped by the `return@forEach` statements.
 
 ### Artist thumbnails (server-carried, fill-only)
 
@@ -116,9 +116,10 @@ mirrored by `content.zemer.io/whitelist`). The pipeline, end to end:
 | --- | --- | --- |
 | `filtersEnabled` | `true` | If false, `artistMatchesFilters` allows every artist without whitelist membership. |
 | `allowFemaleSingers` | `false` | If false while filters are enabled, female singers are excluded. |
-| `blockVideos` | `true` | Part of the config state; used outside whitelist membership in content filtering flows. |
+| `blockVideos` | `false` | Part of the config state; used outside whitelist membership in content filtering flows. |
+| `blockPodcasts` | `false` | The podcast CATEGORY gate: when true (with filters on), `podcastPasses` drops all podcast/episode items. |
 
-`ContentFilterState` keeps the current config in a `MutableStateFlow`, exposes `current`, and provides `update`, `updateFromPreferences`, `updateFromServer`, and `reset` methods.
+`ContentFilterState` keeps the current config in a `MutableStateFlow`, exposes `state` and `current`, and provides `updateConfig`, `updateContentFilters`, and the `hasActiveFilters` property.
 
 ## Filtering algorithm from `filterWhitelisted`
 
@@ -128,10 +129,13 @@ mirrored by `content.zemer.io/whitelist`). The pipeline, end to end:
 2. If that cache result is empty, it reads `database.getWhitelistEntriesSync()` and refreshes the cache.
 3. It builds `allowedIds` from allowed entries if the allowed list is not empty.
 4. For each `YTItem`, it first drops the item when `BlockedIdsCache.isBlocked(item.id, config)` is true — the conditional id override (see below), checked before the membership decision. Otherwise it evaluates by concrete type:
-   - `SongItem`: checks song artists; empty artist list can fall back to `fallbackArtistId`.
+   - `SongItem`: checks song artists; empty artist list can fall back to `fallbackArtistId`. An episode
+     `SongItem` (`isEpisode`) is instead gated by `podcastPasses` against the podcast channel whitelist.
    - `AlbumItem`: checks album artists; empty artist list can fall back to `fallbackArtistId`.
    - `ArtistItem`: checks the artist ID directly.
    - `PlaylistItem`: checks `author.id`; missing author ID is rejected.
+   - `PodcastItem` / `EpisodeItem`: gated by `podcastPasses` (show id + host channel id) against the podcast
+     channel whitelist, never the artist one; it drops everything when `blockPodcasts` is on.
 5. `requireAllArtists = false` means a song/album is allowed when any listed artist passes. `requireAllArtists = true` requires all listed artists that have IDs to pass and at least one allowed artist to exist.
 6. `artistMatchesFilters` implements the membership decision:
    - If filters are disabled, return allowed.
@@ -212,52 +216,54 @@ The whitelist appears in these synchronization paths:
 | `artists` / `WhitelistedArtistsScreen` | `app/src/main/kotlin/com/jtech/zemer/ui/screens/WhitelistedArtistsScreen.kt` | Main artists tab is wired to whitelisted artists. |
 | `kid_zone` / `KidZoneScreen` | `app/src/main/kotlin/com/jtech/zemer/ui/screens/KidZoneScreen.kt` | Kid-zone artist presentation. |
 | Content settings | `app/src/main/kotlin/com/jtech/zemer/ui/screens/settings/ContentSettings.kt` | UI for the content filter preferences (allow female content, block videos, block podcasts). |
-| Onboarding | `app/src/main/kotlin/com/jtech/zemer/ui/screens/OnboardingScreen.kt` | Presents content filter setup and runs `syncArtistWhitelist(forceSync = true)`. |
+| Onboarding | `app/src/main/kotlin/com/jtech/zemer/ui/screens/OnboardingScreen.kt` (`OnboardingFlow`) + per-step files under `ui/screens/onboarding/` | Presents content filter setup. |
+| Loading | `app/src/main/kotlin/com/jtech/zemer/ui/screens/LoadingScreen.kt` | Runs the forced `syncArtistWhitelist(forceSync = true)`. |
 
 ## Whitelist-related Kotlin files
 
+Line counts and declarations regenerated from the tree (first ten `class`/`object`/`interface`/`fun` declarations at top level or one indent).
+
 | File | Lines | Key declarations |
 | --- | ---: | --- |
-| `app/src/main/kotlin/com/jtech/zemer/App.kt` | 412 | class App, val settings, fun sanitizeCookie, val trimmed, val httpClient, val responseText, val json, val visitorData, val clientVersion, val timestamp |
-| `app/src/main/kotlin/com/jtech/zemer/MainActivity.kt` | 2140 | class MainActivity, var pendingIntent, var latestVersionName, var playerConnection, val serviceConnection, var dpadKeyMap, val hatTracker, var pendingServiceStart, fun requestStoragePermissionsIfNeeded, val permissions |
-| `app/src/main/kotlin/com/jtech/zemer/constants/PreferenceKeys.kt` | 554 | val DynamicThemeKey, val DarkModeKey, val PureBlackKey, val DensityScaleKey, val CustomDensityScaleKey, val DefaultOpenTabKey, val BottomNavigationBarEnabledKey, val SlimNavBarKey, val BottomNavigationItemsKey, val GridItemsSizeKey |
-| `app/src/main/kotlin/com/jtech/zemer/db/DatabaseDao.kt` | 1678 | interface DatabaseDao, fun songsByRowIdAsc, fun songsByCreateDateAsc, fun songsByNameAsc, fun songsByPlayTimeAsc, fun songs, val collator, val collator, fun likedSongsByRowIdAsc, fun likedSongsByCreateDateAsc |
-| `app/src/main/kotlin/com/jtech/zemer/db/MusicDatabase.kt` | 590 | class MusicDatabase, val delegate, val openHelper, fun query, fun transaction, fun close, class InternalDatabase, val dao, fun newInstance, val startTime |
-| `app/src/main/kotlin/com/jtech/zemer/db/entities/ArtistWhitelistEntity.kt` | 21 | class ArtistWhitelistEntity, val artistName, val addedAt, val source, val lastSyncedAt, val isFemale, val isChasid, val isGenZ, val isKids, val isKidZone |
-| `app/src/main/kotlin/com/jtech/zemer/di/SyncModule.kt` | 121 | val Context, object SyncModule, fun provideSyncDataStore, fun provideFirebaseFirestore, fun provideUserAuthManager, fun provideDeviceIdGenerator, fun provideMainDataStore, fun provideUserPreferencesRepository, fun provideContentFilterSyncService |
-| `app/src/main/kotlin/com/jtech/zemer/playback/MediaLibrarySessionCallback.kt` | 655 | class MediaLibrarySessionCallback, val databaseLazy, val downloadUtil, val database, val scope, var toggleLike, var toggleStartRadio, var toggleLibrary, val connectionResult, val whitelistedArtistIds |
-| `app/src/main/kotlin/com/jtech/zemer/playback/MusicService.kt` | 1590 | class MusicService, val database, var audioFocusRequest, var lastAudioFocusState, var wasPlayingBeforeAudioFocusLoss, var hasAudioFocus, val scope, val binder, val waitingForNetworkConnection, val isNetworkConnected |
-| `app/src/main/kotlin/com/jtech/zemer/playback/queues/LocalAlbumRadio.kt` | 65 | class LocalAlbumRadio, val albumWithSongs, val startIndex, val database, val endpoint, var continuation, var firstTimeLoaded, val nextResult, val filteredItems, val nextResult |
-| `app/src/main/kotlin/com/jtech/zemer/playback/queues/YouTubeQueue.kt` | 58 | class YouTubeQueue, var endpoint, val database, var continuation, val nextResult, val filteredItems, val nextResult, val filteredItems, fun radio |
-| `app/src/main/kotlin/com/jtech/zemer/sync/ContentFilterSyncService.kt` | 446 | class ContentFilterSyncService, val userPreferencesRepository, val authManager, val serviceScope, val _syncState, val syncState, val _lastSyncResult, val lastSyncResult, var _isApplyingServerPreferences, fun initialize |
-| `app/src/main/kotlin/com/jtech/zemer/sync/UserPreferencesRepository.kt` | 760 | fun ContentFilterConfig, fun com, class UserPreferencesRepository, val firestore, val authManager, val deviceIdGenerator, fun getDocumentId, fun classifyFirebaseError, val lastSyncTimeKey, val deviceIdKey |
-| `app/src/main/kotlin/com/jtech/zemer/sync/models/DevicePreferencesEntity.kt` | 126 | class DeviceContentFilters, val enableContentFilters, val allowFemaleSingers, val blockVideos, val femalePasscodeHash, fun fromConfig, fun toConfig, class DeviceMetadata, val deviceName, val manufacturer |
-| `app/src/main/kotlin/com/jtech/zemer/ui/component/Library.kt` | 410 | fun LibraryArtistListItem, fun WhitelistedArtistListItem, fun LibraryArtistGridItem, fun WhitelistedArtistGridItem, fun LibraryAlbumListItem, fun LibraryAlbumGridItem, fun LibraryPlaylistListItem, fun LibraryPlaylistGridItem |
-| `app/src/main/kotlin/com/jtech/zemer/ui/screens/KidZoneScreen.kt` | 336 | fun KidZoneScreen, val menuState, var viewType, val firstFocus, val searchFocus, val firstArtistFocus, val artists, val searchQuery, val syncProgress, val isSyncing |
-| `app/src/main/kotlin/com/jtech/zemer/ui/screens/NavigationBuilder.kt` | 338 | fun NavGraphBuilder, val videoId, val title, val artist |
-| `app/src/main/kotlin/com/jtech/zemer/ui/screens/OnboardingScreen.kt` | 2077 | class OnboardingStep, class LegalKind, fun NetworkStatusBanner, val context, var isConnected, var isChecking, val newConnectionState, fun OnboardingFlow, val context, val viewModel |
-| `app/src/main/kotlin/com/jtech/zemer/ui/screens/Screens.kt` | 53 | class Screens, val route, object Home, object Artists, object KidZone, object Search, object Library, val MainScreens |
-| `app/src/main/kotlin/com/jtech/zemer/ui/screens/SplashScreen.kt` | 165 | fun SplashScreen, var hasTappedSkip, val composition, val lottieColors, val loopingState |
-| `app/src/main/kotlin/com/jtech/zemer/ui/screens/WhitelistedArtistsScreen.kt` | 404 | fun WhitelistedArtistsScreen, val menuState, var viewType, val firstFocus, val searchFocus, val firstArtistFocus, val artists, val searchQuery, val syncProgress, val isSyncing |
-| `app/src/main/kotlin/com/jtech/zemer/ui/screens/playlist/LocalPlaylistScreen.kt` | 1503 | fun LocalPlaylistScreen, val context, val menuState, val database, val haptic, val playerConnection, val isPlaying, val mediaMetadata, val playlist, val songs |
-| `app/src/main/kotlin/com/jtech/zemer/ui/screens/settings/ContentSettings.kt` | 681 | class ContentSettingsViewModel, val authManager, val webAuthManager, val syncService, val userPreferencesRepository, val authState, val syncState, val syncStatus, fun formatLastSyncTime, val sdf |
-| `app/src/main/kotlin/com/jtech/zemer/utils/ContentFilterConfig.kt` | 108 | class ContentFilterConfig, val filtersEnabled, val allowFemaleSingers, val blockVideos, val femalePasscodeHash, val lastSyncTime, val isSynced, object ContentFilterState, val _state, val state |
-| `app/src/main/kotlin/com/jtech/zemer/utils/IsraeliArtistRegistry.kt` | 51 | object IsraeliArtistRegistry, var cachedIds, val mutex, fun isIsraeli, val snapshot, val ids |
-| `app/src/main/kotlin/com/jtech/zemer/utils/SyncUtils.kt` | 1111 | class WhitelistSyncProgress, val current, val total, val isComplete, class SyncUtils, val databaseLazy, val database, val syncScope, val isSyncingLikedSongs |
-| `app/src/main/kotlin/com/jtech/zemer/utils/UrlValidator.kt` | 82 | object UrlValidator, fun validateAndParseUrl, val trimmedUrl, val urlWithScheme, val httpUrl, fun isValidUrl, fun getQueryParameter, val httpUrl |
-| `app/src/main/kotlin/com/jtech/zemer/utils/WhitelistCache.kt` | — | object WhitelistCache, var memory (@Volatile immutable map), fun updateAll (whole-map swap), fun get, fun snapshot, fun allowedEntries, fun isAllowed |
-| `app/src/main/kotlin/com/jtech/zemer/utils/BlockedIdsCache.kt` | 84 | object BlockedIdsCache, const REASON_FEMALE, const REASON_GLOBAL, fun updateAll, fun isBlocked, fun isEmpty, fun snapshot, fun serialize, fun parse |
-| `app/src/main/kotlin/com/jtech/zemer/utils/WhitelistFetcher.kt` | 72 | object WhitelistFetcher, val firestore, var lastFetchTime, val doc, val updatedAt, val update, val value, val now, val whitelistEntities, val snapshot |
-| `app/src/main/kotlin/com/jtech/zemer/utils/WhitelistFilter.kt` | — | object WhitelistEntryCache, fun isWhitelisted (per item type), fun filterWhitelisted, fun shouldKeepPlaylistSong, fun filterWhitelistedWithLocalArtists, fun podcastPasses, fun artistMatchesFilters (Boolean) |
-| `app/src/main/kotlin/com/jtech/zemer/viewmodels/ArtistViewModel.kt` | 134 | class ArtistViewModel, val database, val artistId, var artistPage, var isLoading, val libraryArtist, val librarySongs, val libraryAlbums, fun fetchArtistsFromYTM, val hideExplicit |
-| `app/src/main/kotlin/com/jtech/zemer/viewmodels/HistoryViewModel.kt` | 108 | class HistoryViewModel, val database, var historySource, val today, val thisMonday, val lastMonday, val historyPage, val events, val date, val daysAgo |
-| `app/src/main/kotlin/com/jtech/zemer/viewmodels/HomeViewModel.kt` | 1537 | class HomeViewModel, val database, val syncUtils, class HomeArtistProfile, val id, val name, val isAmerican, val isIsraeli, val isFemale, val isFamous |
-| `app/src/main/kotlin/com/jtech/zemer/viewmodels/KidZoneViewModel.kt` | 73 | class KidZoneViewModel, val database, val syncUtils, val searchQuery, val syncProgress, val isSyncing, fun sync, val allArtists, val filteredByQuery, val thumbRequests |
-| `app/src/main/kotlin/com/jtech/zemer/viewmodels/LibraryVideosViewModel.kt` | 47 | class LibraryVideosViewModel, val database, val videos, val hideExplicit, val filters, val allowed, val artistIds, fun refresh |
-| `app/src/main/kotlin/com/jtech/zemer/viewmodels/LibraryViewModels.kt` | 462 | class LibrarySongsViewModel, val syncUtils, val allSongs, fun syncLikedSongs, fun syncLibrarySongs, fun syncUploadedSongs, class LibraryArtistsViewModel, val database, val syncUtils, val allArtists |
-| `app/src/main/kotlin/com/jtech/zemer/viewmodels/NewReleaseViewModel.kt` | 110 | class NewReleaseViewModel, val database, val _newReleaseAlbums, val newReleaseAlbums, val _newReleaseSongs, val newReleaseSongs, val isLoading, val error, val hideExplicit, val filtered |
-| `app/src/main/kotlin/com/jtech/zemer/viewmodels/OnboardingViewModel.kt` | 205 | class OnboardingViewModel, val userPreferencesRepository, val authManager, val webAuthManager, val syncService, class UiState, val isCheckingAutoRestore, val hasServerPreferences, val restoredConfig, val contentFiltersAlreadySet |
-| `app/src/main/kotlin/com/jtech/zemer/viewmodels/OnlinePlaylistViewModel.kt` | 167 | class OnlinePlaylistViewModel, val database, val playlistId, val playlist, val playlistSongs, val _isLoading, val isLoading, val _error, val error, val _isLoadingMore |
-| `app/src/main/kotlin/com/jtech/zemer/viewmodels/OnlineSearchSuggestionViewModel.kt` | 129 | class OnlineSearchSuggestionViewModel, val database, val query, val _viewState, val viewState, val filters, val whitelist, val matchingArtists, val result, val hideExplicit |
-| `app/src/main/kotlin/com/jtech/zemer/viewmodels/OnlineSearchViewModel.kt` | 286 | class OnlineSearchViewModel, val database, val query, val initialFilter, val filter, var summaryPage, val viewStateMap, val isSummaryLoading, val summaryError, val filterLoading |
-| `app/src/main/kotlin/com/jtech/zemer/viewmodels/WhitelistedArtistsViewModel.kt` | 82 | class WhitelistedArtistsViewModel, val database, val syncUtils, val searchQuery, val syncProgress, val isSyncing, val allArtists, val filteredByToggle, val entry, val filteredByQuery |
+| `app/src/main/kotlin/com/jtech/zemer/App.kt` | 409 | class App, fun onCreate, fun checkForUpdatesOnStartup, fun initializeSettings, fun observeSettingsChanges, fun newImageLoader |
+| `app/src/main/kotlin/com/jtech/zemer/MainActivity.kt` | 2498 | class MainActivity, fun requestStoragePermissionsIfNeeded, fun onStart, fun onResume, fun onConfigurationChanged, fun startActivity, fun startActivityForResult, fun launchingOwnActivity, fun onUserLeaveHint, fun onStop |
+| `app/src/main/kotlin/com/jtech/zemer/constants/PreferenceKeys.kt` | 659 | class DensityScale, class SliderStyle, class RefreshRateMode, class DownloadAudioFormat, class AudioQuality, class LibraryViewType, fun toggle, class SongFilter, class ArtistFilter, class AlbumFilter |
+| `app/src/main/kotlin/com/jtech/zemer/db/DatabaseDao.kt` | 1832 | interface DatabaseDao, fun songsByRowIdAsc, fun songsByCreateDateAsc, fun songsByNameAsc, fun songsByPlayTimeAsc, fun songs, fun likedSongsByRowIdAsc, fun likedSongsByCreateDateAsc, fun likedSongsByNameAsc, fun likedSongsByPlayTimeAsc |
+| `app/src/main/kotlin/com/jtech/zemer/db/MusicDatabase.kt` | 654 | class MusicDatabase, fun query, fun transaction, fun close, class InternalDatabase, class Migration5To6, fun onPostMigrate, class Migration6To7, class Migration7To8, class Migration9To10 |
+| `app/src/main/kotlin/com/jtech/zemer/db/entities/ArtistWhitelistEntity.kt` | 34 | class ArtistWhitelistEntity |
+| `app/src/main/kotlin/com/jtech/zemer/di/SyncModule.kt` | 121 | object SyncModule, fun provideSyncDataStore, fun provideFirebaseFirestore, fun provideUserAuthManager, fun provideDeviceIdGenerator, fun provideMainDataStore, fun provideUserPreferencesRepository, fun provideContentFilterSyncService |
+| `app/src/main/kotlin/com/jtech/zemer/playback/MediaLibrarySessionCallback.kt` | 810 | class MediaLibrarySessionCallback, fun onConnect, fun onCustomCommand, fun onPlaybackResumption, fun onGetLibraryRoot, fun onGetChildren, fun onGetItem, fun onSearch, fun onGetSearchResult, fun onSetMediaItems |
+| `app/src/main/kotlin/com/jtech/zemer/playback/MusicService.kt` | 3284 | class MusicService, fun beaconStatus, fun streamContentType, fun relayedStreamUrl, fun stopCastRelay, fun startDiscovery, fun downloadCastLib, fun onCreate, fun setupAudioFocusRequest, fun handleAudioFocusChange |
+| `app/src/main/kotlin/com/jtech/zemer/playback/queues/LocalAlbumRadio.kt` | 62 | class LocalAlbumRadio, fun getInitialStatus, fun hasNextPage, fun nextPage |
+| `app/src/main/kotlin/com/jtech/zemer/playback/queues/YouTubeQueue.kt` | 75 | class YouTubeQueue, fun getInitialStatus, fun hasNextPage, fun nextPage |
+| `app/src/main/kotlin/com/jtech/zemer/sync/ContentFilterSyncService.kt` | 336 | class ContentFilterSyncService, fun initialize, fun performManualSync, fun syncToServer, fun setSyncEnabled, fun isSyncEnabled, fun getSyncStatusFlow, fun getUserDevices, fun handleAuthStateChange, fun handlePreferenceChange |
+| `app/src/main/kotlin/com/jtech/zemer/sync/UserPreferencesRepository.kt` | 692 | fun toDeviceContentFilters, fun toDeviceMetadata, class UserPreferencesRepository, fun getDocumentId, fun classifyFirebaseError, fun fetchDevicePreferences, fun fetchDevicePreferencesByDeviceId, fun uploadDevicePreferences, fun updateDevicePreferences, fun getUserDevices |
+| `app/src/main/kotlin/com/jtech/zemer/sync/models/DevicePreferencesEntity.kt` | 100 | class DeviceContentFilters, fun fromConfig, fun toConfig, class DeviceMetadata, class UserDeviceData, class DevicePreferencesEntity |
+| `app/src/main/kotlin/com/jtech/zemer/ui/component/Library.kt` | 541 | fun artistAvatarRequest, fun LibraryArtistListItem, fun WhitelistedArtistListItem, fun LibraryArtistGridItem, fun WhitelistedArtistGridItem, fun LibraryAlbumListItem, fun LibraryAlbumGridItem, fun LibraryPlaylistListItem, fun LibraryPlaylistGridItem, fun WhitelistedPodcastListItem |
+| `app/src/main/kotlin/com/jtech/zemer/ui/screens/KidZoneScreen.kt` | 164 | fun KidZoneScreen, fun KidZonePodcastsContent, fun openShow |
+| `app/src/main/kotlin/com/jtech/zemer/ui/screens/NavigationBuilder.kt` | 492 | fun podcastsBlockedRedirect, fun navigationBuilder |
+| `app/src/main/kotlin/com/jtech/zemer/ui/screens/OnboardingScreen.kt` | 89 | fun OnboardingFlow |
+| `app/src/main/kotlin/com/jtech/zemer/ui/screens/Screens.kt` | 67 | class Screens, object Home, object Artists, object Podcasts, object KidZone, object Search, object Library |
+| `app/src/main/kotlin/com/jtech/zemer/ui/screens/SplashScreen.kt` | 166 | fun SplashScreen |
+| `app/src/main/kotlin/com/jtech/zemer/ui/screens/WhitelistedArtistsScreen.kt` | 112 | fun WhitelistedArtistsScreen, fun ArtistBrowseScreenContent |
+| `app/src/main/kotlin/com/jtech/zemer/ui/screens/playlist/LocalPlaylistScreen.kt` | 1260 | fun LocalPlaylistScreen, fun LocalPlaylistHeader, fun uriToByteArray |
+| `app/src/main/kotlin/com/jtech/zemer/ui/screens/settings/ContentSettings.kt` | 664 | class ContentSettingsViewModel, fun signInWithGoogle, fun signInAnonymously, fun signOut, fun performManualSync, fun setSyncEnabled, fun getUserDevices, fun isAutoRestored, fun getRestoredEmail, fun isLocked |
+| `app/src/main/kotlin/com/jtech/zemer/utils/ContentFilterConfig.kt` | 87 | class ContentFilterConfig, fun allowsFemale, object ContentFilterState, fun updateConfig, fun updateContentFilters |
+| `app/src/main/kotlin/com/jtech/zemer/utils/IsraeliArtistRegistry.kt` | 71 | object IsraeliArtistRegistry, fun isIsraeli, fun ensureLoaded, fun fetchIds, fun resetForTest |
+| `app/src/main/kotlin/com/jtech/zemer/utils/SyncUtils.kt` | 1162 | class WhitelistSyncProgress, class SyncUtils, fun syncPodcastSubscriptions, fun syncEpisodesForLater, fun likeSong, fun toggleSavedForPlayer, fun toggleSaveEpisode, fun saveEpisodeLocal, fun syncLikedSongs, fun syncLibrarySongs |
+| `app/src/main/kotlin/com/jtech/zemer/utils/UrlValidator.kt` | 82 | object UrlValidator, fun validateAndParseUrl, fun isValidUrl, fun getQueryParameter |
+| `app/src/main/kotlin/com/jtech/zemer/utils/WhitelistCache.kt` | 52 | object WhitelistCache, fun updateAll, fun get, fun snapshot, fun allowedEntries, fun isAllowed |
+| `app/src/main/kotlin/com/jtech/zemer/utils/BlockedIdsCache.kt` | 70 | object BlockedIdsCache, fun updateAll, fun isBlocked, fun serialize, fun parse |
+| `app/src/main/kotlin/com/jtech/zemer/utils/WhitelistFetcher.kt` | 230 | object WhitelistFetcher, fun fetchVersion, fun fetchWhitelist, fun fetchBlockedIds, fun fetchPodcastVersion, fun fetchPodcastWhitelist |
+| `app/src/main/kotlin/com/jtech/zemer/utils/WhitelistFilter.kt` | 331 | object WhitelistEntryCache, fun get, fun put, fun isWhitelisted, fun filterWhitelisted, fun shouldKeepPlaylistSong, fun filterWhitelistedWithLocalArtists, fun podcastPasses, fun artistMatchesFilters |
+| `app/src/main/kotlin/com/jtech/zemer/viewmodels/ArtistViewModel.kt` | 216 | class ArtistViewModel, fun fetchArtistsFromYTM, fun loadMoreEpisodes, class EpisodePageFetch, fun fetchNextEpisodePage, fun drainEpisodeHistoryForSearch, fun radioQueue, fun appendChannelEpisodes |
+| `app/src/main/kotlin/com/jtech/zemer/viewmodels/HistoryViewModel.kt` | 108 | class HistoryViewModel, fun fetchRemoteHistory, class DateAgo, object Today, object Yesterday, object ThisWeek, object LastWeek, class Other |
+| `app/src/main/kotlin/com/jtech/zemer/viewmodels/HomeViewModel.kt` | 1008 | class HomeViewModel, class HomeArtistProfile, class HomeUiState, fun loadCachedLocalData, fun saveCachedLocalData, fun hasWhitelist, fun artistBasedQuickPicks, fun loadQuickPicks, fun loadKeepListening, fun loadHomeArtistProfiles |
+| `app/src/main/kotlin/com/jtech/zemer/viewmodels/KidZoneViewModel.kt` | 99 | class KidZoneViewModel, fun fetchKidPodcasts, fun sync, fun requestThumb |
+| `app/src/main/kotlin/com/jtech/zemer/viewmodels/LibraryVideosViewModel.kt` | 41 | class LibraryVideosViewModel, fun refresh |
+| `app/src/main/kotlin/com/jtech/zemer/viewmodels/LibraryViewModels.kt` | 539 | class LibrarySongsViewModel, fun syncLikedSongs, fun syncLibrarySongs, class LibraryArtistsViewModel, fun sync, class LibraryAlbumsViewModel, class LibraryPlaylistsViewModel, class LibraryMixViewModel, class LibraryAutoPlaylistViewModel, class AutoPlaylistsState |
+| `app/src/main/kotlin/com/jtech/zemer/viewmodels/OnboardingViewModel.kt` | 152 | class OnboardingViewModel, class UiState, fun signInWithGoogle, fun signInAnonymously, fun checkInitialState, fun attemptAutoRestore, fun getRestoredEmail |
+| `app/src/main/kotlin/com/jtech/zemer/viewmodels/OnlinePlaylistViewModel.kt` | 193 | class OnlinePlaylistViewModel, fun fetchInitialPlaylistData, fun startProactiveBackgroundLoading, fun loadMoreSongs, fun retry, fun onCleared |
+| `app/src/main/kotlin/com/jtech/zemer/viewmodels/OnlineSearchSuggestionViewModel.kt` | 100 | class OnlineSearchSuggestionViewModel, class SearchSuggestionViewState |
+| `app/src/main/kotlin/com/jtech/zemer/viewmodels/OnlineSearchViewModel.kt` | 262 | class OnlineSearchViewModel, fun trackSearchOnce, fun loadSummary, fun loadFiltered, fun refresh |
+| `app/src/main/kotlin/com/jtech/zemer/viewmodels/WhitelistedArtistsViewModel.kt` | 70 | class WhitelistedArtistsViewModel, fun sync, fun requestThumb |

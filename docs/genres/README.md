@@ -114,7 +114,7 @@ Data: `search/ZemerGenresModels.kt`, `search/ZemerSearchClient.kt` (genre/genreF
 mosaicVariant/headerCovers), `search/ZemerRoutes.kt`, `playback/queues/ZemerRadioQueue.kt`
 (`genre` factory), `tracking/PlaySource.kt` + `tracking/TrackingEvents.kt` (`genre` slugs).
 UI: `ui/screens/{HomeGenresRow,GenresScreen,GenreScreen,GenreSectionScreen}.kt`,
-`ui/component/{GenreCard,GenreChip,GenreIcons}.kt`, `res/drawable/genre_*.xml`, `ui/theme/Type.kt`.
+`ui/component/{GenreCard,GenreCardGrid,GenreChip,GenreDetailHeader,GenreIcons}.kt`, `res/drawable/genre_*.xml`, `ui/theme/Type.kt`.
 VMs: `viewmodels/{ZemerGenresViewModel,ZemerGenreCatalogViewModel,ZemerGenreViewModel,ZemerGenreSectionViewModel}.kt`
 + the shared `reloadOnContentFlagChange` (`viewmodels/ZemerFlagRefetch.kt`).
 Prefs: `constants/PreferenceKeys.kt` (`ShowHomeGenresKey`), toggled in `settings/AppearanceSettings.kt`.

@@ -8,7 +8,7 @@ that proves it.
 
 ## TL;DR
 
-Five events — `open`, `search`, `play`, `click`, `action` — batched into a durable on-disk queue
+Six events — `open`, `search`, `play`, `click`, `action`, `impression` — batched into a durable on-disk queue
 and POSTed fire-and-forget. Identity is ONE random UUID (`TrackingDeviceIdKey` in DataStore),
 nothing else: no account data, no device identifiers, no location; the server stores no IPs.
 Decisions made 2026-07-05: track everything including KidZone, no
@@ -57,15 +57,15 @@ batch rather than poison-pilling the queue. Losing events is fine. Breaking play
 - **`open`** — `TrackingLifecycle` only.
 - **`search`** — `OnlineSearchViewModel`: ONE event per executed query (the VM is per submitted
   query; `searchTracked` guard, persisted in the SavedStateHandle so a back-stack entry restored
-  after process death never re-fires), on the first successful load, both engines; `results` =
-  items shown; zero results sent faithfully; chip switches never re-fire. `provider` is the pinned
-  constant `"zemer"` since the YouTube engine's removal (the wire contract still accepts both values).
-  Carries `provider` (Zemer extension, `handoff-docs/zemer-tracking-search-provider-request.md`):
-  `"zemer"` or `"youtube"` = the engine that served the query (`SearchProvider.name.lowercase()`),
-  so the dashboard separates a real whitelist-expansion demand gap from a legacy YouTube-path zero.
+  after process death never re-fires), on the first successful load; `results` =
+  items shown; zero results sent faithfully; chip switches never re-fire. Carries `provider` (Zemer
+  extension, `handoff-docs/zemer-tracking-search-provider-request.md`): the pinned constant
+  `SEARCH_TRACKED_PROVIDER = "zemer"` since the YouTube engine's removal (Zemer is the only engine; the
+  wire contract still accepts `"youtube"`, and the dashboard keeps splitting on the field).
 - **`click`** — `OnlineSearchResult`'s single `activate` path (tap AND D-pad select — KeyDown
   only, auto-repeats ignored, so a held Enter is ONE click): the query, tapped id, `kind`
-  (`clickKind()` — Videos chip → `video`, Community chip → `community`), and 0-based rank within
+  (`clickKind()` — a `SongItem` reports `video`/`song` from its own `isVideo` flag, not the chip; then
+  `album`, `artist`, `podcast`, `episode`, and `community` vs `playlist` for a playlist row), and 0-based rank within
   the displayed category.
 - **`play`** — `MusicService.onPlaybackStatsReady`: one event per listen when it ENDS, however
   short (Media3's `PlaybackStats.totalPlayTimeMs` = accumulated real play time; pauses excluded,
@@ -93,11 +93,14 @@ Set when a queue is built, never per-surface guesswork:
 
 - `Queue.playSource` (default `"other"`) is passed at construction by the surfaces with a spec
   taxonomy value — all wired: search taps (`OnlineSearchResult` → `search`), Latest Releases
-  (`LatestReleasePlayback` → `new`), artist pages (`ArtistScreen`/`ArtistSongsScreen`/
+  (`LatestReleasePlayback` → `new`), artist pages (`ArtistScreen`/
   `ArtistSectionScreen` → `artist:UC…`), albums (`album:…` — intrinsic to
   `LocalAlbumRadio`, covers `AlbumScreen` and the album long-press menu), online playlists
   (`OnlinePlaylistScreen` + `YouTubePlaylistMenu` → `playlist:PL…`), curated playlists
-  (`ZemerCuratedPlaylistScreen` → `zemer:<slug>`). The album radios now continue beyond the album on
+  (`ZemerCuratedPlaylistScreen` → `zemer:<slug>`), community playlists (`OnlinePlaylistViewModel` →
+  `community:PL…`), Zemer Stations (`StationQueue` → `station:<id>`), genre tracklist taps (`GenreScreen` →
+  `genre:<slug>`), podcast surfaces (episode plays → `podcast:<show-id>`, bare `podcast` when the show id is
+  unknown), and the Home Videos-tab ranked rows (`home:video-trending` / `home:video-new`). The album radios now continue beyond the album on
   Zemer `/radio?kind=album` (`LocalAlbumRadio`), not `YouTube.next()` — the source semantics are
   unchanged (album tracks = context, continuation = `radio`).
 - `MusicService.playQueue` registers the chosen items in `Tracker.playSources`
@@ -196,16 +199,18 @@ one.
 
 | Surface | Where |
 |---|---|
-| `home:quick-picks` · `home:forgotten-favorites` · `home:keep-listening` · `home:trending` · `home:featured-videos` | `HomeScreen` — one slug per row, not a flat `home:top` |
+| `home:quick-picks` · `home:forgotten-favorites` · `home:keep-listening` · `home:featured-videos` · `home:video-trending` · `home:video-new` | `HomeScreen` — one slug per row, not a flat `home:top` |
 | `search` | `OnlineSearchResult` — keyed, not indexed: chips and section titles share the index space with results |
 | `zemer:<playlist-id>` | `ZemerCuratedPlaylistScreen` — the `auto-*` charts and the curated playlists |
+| `genre:<slug>` | `GenreScreen` — the genre detail tracklist |
 
 The `zemer:` surfaces matter most of all: the dampener exists to correct for a song being played
 *because* we put it at the top of Trending, so leaving that screen uninstrumented would dock
 home- and search-surfaced songs while the chart's own picks accrued no exposure at all — the
 exposure-bias loop running backwards.
 
-Not yet instrumented, and the reason the dampener stays off: artist pages, mood/genre, charts.
+Not yet instrumented, and the reason the dampener stays off: artist pages (and podcast surfaces —
+`TrackingSurface.podcast`/`channel` exist but no screen reports them yet).
 Partial surface coverage is *worse* than none — it docks the instrumented discovery paths and
 leaves the rest untouched.
 
@@ -269,7 +274,8 @@ Two things this is NOT:
 
 - **Not a CTR denominator.** `surface` shares an alphabet with `play.source` but not its meaning —
   `play.source` is the queue context that got played, this is the row the user looked at. Home taps
-  can never report a `home:*` source and radio plays have no impression at all, so surface-level CTR
+  report a `home:*` source only from the Videos-tab ranked rows (`home:video-trending` /
+  `home:video-new`), and radio plays have no impression at all, so surface-level CTR
   was dropped from scope; it would need a separate `play.surface` field.
 - **Not engagement.** The server never counts impressions toward active users, new devices or
   retention. Server-side `n` is "distinct rows seen per session", NOT a render count — only

@@ -1,4 +1,4 @@
-# Zemer Stations (`playback/queues/StationQueue`, the "Zemer Radio" home row)
+# Zemer Stations (`playback/queues/StationQueue`, the Home "Radio" tab)
 
 **Synchronized broadcast radio**: one shared, server-programmed wall-clock schedule per station -
 every listener hears the SAME track at the SAME moment, joining mid-song like FM. The server owns
@@ -42,15 +42,15 @@ Queue MUTATIONS (Play next / Add to queue) deliberately EXIT broadcast mode
 (`exitStationOnQueueMutation`). The full player swaps the seek slider for the read-only
 `StationLiveBar`; both mini players show the shared `StationLiveBadge`.
 
-## The home row + See-all
+## The Radio tab
 
-`ZemerStationsViewModel` (isolated - a stations failure can never break Home) feeds `GridItem`-based
+The stations are the Home **Radio** tab: a titled ("Zemer Radio") 3-column station grid, with no
+See-all arrow (the tab is the whole list). `ZemerStationsViewModel` (isolated - a stations failure can never break Home) feeds `GridItem`-based
 `ZemerStationCard`s: the branded SVG cover carries the station name, so the text under it is the
 live now-playing SONG (bold, marquee) over its artist. The now-playing line refreshes on a 60s
-ticker scoped with `repeatOnLifecycle(RESUMED)` - nothing polls while backgrounded. The title arrow
-opens the `zemer_stations` grid (`ZemerStationsScreen`). Live cards only; empty/unreachable hides
-the row (the `/home-rows` fail-soft convention). Stations are LIVE-ONLY: excluded from the offline
-snapshot fallback like `/playlist` and `/radio`, and no content flags are sent (pools are
+ticker scoped with `repeatOnLifecycle(RESUMED)` - nothing polls while backgrounded. Live cards only; empty/unreachable hides
+the grid (the `/home-rows` fail-soft convention). Stations are LIVE-ONLY: excluded from the offline
+snapshot fallback like `/playlist` (offline `/radio` is partial, but stations are not part of it), and no content flags are sent (pools are
 pre-filtered server-side to the strictest common denominator; blocked-ids still run client-side).
 
 ## Telemetry

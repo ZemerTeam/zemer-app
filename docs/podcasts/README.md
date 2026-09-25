@@ -47,15 +47,18 @@ as defense-in-depth; an episode `SongItem` is gated on the podcast whitelist, ne
   query-driven history drain (`ArtistViewModel.drainEpisodeHistoryForSearch`) that always
   terminates - results, an honest "No results found", or an incomplete-search notice with Retry.
   While a query is active the drain owns paging (the near-edge trigger is gated off).
-- **Home Podcasts tab**: genre strip (server-owned `kind` sections via `podcastGenreSections`,
-  rendered through the shared `GenreCardGrid`; hidden with the same "Show genres on home"
-  preference as the music strip), ranked rows from `/podcast-home-rows` (fail-soft, live-only),
+- **Home Podcasts tab**: genre strip (`HomePodcastGenresRow`: the top genres as chips through the
+  shared `HomeGenreChipsStrip`, opening the genre page; hidden with the same "Show genres on home"
+  preference as the music strip - the server-owned `kind` sections via `podcastGenreSections` +
+  the shared `GenreCardGrid` are the full catalog screen, `PodcastGenresScreen`), ranked rows from `/podcast-home-rows` (fail-soft, live-only),
   Continue Listening (in-progress episodes via the `event` table - no new column), and New
   Episodes (`/podcasts/new-episodes`, scoped CLIENT-side to locally-subscribed shows so it works
   for anonymous sessions).
 - **Library -> Podcasts**: EPISODES / CHANNELS / DOWNLOADED sub-tabs with their own sort keys
-  (never the Songs keys). Shared data sources live in `utils/PodcastLibrarySources` so the two
-  podcast VMs cannot drift.
+  (never the Songs keys). Shared data sources (whitelist filter + account-leak gate) live in
+  `utils/PodcastLibrarySources`, used by every podcast VM (`LibraryViewModels`,
+  `OnlinePodcastViewModel`, `PodcastSubscriptionsHomeViewModel`, `WhitelistedPodcastsViewModel`, ...)
+  so they cannot drift.
 - **Search**: podcast/episode groups fold into `/search`; a show row routes via
   `whitelistedPodcastRoute`, an episode row plays by videoId.
 
@@ -76,7 +79,9 @@ as defense-in-depth; an episode `SongItem` is gated on the podcast whitelist, ne
 
 ## Server endpoints consumed
 
-`/podcast-channels`, `/podcast-genres` (+`kinds` catalog), `/podcast-home-rows` (live-only),
-`/podcast`, `/podcast-channel` (+ `offset` paging), `/podcasts/new-episodes`, `/podcasts/version`,
-and podcast groups in `/search`. All are server-first with the offline-snapshot fallback except
-the live-only home rows. Contracts: the `zemer-app-podcast*` handoff docs.
+`/podcasts` (KidZone grid only, `kidZone=1`), `/podcast-genres` (+`kinds` catalog),
+`/podcast-home-rows` (live-only), `/podcast`, `/podcast-channel` (+ `offset` paging, live-only),
+`/podcasts/new-episodes`, and podcast groups in `/search`. The allow-set + version gate come from the
+content mirror (`content.zemer.io/podcastChannelsWhitelist` + `/podcastChannelsWhitelist/version`,
+Firestore fallback). All server endpoints are server-first with the offline-snapshot fallback except
+the live-only `/podcast-home-rows` and `/podcast-channel` offset paging. Contracts: the `zemer-app-podcast*` handoff docs.

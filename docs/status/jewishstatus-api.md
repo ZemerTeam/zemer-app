@@ -14,7 +14,10 @@ today (`com.jtech.zemer.statuses`). Verified against the live endpoints **2026-0
 | Key | `sb_publishable_Pj9SDOxf5Xxw9LavwAl5yw_5ldleSyD` |
 
 The key is **client-safe** (RLS-scoped, read-only) - it is the same key the JewishStatus web app ships
-publicly, and it is already committed in `app/src/main/kotlin/com/jtech/zemer/statuses/StatusesApi.kt`.
+publicly. The app does NOT bake the REST base, key or category UUIDs in: they arrive from the server-driven
+status-sources config (`content.zemer.io/status-sources`, `statuses/StatusSourcesConfig.kt`, a
+`supabase-category` provider). Only the R2 media CDN constant is baked into `statuses/StatusesApi.kt`. The
+values above and below are the platform's, as observed on the verification date.
 No `Origin`/`Referer` header is required; these are plain public PostgREST calls.
 
 Standard headers for every request:
@@ -29,8 +32,8 @@ Content-Type: application/json     # POST/RPC only
 
 ### 1. Creators - `POST /rpc/browse_creators_sorted`
 
-Returns the creator list for one **category**, most-recent first. The app fetches all three music
-categories concurrently and de-duplicates by `id`.
+Returns the creator list for one **category**, most-recent first. The app fetches every configured music
+category concurrently and de-duplicates by `id`.
 
 Request body:
 
@@ -48,7 +51,7 @@ Request body:
 
 Paginate with `p_limit`/`p_offset` (stop when a page returns `< p_limit`).
 
-Categories:
+Music categories observed on the platform (the app's set comes from the status-sources config):
 
 | Category | UUID |
 |----------|------|
@@ -84,6 +87,18 @@ GET /public_posts
 ```
 
 Response: array of post objects (see [Status / post](#status--post)).
+
+### 4. Post kinds - `GET /public_posts?id=in.(...)`
+
+Batch-resolve the `kind` of each creator's `recent_post_ids`, so the story ring can drop statuses the
+content filter hides (the browse RPC carries ids only). Chunked to 100 ids per call:
+
+```
+GET /public_posts?id=in.(<id1>,<id2>,...)&select=id,kind
+```
+
+Used by `fetchJewishPostKinds` (`StatusesApi.kt`); a failed/partial lookup leaves kinds unknown, which
+shows all statuses.
 
 ## Data models
 
@@ -146,15 +161,20 @@ thumbnail: <CDN>/status-media/<thumb_path>
 - **Text body vs caption**: a `text` status stores its body in `text_body`, not `caption` - a query that
   forgets to `select` `text_body` shows an empty/`"null"` status.
 - **Timestamps are UTC** - display in the device zone or times read as "wrong" by the user's offset.
-- **Thumbnails are `mqdefault`-ish**; the app holds the `thumb_path` frame over the player until the
-  video renders its first frame (see the offline/story viewer notes).
+- **Videos never show the `thumb_path` poster** (it is low-res and reads as a blurry flash): the story
+  viewer holds a black cover until the first frame draws, adding the shared `StatusLoadingIndicator`
+  (avatar + ring) only if the video is still not ready after 0.75 s. `thumb_path` is used only to
+  prefetch a neighbor creator's image for the cube swipe (`prefetchStatusImage`); the saved-status grid
+  decodes its own poster frame from the downloaded file.
 
 ## How the app uses it
 
 `com.jtech.zemer.statuses`:
 
-- `StatusesApi.kt` - `fetchStatusCreators()` (3 categories, concurrent, de-duped) and
-  `fetchStatusPosts(creatorId)` (paginated, `order=posted_at.asc`). Constants above live here.
+- `StatusesApi.kt` - `fetchStatusCreators(base, key, categoryIds)` (configured categories, concurrent,
+  de-duped), `fetchStatusPosts(base, key, creatorId)` (paginated, `order=posted_at.asc`) and
+  `fetchJewishPostKinds(base, key, ids)`. Only the R2 CDN constant lives here; base/key/categories come
+  from the status-sources config.
 - `StatusesRepository.kt` - session cache (`@Singleton`), shared creators `StateFlow`, per-creator posts
   cache; fail-soft.
 - `StoryViewModel` / `ZemerStatusesViewModel` - the viewer + Home-row VMs.

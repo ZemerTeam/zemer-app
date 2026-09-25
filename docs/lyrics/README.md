@@ -41,10 +41,16 @@ providers by `MediaMetadata.id` (never `setVideoId`, which is a playlist-entry t
   dropped, Apple's own line times, >= 4 monotonic lines; an UNSYNCED reply, `type: "None"`, goes STRAIGHT to its
   `plain` text with the bracketed section labels dropped, >= 4 lines — its TTML is never consulted, so a mirror
   stamping `begin="0:00.000"` on every line can never show it synced at zero; golden
-  `apple-1571752969.json` → `.expected.lrc` and `apple-unsynced-reply.json`).
+  `apple-1571752969.json` → `.expected.lrc` and `apple-unsynced-reply.json`), a `simpmusic` row by `entryId` →
+  `SimpMusicLyrics.getLyricsByEntry` (the catalog named by the pointer's additive `videoId`, else the track's own;
+  the exact audio-verified entry picked by id, no duration matching; its timings served only under the server's
+  `synced` flag, else plain — `entryBody`; a missing entry yields nothing, so the walk continues), a `kugou` row by
+  `hash` + `krcId` → `KugouLrc` (re-runs the krcs search by hash, takes that exact candidate's accesskey, decodes the
+  `fmt=lrc` body), and a `lyricstranslate` row (the server-inlined `plain` text, else the page →
+  `LyricsTranslateParser`).
   Walk order (`ZemerLyricsProvider.order`): synced first (`synced`, an inline `syncedLrc`/`richSync`, or the one
   pointer the resolver's `lineTimes` were measured against), then rank: `zemer` 0 > `jkaraoke`/`apple` 1 >
-  `lrclib`/`kugou`/`zingmusic`/`youtube` 2 > `jyrics`/`shironet`/`tab4u`/`zemirotdb`/`lyricstranslate`
+  `lrclib`/`kugou`/`simpmusic`/`zingmusic`/`youtube` 2 > `jyrics`/`shironet`/`tab4u`/`zemirotdb`/`lyricstranslate`
   3 > `booklet`/`manual`/`canonical`/`community` 4 (inline bodies stay behind the pointers: the pointer is the
   fresher copy, the inline text the outage fallback) > unknown types skipped; the server's order breaks ties. Each
   source's fetch/parse runs under `runCatching`, so a dead or throwing source is skipped, never the walk. The
@@ -53,8 +59,10 @@ providers by `MediaMetadata.id` (never `setVideoId`, which is a playlist-entry t
   not acted on. The page parsers are
   byte-identical ports of the server's, pinned by golden files under `app/src/test/resources/lyrics/`
   (`JyricsParserGoldenTest`, `ShironetParserGoldenTest`, `ZingParserGoldenTest`, `JkaraokeLrcGoldenTest`,
-  `Tab4uParserGoldenTest`, `ZemirotDbParserGoldenTest`, `SyncIntegrationTest`); they share `HtmlEntities.unescape`
-  and the `LyricsUtils.hasLyricBody` body gate (four non-blank lines) except zemirotdb's word gate.
+  `Tab4uParserGoldenTest`, `ZemirotDbParserGoldenTest`, `SyncIntegrationTest`). `HtmlEntities.unescape` is shared by `JyricsParser`, `ShironetParser`, `AppleTtmlLrc` and
+  `LyricsTranslateParser`; the `LyricsUtils.hasLyricBody` body gate (four non-blank lines) is applied to jyrics /
+  shironet / zingmusic / youtube / simpmusic / lyricstranslate bodies, while tab4u has its own `MIN_LINES` (6) and
+  zemirotdb its word gate (`MIN_WORDS`, 12).
   Provider label: `Zemer · <source>` (verification is a server fact, not shown; the lyrics header shows just
   "Zemer", the sub-source stays in the stored label for reports); Zemer's own text is labelled just `Zemer`, and a
   `manual` row's suffix is its `origin` display name (`Telegram`, `verified` for `asrverified`, `Apple Music`,
@@ -84,14 +92,14 @@ providers by `MediaMetadata.id` (never `setVideoId`, which is a playlist-entry t
   line has no entry). Paired by the SAME text-free `lineKey` as `lineTimes`, never by index (`LineExtras.forLines`);
   a line the server did not key gets nothing. Rendered by the shared `LyricsLineExtra` (bodyLarge, plain weight,
   muted) under the primary line, ONE language at a time from `LyricsLineExtrasKey` (`LineExtrasLanguage`:
-  OFF / ENGLISH / HEBREW / ROMANIZED, **default OFF** so nothing changes until the user picks one, in Appearance →
+  OFF / ENGLISH / HEBREW / YIDDISH / ROMANIZED, **default OFF** so nothing changes until the user picks one, in Appearance →
   lyrics and in the lyrics menu through the shared `ListPickerDialog`); `source: "machine"` adds ONE
   " · machine translation" to the source header (`LyricsSourceHeader(machineTranslation)`), never a per-line
   label. Storage is one JSON file per videoId under `filesDir/lyrics-extras/` (NO lyrics-table migration): a
   record never outlives its row - every chain answer re-records or clears it, refetch deletes it first (a text
   re-verification changes the keys). A row cached before the feature (or answered by another provider) gets ONE
-  resolver call on demand (`LyricsStore.ensureExtras`, from `LyricsLineExtrasViewModel.bind`, only once a
-  language is picked and the song has a body; `LyricsStore.ensureResolveExtras`); a "none" record is re-asked after
+  resolver call on demand (`LyricsStore.ensureResolveExtras`, from `LyricsLineExtrasViewModel.bind`, only once a
+  language is picked and the song has a body; `bind` then also calls the aligned `LyricsStore.ensureExtras` below); a "none" record is re-asked after
   7 days, a record with extras only on refetch. Every extras read → ask → write, and a refetch's delete → record, run
   under ONE per-videoId lock in `LyricsStore` (`withExtrasLock`): concurrent binds resolve a song once and an ask that
   raced a refetch can never land a stale record after the delete (`LyricsStoreTest`). **Aligned extras (the evening update):** the resolve-time field pairs only where the displayed
@@ -114,7 +122,7 @@ providers by `MediaMetadata.id` (never `setVideoId`, which is a playlist-entry t
   `LyricsUtils.stripWordTags(...)` of that body: plain LRC, never `<mm:ss.xx>` word tags.
 * **LrcLib**: title/artist keyed. `LrcLib.identityMatches` requires title ≥ 0.75 AND artist ≥ 0.75 similarity AND
   duration within 3 s — a duration-only match served a Japanese song for a Baruch Levine track before this gate
-  (`lrclib/src/test/.../LrcLibIdentityTest.kt`). The artist side passes when ANY credited artist matches
+  (`app/src/test/.../lyrics/lrclib/LrcLibIdentityTest.kt`). The artist side passes when ANY credited artist matches
   (`creditedArtists` splits the queue item's joined credit), since LRCLIB may catalogue a multi-credit recording
   under the second name. `LrcLib.pickBody` serves a synced body only from a `syncable` track
   (non-blank, within 1 s); a track inside the identity gate but outside the sync gate yields plain text or nothing.
@@ -180,6 +188,7 @@ chain gains sources or sync it did not have) vs the persisted `LyricsChainGenera
 `DatabaseDao.purgeRefreshableLyrics` once — drops not-found rows (the chain may cover the song now) and auto-cached
 PLAIN rows (it may sync them now), keeps every synced body, `manual` and `legacy` rows — then stores the generation.
 Generation 1 = the zemer / youtube / tab4u / zemirotdb / community sources + `lineTimes`; it subsumes the earlier
-legacy-not-found purge (`LyricsCachePurgeDoneKey`, removed). The DAO query is Room and not JVM-testable here. Hebrew strings under `values-iw/` are managed by the locale process and
+legacy-not-found purge (`LyricsCachePurgeDoneKey`, removed). Generation 2 (current,
+`CHAIN_GENERATION = 2`) = the apple sources + the synced-first walk. The DAO query is Room and not JVM-testable here. Hebrew strings under `values-iw/` are managed by the locale process and
 are not edited here (project rule 3); new lyrics strings fall back to English until translated.
 No further DB migrations are to be added for lyrics without an explicit decision.

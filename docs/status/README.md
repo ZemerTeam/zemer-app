@@ -8,7 +8,7 @@ enough detail to build and maintain a client against it. These are **hand-author
 > These are **external services we do not control.** Everything here was reverse-engineered from the
 > platforms' own public web apps and verified against the live endpoints on the date noted in each file.
 > Treat every endpoint as best-effort and fail-soft: the feature is designed to simply hide when a feed
-> is empty or unreachable (see `docs/...` / the `statuses/` package), and any of these endpoints can change
+> is empty or unreachable (see the `AGENTS.md` "Music Status" section / the `statuses/` package), and any of these endpoints can change
 > or tighten without notice.
 
 ## Platforms
@@ -28,7 +28,7 @@ no-flash invariants, the `HideText`/`HideImage` content filter, and the live-ref
 
 | | JewishStatus | YidStatus |
 |---|---|---|
-| Creator list | `POST /rpc/browse_creators_sorted` per category (3 categories) | `POST /rpc/avatar_strip` **or** the `influencers` array in the feed |
+| Creator list | `POST /rpc/browse_creators_sorted` per server-configured category | `POST /rpc/avatar_strip` **or** the `influencers` array in the feed |
 | Status read | `GET /public_posts?creator_id=eq....` (per creator, paginated) | `POST /functions/v1/feed` (**one global call**, all creators + statuses) |
 | Auth | publishable anon key (`apikey` header), client-safe | anon JWT (`apikey` header), client-safe |
 | **Access gate** | none - plain public PostgREST | **`/feed` requires `Origin: https://yidstatus.com`** (server-side check); the RPCs are open |
@@ -111,8 +111,8 @@ the third parties; only the filter *config* is centralized. Full contract:
   `review_hidden` influencers, the `storyAds`/`placements` arrays, and `audio`-type statuses (the viewer
   renders only video/image/text). None of the rest is kosher-relevant content.
 - **Music-only (YidStatus).** The feed is all-categories, so `YidStatusApi` keeps only creators whose
-  category matches the keyword list (substring, case-insensitive) - **server-driven** (currently `music,
-  singer, kumzits, simcha, concert`; see *Server-driven source config* above). **Comedy and general
+  category matches the keyword list (substring, case-insensitive) - **server-driven** (`musicKeywords`; `YidStatusApiTest` uses
+  `music, singer, kumzits, simcha, concert` as its example set; see *Server-driven source config* above). **Comedy and general
   Entertainment are deliberately excluded** (owner decision). JewishStatus is scoped by its category UUIDs
   (also server-driven), so it needs no keyword filter.
 - **Client-safe keys only.** The anon/publishable keys in these docs are the same ones the platforms ship
