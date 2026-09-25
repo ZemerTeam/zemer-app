@@ -386,7 +386,7 @@ fun Lyrics(
         } else if (currentLineIndex != -1) {
             deferredCurrentLineIndex = currentLineIndex
             if (isSeeking) {
-                // Fast scroll for seeking to center the target line (500ms)
+                // Fast scroll for seeking to anchor the target line (500ms)
                 val seekCenterIndex = kotlin.math.max(0, currentLineIndex - 1)
                 performSmoothPageScroll(seekCenterIndex, 500) // Fast seek duration
             } else if ((lastPreviewTime == 0L || currentLineIndex != previousLineIndex) && scrollLyrics) {

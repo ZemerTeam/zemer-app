@@ -2055,7 +2055,7 @@ class MusicService :
      *
      *  KNOWN LIMITATION (accepted, not a TODO bandaid to "fix in place"): this is a per-byte
      *  source decision inside a streaming `ResolvingDataSource`, so it cannot reconcile the fact that a
-     *  MediaStore download is a DIFFERENT container (m4a or Ogg) than the streamed audio (webm/opus).
+     *  MediaStore download (m4a, Ogg, or a relay .opus) can be a DIFFERENT container than the stream.
      *  The one path it does NOT make perfect: if you DOWNLOAD a song WHILE actively listening to that
      *  same song, that playing instance stays on the stream (it won't switch to the local file until the
      *  song is re-selected), so offline it can only play as far as the stream cached. It does not crash;

@@ -292,7 +292,7 @@
     <string name="android_auto_target_playlist_auto">Not set</string>
     <string name="android_auto_target_playlist_not_set">No playlist selected. Choose one in Android Auto settings</string>
 
-    <!-- Onboarding privacy policy (discloses the anonymous usage telemetry, per the tracking
+    <!-- Onboarding privacy policy (discloses Crashlytics and the anonymous usage telemetry, per the tracking
          spec §7 — see docs/tracking/README.md) -->
     <string name="onboarding_privacy_body_telemetry">Preferences and logins stay on your device, and nothing is ever sold or shared for marketing.\n\nTo improve search and build Zemer\'s own recommendations, the app sends anonymous usage data to Zemer\'s server: a random install identifier, the app version, search terms, plays (which track, how many seconds were listened, and which screen started it), search-result taps, and library actions such as favorites, downloads, playlist additions and shares, with their timestamps. This data is not linked to any account or person — no names, emails, contacts, location, or advertising identifiers are collected, and the server does not store IP addresses.\n\nTo keep the app working, automatic crash and error reports are sent to Google Firebase Crashlytics. These reports contain device information (such as model and Android version) and recent technical logs from the app, and are used only to diagnose and fix problems.</string>
 

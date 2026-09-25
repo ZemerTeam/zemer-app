@@ -59,6 +59,7 @@
     public static boolean isLoggable(java.lang.String, int);
     public static int v(...);
     public static int d(...);
+    # i/w/e are deliberately left in release builds
 }
 
 ## Strip Timber logging in release
