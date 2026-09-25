@@ -65,7 +65,6 @@ async function testUrl(url, ua, label) {
 async function main() {
   console.log(`Testing video: ${VIDEO_ID}\n`);
 
-  // Test VISIONOS - should return direct URLs
   console.log('=== VISIONOS (no STS, direct URLs expected) ===');
   const vResp = await getPlayerResponse(VISIONOS, VIDEO_ID, false);
   console.log(`Status: ${vResp.playabilityStatus?.status}`);
@@ -76,7 +75,6 @@ async function main() {
     await testUrl(vFormat.url, MWEB.userAgent, 'MWEB UA');
   }
 
-  // Test MWEB - should return signatureCipher
   console.log('\n=== MWEB (with STS, signatureCipher expected) ===');
   const mResp = await getPlayerResponse(MWEB, VIDEO_ID, true);
   console.log(`Status: ${mResp.playabilityStatus?.status}`);

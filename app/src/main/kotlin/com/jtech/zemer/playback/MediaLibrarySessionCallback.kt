@@ -265,8 +265,8 @@ constructor(
 
                     MusicService.PLAYLIST -> {
                         val likedSongCount = database.likedSongsCount().first()
-                        // Persisted MediaStore downloads (the legacy ExoPlayer `downloads` map is dead) —
-                        // whitelist-filtered, since Android Auto is a content-filtered surface.
+                        // Persisted MediaStore downloads — whitelist-filtered, since Android Auto is a
+                        // content-filtered surface.
                         val downloadedSongCount = database.downloadedSongsWhitelistedByCreateDateAsc(
                             includeVideos = context.dataStore.get(VideoDownloadsInMusicKey, true),
                         ).first().size
@@ -382,8 +382,7 @@ constructor(
                                     )
 
                                     // Persisted MediaStore downloads, whitelist-filtered — Android Auto
-                                    // is a content-filtered surface (pre-unification this used the
-                                    // whitelist-filtered allSongs()). The legacy ExoPlayer map is dead.
+                                    // is a content-filtered surface.
                                     PlaylistEntity.DOWNLOADED_PLAYLIST_ID ->
                                         database.downloadedSongsWhitelistedByCreateDateAsc(
                                             includeVideos = context.dataStore.get(VideoDownloadsInMusicKey, true),

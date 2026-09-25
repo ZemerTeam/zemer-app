@@ -63,7 +63,7 @@ const sampleWatch = async () => hashFrom(await fetchText(`https://www.youtube.co
 const sampleEmbed = async () => hashFrom(await fetchText(`https://www.youtube.com/embed/${PROBE_VID}`), PLAIN_RE);
 
 // md5-of-first-10000-bytes alias + sts for an unknown hash — the same alias identity the app
-// (FunctionNameExtractor.extractPlayerHash) and the monitor's MD5 step compute.
+// (FunctionNameExtractor.extractPlayerHash) computes.
 async function playerIdentity(hash) {
   for (const locale of ["en_GB", "en_US"]) {
     const js = await fetchText(`https://www.youtube.com/s/player/${hash}/player_ias.vflset/${locale}/base.js`);

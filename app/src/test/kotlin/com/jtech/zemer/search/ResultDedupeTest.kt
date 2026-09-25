@@ -9,7 +9,7 @@ import org.junit.Assert.assertSame
 import org.junit.Test
 
 /**
- * Pure coverage of the authoritative-only video dedupe (I3 / unified-video DESIGN §7): a video row is
+ * Pure coverage of the authoritative-only video dedupe (I3): a video row is
  * dropped only on an identical videoId or a known counterpart mapping — never a title/artist/duration
  * heuristic — and a dropped video is always still reachable via the surviving song's toggle.
  */

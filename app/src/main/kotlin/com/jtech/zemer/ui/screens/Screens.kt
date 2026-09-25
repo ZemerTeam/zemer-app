@@ -26,7 +26,7 @@ sealed class Screens(
         route = "artists"
     )
 
-    // Reached from the drawer, "Browse all podcasts" in Search, and the Library filter - never a
+    // Reached from the drawer and "Browse all podcasts" in Search - never a
     // default bottom-nav tab (mirrors Artists, per the surface-in-search decision).
     object Podcasts : Screens(
         titleId = R.string.podcasts,

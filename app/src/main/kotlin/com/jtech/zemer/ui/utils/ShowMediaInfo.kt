@@ -65,7 +65,7 @@ fun ShowMediaInfo(videoId: String, isEpisodeHint: Boolean = false) {
     // RELAY mode is YouTube-free: playback resolves server-side (no local FormatEntity for stream client /
     // itag / cipher rows), and getMediaInfo() is an InnerTube call whose Views/Likes/Dislikes/Subscribers/
     // Description are all YouTube-sourced. A filtered relay session must neither request nor show them, so we
-    // skip the call entirely and render from the local `song` + a "Zemer Relay" source row instead.
+    // skip the call entirely and render from the local `song` only.
     val playbackMode by rememberEnumPreference(PlaybackModeKey, PlaybackMode.DIRECT)
     val relayMode = playbackMode == PlaybackMode.RELAY
 
@@ -94,7 +94,7 @@ fun ShowMediaInfo(videoId: String, isEpisodeHint: Boolean = false) {
             .padding(top = 8.dp, bottom = 16.dp),
     ) {
         // In DIRECT mode wait for the YouTube media info; in RELAY mode it may never load (filtered
-        // device), so render from local `song` + the relay info rather than spinning forever.
+        // device), so render from local `song` rather than spinning forever.
         if (info == null && !relayMode) {
             ZemerLoadingSection()
             return

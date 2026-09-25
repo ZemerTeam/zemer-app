@@ -26,7 +26,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 
 /**
- * A square "category tile": a centered gold accent icon over a bold title and a small subtitle (e.g. a
+ * A square "category tile": a centered accent icon over a bold title and a small subtitle (e.g. a
  * count), on ONE neutral box (`surfaceContainerHigh`). The Downloaded library's Music / Videos / Status
  * tiles all render through this so their color, shape and typography can never drift apart again. Carries
  * the mandatory D-pad focus treatment (`.focusBorder()` before the clickable, per docs/ui/standards.md

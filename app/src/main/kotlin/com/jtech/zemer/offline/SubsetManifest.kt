@@ -5,7 +5,7 @@ import kotlinx.serialization.Serializable
 /**
  * The on-device outage-fallback snapshot ("subset") lets the app search and browse the whole Zemer
  * corpus (everything except audio playback) with no InnerTube/YouTube when `search.zemer.io` is
- * unreachable, and serve those reads locally even while online when the local copy is in sync.
+ * unreachable.
  *
  * The `GET /subset/manifest` document is the authoritative set of content-addressed shards making up
  * the current snapshot. Syncing is incremental and driven purely by this manifest: a shard whose
@@ -24,7 +24,7 @@ const val SUPPORTED_SUBSET_SCHEMA = 1
 
 @Serializable
 data class SubsetManifest(
-    /** Manifest schema/version counter, bumped on every rebuild. Local == remote ⇒ in sync. */
+    /** Manifest version counter, bumped on every rebuild. Local == remote ⇒ in sync. */
     val v: Int,
     /** ISO-8601 build timestamp (informational; the shard hashes are what drive the diff). */
     val builtAt: String,

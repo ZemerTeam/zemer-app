@@ -23,8 +23,8 @@ import com.jtech.zemer.ui.component.OnboardingChoiceCard
  * onboardingCardColors selected fill, filled radio, D-pad focusBorder, all built in). Auto first
  * with its supporting line, then every rung the current video serves, high→low, each carrying its
  * real resolution. Shown via `LocalMenuState` from
- * [com.jtech.zemer.ui.player.VideoQualitySelector]'s pill — the inline art slot and the fullscreen
- * overlay open this one sheet.
+ * [com.jtech.zemer.ui.player.VideoQualitySelector]'s pill in the inline art slot; the fullscreen
+ * overlay renders this same body in its own in-overlay panel.
  */
 @Composable
 fun VideoQualityMenu(

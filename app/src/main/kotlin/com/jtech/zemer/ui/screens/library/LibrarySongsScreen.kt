@@ -280,8 +280,8 @@ fun LibrarySongsScreen(
                             }
                             wrappedSongs.forEach {
                                 it.isSelected = false
-                            } // Clear previous selections
-                            songWrapper.isSelected = true // Select current item
+                            }
+                            songWrapper.isSelected = true
                         },
                     )
                     .animateItem(),

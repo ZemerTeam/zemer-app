@@ -131,7 +131,7 @@ object CoverArtEmbedder {
         return true
     }
 
-    /** Adopt [processed] as [audioFile] only when it is a plausible result (>= 90% of ref size). */
+    /** Adopt [processed] as [audioFile] only when it is a plausible result (> 90% of ref size). */
     private fun replaceValidated(audioFile: File, processed: File, referenceSize: Long): Boolean {
         val ratio = if (referenceSize > 0) processed.length().toDouble() / referenceSize else 0.0
         if (!processed.exists() || processed.length() == 0L || ratio <= 0.9) {

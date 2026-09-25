@@ -289,7 +289,6 @@ private fun SearchBarInputField(
                     }
                 }
                 .onKeyEvent { event ->
-                    // Log to help debug
                     when (event.key) {
                         Key.Enter -> {
                             onSearch(query.text)

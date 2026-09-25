@@ -1,7 +1,6 @@
 // EMPIRICAL quality sweep: drain EVERY audio itag and EVERY video itag over SABR and prove
-// byte-exact whole delivery — for zemer's request (MIN) vs innertubex's request (RICH). Audio is a
-// single-track drain; video is zemer's DUAL-TRACK (video+audio in one request) vs innertubex's
-// approach of two INDEPENDENT single-track streams (video-only, discarding audio).
+// byte-exact whole delivery. Audio is a single-track drain, zemer's request (MIN) vs innertubex's
+// request (RICH); video is zemer's DUAL-TRACK request only (video+audio in one request).
 //
 //   node tests/sabr-quality-sweep.mjs [videoId] [CLIENT,CLIENT]
 //

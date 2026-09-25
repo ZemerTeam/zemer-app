@@ -1,9 +1,9 @@
 package com.jtech.zemer.statuses
 
 /**
- * Pure filter/sort logic for the Status downloads library, kept UI-free so it is JVM-testable and
- * shared by the screen and its ViewModel. The chip filters on the ORIGINAL kind (text-as-image still
- * counts as text); the sort control is a flat chronological order.
+ * Pure filter/sort logic for the Status downloads library, kept UI-free so it is JVM-testable. The chip
+ * filters on the ORIGINAL kind (text-as-image still counts as text); the sort control is a flat
+ * chronological order.
  */
 
 /** Kind filter chip. [kind] null = show everything. */

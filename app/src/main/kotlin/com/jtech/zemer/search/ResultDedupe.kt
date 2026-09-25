@@ -4,7 +4,7 @@ import com.metrolist.innertube.models.SongItem
 import com.metrolist.innertube.pages.SearchSummary
 
 /**
- * The unified-video "one result per certainly-matched song" rule (I3 / unified-video DESIGN §7).
+ * The unified-video "one result per certainly-matched song" rule (I3).
  *
  * When a rendered screen shows both audio song rows and video rows, a video row is dropped **only** when
  * an audio song row in the SAME screen is an AUTHORITATIVE match for it:
@@ -17,12 +17,11 @@ import com.metrolist.innertube.pages.SearchSummary
  * always still reachable via the surviving song row's in-player video toggle (rule 1 → same id is the
  * same item; rule 2 → the COUNTERPART toggle).
  *
- * The counterpart tier is dormant in the shipped app (step 3 found `next()` returns no counterparts for
+ * The counterpart tier is dormant in the shipped app (`next()` returns no counterparts for
  * the personal/anonymous accounts, so [counterpartOf] defaults to a no-op); rule 1 (same videoId) is the
  * only tier that currently fires. If counterpart data ever lights up, pass a real [counterpartOf].
  *
- * Callers must gate on `!blockVideos`: blocked mode is frozen byte-for-byte (spec §1(a)), so no dedupe
- * runs there.
+ * Callers must gate on `!blockVideos`: blocked mode is frozen byte-for-byte, so no dedupe runs there.
  */
 object ResultDedupe {
 
@@ -42,7 +41,7 @@ object ResultDedupe {
     }
 
     /**
-     * Applies [dropDuplicateVideos] across a grouped summary (the search "All" page, both engines). The
+     * Applies [dropDuplicateVideos] across a grouped summary (the search "All" page). The
      * audio id set is gathered from every non-video [SongItem] in ALL sections, then each section's
      * video [SongItem]s are filtered against it; a section emptied by the drop is removed. Non-song
      * items and audio songs are never touched.

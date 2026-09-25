@@ -259,7 +259,7 @@ fun NavGraphBuilder.navigationBuilder(
     composable(
         // Optional args (their defaults keep every existing `album/{albumId}` link matching): `zemer`
         // routes a Zemer-search album open through the server's `/album` endpoint, and `playlistId`
-        // carries the search card's OP playlist id (the server's album header doesn't return one).
+        // carries the search card's OP playlist id (the server's album header may omit one).
         route = "album/{albumId}?zemer={zemer}&playlistId={playlistId}",
         arguments =
         listOf(
@@ -304,7 +304,7 @@ fun NavGraphBuilder.navigationBuilder(
         }
         ArtistScreen(navController, scrollBehavior)
     }
-    // The full-screen JewishStatus story viewer, opened from the Home "Music Status" row by the tapped
+    // The full-screen status story viewer, opened from the Home "Music Status" row by the tapped
     // creator's STABLE id (the creators list comes from the shared session cache; the viewer resolves
     // the id to the current index, which survives a process-death re-fetch under the recency sort).
     composable(

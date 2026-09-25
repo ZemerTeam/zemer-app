@@ -58,7 +58,7 @@ class PlayerVideoUiLogicTest {
         assertFalse(PlayerVideoUiLogic.shouldExitFullscreen(isFullscreen = false, isVideoMode = false, expanded = false))
     }
 
-    // --- lyrics-over-video reverts to audio (DESIGN §4) ---------------------
+    // --- lyrics-over-video reverts to audio ----------------------------------
 
     @Test
     fun `opening lyrics while in video mode reverts to audio`() {

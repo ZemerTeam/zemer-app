@@ -64,7 +64,7 @@ data class HomeSeeAllData(
     val keepListening: List<LocalItem> = emptyList(),
     val forgottenFavorites: List<Song> = emptyList(),
     val quickPicks: List<Song> = emptyList(),
-    // True when [featuredAlbums] is Zemer-sourced (telemetry) rather than the InnerTube scrape fallback,
+    // True when [featuredAlbums] is non-empty (always Zemer-sourced; there is no InnerTube fallback),
     // so the See-all opens those albums through the server album route — same rule as the Home row.
     val featuredAlbumsAreZemer: Boolean = false,
     // Same, for [featuredPlaylists]: Zemer community playlists open via the server /playlist route.

@@ -3,8 +3,7 @@ name: Regenerate docs
 # Keeps the code-derived docs (docs/repository-map.md, docs/build-release.md,
 # docs/reference/*.md) in sync with the tracked source automatically. On every push to
 # main it runs the generator and, if anything changed, commits the result back. Cheap
-# (Python only, no Gradle/SDK). The commit uses GITHUB_TOKEN, whose pushes do NOT trigger
-# further workflow runs, and carries [skip ci] — so there is no loop.
+# (Python only, no Gradle/SDK). The commit carries [skip ci] — so there is no loop.
 
 on:
   workflow_dispatch:

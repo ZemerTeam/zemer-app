@@ -67,8 +67,8 @@ object SubsetSynonyms {
      * `synonymGroups` is empty (no shard, or an older sync). */
     val DEFAULT: Compiled by lazy { compile(DEFAULT_GROUPS) }
 
-    /** Expand [plain]/[skel] against [compiled] (default: the built-in table). A corpus-aware caller
-     * ([SubsetCategories]) passes its own compiled shard groups instead. */
+    /** Expand [plain]/[skel] against [compiled] (default: the built-in table). The search path
+     * ([searchIndex]) calls [Compiled.expand] on the corpus's own compiled shard groups directly. */
     fun expand(plain: List<String>, skel: List<String>, compiled: Compiled = DEFAULT): ExpandedQuery =
         compiled.expand(plain, skel)
 }

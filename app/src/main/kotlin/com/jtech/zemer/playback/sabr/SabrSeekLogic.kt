@@ -1,13 +1,13 @@
 package com.jtech.zemer.playback.sabr
 
 /**
- * Pure seek-restart decision shared by [SabrAudioStream] and [SabrVideoStream] (their read
- * orchestration was near-verbatim duplicated). Given the live session's landing anchor and the reader's
- * target byte, it decides whether to let the current demand-paced drain reach the target, wait out a
- * just-started session's landing grace, cold-start a fresh session at an estimated player time, or give
- * up after the restart budget. Fully JVM-unit-tested ([SabrSeekLogicTest]) — no Android, no I/O.
+ * Pure seek-restart decision shared by [SabrAudioStream] and [SabrVideoStream]. Given the live session's
+ * landing anchor and the reader's target byte, it decides whether to let the current demand-paced drain
+ * reach the target, wait out a just-started session's landing grace, cold-start a fresh session at an
+ * estimated player time, or give up after the restart budget. Fully JVM-unit-tested
+ * ([SabrSeekLogicTest]) — no Android, no I/O.
  *
- * Two correctness rules encoded here (both were live-review findings):
+ * Two correctness rules encoded here:
  *  - A session that landed AT OR BEFORE the target ([LetDrain]) must NEVER be restarted: re-issuing the
  *    same linear estimate only cancels the one session making forward progress, so a seek that lands
  *    early by more than a catch-up window used to burn the whole restart budget into a player error.

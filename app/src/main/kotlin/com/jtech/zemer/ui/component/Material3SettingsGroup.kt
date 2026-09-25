@@ -50,7 +50,6 @@ fun Material3SettingsGroup(
     Column(
         modifier = Modifier.fillMaxWidth()
     ) {
-        // Section title
         title?.let {
             Text(
                 text = it,
@@ -88,9 +87,6 @@ fun Material3SettingsGroup(
     }
 }
 
-/**
- * Individual settings item row with Material 3 styling
- */
 @Composable
 private fun Material3SettingsItemRow(
     item: Material3SettingsItem
@@ -120,7 +116,6 @@ private fun Material3SettingsItemRow(
                 .padding(horizontal = 20.dp, vertical = 16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Icon with background
             item.icon?.let { icon ->
                 Box(
                     modifier = Modifier
@@ -167,23 +162,19 @@ private fun Material3SettingsItemRow(
                 Spacer(modifier = Modifier.width(16.dp))
             }
             
-            // Title and description
             Column(
                 modifier = Modifier.weight(1f)
             ) {
-                // Title content
                 ProvideTextStyle(MaterialTheme.typography.titleMedium) {
                     item.title()
                 }
                 
-                // Description if provided
                 item.description?.let { desc ->
                     Spacer(modifier = Modifier.height(2.dp))
                     desc()
                 }
             }
             
-            // Trailing content
             item.trailingContent?.let { trailing ->
                 Spacer(modifier = Modifier.width(8.dp))
                 trailing()
@@ -192,9 +183,6 @@ private fun Material3SettingsItemRow(
     }
 }
 
-/**
- * Data class for Material 3 settings item
- */
 data class Material3SettingsItem(
     val icon: Painter? = null,
     val title: @Composable () -> Unit,

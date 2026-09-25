@@ -55,7 +55,6 @@ async function main() {
   console.log('=== MWEB Stream Test with Full Cipher ===\n');
   console.log(`Video: ${VIDEO_ID}\n`);
 
-  // Create cipher
   console.log('1. Creating cipher from player.js...');
   const cipher = await createCipher({ verbose: true });
   console.log(`   Hash: ${cipher.hash}`);
@@ -63,7 +62,6 @@ async function main() {
   console.log(`   Sig available: ${cipher.sigAvailable}`);
   console.log(`   N-transform available: ${cipher.nAvailable}`);
 
-  // Get player response with matching STS
   console.log('\n2. Fetching MWEB player response...');
   const resp = await getPlayerResponse(VIDEO_ID, cipher.sts);
   console.log(`   Status: ${resp.playabilityStatus?.status}`);
@@ -102,7 +100,6 @@ async function main() {
   console.log(`   Sig param: ${sigParam}`);
   console.log(`   Encrypted sig length: ${encSig?.length}`);
 
-  // Deobfuscate
   console.log('\n4. Deobfuscating stream URL...');
   let streamUrl;
   try {
@@ -113,7 +110,6 @@ async function main() {
     return;
   }
 
-  // Apply n-transform
   console.log('\n5. Applying n-transform...');
   let finalUrl;
   try {
@@ -124,7 +120,6 @@ async function main() {
     finalUrl = streamUrl;
   }
 
-  // Test without pot=
   console.log('\n6. Testing URL (without pot=)...');
   const status = await testUrl(finalUrl, '   HEAD request');
 

@@ -5,11 +5,9 @@ import { createHash } from 'crypto';
 
 const TEST_VIDEO_ID = 'dQw4w9WgXcQ';
 
-// Parse cookies from the file
 const COOKIE = 'HSID=AGohAxISFIyXLqm7v; SSID=AAozZv1auInAw5clE; APISID=xpa2Z4eli5XIVPaw/ANAXCictCR85fx-p6; SAPISID=-cfPwuryMXooHWV1/AnDAwhQoOTd-ViLzM; __Secure-1PAPISID=-cfPwuryMXooHWV1/AnDAwhQoOTd-ViLzM; __Secure-3PAPISID=-cfPwuryMXooHWV1/AnDAwhQoOTd-ViLzM; SID=g.a0009ghS6p3oUS4C2Eki08QHHaOmrp5xmpcIyKijWploXYRDfcSv96zdFIJGfiZHY0O5iEBPogACgYKAdESARASFQHGX2Mia26Yo3Tnz8PTG_cE0Lgj2BoVAUF8yKorVf-A4rhnpftYlHtY1TWN0076; __Secure-1PSID=g.a0009ghS6p3oUS4C2Eki08QHHaOmrp5xmpcIyKijWploXYRDfcSvUPiNNAtKBp_0ut95Tv5f_gACgYKAVkSARASFQHGX2MiT5hqZ0WSBgIiPYt70f4r0BoVAUF8yKomQ7lgfpOscdzdbCcy9LFd0076; __Secure-3PSID=g.a0009ghS6p3oUS4C2Eki08QHHaOmrp5xmpcIyKijWploXYRDfcSvQU6hyjDXjGZRX10FNv4KUgACgYKAe8SARASFQHGX2MixWG--dDhHAxujfCwGDwEWxoVAUF8yKp8BHhUPPBltADAGpJmP8zl0076';
 const VISITOR_DATA = 'Cgs1RnUxMWVROTNLSSiZwOnPBjIKCgJVUxIEGgAgTQ%3D%3D';
 
-// Generate SAPISIDHASH for auth
 function generateSapiSidHash(origin) {
   const sapisid = COOKIE.match(/SAPISID=([^;]+)/)?.[1];
   if (!sapisid) return null;
@@ -63,7 +61,7 @@ const CLIENTS_TO_TEST = [
       clientVersion: '2.20250101.00.00',
     }
   },
-  // TVHTML5 (already in app but let's verify behavior)
+  // TVHTML5 (a former app client; verify behavior)
   {
     name: 'TVHTML5',
     config: {

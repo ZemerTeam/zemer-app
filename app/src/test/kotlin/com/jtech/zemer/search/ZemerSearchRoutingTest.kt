@@ -11,7 +11,8 @@ import java.nio.channels.UnresolvedAddressException
 
 /**
  * The offline-fallback routing policy ([serverOrOffline]): server-first, fall back to the on-device
- * snapshot ONLY when the server is unreachable (an [IOException]) and the snapshot has an answer.
+ * snapshot ONLY when the server is unreachable (an [IOException] or [UnresolvedAddressException]) and the
+ * snapshot has an answer.
  */
 class ZemerSearchRoutingTest {
 

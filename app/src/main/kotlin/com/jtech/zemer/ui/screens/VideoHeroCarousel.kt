@@ -51,9 +51,9 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.distinctUntilChanged
 
 /**
- * The Videos-tab lead shelf: a Material 3 Expressive multi-browse carousel of FULL 16:9 video heroes
+ * The Videos-tab lead shelf: a Material 3 Expressive uncontained carousel of FULL 16:9 video heroes
  * (cover-fill artwork with the title + artist over a scrim), the video sibling of the Home Latest
- * Releases carousel. Replaces the small-square [videoSongsRow] treatment for Trending Videos only.
+ * Releases carousel. Replaces the small-square [videoSongsRow] treatment for Featured Videos only.
  *
  * It preserves every video-tab rule the row had: the relabel-aware header ([HomeSeeAllRow.displayTitleRes])
  * + see-all arrow, audio-first taps declaring [playSource], long-press menus audio-gated when videos are

@@ -26,8 +26,7 @@ cd "$ROOT"
 ALLOWLIST='^(ic_launcher_foreground|ic_launcher_foreground_v31|ic_launcher_background_v31)$'
 
 # Ratchet baseline: known-dead resources grandfathered in (one "type/name" per line, sorted).
-# Currently: dead strings in values/strings.xml, which agents must not edit (CLAUDE.md rule 3) —
-# they await a human-approved cleanup. The baseline may only SHRINK: entries that become referenced
+# Currently empty. The baseline may only SHRINK: entries that become referenced
 # or get deleted should be pruned; any dead resource NOT listed here fails CI.
 BASELINE="scripts/dead-resources-baseline.txt"
 

@@ -29,10 +29,11 @@ import com.jtech.zemer.LocalPlayerConnection
 import com.jtech.zemer.ui.component.ZemerLoadingIndicator
 
 /**
- * The single `TextureView` host for video mode (I6: one player, one surface). Used by BOTH the inline
- * album-art placement ([Thumbnail]) and the fullscreen overlay ([PlayerVideoFullscreen]) — they are
- * mutually exclusive in composition ([com.jtech.zemer.playback.PlayerVideoUiLogic]), so at any instant
- * exactly one instance exists and owns the player's output.
+ * The single `TextureView` host for video mode (I6: one player, one surface). Used by the inline
+ * album-art placement ([Thumbnail]), the fullscreen overlay ([PlayerVideoFullscreen]) and the PiP
+ * window ([VideoPipOverlay]) — they are mutually exclusive in composition
+ * ([com.jtech.zemer.playback.PlayerVideoUiLogic]), so at any instant exactly one instance exists and
+ * owns the player's output.
  *
  * On enter it attaches its surface to the service player via `PlayerConnection.setVideoSurface`; on
  * dispose it detaches. Compose disposes a leaving effect BEFORE running an entering one, so the

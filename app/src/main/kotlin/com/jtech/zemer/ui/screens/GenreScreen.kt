@@ -218,7 +218,7 @@ fun GenreScreen(
 
                 item(key = "genre_header") {
                     // The genre's face — the shared GenreDetailHeader (mosaic + weave + title); the
-                    // music page's own control is the gold pill that starts genre RADIO (never the
+                    // music page's own control is the accent pill that starts genre RADIO (never the
                     // browse tracklist, per the handoff).
                     val covers = remember(uiState.page) { uiState.page.headerCovers() }
                     GenreDetailHeader(
@@ -263,7 +263,7 @@ fun GenreScreen(
                     isPlaying = isPlaying,
                     navController = navController,
                     menuState = menuState,
-                    // Always offered (like the artist page): the see-all opens the full top-60 grid;
+                    // Always offered (like the artist page): the see-all opens the full facet list;
                     // the server's shelf count isn't reliably larger than the shown 20, so gating on
                     // it hid the arrow even when there was more to browse.
                     onSeeAll = { navController.navigate(zemerGenreSectionRoute(viewModel.genreId, GENRE_SECTION_ALBUMS)) },
@@ -449,7 +449,7 @@ private fun LazyListScope.genreAlbumShelf(
 /**
  * The genre page's OWN loading skeleton, shaped like what actually loads (a borrowed
  * playlist-shaped shimmer read as a bait-and-switch): the tall header stage with the title bar and
- * the full-width pill where they will land, then a shelf (title + square cards), then track rows.
+ * the compact pill where they will land, then a shelf (title + square cards), then track rows.
  */
 @Composable
 private fun GenreHeaderShimmer(modifier: Modifier = Modifier) {
@@ -459,10 +459,10 @@ private fun GenreHeaderShimmer(modifier: Modifier = Modifier) {
             // The title line, at the header's real display height.
             BoxPlaceholder(Modifier.height(40.dp).fillMaxWidth(fraction = 0.55f))
             Spacer(Modifier.height(16.dp))
-            // The gold pill's slot — compact, matching the real button's footprint.
+            // The accent pill's slot — compact, matching the real button's footprint.
             BoxPlaceholder(Modifier.height(44.dp).width(132.dp), shape = CircleShape)
         }
-        // One shelf: section title, then a row of square cards (the artist/album carousels).
+        // One shelf: section title, then a row of square cards (the albums/singles shelves).
         Column(Modifier.padding(horizontal = 12.dp)) {
             Spacer(Modifier.height(12.dp))
             TextPlaceholder()

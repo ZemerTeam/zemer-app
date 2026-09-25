@@ -34,7 +34,7 @@ object AppleTtmlLrc {
     fun fromReply(body: String): String? {
         val r = runCatching { json.decodeFromString(Reply.serializer(), body) }.getOrNull() ?: return null
         if (r.type == "None") return r.plain?.let(::plainBody)
-        if (r.type == "Line") LyricsUtils.cleanLrc(r.lrc)?.let { return it }   // drops the `[by:…]` credit tag, keeps only monotonic timed lines
+        if (r.type == "Line") LyricsUtils.cleanLrc(r.lrc)?.let { return it }   // drops the `[by:…]` credit tag, keeps only timed lines (null if they run backwards)
         r.ttmlContent?.let(::toLrc)?.let { return it }
         return r.plain?.let(::plainBody)
     }

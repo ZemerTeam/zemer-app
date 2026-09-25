@@ -140,7 +140,7 @@ class FCastDiscoveryHandler : DeviceDiscovererEventHandler {
     private val devicesLock = Any()
     val discoveredDevices = mutableMapOf<String, DeviceInfo>()
 
-    // Written from SDK callback threads (connectionStateChanged / deviceRemoved), read on the main thread —
+    // Written from SDK callback threads (connectionStateChanged), read on the main thread —
     // @Volatile to publish the write across threads (else the main thread routes transport to a stale device).
     @Volatile var connectedDevice: CastingDevice? = null
     @Volatile var onDisconnect: ((Long) -> Unit)? = null

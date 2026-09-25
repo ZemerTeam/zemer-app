@@ -351,7 +351,7 @@ class MainActivity : ComponentActivity() {
             ) {
                 if (service is MusicBinder) {
                     // Re-bind (onStop unbinds, onStart re-binds) re-delivers onServiceConnected; dispose
-                    // any previous connection first so its cast collectors/listener don't accumulate.
+                    // any previous connection first so its collectors/listener don't accumulate.
                     playerConnection?.dispose()
                     playerConnection =
                         PlayerConnection(this@MainActivity, service, database, lifecycleScope)
@@ -475,8 +475,8 @@ class MainActivity : ComponentActivity() {
             unbindService(serviceConnection)
         } catch (e: IllegalArgumentException) {
         } finally {
-            // unbindService does NOT deliver onServiceDisconnected, so dispose here — otherwise the cast
-            // collectors + the 1 Hz stall poll keep running on the backgrounded Activity. onStart re-binds
+            // unbindService does NOT deliver onServiceDisconnected, so dispose here — otherwise the
+            // connection's UI-state collectors keep running on the backgrounded Activity. onStart re-binds
             // and re-creates the connection (onServiceConnected already disposes any leftover first).
             playerConnection?.dispose()
             playerConnection = null
@@ -502,8 +502,8 @@ class MainActivity : ComponentActivity() {
             unbindService(serviceConnection)
         } catch (e: IllegalArgumentException) {
         } finally {
-            // Dispose (cancel collectors + clear the handler's onDisconnect) before dropping the ref so
-            // the service-singleton handler isn't left pointing at this destroyed connection's closure.
+            // Dispose (remove the player listener + cancel collectors) before dropping the ref so the
+            // service's player isn't left holding this destroyed connection as a listener.
             playerConnection?.dispose()
             playerConnection = null
         }
@@ -552,11 +552,6 @@ class MainActivity : ComponentActivity() {
             }
         }
 
-        // Request storage permissions at startup for MediaStore downloads
-        // NOTE: Files permission is now handled in the onboarding flow
-        // requestStoragePermissionsIfNeeded()
-
-        // Initialize content filter sync service
         contentFilterSyncService.initialize()
 
         setContent {
@@ -852,8 +847,7 @@ class MainActivity : ComponentActivity() {
                             }
                         }
                         // Full-screen takeovers that must not have the floating mini-player over them:
-                        // the JewishStatus story viewers (the standalone video player is gone — video is
-                        // the in-player toggle now).
+                        // the Music Status story viewers (live and saved).
                         val isImmersiveViewerScreen = remember(navBackStackEntry) {
                             val route = navBackStackEntry?.destination?.route
                             route?.startsWith("story/") == true ||
@@ -883,7 +877,7 @@ class MainActivity : ComponentActivity() {
                                 Screens.MainScreens
                             }
                         }
-                        // Check SharedPreferences first for onboarding values, then fallback to DataStore
+                        // DataStore wins; the onboarding values saved in SharedPreferences are the fallback
                         val sharedPreferences = remember { getSharedPreferences("metrolist_settings", MODE_PRIVATE) }
                         val prefBottomNavEnabled = remember(sharedPreferences) {
                             sharedPreferences.getBoolean("bottomNavigationBarEnabled", false)
@@ -2319,8 +2313,8 @@ class MainActivity : ComponentActivity() {
                 }
 
                 videoId?.let {
-                    // Incoming watch links always play through the normal audio-first player now — video is
-                    // a per-play in-player toggle, so video.zemer.io links are no longer special-cased.
+                    // Incoming watch links (video.zemer.io included) play through the normal audio-first
+                    // player — video is a per-play in-player toggle.
                     coroutineScope.launch(Dispatchers.IO) {
                         YouTube.queue(listOf(it), playlistId).onSuccess { queue ->
                             // filterWhitelistedWithLocalArtists, not the plain filterWhitelisted: a

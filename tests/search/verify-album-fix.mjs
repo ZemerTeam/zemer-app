@@ -1,13 +1,13 @@
 // Verifies the data path that fix #1 relies on, BEFORE editing the app.
 //
 // Fix #1: in ArtistScreen, route the artist's "Albums" section through `section.moreEndpoint` (the
-// album grid loaded by YouTube.artistItems) instead of the now-empty `search?filter=albums`.
+// album grid) instead of the now-empty `search?filter=albums`.
 //
 // This proves, against live data, that:
 //   1) browse(artistChannelId) returns an "Albums" carousel section (ArtistPage.sections);
 //   2) that section carries a moreContentButton -> browseEndpoint (so ArtistSection.moreEndpoint is
 //      non-null and the title becomes clickable);
-//   3) browsing that endpoint (what YouTube.artistItems does) returns the album grid.
+//   3) browsing that endpoint returns the album grid.
 // If all three hold, the fix routes "Albums" to real albums sourced from the artist page.
 import { browseDiag, sleep, diagCred } from "./diag-auth.mjs";
 

@@ -18,7 +18,7 @@ import javax.inject.Singleton
 
 /**
  * Generates and manages unique device identifiers for app installations.
- * Uses Android ID + installation UUID to create a persistent device ID
+ * Uses Android ID + app signature hash to create a persistent device ID
  * that survives app reinstalls on the same device.
  */
 @Singleton
@@ -31,10 +31,9 @@ class DeviceIdGenerator @Inject constructor(
     /**
      * Get or generate a unique device identifier
      *
-     * The device ID is generated using:
+     * The device ID (stored in DataStore once generated) is built from:
      * 1. Android ID (device-specific, survives factory resets on some devices)
-     * 2. Installation UUID (stored in DataStore, survives app updates)
-     * 3. App signature hash (prevents ID reuse after app reinstall from different source)
+     * 2. App signature hash (prevents ID reuse after app reinstall from different source)
      */
     suspend fun getDeviceId(): String {
         val storedDeviceId = dataStore.data.map { preferences ->
@@ -68,7 +67,6 @@ class DeviceIdGenerator @Inject constructor(
 
         println("DEBUG: Storing device ID: $deviceId")
 
-        // Store the generated device ID
         dataStore.edit { preferences ->
             preferences[deviceIdKey] = deviceId
         }
@@ -76,9 +74,6 @@ class DeviceIdGenerator @Inject constructor(
         return deviceId
     }
 
-    /**
-     * Get the Android ID for the device
-     */
     private fun getAndroidId(): String {
         return try {
             Settings.Secure.getString(
@@ -136,9 +131,6 @@ class DeviceIdGenerator @Inject constructor(
         }
     }
 
-    /**
-     * Get device information for metadata
-     */
     fun getDeviceInfo(): DeviceInfo {
         return DeviceInfo(
             deviceName = getDeviceName(),
@@ -150,9 +142,6 @@ class DeviceIdGenerator @Inject constructor(
         )
     }
 
-    /**
-     * Get the current app version
-     */
     private fun getAppVersion(): String {
         return try {
             val packageInfo = context.packageManager.getPackageInfo(
@@ -165,9 +154,6 @@ class DeviceIdGenerator @Inject constructor(
         }
     }
 
-    /**
-     * Check if the device ID has been generated and stored
-     */
     suspend fun hasDeviceId(): Boolean {
         return dataStore.data.map { preferences ->
             preferences[deviceIdKey] != null
@@ -175,9 +161,6 @@ class DeviceIdGenerator @Inject constructor(
     }
 }
 
-/**
- * Data class representing device information
- */
 data class DeviceInfo(
     val deviceName: String,
     val manufacturer: String,

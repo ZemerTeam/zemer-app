@@ -105,8 +105,8 @@ fun YouTubePlaylistMenu(
     AddToPlaylistDialog(
         isVisible = showChoosePlaylistDialog,
         onGetSong = { targetPlaylist ->
-            // Add THIS playlist's songs (filtered) to the chosen target — the fallback used
-            // targetPlaylist.id (the destination) by mistake; the source is `playlist`.
+            // Add THIS playlist's songs (filtered) to the chosen target — the source is `playlist`,
+            // never targetPlaylist.id (the destination).
             val allSongs = songs
                 .ifEmpty {
                     fetchWhitelistedPlaylistSongs(playlist.id, database)

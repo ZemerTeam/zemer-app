@@ -15,7 +15,7 @@ fun subsetSnapshotIsFresh(lastSyncedAtMs: Long, nowMs: Long): Boolean =
     lastSyncedAtMs > 0 && nowMs - lastSyncedAtMs <= SUBSET_MAX_SNAPSHOT_AGE_MS
 
 /**
- * Overlays the app's live, Firestore-synced artist whitelist onto a decoded snapshot. The shard flag
+ * Overlays the app's live, synced artist whitelist onto a decoded snapshot. The shard flag
  * bits are only as fresh as the last sync (up to [SUBSET_MAX_SNAPSHOT_AGE_MS] old); the live
  * whitelist ([com.jtech.zemer.utils.WhitelistCache]) is minutes-fresh — so at corpus load:
  *

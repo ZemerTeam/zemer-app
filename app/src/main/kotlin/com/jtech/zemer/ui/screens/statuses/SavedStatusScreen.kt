@@ -100,8 +100,8 @@ fun SavedStatusScreen(
     // (#394) — keep the system clock/battery icons white for the viewer's lifetime, light theme included.
     ForceLightStatusBarIcons()
 
-    // Hold a poster over the video until its first frame draws, so switching status (or creator) never
-    // flashes a black / stale-previous surface. Reset per status by the driver.
+    // Hold a black cover over the video until its first frame draws, so switching status (or creator)
+    // never flashes a stale-previous surface. Reset per status by the driver.
     var videoRendered by remember { mutableStateOf(false) }
     DisposableEffect(exoPlayer) {
         val listener = object : Player.Listener {
@@ -198,7 +198,7 @@ fun SavedStatusScreen(
     // Driver: play a video to its end, hold an image/text, then auto-advance.
     LaunchedEffect(creatorIdx, postIdx) {
         progress = 0f
-        videoRendered = false // hold the poster until THIS status's video draws its first frame
+        videoRendered = false // hold the cover until THIS status's video draws its first frame
         exoPlayer.stop()
         val item = statuses.getOrNull(postIdx) ?: return@LaunchedEffect
         faceCreator = creatorIdx // this creator's live face may now render
@@ -331,8 +331,8 @@ fun SavedStatusScreen(
 
 /**
  * A non-active cube face: the creator's first saved status. A picture (image / text-as-image) shows
- * statically; a VIDEO shows the shared loading spinner instead of a poster frame, so a swipe onto a video
- * creator reads as "loading" straight through to playback rather than flashing a thumbnail then the video.
+ * statically; a VIDEO stays black (no poster frame), so a swipe onto a video creator never flashes a
+ * thumbnail before the video.
  */
 @Composable
 private fun SavedPreviewFace(creator: SavedCreatorStatuses?) {

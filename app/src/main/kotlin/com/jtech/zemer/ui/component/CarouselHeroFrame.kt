@@ -50,8 +50,8 @@ fun heroCarouselFlingBehavior(state: CarouselState): TargetedFlingBehavior =
     CarouselDefaults.singleAdvanceFlingBehavior(state)
 
 /**
- * The shared frame for a full-bleed carousel HERO - the Latest Releases hero and the Trending/Featured
- * Videos hero render through this ONE definition so their D-pad focus ring, mask clip/border, cover
+ * The shared frame for a full-bleed carousel HERO - the Latest Releases hero and the Featured Videos
+ * hero render through this ONE definition so their D-pad focus ring, mask clip/border, cover
  * artwork and now-playing scrim can never drift.
  *
  * A [CarouselItemScope] extension so it can [maskClip]/[maskBorder] against the live item mask. It draws

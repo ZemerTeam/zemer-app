@@ -20,8 +20,8 @@ import kotlin.coroutines.coroutineContext
  * Captures a short window of microphone audio and turns it into a Shazam-compatible fingerprint.
  *
  * This is the Android-facing half of recognition: record → resample to 16 kHz → fingerprint. It is
- * deliberately split from orchestration (search + whitelist filtering live in
- * [com.jtech.zemer.viewmodels.RecognizeMusicViewModel]) so the audio pipeline stays single-purpose.
+ * deliberately split from orchestration ([com.jtech.zemer.viewmodels.RecognizeMusicViewModel]; search +
+ * whitelist filtering live in [RecognitionResolver]) so the audio pipeline stays single-purpose.
  *
  * Based on the MusicRecognizer project by Aleksey Saenko
  * (https://github.com/aleksey-saenko/MusicRecognizer), as ported by Metrolist.

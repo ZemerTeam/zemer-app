@@ -1,4 +1,4 @@
-// Deeper RE (no SABR): can IOS/IPADOS/ANDROID_CREATOR stream a full song?
+// Deeper RE (no SABR): can IOS/ANDROID_CREATOR stream a full song?
 //   A. Avoid the spc gate on IOS by varying clientVersion / userAgent / device fields.
 //   B. Satisfy spc with other pot bindings (videoId / visitorData / url `id` param).
 //   D. ANDROID_CREATOR: dump the real 400 body; test +pot; test plain ANDROID auth.

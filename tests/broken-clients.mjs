@@ -1,4 +1,4 @@
-// Full diagnostic suite for the app's "broken" fallback clients: ANDROID_CREATOR, IOS, IPADOS.
+// Full diagnostic suite for the retired "broken" fallback clients: ANDROID_CREATOR, IOS, IPADOS.
 //
 // For each client, two phases against the live CDN with the real cookie:
 //   1) Playability matrix — every relevant /player request variant (anon/auth × request-pot

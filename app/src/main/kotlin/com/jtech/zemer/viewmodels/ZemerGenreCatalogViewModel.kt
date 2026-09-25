@@ -23,8 +23,9 @@ import javax.inject.Inject
  * Backs the genre catalog screen: `/genres` grouped by kind (Styles, then Occasions), each bucket in
  * the server's most-populated-first order. Non-music genres never reach the screen ([genresByKind]
  * drops them — handoff rule: spoken-word slugs exist to be excluded, not featured). Same fetch
- * discipline as the curated playlists: a fresh fetch per screen open, a re-fetch on content-flag
- * change, and a response fetched under stale flags is dropped ([zemerOptionsStillCurrent]).
+ * discipline as the curated playlists: a fetch per screen open (behind the repository's 60 s flag-keyed
+ * memo), a re-fetch on content-flag change, and a response fetched under stale flags is dropped
+ * ([zemerOptionsStillCurrent]).
  */
 @HiltViewModel
 class ZemerGenreCatalogViewModel @Inject constructor(

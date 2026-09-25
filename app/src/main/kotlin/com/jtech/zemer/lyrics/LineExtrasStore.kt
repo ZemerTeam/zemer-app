@@ -117,8 +117,8 @@ class LineExtrasStore(private val dir: File) : LineExtrasStorage {
     fun flow(videoId: String, language: LineExtrasLanguage, lines: List<String>): Flow<LineExtras?> {
         val lang = language.wireLang
         val hash = LineExtras.linesHash(lines)
-        // flowOf(Unit) fires the initial read (a SharedFlow, unlike the StateFlow this replaced, has no
-        // current value to replay on subscribe); every later trigger is THIS videoId's own write/delete.
+        // flowOf(Unit) fires the initial read (a SharedFlow has no current value to replay on
+        // subscribe); every later trigger is THIS videoId's own write/delete.
         return merge(flowOf(Unit), changedIds.filter { it == videoId }.map {}).map {
             val record = read(videoId)
             val aligned = lang?.let { record?.aligned?.get(it) }?.takeIf { it.linesHash == hash }
@@ -126,7 +126,7 @@ class LineExtrasStore(private val dir: File) : LineExtrasStorage {
         }.distinctUntilChanged().flowOn(Dispatchers.IO)
     }
 
-    /** A videoId is `[A-Za-z0-9_-]{11}`; anything else never touches the filesystem. */
+    /** Only an id matching [SAFE_ID] (`[A-Za-z0-9_-]{1,64}`) touches the filesystem. */
     private fun fileFor(videoId: String): File? = if (SAFE_ID.matches(videoId)) File(dir, "$videoId.json") else null
 
     companion object {

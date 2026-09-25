@@ -8,7 +8,7 @@ import org.junit.Test
 
 /**
  * The channel-keyed podcast whitelist gate. Membership is pure; [PodcastWhitelistCache.channelPasses]
- * adds the female gate used on the browse grid + `filterWhitelisted` so a wholly-female host channel is
+ * adds the female gate used by the library surfaces + `filterWhitelisted` so a wholly-female host channel is
  * hidden when female filtering is on (matching the server, the offline layer, and the artist browse).
  */
 class PodcastWhitelistCacheTest {

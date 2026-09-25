@@ -192,8 +192,6 @@ internal fun <T : YTItem> YtItemGrid(
     val (blockVideos, _) = rememberPreference(BlockVideosKey, false)
 
     LazyVerticalGrid(
-        // Two across, not three: album/artist titles here run long (full Hebrew + English names), and a
-        // third-of-screen cell chops them mid-word. Two columns give the title + "artist · year" room.
         state = gridState,
         columns = GridCells.Fixed(columns),
         contentPadding = LocalPlayerAwareWindowInsets.current.asPaddingValues(),
@@ -213,10 +211,10 @@ internal fun <T : YTItem> YtItemGrid(
                 modifier = Modifier.combinedClickable(
                     onClick = {
                         when (item) {
-                            // Podcast SHOW: open the show itself. This grid is a channel page's
-                            // "See all", so it matches the channel page's own tap (navigateToPodcast) -
-                            // NOT the browse-grid channel routing, which (a show carries its channelId)
-                            // would loop straight back to the channel you're already on.
+                            // Podcast SHOW: channel-first when [podcastChannelFirst] (the Home see-alls);
+                            // otherwise open the show itself (navigateToPodcast) - on a channel page's
+                            // "See all" the channel routing (a show carries its channelId) would loop
+                            // straight back to the channel you're already on.
                             is com.metrolist.innertube.models.PodcastItem ->
                                 if (podcastChannelFirst) {
                                     whitelistedPodcastRoute(item.id, item.channelId)?.let { navController.navigate(it) }
@@ -231,8 +229,9 @@ internal fun <T : YTItem> YtItemGrid(
                                         items = listOf(item.toMediaItem()),
                                     ),
                                 )
-                            // The only SongItems in this grid are the Featured Videos row. Audio-first
-                            // always (I2); video is a per-play in-player toggle, not an entry point (D3).
+                            // The SongItems in this grid are video-songs (the Home video rows, an artist's
+                            // Videos section). Audio-first always (I2); video is a per-play in-player
+                            // toggle, not an entry point (D3).
                             is SongItem -> playerConnection.playQueue(
                                 ZemerRadioQueue.song(item.toMediaMetadata(), playerConnection.service),
                             )
@@ -256,7 +255,7 @@ internal fun <T : YTItem> YtItemGrid(
                                 navController = navController,
                                 coroutineScope = scope,
                                 onDismiss = menuState::dismiss,
-                                // Per-item flag (set by the mapper): the Featured Videos row's SongItems
+                                // Per-item flag (set by the mapper): the video rows' SongItems
                                 // get the video menu ("Download video" / video share), everything else —
                                 // and every row for a blocked-video user — gets the audio menu.
                                 isVideo = item is SongItem && item.isVideo && !blockVideos,

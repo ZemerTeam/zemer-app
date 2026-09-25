@@ -37,16 +37,14 @@ import kotlinx.serialization.json.Json
  * the server runs it over SQLite and returns the SAME wire models the app decodes from the live server
  * ([ZemerAlbumResponse] / [ZemerHomeRowsResponse] /
  * [ZemerCuratedPlaylistsResponse] / [ZemerCuratedPlaylistResponse]), so an offline response is consumed
- * by the Phase-4 router identically to a server one.
+ * by the repository identically to a server one.
  *
  * All ordering, gating and filtering is pinned to the JS source; the SQL is reproduced with stable
  * Kotlin sorts (SQLite's `GROUP BY id … ORDER BY <col>` resolves ties by the grouped id, so a `.thenBy
  * { id }` reproduces it). Fields the current wire models do not carry are necessarily absent offline —
- * they are absent on the server path too, on this branch, since they travel through the same models:
- *  - [ZemerTrack] has no `thumbnail` / `album` / `playCount` / `releaseDate` (the artist/album/curated
- *    handlers emit those; the app's [com.jtech.zemer.search.ZemerTrack] does not model them yet — see
- *    the extended shape in the never-merged commit 4dc527f5), so per-song album art, play counts and
- *    dates do not survive the model.
+ * they are absent on the server path too, since they travel through the same models:
+ *  - [ZemerTrack] has no `playCount` / `releaseDate`, so play counts and dates do not survive the model
+ *    (its optional `thumbnail` / `album` are left unset offline).
  *  - [ZemerAlbum] carries no `type` / `trackCount` / `totalDurationSec` / `releaseDate`, and
  *    [ZemerAlbumHeader] no `type` / `trackCount` / `totalDurationSec` / `releaseDate` (it DOES carry
  *    `playlistId`, which [offlineAlbum] forwards).
@@ -409,7 +407,7 @@ private fun communityKept(
 /**
  * `GET /zemer-playlists` (no id) — store.mjs `zemerPlaylistList` + api.mjs. Editorial order (`ORDER BY
  * pos, id`); a playlist with no member surviving the flags is hidden; the id-override drops a blocked
- * playlist; the thumbnail is the relative generated-cover URL (never a member's art).
+ * playlist; the thumbnail is the generated-cover URL (never a member's art).
  */
 fun offlineCuratedPlaylists(
     corpus: SubsetCorpus,
@@ -466,7 +464,7 @@ fun offlineCuratedPlaylist(
     )
 }
 
-// store.mjs `zemerCard`: post-filter count/runtime, cover = the relative generated-cover URL (api.mjs
+// store.mjs `zemerCard`: post-filter count/runtime, cover = the generated-cover URL (api.mjs
 // overrides the track-art the store computes). totalDurationSec is null unless ≥1 track carries one.
 private fun zemerCard(id: String, title: String, tracks: List<ZemerTrack>): ZemerCuratedPlaylist =
     ZemerCuratedPlaylist(

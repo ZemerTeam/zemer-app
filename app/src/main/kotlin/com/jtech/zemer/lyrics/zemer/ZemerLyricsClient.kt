@@ -74,7 +74,7 @@ object ZemerLyricsClient {
     /**
      * Translations / romanization UNDER each sung line (additive, verified rows only; older servers never send
      * it). [keys] are the same text-free [LineTimesLrc.lineKey]s as `lineTimes`, one per non-empty stored line;
-     * [en] / [he] / [roman] are parallel to them ("" where a line has no entry; a language list is absent when
+     * [en] / [he] / [yi] / [roman] are parallel to them ("" where a line has no entry; a language list is absent when
      * the song has no such extra). [source] `"machine"` = machine translation, labelled once per song.
      */
     @Serializable
@@ -162,7 +162,7 @@ object ZemerLyricsClient {
     /**
      * Send a user's lyrics (an edit they saved) to the Zemer server's submission queue. The server never serves a
      * submission on its own: it is admitted only when a second device agrees or the recording confirms it.
-     * Fire-and-forget: failures are silent, the local edit is already saved on the device.
+     * Never throws: a failure returns false (the local edit is already saved on the device).
      */
     suspend fun submitLyrics(videoId: String, text: String, device: String, lang: String? = null): Boolean = runCatching {
         val body = buildString {

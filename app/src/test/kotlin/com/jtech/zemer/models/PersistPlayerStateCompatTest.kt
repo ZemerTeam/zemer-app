@@ -19,7 +19,7 @@ import java.io.ObjectStreamClass
  * to class fields by NAME, so a renamed `currentPosition` deserializes as 0 and every updating user
  * resumes at the start of the track - with no exception for MusicService's `runCatching` to report.
  * A retype or a class/package rename fails louder (InvalidClassException / ClassNotFoundException),
- * which the restore swallows into a total loss of the saved queue position.
+ * which the restore catches and reports: a total loss of the saved queue position.
  *
  * So these names and types are the persisted wire format, not a naming preference. They are equally
  * fixed at the other end: all seven non-timestamp fields are verbatim androidx.media3 `Player`

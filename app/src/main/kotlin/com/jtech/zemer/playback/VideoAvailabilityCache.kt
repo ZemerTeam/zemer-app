@@ -16,9 +16,9 @@ data class VideoAvailability(
 
 /**
  * In-memory, bounded (LRU) cache of per-item [VideoAvailability] — the I7 "no Room change" store behind
- * the video-mode toggle. Thread-safe; filled from three sources (see the unified-video DESIGN §1):
- * playback resolution (music-video type, free), passive `next()` counterparts, and an on-demand `next()`
- * probe. Exposes a monotonically increasing [revision] so the controller's availability flow recomputes
+ * the video-mode toggle. Thread-safe; filled from three sources: playback resolution (music-video
+ * type, free), passive `next()` counterparts, and an on-demand metadata `/player` probe of the item's
+ * own type. Exposes a monotonically increasing [revision] so the controller's availability flow recomputes
  * when the table changes. Pure JVM (no `android.util.LruCache`) so it is unit-testable without Robolectric.
  */
 class VideoAvailabilityCache(private val maxEntries: Int = 128) {

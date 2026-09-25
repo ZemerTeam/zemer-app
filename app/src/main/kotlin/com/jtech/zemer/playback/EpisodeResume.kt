@@ -2,7 +2,7 @@ package com.jtech.zemer.playback
 
 /**
  * Pure decision logic for podcast-episode resume, extracted so it is unit-testable without a running
- * ExoPlayer/Room (the save/restore wiring in MusicService is the untestable part; this is the rule).
+ * ExoPlayer/Room (the save/restore wiring in [EpisodePositionTracker] is the untestable part; this is the rule).
  */
 object EpisodeResume {
     /** Below this from the start we treat the episode as "at the beginning" (no save, no resume seek). */

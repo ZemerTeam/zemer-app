@@ -33,7 +33,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 
-// Enhanced Action Button - Material 3 Expressive Design
 @Composable
 fun NewActionButton(
     icon: @Composable () -> Unit,
@@ -105,7 +104,6 @@ fun NewActionButton(
     }
 }
 
-// Enhanced Action Grid - Material 3 Expressive Design
 @Composable
 fun NewActionGrid(
     actions: List<NewAction>,
@@ -143,7 +141,6 @@ fun NewActionGrid(
     }
 }
 
-// Enhanced Action Data Class
 data class NewAction(
     val icon: @Composable () -> Unit,
     val text: String,

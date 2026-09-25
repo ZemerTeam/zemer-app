@@ -13,12 +13,10 @@ import kotlinx.coroutines.CoroutineScope
 /**
  * The one YTItem -> YouTube*Menu dispatcher, shared by every discovery surface (search results, the
  * search dropdown, Home, home see-all, artist pages) that long-presses / 3-dots a mixed list of
- * [YTItem]s. Returns the menu content to hand to `menuState.show(...)`, collapsing the four-branch
- * `when (item)` block that was copy-pasted at each site.
+ * [YTItem]s. Returns the menu content to hand to `menuState.show(...)`.
  *
  * [isVideo] is supplied by the caller from its OWN filter/section context (the "Videos" chip, a
- * videos row, etc.) and is deliberately NOT re-derived here — every surface keeps exactly the
- * video-ness it passed before, so this is a pure de-duplication with no behavior change.
+ * videos row, etc.) and is deliberately NOT re-derived here.
  */
 fun ytItemMenu(
     item: YTItem,

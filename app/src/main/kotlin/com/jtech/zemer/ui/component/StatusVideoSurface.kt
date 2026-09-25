@@ -10,8 +10,8 @@ import androidx.media3.ui.PlayerView
 
 /**
  * The shared ExoPlayer video surface for the status viewers: a full-bleed [PlayerView] bound to the
- * given [player]. The live story viewer uses it with no controls (taps drive the story); the saved
- * viewer enables controls for scrubbing. One definition so the two can't drift.
+ * given [player]. Both status viewers use it with no controls (taps drive the story). One definition
+ * so the two can't drift.
  *
  * Fill mode is ZOOM (fill the surface, crop the overflow), the WhatsApp/Instagram-stories behavior: a
  * tall/portrait status video fills the whole screen instead of being letterboxed into a thin strip that

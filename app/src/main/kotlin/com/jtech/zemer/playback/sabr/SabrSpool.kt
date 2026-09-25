@@ -70,8 +70,7 @@ internal object SabrSpool {
             val meta = File(requireDir(), "$mediaId.meta")
             if (!part.renameTo(done)) return
             // Drop any stale `.done` from an earlier itag for this id: the meta below now points at
-            // THIS itag, so an older-itag sibling is unreachable dead weight — and prune() aging it out
-            // would otherwise delete this id's LIVE meta and strand the newer file (finding).
+            // THIS itag, so an older-itag sibling is unreachable dead weight.
             requireDir().listFiles { file -> file.name.startsWith("$mediaId.") && file.name.endsWith(".done") && file != done }
                 ?.forEach { runCatching { it.delete() } }
             val p = Properties()

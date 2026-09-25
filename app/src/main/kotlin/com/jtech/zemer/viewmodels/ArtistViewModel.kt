@@ -79,7 +79,6 @@ class ArtistViewModel @Inject constructor(
             // then shows the local library content (showLocal) or nothing. No InnerTube fallback by
             // design: the north-star is zero app-runtime InnerTube, and a non-corpus artist is
             // non-whitelisted (shouldn't render).
-            // Podcast host channels are the exception: they are not in the corpus, so — like the whole
             artistPage = runCatching {
                 if (isPodcastChannel) {
                     // Host channels are now served whitelist-pure by the Zemer server (`/podcast-channel`,
@@ -135,10 +134,10 @@ class ArtistViewModel @Inject constructor(
             runCatching {
                 zemerRepository.podcastChannelEpisodes(artistId, offset, options)
             }.onSuccess { result ->
-                // Only append onto the exact cursor this fetch started from: a full reload
-                // (fetchArtistsFromYTM re-runs on a content-flag change and resets the page + cursor)
-                // supersedes an in-flight page — applying it anyway would skip the reload's pages and
-                // splice in rows fetched under stale flags (the ZemerGenreViewModel.loadMore guard).
+                // Only append onto the exact cursor this fetch started from, under the flags it was
+                // fetched with: a full reload (fetchArtistsFromYTM resets the page + cursor) supersedes
+                // an in-flight page, and a page fetched under stale flags must never be spliced in
+                // (the ZemerGenreViewModel.loadMore guard).
                 if (episodesNextOffset != offset || !zemerOptionsStillCurrent(options, ContentFilterState.current)) return@onSuccess
                 if (result == null) {
                     episodesNextOffset = null

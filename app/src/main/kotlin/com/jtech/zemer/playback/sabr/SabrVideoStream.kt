@@ -127,9 +127,8 @@ internal class SabrVideoStream(
         session?.cancel()
         session = null
         thread = null
-        // Wake any reader parked in SabrBuffer.read's wait: a cancelled session deliberately skips
-        // marking (its exit branches bare-return), so without this a DataSource still blocked on a
-        // destroyed stream would wait forever — an infinite buffering spinner with no player error.
+        // Wake any reader parked on the buffers: a cancelled session deliberately skips marking (its
+        // exit branches bare-return), so without this an untimed SabrBuffer.read wait would never end.
         videoBuffer.markError("SABR stream destroyed")
         audioBuffer.markError("SABR stream destroyed")
         // Video tracks are never retained (no video replay cache — the resolve cache already skips

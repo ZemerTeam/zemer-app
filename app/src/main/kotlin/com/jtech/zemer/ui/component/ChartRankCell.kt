@@ -80,7 +80,7 @@ fun ChartRankCell(
             .width(metrics.total)
             .clearAndSetSemantics { contentDescription = description },
     ) {
-        // Each glyph centred in its own fixed slot, so the numbers line up with each other and the
+        // Each glyph in its own fixed slot, so the numbers line up with each other and the
         // markers line up with each other, whatever the row happens to contain.
         // END, not centre. The slot is measured for the chart's WIDEST rank, so centring a
         // narrower one puts its digits half a glyph off the column — "7" would not line up with
@@ -120,7 +120,7 @@ fun ChartRankCell(
     }
 }
 
-/** Sized through the type scale (UI standards rule 8): labelSmall is the smallest role we have. */
+/** Sized through the type scale (UI standards rule 8). */
 @Composable
 private fun Marker(glyph: String, places: Int, color: Color) {
     // One Text, not two: two siblings can be broken apart onto separate lines, which is how "▲24"

@@ -17,6 +17,8 @@ import timber.log.Timber
 import javax.inject.Inject
 import javax.inject.Singleton
 
+private const val EXTRAS_LOCK_CACHE_SIZE = 64
+
 /**
  * The ONE fetch-and-persist path for a song's lyrics: the cache decision (`LyricsEntity.needsFetch`), the
  * provider chain, and the row policy (`LyricsEntity.resolved`) live here, so the service prefetch, the lyrics
@@ -28,8 +30,6 @@ import javax.inject.Singleton
  * user's feedback that the button did something), which makes the open lyrics screen call [ensure] too; both
  * join one chain walk instead of two.
  */
-private const val EXTRAS_LOCK_CACHE_SIZE = 64
-
 @Singleton
 class LyricsStore(
     private val cached: suspend (videoId: String) -> LyricsEntity?,

@@ -164,7 +164,6 @@ fun HistoryScreen(
 
     val wrappedItemsMap = remember(filteredEvents) {
         filteredEvents.mapValues { (_, events) ->
-            // ItemWrapper defaults to selected; history enters selection mode with nothing selected.
             events.map { ItemWrapper(it).apply { isSelected = false } }.toMutableStateList()
         }
     }

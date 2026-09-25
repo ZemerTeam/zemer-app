@@ -38,6 +38,14 @@ import coil3.request.ImageRequest
 import coil3.request.crossfade
 import com.jtech.zemer.ui.theme.HeaderFontFamily
 
+// The legibility belt over bright media where the fade has already thinned: a soft dark drop shadow
+// under the white name/date text (what WhatsApp does), so the header reads without an opaque band.
+private val statusTextShadow = Shadow(
+    color = Color.Black.copy(alpha = 0.9f),
+    offset = Offset(0f, 1f),
+    blurRadius = 10f,
+)
+
 /**
  * The shared WhatsApp/Stories top overlay: segment progress bars at the very top, then a compact creator
  * header (back button, avatar, name, timestamp), all forced white over a fade-to-transparent gradient —
@@ -48,14 +56,6 @@ import com.jtech.zemer.ui.theme.HeaderFontFamily
  * creator avatar/name identifies the content the stories way. [currentSegment] is the active segment
  * (0-based) and [progress] fills it; earlier segments are full, later ones empty.
  */
-// The legibility belt over bright media where the fade has already thinned: a soft dark drop shadow
-// under the white name/date text (what WhatsApp does), so the header reads without an opaque band.
-private val statusTextShadow = Shadow(
-    color = Color.Black.copy(alpha = 0.9f),
-    offset = Offset(0f, 1f),
-    blurRadius = 10f,
-)
-
 @Composable
 fun StatusStoryTopOverlay(
     navController: NavController,

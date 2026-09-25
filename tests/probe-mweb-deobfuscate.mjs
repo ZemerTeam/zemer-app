@@ -138,7 +138,6 @@ async function testUrl(url, label) {
 async function main() {
   console.log('=== MWEB Full Deobfuscation Test ===\n');
 
-  // Get player response
   console.log('1. Fetching player response...');
   const resp = await getPlayerResponse(VIDEO_ID);
   console.log(`   Status: ${resp.playabilityStatus?.status}`);
@@ -168,7 +167,6 @@ async function main() {
   console.log(`   Encrypted sig length: ${encryptedSig?.length}`);
   console.log(`   Sig param name: ${sigParam}`);
 
-  // Get and parse player.js
   console.log('\n2. Fetching player.js...');
   const { js, hash } = await getPlayerJs();
 
@@ -181,7 +179,7 @@ async function main() {
     // Use hardcoded config for known hash
     if (hash === '69e2a55d') {
       console.log('   Using hardcoded config for 69e2a55d');
-      // Based on FunctionNameExtractor.kt
+      // Based on player_configs.json
       // sigJsExpression = "Jf(20,3699,INPUT)"
       console.log('   This hash uses jsExpression-based cipher');
       console.log('   Cannot easily test without the full VM setup');
@@ -189,7 +187,6 @@ async function main() {
     return;
   }
 
-  // Test with deobfuscated signature
   console.log('\n4. Testing URL without signature...');
   await testUrl(baseUrl, '   Base URL (no sig)');
 

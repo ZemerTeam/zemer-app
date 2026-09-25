@@ -5,9 +5,6 @@ package com.jtech.zemer.auth
  * Used throughout the app to handle different authentication scenarios.
  */
 sealed class AuthState {
-    /**
-     * User is signed in with account information
-     */
     data class SignedIn(
         val userId: String,
         val email: String?,
@@ -15,9 +12,6 @@ sealed class AuthState {
         val isEmailVerified: Boolean
     ) : AuthState()
 
-    /**
-     * User is signed out
-     */
     object SignedOut : AuthState()
 
     /**
@@ -25,14 +19,8 @@ sealed class AuthState {
      */
     object Loading : AuthState()
 
-    /**
-     * Authentication error occurred
-     */
     data class Error(val exception: Throwable) : AuthState()
 
-    /**
-     * Helper properties to check current state
-     */
     val isSignedIn: Boolean
         get() = this is SignedIn
 

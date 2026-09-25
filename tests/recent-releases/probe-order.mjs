@@ -1,6 +1,6 @@
 // probe-order.mjs — answers the two feasibility questions:
 //
-//   (a) Is the artist DISCOGRAPHY GRID (the "Albums"/"Singles" more endpoint, = InnerTube.artistItems)
+//   (a) Is the artist DISCOGRAPHY GRID (the "Albums"/"Singles" more endpoint)
 //       returned newest-first? If yes, the job only needs the top 1-2 per artist (cheap). If no, we'd
 //       have to date-enrich more items.
 //   (b) Does /player return microformat.uploadDate WITHOUT the cookie (visitorData only)? If yes, the
@@ -24,7 +24,7 @@ async function releaseDate(browseId, cr, { auth = true } = {}) {
   return { date: dates[0]?.value ?? null, videoId: track.videoId };
 }
 
-// player with explicit auth flag (lib.player is always auth=true; we need a no-cookie variant for (b))
+// player with an explicit auth flag (the with/without-cookie comparison for (b))
 import { CLIENTS, ORIGIN } from "../clients.mjs";
 import crypto from "node:crypto";
 const C = CLIENTS.find((c) => c.key === "WEB_REMIX");

@@ -54,7 +54,7 @@ data class PodcastGenreSection(
  * The catalog screen's grouping (pure, unit-tested): sections follow the server's `kinds` order with
  * server-owned titles; members keep the server's within-kind order; a genre whose kind is blank or not
  * in the vocabulary falls to a trailing headerless section (never dropped); no `kinds` at all (older
- * server / offline snapshot) = one headerless section, today's flat grid.
+ * server / older offline snapshot) = one headerless section, today's flat grid.
  */
 fun podcastGenreSections(catalog: PodcastGenreCatalog): List<PodcastGenreSection> {
     if (catalog.kinds.isEmpty()) {

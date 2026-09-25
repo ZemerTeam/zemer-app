@@ -34,8 +34,8 @@ import com.jtech.zemer.LocalPlayerAwareWindowInsets
  * its playing animation - and NEVER the theme accent. The one place the experimental Expressive opt-in
  * lives for this spinner, so every card site is a single call, never a scattered `@OptIn`.
  *
- * For a section/content loader on a normal surface (Home pull-to-refresh, a loading section, the in-player
- * video buffering surface) use the contained, theme-colored [ZemerLoadingIndicator] instead.
+ * For a section/content loader on a normal surface (a loading section, the in-player video buffering
+ * surface) use the contained, theme-colored [ZemerLoadingIndicator] instead.
  */
 @Composable
 fun MediaLoadingSpinner(

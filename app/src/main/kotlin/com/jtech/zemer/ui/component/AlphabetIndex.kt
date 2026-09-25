@@ -1,7 +1,7 @@
 package com.jtech.zemer.ui.component
 
 /**
- * Pure logic for the Artists-tab fast scroller ([LetterFastScrollbar]): mapping a display name to
+ * Pure logic for the browse fast scroller ([LetterFastScrollbar]): mapping a display name to
  * the index letter shown in the drag preview bubble. Kept free of Compose so the rules are
  * unit-testable on the JVM (see AlphabetIndexTest).
  */
@@ -11,8 +11,8 @@ const val ALPHABET_OTHER_BUCKET = '#'
 
 /**
  * The index letter for a display name: its first letter or digit, with Latin letters uppercased
- * (the artist sort is COLLATE NOCASE), Hebrew and other scripts kept as-is, and digits/symbol-only
- * names grouped under [ALPHABET_OTHER_BUCKET]. Leading punctuation ("The-", quotes, parentheses)
+ * (the browse sorts are COLLATE NOCASE), Hebrew and other scripts kept as-is, and digits/symbol-only
+ * names grouped under [ALPHABET_OTHER_BUCKET]. Leading punctuation (quotes, parentheses)
  * is skipped so decorated names land in their real letter.
  */
 fun alphabetBucketOf(name: String): Char {

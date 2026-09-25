@@ -303,9 +303,10 @@ class MusicService :
     // Content signature of the last-persisted queue (see QueuePersist). The heavy queue
     // file is re-serialized only when its content changes; the tiny player-state file carries
     // position on every save, and restore seeks from THAT file, not the queue file. Touched only from
-    // saveQueueToDisk on the caller (main) thread. (Trade-off: if a content-change write fails silently
-    // and no further change or clean teardown follows, the queue file stays one edit stale — a graceful
-    // resume-an-older-queue degradation, never a crash; teardown and the next edit both heal it.)
+    // saveQueueToDisk on the caller (main) thread. (Trade-off: the signature is recorded before the
+    // async write runs, so if that write fails (reported, not retried) and no further change or clean
+    // teardown follows, the queue file stays one edit stale — a graceful resume-an-older-queue
+    // degradation, never a crash; teardown and the next edit both heal it.)
     private var lastPersistedQueueSignature: String? = null
     private var lastPersistedPlayerState: PersistPlayerState? = null
 
@@ -365,7 +366,7 @@ class MusicService :
     val waitingForNetworkConnection = MutableStateFlow(false)
     // Non-private so VideoModeController (same package) can gate the streaming Song/Video toggle on it
     // (a SELF/COUNTERPART rendition streams — never offer it offline; a downloaded muxed LOCAL file is
-    // the only offline video path). Updated by the connectivityObserver collector above.
+    // the only offline video path). Updated by the connectivityObserver collector in onCreate.
     val isNetworkConnected = MutableStateFlow(false)
 
     private val audioQualityFlow = enumPreferenceFlow(
@@ -516,7 +517,7 @@ class MusicService :
 
     private var consecutivePlaybackErr = 0
 
-    // Use shared URL cache from DownloadUtil for consistency between playback and downloads
+    // Playback's stream URL cache (DownloadUtil.sharedUrlCache); downloads never read or write it.
     private val songUrlCache get() = DownloadUtil.sharedUrlCache
 
     override fun onCreate() {
@@ -932,8 +933,8 @@ class MusicService :
     }
 
     private fun abandonAudioFocus() {
-        // Abandon the request regardless of hasAudioFocus. The AUDIOFOCUS_LOSS branch (and onDestroy)
-        // clear the flag before calling this, so a guard on hasAudioFocus would skip the actual
+        // Abandon the request regardless of hasAudioFocus. The AUDIOFOCUS_LOSS branch
+        // clears the flag before calling this, so a guard on hasAudioFocus would skip the actual
         // abandon and leak the request + listener for the service's life. Abandoning a request we do
         // not hold is a harmless no-op on the framework side.
         audioFocusRequest?.let { request ->
@@ -1063,7 +1064,7 @@ class MusicService :
                     ).setIconResId(repeatModeIconRes(player.repeatMode))
                     .setSessionCommand(CommandToggleRepeatMode)
                     // A broadcast has no repeat/shuffle/personal-radio: the buttons disable while a
-                    // station plays (updateNotification re-runs on every queue/track change).
+                    // station plays (updateNotification re-runs whenever the current song changes).
                     .setEnabled(currentQueue !is StationQueue)
                     .build(),
                 CommandButton
@@ -1283,7 +1284,7 @@ class MusicService :
                 return@launch
             }
             // Exclude the seed (currently-playing) song by id so it isn't queued twice — the Zemer radio
-            // may or may not lead with the seed, unlike the YouTube watch playlist that always did.
+            // may or may not lead with the seed.
             val radioItems = initialStatus.items.filterNot { it.mediaId == currentMediaMetadata.id }
             if (radioItems.isEmpty()) {
                 // Fetch came back empty (e.g. everything whitelist-filtered) — leave the
@@ -1645,14 +1646,13 @@ class MusicService :
         // to where the user left off (local playback only). All the resume policy lives in the tracker.
         episodePositionTracker.onTransition(mediaItem)
 
-        // Station boundary sync (handoff par. 4): the ONLY place broadcast drift is corrected -
-        // bidirectional (seek forward when behind, wait when ahead, re-tune when nothing queued is
-        // on-air), never mid-track.
+        // Station boundary sync (handoff par. 4) - bidirectional (seek forward when behind, wait when
+        // ahead, re-tune when nothing queued is on-air), never mid-track.
         (currentQueue as? StationQueue)?.let { resyncStationPlayback(it) }
 
         // Auto load more songs. A station's runway top-up is NOT optional: it ignores the user's
         // Auto-load-more preference (a broadcast that silently ends after six slots is broken, not
-        // configured) and the repeat-reason guard (repeat is forced off for stations anyway).
+        // configured); the repeat guards never fire for it (repeat is forced off for stations).
         if ((dataStore.get(AutoLoadMoreKey, true) || currentQueue is StationQueue) &&
             reason != Player.MEDIA_ITEM_TRANSITION_REASON_REPEAT &&
             player.mediaItemCount - player.currentMediaItemIndex <= 5 &&
@@ -2055,7 +2055,7 @@ class MusicService :
      *
      *  KNOWN LIMITATION (accepted, not a TODO bandaid to "fix in place"): this is a per-byte
      *  source decision inside a streaming `ResolvingDataSource`, so it cannot reconcile the fact that a
-     *  MediaStore download is a DIFFERENT container (m4a/itag140) than the streamed audio (webm/opus).
+     *  MediaStore download is a DIFFERENT container (m4a or Ogg) than the streamed audio (webm/opus).
      *  The one path it does NOT make perfect: if you DOWNLOAD a song WHILE actively listening to that
      *  same song, that playing instance stays on the stream (it won't switch to the local file until the
      *  song is re-selected), so offline it can only play as far as the stream cached. It does not crash;
@@ -2149,7 +2149,7 @@ class MusicService :
         return ResolvingDataSource.Factory(createCacheDataSource()) { dataSpec ->
             val mediaId = dataSpec.key ?: error("No media id")
 
-            // Video-mode rendition: a `video:<id>` key resolves a PROGRESSIVE MUXED stream via the same
+            // Video-mode rendition: a `video:<id>` key resolves its video stream via the same
             // YTPlayerUtils path as audio (preferVideo=true), bypassing all the audio-only machinery —
             // the local-file/downloadCache branch, the FormatEntity upsert, recoverSong, and the
             // Tracker.onStreamResolved record (a transient rendition must never pollute the formats table
@@ -2242,8 +2242,7 @@ class MusicService :
                     }
                 }
                 val nonNullAudio = requireNotNull(mergeAudio) { getString(R.string.error_unknown) }
-                // The merge-audio key carries no itag, but the audio pick is not stable (AudioQuality
-                // AUTO flips with metered state) — purge the key's cached spans whenever the resolved
+                // The merge-audio key carries no itag — purge the key's cached spans whenever the resolved
                 // itag is unknown (fresh process) or changed, so two containers can never share the
                 // resource (the same corruption class the itag-suffixed video keys prevent).
                 val previousAudioItag = mergeAudioItagCache.put(mediaId, nonNullAudio.format.itag)
@@ -2283,7 +2282,6 @@ class MusicService :
                 return@Factory dataSpec.withUri(stampCpn(it.first, mediaId).toUri())
             }
 
-            // Validate current authentication state before fetching stream
             val currentAuthCookie = YouTube.cookie
             val isLoggedIn = currentAuthCookie.cookieHasSession()
 
@@ -2459,13 +2457,6 @@ class MusicService :
         java.util.Collections.newSetFromMap(java.util.concurrent.ConcurrentHashMap<String, Boolean>())
 
     /**
-     * Seed the shared URL cache with EVERY quality rung's URL + the merge-audio partner from one
-     * video resolution — the fast-switch backbone: a quality swap (or the adaptive rung's audio
-     * track) then resolves entirely from cache, no second player round-trip. The merge-audio seed
-     * runs the same itag-drift purge as the live merge branch so cached spans can never mix
-     * containers.
-     */
-    /**
      * Seed the PLAIN `video:<id>` key from an automatic-pick resolution, purging its cached spans on
      * an itag change (the automatic pick's itag flips with metered state). Shared by the resolver's
      * own plain-key path and [prefetchVideoRendition] so the drift guard can't be bypassed.
@@ -2479,6 +2470,13 @@ class MusicService :
         songUrlCache[plainKey] = streamUrl to expiry
     }
 
+    /**
+     * Seed the shared URL cache with EVERY quality rung's URL + the merge-audio partner from one
+     * video resolution — the fast-switch backbone: a quality swap (or the adaptive rung's audio
+     * track) then resolves entirely from cache, no second player round-trip. The merge-audio seed
+     * runs the same itag-drift purge as the live merge branch so cached spans can never mix
+     * containers.
+     */
     private fun seedVideoUrlCaches(renditionId: String, data: YTPlayerUtils.PlaybackData) {
         val expiry = System.currentTimeMillis() + (data.streamExpiresInSeconds * 1000L)
         data.videoRungUrls.forEach { (itag, url) ->
@@ -2581,10 +2579,10 @@ class MusicService :
     }
 
     // ---- EXPERIMENTAL SABR playback (opt-in via StreamSabrKey, OFF by default). Isolated exactly like
-    // RELAY: a downloaded file still plays from disk; otherwise each open resolves WEB_REMIX's SABR/UMP
+    // RELAY: a downloaded file still plays from disk; otherwise each open resolves a SABR/UMP
     // stream (playback/sabr/) instead of a progressive URL. Never runs when the flag is off, so the DIRECT
     // path is untouched. The SABR engine is JVM-tested and validated whole-song against the live CDN by
-    // tests/sabr-stream.mjs; the on-device gate is the remaining verification before this is user-facing.
+    // tests/sabr-stream.mjs.
     private val sabrDataSourceFactory: DataSource.Factory by lazy {
         ResolvingDataSource.Factory(
             // RELAY parity: DefaultDataSource routes file/content URIs (a downloaded song's local file)
@@ -2840,7 +2838,7 @@ class MusicService :
         // Video mode (I4): a rendition swap ends this PlaybackStats session mid-listen, firing this
         // callback. The accumulator SUPPRESSES a swap-ended session (stashing its play time) and EMITS
         // the accumulated total once at the real end — so an audio↔video toggle never double-fires the
-        // `play` event, the history insert, or the YT playback registration for one listen.
+        // `play` event or the history insert for one listen.
         val listen = videoModeController.onStatsReady(mediaItem.mediaId, playbackStats.totalPlayTimeMs)
         if (listen is ListenAccumulator.Result.Suppress) return
         val totalPlayTimeMs = (listen as ListenAccumulator.Result.Emit).totalMs
@@ -2958,8 +2956,8 @@ class MusicService :
     /**
      * Persists the queue/player-state snapshots. The player is read on the caller (main)
      * thread; by default the serialization + disk writes are offloaded to [queuePersistScope] so the
-     * periodic save never spikes the main thread. [blocking] = true writes inline on the caller thread
-     * for teardown ([onDestroy]), where the write must complete before the process ends.
+     * periodic save never spikes the main thread. [blocking] = true runs the write through that scope
+     * and joins it, for teardown ([onDestroy]), where the write must complete before the process ends.
      */
     private fun saveQueueToDisk(blocking: Boolean = false) {
         if (player.mediaItemCount == 0) {
@@ -3098,8 +3096,8 @@ class MusicService :
         // can remove. media3 invalidates its pending callbacks only inside its own removal path
         // (it advances the notification sequence there), and that path runs for a session that is
         // no longer added to the service - so remove the session first and let media3 remove the
-        // notification itself, before the session is released. Same stopForeground + cancel as
-        // below, plus the invalidation this service cannot do by hand.
+        // notification itself, before the session is released: its removal path stops the foreground and
+        // cancels the notification, plus the invalidation this service cannot do by hand.
         if (isSessionAdded(mediaSession)) {
             removeSession(mediaSession)
             super.onUpdateNotification(mediaSession, /* startInForegroundRequired = */ false)
@@ -3109,7 +3107,7 @@ class MusicService :
         player.removeListener(sleepTimer)
         player.release()
         // After the player is gone: destroy any live SABR streams (kills their drain threads and frees
-        // the whole-track buffers). Without this, a service destroy with a stream still registered left
+        // their spool buffers). Without this, a service destroy with a stream still registered left
         // a daemon thread POSTing to googlevideo with both buffers pinned for the life of the process.
         com.jtech.zemer.playback.sabr.SabrStreamRegistry.clear()
         com.jtech.zemer.playback.sabr.SabrVideoRegistry.clear()

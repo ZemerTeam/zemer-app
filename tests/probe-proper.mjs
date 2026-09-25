@@ -19,12 +19,10 @@ const VISITOR_DATA = 'Cgs1RnUxMWVROTNLSSiZwOnPBjIKCgJVUxIEGgAgTQ==';
 const ORIGIN = 'https://music.youtube.com';
 const API_URL = 'https://music.youtube.com/youtubei/v1/player';
 
-// Known client IDs already in app
 const KNOWN_IDS = new Set([1, 3, 5, 7, 14, 28, 62, 67, 85, 101]);
 
-// Client definitions matching YouTubeClient.kt
 const CLIENTS = {
-  // Already in app (for verification)
+  // App / former-app clients (for verification)
   WEB_REMIX: { id: '67', name: 'WEB_REMIX', version: '1.20260213.01.00', loginSupported: true },
   VISIONOS: { id: '101', name: 'VISIONOS', version: '0.1', loginSupported: false },
   TVHTML5: { id: '7', name: 'TVHTML5', version: '7.20260213.00.00', loginSupported: true },

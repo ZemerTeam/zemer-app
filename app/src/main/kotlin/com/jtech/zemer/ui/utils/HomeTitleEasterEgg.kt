@@ -29,7 +29,7 @@ fun easterEggTapCount(previousCount: Int, lastTapAtMs: Long, nowMs: Long): Int =
     if (nowMs - lastTapAtMs > HOME_EASTER_EGG_TAP_WINDOW_MS) 1 else previousCount + 1
 
 /**
- * Plays the easter-egg song EXACTLY like an incoming `music.zemer.io/watch` deep link
+ * Plays the easter-egg song like an incoming `music.zemer.io/watch` deep link
  * (MainActivity's handler): resolve via `YouTube.queue`, run the whitelist filter (the kosher
  * guarantee applies to easter eggs too - a non-whitelisted egg is silently ignored), then start the
  * standard watch-endpoint queue. Failures are reported, never surfaced - it's an egg.

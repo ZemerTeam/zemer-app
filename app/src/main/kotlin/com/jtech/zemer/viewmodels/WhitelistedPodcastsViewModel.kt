@@ -52,9 +52,9 @@ constructor(
         ) { podcasts: List<PodcastWhitelistEntity>, query, filters ->
             podcasts
                 // Female gate: hide a wholly-female host channel when female filtering is on, matching the
-                // server, the offline snapshot, and the artist browse. (kidZone is always off for podcast
-                // surfaces.) This browse grid reads the mirror whitelist directly, so it is the one podcast
-                // discovery surface with no server filter in front of it — the gate must run here.
+                // server, the offline snapshot, and the artist browse. This browse grid reads the mirror
+                // whitelist directly, so it is the one podcast discovery surface with no server filter in
+                // front of it — the gate must run here.
                 .filter { !it.isFemale || filters.allowsFemale() }
                 // Kid gate: a wholly-kid channel lives in KidZone, not the normal browse - the
                 // exact mirror of the music artist browse's `WHERE isKidZone = 0` (issue: kid

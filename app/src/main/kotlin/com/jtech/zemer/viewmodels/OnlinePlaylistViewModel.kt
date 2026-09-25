@@ -126,7 +126,6 @@ class OnlinePlaylistViewModel @Inject constructor(
             while (currentProactiveToken != null && isActive) {
                 // If a manual loadMore is happening, pause proactive loading
                 if (_isLoadingMore.value) {
-                    // Wait until manual load is finished, then re-evaluate
                     // This simple break and restart strategy from loadMoreSongs is preferred
                     break 
                 }

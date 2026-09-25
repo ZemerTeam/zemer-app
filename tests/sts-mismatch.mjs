@@ -3,7 +3,7 @@
 // The signatureTimestamp sent in /player decides which player generation YouTube mints the
 // signatureCipher for. The app deciphers with the player its OWN PlayerJsFetcher loaded, so
 // the request STS must come from that same player (CipherDeobfuscator.signatureTimestamp(),
-// used by YTPlayerUtils.getSignatureTimestampOrNull) — NOT from NewPipe's independently
+// used by YTPlayerUtils.getSignatureTimestampOrNull) — NOT from an independently
 // fetched player, which can be a different generation mid-rollout.
 //
 // Scenarios (both decipher with the PINNED player, mirroring the app):

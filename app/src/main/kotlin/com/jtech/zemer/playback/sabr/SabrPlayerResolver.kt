@@ -13,7 +13,7 @@ import timber.log.Timber
  * Self-contained SABR resolution over a roster of SABR-USABLE clients (only those validated to deliver a
  * whole song over SABR with the app's pot in `tests/sabr-clients.mjs`). Fetches the `/player` response for
  * each ENABLED client in priority order, and the FIRST that exposes SABR inputs (serverAbrStreamingUrl +
- * ustreamer config) wins: registers a session and returns a `sabr://<videoId>` uri for ExoPlayer.
+ * ustreamer config) wins: registers its config and returns a `sabr://<videoId>` uri for ExoPlayer.
  *
  * Isolated from the DIRECT path. Reuses the app's [YouTube.player], the [PoTokenGenerator] WebView pot,
  * and the [CipherDeobfuscator] n-transform. Web clients (WEB_REMIX / TVHTML5_SIMPLY) have a
@@ -42,7 +42,7 @@ object SabrPlayerResolver {
         val androidSdk: Int? = null,
     )
 
-    // Priority order. WEB_REMIX first (the app's main client); VISIONOS is the reliable pot-less direct one.
+    // Priority order. WEB_REMIX first (the app's main client); VISIONOS is the reliable direct one.
     private val ROSTER = listOf(
         Spec(KEY_WEB_REMIX, YouTubeClient.WEB_REMIX, "WEB_REMIX (SABR)", web = true, osName = "Windows", osVersion = "10.0"),
         Spec(KEY_VISIONOS, YouTubeClient.VISIONOS, "VISIONOS (SABR)", web = false, osName = "visionOS", osVersion = "26.5.23O471", deviceMake = "Apple", deviceModel = "RealityDevice17,1"),

@@ -5,10 +5,9 @@ const val SEE_ALL_MIN_ITEMS = 4
 
 /**
  * Whether a section/shelf holding [itemCount] items should show its "See all" arrow. The single source of
- * this threshold, shared by every list surface that offers a see-all so the rule can't drift — the artist
- * page (+ the podcast CHANNEL page that reuses it), genres, new releases, history, stats, statuses
- * and search. The Home tab is the one deliberate exception (every Home content row always shows a see-all
- * by design), so it does NOT call this. Pure + unit-tested.
+ * this threshold so the rule can't drift — used by the artist page (+ the podcast CHANNEL page that reuses
+ * it). The Home tab deliberately does NOT call this (every Home content row always shows a see-all by
+ * design). Pure + unit-tested.
  */
 fun shouldShowSeeAll(itemCount: Int): Boolean = itemCount >= SEE_ALL_MIN_ITEMS
 

@@ -28,9 +28,9 @@ import com.jtech.zemer.ui.component.focusBorder
 import com.jtech.zemer.utils.rememberPreference
 
 /**
- * The single launch path for the FCast device picker (shared by every cast button): start the on-demand
- * native-lib fetch + NSD discovery lazily, then open the picker in the shared menu bottom-sheet, reading
- * the current metadata at click time.
+ * The single launch path for the FCast device picker (shared by every cast button): start NSD discovery
+ * lazily (only once the on-demand native lib is present), then open the picker in the shared menu
+ * bottom-sheet, reading the current metadata at click time.
  */
 fun openCastPicker(playerConnection: PlayerConnection, menuState: MenuState) {
     playerConnection.service.startDiscovery()

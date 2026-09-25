@@ -40,7 +40,7 @@ object WhitelistFetcher {
                     Timber.d("WhitelistFetcher: mapping %d artists from content mirror", total)
                     val entities = ArrayList<ArtistWhitelistEntity>(total)
                     docs.forEachIndexed { index, doc ->
-                        // Drive the sync-overlay progress the same way the Firestore path does.
+                        // Drive the splash-screen sync progress the same way the Firestore path does.
                         onProgress(index + 1, total)
                         val artistId = (doc.id.takeIf { it.isNotBlank() } ?: doc.artistId)?.takeIf { it.isNotBlank() }
                             ?: return@forEachIndexed
@@ -122,7 +122,7 @@ object WhitelistFetcher {
     /**
      * Fetch the read-only `blockedContentIds` collection — id-level content overrides applied everywhere
      * in the app (see [BlockedIdsCache]). Each document is one override: the id is read from the `id`
-     * field (falling back to the document id), and the `reason` field (e.g. "female", "video") decides
+     * field (falling back to the document id), and the `reason` field (e.g. "female", "global") decides
      * which content-filter setting the block is gated on. The app only ever READS this collection.
      */
     suspend fun fetchBlockedIds(): Result<Map<String, String>> =
@@ -151,9 +151,8 @@ object WhitelistFetcher {
         }
 
     // The podcast whitelist is the authoritative allow-set + version gate, read MIRROR-FIRST from
-    // content.zemer.io (already live) with the Firestore collection as fallback — exactly like the artist
-    // whitelist (fetchVersion/fetchWhitelist). `zemer-search /podcasts` is the rich browse catalog, NOT
-    // the gate (it enriches art in SyncUtils); the gate lives here.
+    // content.zemer.io with the Firestore collection as fallback — exactly like the artist whitelist
+    // (fetchVersion/fetchWhitelist). `zemer-search /podcasts` is NOT the gate; the gate lives here.
 
     suspend fun fetchPodcastVersion(): Result<Long> =
         runCatching {
