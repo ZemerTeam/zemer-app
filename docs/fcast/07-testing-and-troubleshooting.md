@@ -73,12 +73,16 @@ tree runs in every build, turning logs into breadcrumbs and `reportException` in
 
 | Logcat tag | Shows |
 | --- | --- |
-| `CastDeviceAddressResolver` | click-time re-resolves and their failures |
-| `CastDeviceRefresher` | refresh bursts: resolved, unreachable-and-pruned, discovery-start failures |
+| `CastDeviceAddressResolver` | click-time re-resolve results |
+| `CastDeviceRefresher` | refresh bursts: found/authoritative summary, unreachable-and-pruned |
 | `NsdDeviceDiscoverer` (SDK) | services found vs resolved |
 | `CastRelay` | relay port, start/stop, no route to receiver, "Relay unavailable" (direct-URL fallback) |
 | `CastController` | receiver errors with ladder attempt/action; idle-session auto-end |
 | `YTPlayerUtils` | stream resolution (casting uses the same `resolveStreamUrl` path) |
+
+NSD listener callbacks (a resolve attempt failing, a burst's discovery failing to start) log from
+anonymous listener classes, so their auto-tags carry a `$…` suffix (e.g.
+`CastDeviceRefresher$discoverBurst$listener`) and `-s` misses them - grep for `Cast NSD` / `Cast refresh`.
 
 ```bash
 adb logcat -s CastDeviceAddressResolver:V CastDeviceRefresher:V NsdDeviceDiscoverer:V CastRelay:V CastController:V YTPlayerUtils:V
@@ -102,7 +106,7 @@ adb logcat -s CastDeviceAddressResolver:V CastDeviceRefresher:V NsdDeviceDiscove
 | Tap a device → "Couldn't connect" | the re-resolve failed (`CastDeviceAddressResolver`) or the TCP connect was refused / timed out (receiver closed, firewall). The failed tap prunes the entry; a refresh re-adds a live one. `MissingAddresses` non-fatals mean the re-resolve path regressed. |
 | A closed receiver stays listed after refresh | its resolve failed outright, making the burst non-authoritative (pruning deliberately blocked); one failed tap prunes it. |
 | "Enable casting", nothing downloads | `Failed(UNSUPPORTED_DEVICE)` or `DOWNLOAD_FAILED` (network / GitHub reachability) in `castLibState`. |
-| Crash on first connect after an SDK bump | the `CastNativeLib.ABIS` SHAs don't match the `zemer-cast` `sdk-<ver>` assets. |
+| Crash on first connect after an SDK bump | `CastNativeLib.SDK_VERSION`/`ABIS` still name the old assets, so the old `.so` verifies and loads under the new bindings (a wrong SHA shows as `DOWNLOAD_FAILED` instead). |
 | Receiver rejects the stream | wrong content type - must be the container MIME from `songMimeCache`, never the codec MIME. |
 | Seek bar frozen / jumping | a surface bypassing `currentPositionMs()`/`currentDurationMs()`, or the receiver not emitting `timeChanged`. |
 | Auto-skip right after connecting / switching | stale near-end state reaching a detector: `lastProgressSec` must reset on every load/connect/disconnect; the stall detector reads the interpolated clock + `lastRemoteTimeUpdateAt`. |

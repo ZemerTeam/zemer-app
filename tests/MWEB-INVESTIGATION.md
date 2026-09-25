@@ -22,8 +22,8 @@ Two independent causes:
 ## Evidence (probe scripts)
 
 - **`probe-mweb-drain.mjs` - the arbiter.** Sequential 256-KiB ranges on fresh connections on gated
-  tracks, with WEB_REMIX itag 251 on the same pinned player as control: MWEB 140/251 fail at 1 MiB under
-  every pot; the control drains the whole song (so the pin is sound and the failure is real).
+  tracks, with WEB_REMIX itag 251 on the same pinned player as control: MWEB 140/251 (no pot) and 140
+  (videoId pot) fail at 1 MiB; the control drains the whole song (so the pin is sound and the failure is real).
 - **`probe-mweb-verdict.mjs`** - per-binding matrix: MWEB passes the wall only on ungated videos (even
   with no pot); WEB_REMIX with the videoId pot drains every track whole.
 - **`probe-mweb-wall-absolute.mjs` - isolated ranges mislead.** A lone `bytes=1048576-` request can

@@ -18,7 +18,7 @@ the *program*; audio still streams from YouTube + the cipher. Contract:
 ## The sync design (one primitive)
 
 - **Wire + clock math** (`search/ZemerStationsModels.kt`, pure + unit-tested): skew against
-  `serverTimeMs`, the live join position, start-at-0 for a negative `offsetMs`, the dying-track join
+  `serverTimeMs`, the live join position, start-at-0 for a not-yet-started `now` (negative join), the dying-track join
   rule (`STATION_DYING_TRACK_MS` = 5 s), and `stationOnAirOffsetMs` - the on-air window test
   everything else is built on.
 - **`MusicService.resyncStationPlayback`** owns EVERY drift path - track boundaries, pause-resume,
@@ -36,15 +36,16 @@ commands, NO-OPs them against stale controllers, and notifies command changes on
 (`notifyStationMaskChanged`) - so the notification, Android Auto and Bluetooth all comply. In-app,
 every raw-player surface is gated on `PlayerConnection.isStationBroadcast` (and
 `PlayerConnection.seekTo/seekToNext/seekToPrevious` early-return): mini-player swipes, the full
-player's thumbnail swipe, queue-sheet taps, lyrics buttons and line-tap seeks, the widget's skip
-actions, repeat/shuffle toggles, and the Start-radio affordances (menu row hidden, notification button
-disabled, `MusicService.startRadioSeamlessly` chokepoint guard). Queue MUTATIONS (Play next / Add to queue) deliberately EXIT broadcast mode
+player's thumbnail swipe, queue-sheet taps, lyrics buttons and line-tap seeks, repeat/shuffle toggles,
+and the player menu's Start-radio row (hidden). Service-side, `currentQueue is StationQueue` gates the
+widget's skip actions, the notification's repeat/shuffle/Start-radio buttons (disabled) and the
+`MusicService.startRadioSeamlessly` chokepoint. Queue MUTATIONS (Play next / Add to queue) deliberately EXIT broadcast mode
 (`exitStationOnQueueMutation`). The full player swaps the seek slider for the read-only
 `StationLiveBar`; the mini player shows the shared `StationLiveBadge`.
 
 ## The Radio tab
 
-The stations are the Home **Radio** tab: a titled ("Zemer Radio") 3-column station grid, no See-all
+The stations are the Home **Radio** tab: a titled ("Zemer Radio Stations") 3-column station grid, no See-all
 arrow (the tab is the whole list). `ZemerStationsViewModel` (isolated - a stations failure can never
 break Home) feeds `GridItem`-based `ZemerStationCard`s: the branded SVG cover carries the station
 name, so the text under it is the live now-playing song over its artist. The now-playing line

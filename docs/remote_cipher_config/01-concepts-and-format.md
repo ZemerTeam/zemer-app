@@ -28,7 +28,8 @@ the loaded player with the right entry points, so an entry is:
 - `sig` - a dispatcher call whose two integers select the decipher routine inside the VM.
 - `nClass` - the player's URL-wrapper class; the device wraps it in a fixed IIFE (below).
 - `aliases` - the **md5 fallback identity**: `FunctionNameExtractor.extractPlayerHash()` uses the first
-  8 hex of `md5(first 10000 bytes of base.js)` when no URL hash is available. Both keys map to the same
+  8 hex of `md5(first 10000 chars of base.js)` when neither a known URL hash nor a hash embedded in the
+  JS is available. Both keys map to the same
   parsed config.
 
 Builds re-released under different hashes often share the same `sig`/`nClass`; each hash still needs
@@ -87,7 +88,7 @@ Two severities, deliberately:
   on map order, so ambiguity is a defect).
 
 Every consumer of a `ParseResult.Failure` keeps its previous state (store: memory + disk cache;
-monitor: hash counts as unknown and alerts; harness: aborts), so no file-level defect degrades a
+monitor: the scan fails, a red run; harness: aborts), so no file-level defect degrades a
 device below its last-good table. A `Success` with skipped entries is applied as the new remote map
 (`bundled + remote`), so a skipped hash that only the previous remote copy carried drops out.
 

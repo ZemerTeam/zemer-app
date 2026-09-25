@@ -42,7 +42,7 @@ The feed is an external dependency. Rules that must not regress:
 | Symptom | Check |
 |---|---|
 | Shelf missing on Home | 1. `curl -s "https://flipphoneguy.duckdns.org/?page=zemer_releases" \| head -c 400` - an error or empty `releases` is the **server job**. 2. `adb logcat -s Zemer_LatestReleases`: `Fetched N releases …`, `Feed unchanged (304)`, `Feed fetch HTTP <code>`, `Gave up after 3 attempts …`. 3. `Showing X releases (of Y before whitelist filter)` with `X == 0 < Y` means the user's content preferences excluded everything - correct behaviour. 4. Server down > 3 days → cache self-dropped by design. |
-| Wrong order / old releases | Order is the server's, preserved by the app; re-run the builder twin (`WINDOW=14 node tests/recent-releases/build-feed.mjs`). Cached releases persist until the next launch's refresh. |
+| Wrong order / old releases | Order is the server's, preserved by the app; re-run the builder twin (`WINDOW=14 node tests/recent-releases/build-feed.mjs`). Cached releases persist until the next successful refresh. |
 | Subtitle shows only the artist | `relativeDateLabel` returned null: the feed's `uploadDate` isn't valid ISO-8601. |
 | A single opens the album | The served/cached feed lacks `"trackCount": 1` or `sampleVideoId` (older builder or cache) - relaunch after the feed is fixed; a wrong count is the builder's `albumTracks`. |
 

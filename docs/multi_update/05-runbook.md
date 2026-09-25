@@ -3,8 +3,9 @@
 ## Testing the flow on-device
 
 An update is offered only when the remote build is newer than the installed one. To exercise download +
-install without a real release, **temporarily** lower `versionCode` / `versionName` in
-`app/build.gradle.kts` below what `https://ghtrack.zemer.io/api` reports, build and install
+install without a real release, **temporarily** lower `versionName` in `app/build.gradle.kts` below
+the `latestVersion` that `https://ghtrack.zemer.io/api` reports (the stable check compares only
+versionName, `isNewerVersion`), build and install
 (`./gradlew :app:assembleDebug`, `adb install -r app/build/outputs/apk/debug/app-debug.apk`), then open
 **Settings → Updater**. **Never commit that change** - version bumps are a release-team decision.
 
@@ -44,7 +45,7 @@ A silent install closing the app is expected ([03](03-restart.md)), not a crash.
 
 ## Download progress (related rule)
 
-`UpdateChecker.downloadUpdate` sizes the progress bar from the **GET response's** content length after
-redirects, never a separate HEAD: `/download` redirects through a worker + CDN, and a HEAD can be answered
+`UpdateChecker.downloadUpdate` sizes a stable download's progress bar from the **GET response's** content
+length after redirects (a nightly uses the mirror's declared `size`), never a separate HEAD: `/download` redirects through a worker + CDN, and a HEAD can be answered
 by a different hop (e.g. a challenge page) with the wrong length. A gzip-encoded body is treated as
 unknown size (the header would be the compressed length).

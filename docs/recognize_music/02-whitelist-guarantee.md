@@ -47,8 +47,8 @@ ids → false. So an empty/unsynced table yields "No match", never a leak.
 `RecognitionMatcher.bestMatchIndex` picks *which* (already-whitelisted) candidate is the recognized
 track, so an unrelated song that merely shares a word isn't surfaced:
 
-- normalizes (strip bracketed segments + diacritics, lowercase, drop punctuation and
-  `feat`/`ft`/`featuring`);
+- normalizes (strip bracketed segments + diacritics, lowercase, keep only `[a-z0-9]` runs - non-Latin
+  letters such as Hebrew are dropped too - and drop `feat`/`ft`/`featuring`);
 - **gate**: token **recall** ≥ 0.5 on the title *and* on some candidate artist;
 - **rank**: highest Jaccard similarity (title 0.6 + artist 0.4); ties → earliest (search order).
 

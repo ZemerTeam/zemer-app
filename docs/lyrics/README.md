@@ -12,8 +12,8 @@ Default order (`LyricsProviderRegistry`, user-reorderable in Content settings): 
 provider result (`LyricsProvider.getLabeledLyrics` → `LabeledLyrics`), so every path persists the same string in
 `LyricsEntity.provider` (nullable; Room `AutoMigration(35, 36)`). Every fetch-and-persist goes through
 `lyrics/LyricsStore` (`ensure` = the cache decision + chain + row policy, `refetch` = the menu's explicit
-delete-then-refresh, single-flight per videoId); the service prefetch, the lyrics screen and the menu call it and
-none re-implements the policy (`LyricsStoreTest`). `LyricsHelper` keys the videoId-based providers by
+delete-then-refresh, single-flight per videoId); the service prefetch, the lyrics screen, the menu and the
+download-completion prefetch (`MediaStoreDownloadManager`) call it and none re-implements the policy (`LyricsStoreTest`). `LyricsHelper` keys the videoId-based providers by
 `MediaMetadata.id` (never `setVideoId`, which is a playlist-entry token).
 
 * **Zemer** (`lyrics/zemer/`): `ZemerLyricsClient.resolve(videoId)` → `GET {ZEMER_LYRICS_BASE_URL}/lyrics/resolve`
@@ -86,7 +86,7 @@ none re-implements the policy (`LyricsStoreTest`). `LyricsHelper` keys the video
   since it was timed and still syncs with every line kept.
 * **`lineExtras`** (`lyrics/LineExtras.kt` + `lyrics/LineExtrasStore.kt`; `LineExtrasTest` / `LineExtrasStoreTest` /
   `LyricsStoreTest`; contract `handoff-docs/zemer-app-line-extras.md`): a per-line translation / romanization
-  (`{"keys": [8-hex], "en": [...], "he"?: [...], "roman"?: [...], "source": "machine"}`, additive; `""` where a line
+  (`{"keys": [8-hex], "en"?/"he"?/"yi"?/"roman"?: [...], "source": "machine"}`, additive; `""` where a line
   has none). Paired by the SAME `lineKey` as `lineTimes`, never by index (`LineExtras.forLines`); an unkeyed line
   gets nothing. Rendered by the shared `LyricsLineExtra` under the sung line, ONE language at a time from
   `LyricsLineExtrasKey` (`LineExtrasLanguage`: OFF / ENGLISH / HEBREW / YIDDISH / ROMANIZED, **default OFF** — nothing
@@ -139,7 +139,7 @@ behind the enabled ones; `LyricsProviderOrderingTest`, `LyricsProviderRegistryTe
 * `LyricsUtils.cleanLrc` formats with `Locale.US` (a comma-decimal locale produces unparseable LRC).
 
 ## Lyrics view (`ui/player/LyricsScreen.kt`, hosted by `ui/player/Player.kt`)
-The `ShowLyricsKey` preference opens `LyricsScreen` inside the Player: `LyricsSourceHeader` ("Lyrics from X ·
+The Player's lyrics bottom sheet (`lyricsSheetState`, expanded by `onShowLyrics`) hosts `LyricsScreen`: `LyricsSourceHeader` ("Lyrics from X ·
 synced", only once a real body exists) + the lyrics menu + the shared `Lyrics` pane, reusing the Player's own
 transport row and slider (`PlayerTransportRow`) and the `LyricsComponents.kt` pieces — never re-roll them. Its
 repeat button's content description follows `repeatModeContentDescriptionRes(repeatMode)`.
@@ -156,7 +156,7 @@ CONCURRENTLY, offered in priority order; (3) the low-trust providers only when N
 concurrently — so they are deferred even when the user order lists them first. Each provider's elapsed time is a
 `Lyrics <name> answered|no answer in N ms` Timber breadcrumb.
 
-The walk runs STRUCTURED under its caller (`LyricsHelper.getLyrics` → `LyricsChainWalk.run`, a `coroutineScope`):
+The walk runs STRUCTURED under its caller (`LyricsHelper.getLyrics` → `LyricsChainWalk.run`, its concurrent stages in a `coroutineScope`):
 a cancelled caller (a prefetch skipped to the next track) cancels the in-flight provider fetches, and the fetch
 lambda rethrows `CancellationException` so a skipped track is never reported as a provider failure. There is no
 in-memory lyrics cache; Room via `LyricsStore` is the cache.

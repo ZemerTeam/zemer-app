@@ -24,25 +24,25 @@ baselines those gaps (`scripts/ui-audit-baseline.tsv`) and ratchets them down.
   `MoreVertMenuButton`, and a plain `TopAppBar` action icon is `TopAppBarActionButton` — the last
   three in `IconButton.kt`. A discovery row that opens a menu for a mixed
   list of InnerTube `YTItem`s uses `ytItemMenu(item, …, isVideo)` (`ui/menu/YouTubeItemMenu.kt`) —
-  the one `when (item) -> YouTube*Menu` dispatcher — instead of copy-pasting the four-branch block.
+  the one `when (item) -> YouTube*Menu` dispatcher — instead of copy-pasting the per-type block.
 - **Top bars are uniform via two shared sources** (`ui/component/`): the title goes through
   `AppBarTitle(text)` (bold `titleLarge`, single-line+ellipsis, matching Home) and the colors through
-  `colors = zemerTopAppBarColors()` (black under AMOLED / `surfaceContainer` otherwise, with
-  `scrolledContainerColor == containerColor` so a bar never greys-out on scroll — the default
-  `scrolledContainerColor` is not AMOLED-aware). `BackTopAppBar` bakes both in. The only exceptions are
-  the full-bleed login/onboarding bars and ArtistScreen's over-header transparent state. Do not hand-roll a title `Text` or omit `colors` on a new screen bar.
+  `colors = zemerTopAppBarColors()` (`surfaceContainer`, which the pure-black scheme turns black, with
+  `scrolledContainerColor == containerColor` so a bar never greys-out on scroll — the M3 default
+  container is `surface`, scrolled `surfaceContainer`). `BackTopAppBar` bakes both in. The only exception
+  is ArtistScreen's over-header transparent state. Do not hand-roll a title `Text` or omit `colors` on a new screen bar.
 - **Never hand-build an id-bearing nav route.** `navController.navigate("artist/$id")` /
-  `navigate("album/$id")` crashes when the id is blank (an empty id builds `"artist/"`, which matches
+  `navigate("album/$id")` / `navigate("online_podcast/$id")` crashes when the id is blank (an empty id builds `"artist/"`, which matches
   no destination and throws). Use the null-safe `navigateToArtist(id)` /
-  `navigateToAlbum(id)` in `ui/utils/AppNavigation.kt` — a blank id is a no-op, and the pure
-  `artistRoute`/`albumRoute` builders are unit-tested. Enforced by `R16-navroute` (baseline 0). Zemer
+  `navigateToAlbum(id)` / `navigateToPodcast(id)` in `ui/utils/AppNavigation.kt` — a blank id is a no-op, and the pure
+  `artistRoute`/`albumRoute`/`podcastRoute` builders are unit-tested. Enforced by `R16-navroute` (baseline 0). Zemer
   routes with query params keep their builders (`zemerAlbumRoute`, `zemerPlaylistRoute`, `ZemerRoutes.kt`).
 - **Resolve the Zemer repository through the one extension.** A leaf composable with no ViewModel that
   needs `ZemerSearchRepository` calls `context.zemerSearchRepository()` (the extension in
   `di/ZemerSearchRepositoryEntryPoint.kt`), never a hand-written
   `EntryPointAccessors.fromApplication(..., ZemerSearchRepositoryEntryPoint::class.java).zemerSearchRepository()`.
-  Enforced by `R17-entrypoint` (UI-scoped, baseline 0). The `playback/queues/*` classes that hold the
-  boilerplate live outside `ui/` and use the same extension.
+  Enforced by `R17-entrypoint` (UI-scoped, baseline 0). The `playback/queues/*` classes (outside `ui/`)
+  use the same extension.
 - **Never `runBlocking` on a UI path.** Blocking the main thread from a composable ANRs. Use a suspend
   function + `LaunchedEffect`/`rememberCoroutineScope`, or a `Flow` (`collectAsState`). The DataStore
   sync accessors (`dataStore[Key]`) are the documented exception and must run off the main thread.
@@ -59,6 +59,9 @@ baselines those gaps (`scripts/ui-audit-baseline.tsv`) and ratchets them down.
 - **Toast through the one helper.** `context.toast(resId | text, long = false)`
   (`extensions/ContextExt.kt`) over a hand-rolled `Toast.makeText(...).show()`. Enforced by `R21-toast`
   (baseline 0).
+- **A loading skeleton matches the content that replaces it and never renders on another tab.** Home's
+  music-shaped shimmer is gated `homeTab == HomeContentTab.MUSIC` on the `val shouldShowShimmer` line;
+  `R22-home-shimmer` (a positive assertion, not a ratchet) fails CI otherwise.
 - Enforcement (ratcheting): `scripts/ui-audit.sh` rules `R14-backbtn` and `R15-morevert` fail CI on
   any *new* raw `R.drawable.arrow_back` / `R.drawable.more_vert` in a screen — build the back button
   and the overflow menu from the shared components instead. The existing hand-rolls are baselined in
@@ -150,8 +153,8 @@ Rules:
   `scrollBehavior`. Its back button is the shared `BackNavigationIcon(navController)` (tap =
   `navigateUp`, long-press = `backToMain`) — baked into `BackTopAppBar`; never hand-roll the
   `arrow_back` `IconButton` (ratcheted by `R14-backbtn`).
-- Group separation comes from `PreferenceGroupTitle` (it has its own 16dp padding). Do not insert
-  arbitrary `Spacer` heights between groups.
+- Group separation comes from the group title (`SettingsCardGroup`'s `title`, a `PreferenceGroupTitle`
+  with its own padding). Do not insert arbitrary `Spacer` heights between groups.
 
 ## 3. Settings widgets (`ui/component/Preference.kt`)
 
@@ -163,8 +166,8 @@ Use these; do not hand-roll equivalents.
 | `PreferenceEntry(title, description?, icon?, trailingContent?, onClick?, isEnabled?, contentPadding)` | Generic clickable row; the base for everything below. Use directly when you need a custom trailing control (e.g. a drag handle + switch) or a row that opens a dialog. `contentPadding` defaults to `PreferenceEntryDefaults.contentPadding`; rows inside a dialog list pass `compactContentPadding` — tighten a row through it, never by forking the row. |
 | `SwitchPreference(title, description?, icon?, checked, onCheckedChange, isEnabled?, contentPadding)` | Boolean toggle row. The thumb shows `check`/`close` icons automatically. Same `contentPadding` knob. |
 | `ListPreference(...)` / `EnumListPreference(...)` | A row that shows the current value and opens a single-choice radio list dialog (the enum variant derives the entries from an `Enum`). Use instead of hand-rolling the row + `showDialog` + `ListDialog`. |
-| `EditTextPreference(...)` | Inline text field preference. |
-| `SliderPreference(...)` | Numeric slider preference. |
+| `EditTextPreference(...)` | A row showing the current text that opens a `TextFieldDialog` to edit it. |
+| `SliderPreference(...)` | A row showing the current value that opens a slider dialog (`ActionPromptDialog`, with Reset). |
 
 - `title` is `@Composable () -> Unit` (usually `{ Text(stringResource(...)) }`); `description` is a
   plain `String?`; `icon` is `{ Icon(painterResource(R.drawable.x), null) }`.
@@ -210,8 +213,9 @@ Use these; do not hand-roll equivalents.
   non-list parts in `item { }` blocks and the list in `items(...) { }` so there is exactly one
   scrollable. Do not give a `LazyColumn` a hardcoded pixel height to embed it in a `Column`.
 - Reordering uses `sh.calvin.reorderable` (`rememberReorderableLazyListState`, `ReorderableItem`,
-  `longPressDraggableHandle`). Map moves by stable item `key`, not lazy index, and persist the new
-  order in the handle's `onDragStopped`.
+  `draggableHandle`/`longPressDraggableHandle`). Map moves by stable item `key`, not lazy index, and persist
+  the new order once the drag ends (the handle's `onDragStopped`, or `isAnyItemDragging` turning false),
+  not on every move.
 - For a drag-to-reorder list of named entries use the shared `ReorderableList`
   (`ui/component/ReorderableList.kt`; every row is the shared `PreferenceEntry`, so it is D-pad
   focusable), and draw any drag handle with `ReorderDragHandle` from the same file — never
@@ -275,9 +279,9 @@ Use these; do not hand-roll equivalents.
   adopts individual **Material 3 Expressive** components behind a per-site
   `@OptIn(ExperimentalMaterial3ExpressiveApi::class)`. When adding or replacing a UI element and an
   Expressive equivalent fits, prefer it — always through a SHARED wrapper so the experimental opt-in
-  lives in one place: `ZemerLoadingIndicator` (the CONTAINED content/section spinner — pull-to-refresh,
-  video buffering, section loads; ratcheted **R25**), `MediaLoadingSpinner` (the BARE over-media / card
-  tap-to-play spinner; ratcheted **R26**), `CarouselHeroFrame` + `HeroTitleOverlay` (full-bleed carousel
+  lives in one place: `ZemerLoadingIndicator` (the CONTAINED content/section spinner — video buffering,
+  section loads; ratcheted **R25**), `MediaLoadingSpinner` (the BARE over-media / card tap-to-play
+  spinner; ratcheted **R26**) and its sibling `PullRefreshLoadingIndicator` (pull-to-refresh), `CarouselHeroFrame` + `HeroTitleOverlay` (full-bleed carousel
   heroes), the filter-chip `TonalToggleButton`, `MaterialShapes`, and the `rememberPopScale` /
   `rememberActivationPopScale` motion helpers. Never add a per-tap press-bounce to the shared
   `GridItem` / `ListItem` (it also fires when a touch starts a scroll). Stays standard on purpose:
@@ -334,8 +338,8 @@ Rules for these and any new row component:
   `.focusable()` after `.focusRequester(fr)` binds `fr` to that wrapper node instead of the text
   editor, so `fr.requestFocus()` (e.g. auto-focusing the search field) gains focus but never starts
   text input and the soft keyboard stays hidden. Attach `.focusRequester(fr)` directly to the field.
-- The row provides `titleMedium` for the title and `bodyMedium`/`onSurfaceVariant` for the
-  description. To shrink text (e.g. dense detail rows), pass an explicit `style` on your `Text` —
+- The rows provide `titleMedium` for the title; `Material3MenuItem` also provides
+  `bodyMedium`/`onSurfaceVariant` for the description. To shrink text (e.g. dense detail rows), pass an explicit `style` on your `Text` —
   it overrides the row default — rather than editing the component.
 - Localize every label and format numbers with `numberFormatter` (locale grouping separator — do
   not force a separator).

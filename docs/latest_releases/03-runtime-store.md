@@ -9,7 +9,7 @@ disk, refreshed with a conditional GET. Modelled on the cipher `PlayerConfigStor
 |---|---|---|
 | `TAG` | `Zemer_LatestReleases` | Timber tag (shared with the ViewModel). |
 | `FEED_URL` | `https://flipphoneguy.duckdns.org/?page=zemer_releases` | The feed. |
-| `MAX_ATTEMPTS` | `3` | Network tries per launch before giving up. |
+| `MAX_ATTEMPTS` | `3` | Network tries per `refresh()`; all failing gives up for the launch. |
 | `MAX_STALE_MS` | 3 days | A disk cache older than this (since its last successful fetch) is treated as gone. |
 | `CACHE_FILE` / `META_FILE` | `latest_releases.json` / `latest_releases.meta` | Under `filesDir/latest_releases/`. |
 

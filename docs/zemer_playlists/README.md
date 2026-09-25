@@ -10,7 +10,7 @@ content filtering. The app's job is fetch → render → play:
 
 1. `GET /zemer-playlists` (list) and `GET /zemer-playlists?id=…` (detail) —
    `search/ZemerSearchClient.curatedPlaylists()` / `curatedPlaylist()`. **All three content flags
-   are sent explicitly on every request** (`allowFemale`, `blockVideos`, `kidZone=0`) because the
+   are sent explicitly on every request** (`allowFemale`; `blockVideos=0`, pinned by `zemerSearchOptions` since blocked videos render as audio; `kidZone=0`) because the
    server is default-OPEN; the parameter list is the unit-tested `zemerCuratedPlaylistsParameters()`.
 2. A Home shelf under Latest Releases (`HomeScreen.kt` — `zemer_playlists_*` items), a "See all"
    grid (`ui/screens/ZemerPlaylistsScreen.kt`, route `zemer_playlists`), and a dedicated detail

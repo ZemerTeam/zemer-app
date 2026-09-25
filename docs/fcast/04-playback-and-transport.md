@@ -128,8 +128,8 @@ volume in other apps - so the rule must be wired into every window:
 ### Local playback stays suppressed (`shouldStartLocalPlayback`)
 
 `onPlayQueueWhileCasting` pauses local up front, but a `ListQueue` (albums, playlists) has no preload and
-sets `playWhenReady` only after an **async fetch**, well after that pause. Every `MusicService` site that
-flips local `playWhenReady` on therefore re-checks the live state via
+sets `playWhenReady` only after an **async fetch**, well after that pause. Both `MusicService.playQueue`
+sites that set local `playWhenReady` (preload and fetched items) therefore re-check the live state via
 `CastPlayback.shouldStartLocalPlayback(playWhenReady, isConnected)` rather than trusting the earlier
 pause (the dual-playback bug).
 

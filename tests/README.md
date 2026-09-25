@@ -129,7 +129,8 @@ filtered out into `STREAM_FALLBACK_CLIENTS`).
 
 Proven-dead clients were removed from the app; their defs + verdicts live in `clients-retired.mjs` so the
 probes still run: the ANDROID_VR family (pre-1.65 variants are version-bot-gated; 1.65.10 resolves a URL
-but 403s after 0 bytes), MOBILE/ANDROID (400 with auth, SABR-only without), WEB (SABR-only), IOS/IPADOS
+but 403s after 0 bytes), MOBILE/ANDROID (400 with auth, SABR-only without), IOS/IPADOS
 (403 past the wall), ANDROID_CREATOR, TVHTML5_SIMPLY_EMBEDDED_PLAYER (server-killed), the 7.x TVHTML5
-(SABR-only). `tv_downgraded` was also probed dead (no def kept). MWEB was removed too - see `MWEB-INVESTIGATION.md`. Re-add one only
+(SABR-only). WEB is dropped as a stream fallback (SABR-only) but its def stays in `clients.mjs`
+(the app keeps it for other calls). `tv_downgraded` was also probed dead (no def kept). MWEB was removed too - see `MWEB-INVESTIGATION.md`. Re-add one only
 after a whole-song drain proves it alive.

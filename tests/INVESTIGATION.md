@@ -134,9 +134,9 @@ YouTube rotated `player_ias` and `player_configs.json` has no entry for it - the
     `decodeURIComponent` (CipherDeobfuscator already decodes).
   - `nClass`: the URL-parser class of the n-trick, `new g.CLASS(url,!0).get("n")` (changes per player).
   - `sts`: from `signatureTimestamp:(\d+)` in base.js.
-  - `aliases`: the MD5-of-first-10000-bytes fallback hash (needed because some players have no
+  - `aliases`: the MD5-of-first-10000-chars fallback hash (needed because some players have no
     self-referencing URL inside the JS; validate-player-config prints it).
-  - Confirm with `node tests/cipher.mjs` (`sig=true n=true`, n probe `changed:true`), push cipher
+  - Confirm with `node tests/cipher.mjs` (`sigAvailable`/`nAvailable` true, `nProbe.changed: true`), push cipher
     `master`, then bump the zemer-app submodule pointer.
 
 ### B. Songs drop after N seconds / 403 mid-playback / seek fails

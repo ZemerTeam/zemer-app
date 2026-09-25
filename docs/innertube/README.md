@@ -22,7 +22,7 @@
 | Request bodies | `models/body/*.kt` | Bodies for browse, search, next, player, queue, playlist mutations, feedback, like, subscribe, transcript, account menu, and playlist creation/editing. |
 | Response models | `models/response/*.kt` | Top-level response wrappers for account menu, browse, playlist create/edit, feedback, queue, transcript, image upload, next, player, and search. |
 | Page parsers | `pages/*.kt` | Converts YouTube Music renderers/responses into page objects: home, search, album, artist, playlist, podcast, library, history, related, next, and continuations. |
-| Utilities | `utils/*.kt` | Resilient DNS (`ResilientDns`) and continuation helpers (`Utils.kt`). |
+| Utilities | `utils/*.kt` | Resilient DNS (`ResilientDns`) and `Utils.kt` helpers (playlist/library continuation completion, `sha1`, `parseCookieString`, `parseTime`). |
 
 ## `InnerTube` request methods
 

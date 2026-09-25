@@ -321,8 +321,8 @@ SABR roster covers video unchanged.
   lifetime is explicit, never tied to DataSource open/close**: entering video mode seeks mid-track and
   media3 re-opens both children, leaving a close→reopen gap with zero DataSources open; a ref-counted
   lifetime killed the session inside that gap. The stream ends only on registry `remove`
-  (`VideoModeController.clearState`, the chokepoint every video-mode exit funnels through) or `put`
-  replacing it. `destroy()` **marks both buffers errored** so parked readers are always woken.
+  (`VideoModeController.clearState`, the chokepoint every video-mode exit funnels through), `put`
+  replacing it, or `clear` (`MusicService.onDestroy`). `destroy()` **marks both buffers errored** so parked readers are always woken.
 - **`SabrVideoResolver`** - dual-format resolve over the same roster (cipher n-transform for web clients),
   pinning the video itag via field 17 for the quality target. Its ladder is `VideoQualityLogic.rungs`
   minus progressive (SABR video is dual-track) and minus rungs `VideoDecoderCaps` rejects; rungs whose

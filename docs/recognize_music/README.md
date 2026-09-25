@@ -46,7 +46,7 @@ Pure-JVM unit tests in `app/src/test/kotlin/com/jtech/zemer/recognition/` (`./gr
 | Test | Guards |
 |---|---|
 | `ShazamSignatureGeneratorTest` | Signature URI shape, header magics, self-consistent CRC32, determinism, odd-length rejection. |
-| `AudioResamplerTest` | 44.1 → 16 kHz output length, no-op at equal rates, little-endian round-trip. |
+| `AudioResamplerTest` | 44.1 → 16 kHz output length, no-op at equal rates, little-endian order kept on the no-op. |
 | `RecognitionMatcherTest` | Exact match, different-artist and shared-title-word rejection, normalization, tightest-wins, blank artist → no match. |
 | `RecognitionMatchSelectorTest` | Result is always a member of the candidate list; the hard gate passes/rejects and fails closed. |
 | `RecognitionHistoryFilterTest` | History gate against the *current* whitelist, fails closed; `joinIds` round-trip. |

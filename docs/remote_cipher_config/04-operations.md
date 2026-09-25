@@ -5,7 +5,7 @@
 - **`tests/player-configs.mjs`** - the harness's only source of configs, reading the submodule's
   `cipher/library/src/main/assets/player_configs.json` (no mirrored tables). Exports
   `parsePlayerConfigs(jsonText, label)` (the device rules; throws on a bad entry - use it to validate
-  *any* copy, e.g. the live file), `loadRawPlayerConfigs(path?)` (lazy; a missing submodule gives the
+  *any* copy, e.g. the live file), `loadRawPlayerConfigs(path?)` (a missing submodule gives the
   actionable `git submodule update --init` error), `loadKnownPlayerConfigs()` (alias-expanded
   `{ sigExpr, nExpr, sts }` map) and `nTrick(urlClass)` (the JS n-IIFE, golden-pinned).
   `node --test tests/player-configs.test.mjs` - no cookie or network: validation rules, collisions,
@@ -35,12 +35,12 @@ concurrency group (`cancel-in-progress: false`) so overlapping runs can't open d
    samples `iframe_api` (what `PlayerJsFetcher` uses) 30× plus `music.youtube.com`, a watch page and an
 embed page `max(2, n/6)` times each, so a
    low-rate A/B **canary** is caught before it rotates in (a single sample would usually miss it). Unknown hashes are re-checked by md5 alias, and "known" is decided by the harness
-   loader - a pushed-but-invalid entry still counts as unknown. Exits non-zero only when the live
-   config itself is invalid.
-3. **Alert per unknown hash**: a Telegram message (skipped without `TELEGRAM_BOT_TOKEN`), one GitHub
-   issue per hash titled `New YouTube player detected: <hash>` (labels `player-update`, `cipher`;
-   deduped against open issues by that title; opened as the Zemer-Dude GitHub App when
-   `vars.ZEMER_APP_ID` is set, else `GITHUB_TOKEN`), and one summary email via Gmail SMTP (sent even
+   loader, which throws on any invalid entry - so a pushed-but-invalid entry makes the scanner exit
+   non-zero (a red run), its only non-zero exit besides a usage error.
+3. **Alert**: per unknown hash with no open issue titled `New YouTube player detected: <hash>` (the
+   dedup key), a Telegram message (skipped without `TELEGRAM_BOT_TOKEN`) and a GitHub issue with that
+   title (labels `player-update`, `cipher`; opened as the Zemer-Dude GitHub App when
+   `vars.ZEMER_APP_ID` is set, else `GITHUB_TOKEN`); plus one summary email listing every unknown hash via Gmail SMTP (sent even
    if issue creation fails), all carrying the runbook commands.
 
 It **never auto-commits**: validation needs a logged-in cookie and live-CDN judgment CI shouldn't hold.
@@ -56,7 +56,7 @@ Trigger: a monitor issue/email, or `Zemer_CipherFnExtract: No hardcoded config f
 field.
 
 1. `node tests/validate-player-config.mjs <hash>` (needs the gitignored `innertube_cookie.txt`).
-   Accept nothing less than **HTTP 206**.
+   Accept only a pair it marks working (**HTTP 206**/200 with `nProbe.changed`).
 2. Add the printed entry to `library/src/main/assets/player_configs.json` in **zemer-cipher** (the
    submodule checkout is fine) - there are no other copies to sync. Then `node tests/gen-player-dates.mjs`
    to rewrite the cosmetic `player_dates.json`.
@@ -67,8 +67,8 @@ field.
    node tests/config-covers.mjs <hash> cipher/library/src/main/assets/player_configs.json
    ```
    A duplicate hash/alias anywhere rejects the **whole** file on every device - run the tests.
-4. **Push zemer-cipher `master` - this is the deploy** (immediate for a device whose song fails, ≤ 6 h
-   via the startup refresh). No APK.
+4. **Push zemer-cipher `master` - this is the deploy** (a device picks it up on its next failing song, subject to the 5-min
+   cooldown, or at the next launch once its last fetch is > 6 h old). No APK.
 5. Bump the submodule pointer in zemer-app afterwards. **Push order: zemer-cipher first, then the
    pointer** - the reverse leaves fresh clones / CI pointing at a commit not on the remote. (Push only
    when explicitly authorized.)
@@ -108,13 +108,14 @@ table until updated, so prefer backward-compatible optional fields. Build debug 
 | Kotlin parser ⇔ JS loader file-level parity | `ConfigParityFixturesTest` + `player-configs.test.mjs` over `config-parity/` |
 | n-IIFE byte-identical in Kotlin / JS / validator | `NJsExpressionTemplateTest` + the golden test in `player-configs.test.mjs` |
 | Duplicate keys reject the whole file | `PlayerConfigParserTest` + `player-configs.test.mjs` |
-| Config beats heuristic; heuristic never blocks self-heal | `FunctionNameExtractorPrecedenceTest` |
+| Config beats heuristic | `FunctionNameExtractorPrecedenceTest` |
 | Validated remote table reaches memory even if disk fails | `PlayerConfigStoreApplyRemoteTest` |
 | No 304-lock (ETag without body / torn writes) | `PlayerConfigStoreCacheTest` |
 | forceRefresh returns true for an already-present hash with no fetch and no cooldown | `PlayerConfigStoreForceRefreshTest` |
 | `configEpoch` advances only on a real change | `PlayerConfigStoreEpochTest` |
 | Forced and stream-rejection cooldowns independent | `PlayerConfigStoreCooldownTest` |
 
-Not test-enforced, from code comments: forceRefresh's cooldown decided under `refreshMutex` and not
+Not test-enforced, from code comments: either extraction side missing triggers the forced refresh (a
+heuristic false positive on one side never blocks it), forceRefresh's cooldown decided under `refreshMutex` and not
 armed when the fetch never reached the server, config cache filenames never start with `player_`, and
 `REFRESH_TTL_MS` mirrors `PlayerJsFetcher.CACHE_TTL_MS`.

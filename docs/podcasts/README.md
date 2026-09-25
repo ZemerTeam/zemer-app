@@ -26,8 +26,8 @@ through the same pipeline as a song). The app<->server threads live in
 Podcasts have their OWN channel-level whitelist, separate from the artist one.
 `SyncUtils.syncPodcastWhitelist` (via `WhitelistFetcher.fetchPodcastWhitelist`/`fetchPodcastVersion`) reads
 `content.zemer.io/podcastChannelsWhitelist` (+ `/version` gate) with a Firestore
-`podcastChannelsWhitelist` fallback - the artist-whitelist pattern. Each mirror doc
-carries `thumbnailUrl` + `channelId`, so the browse grid renders straight from the allow-set with
+`podcastChannelsWhitelist` fallback - the artist-whitelist pattern. Each mirror doc IS a host
+channel (`id` = the `UC...` channel id) carrying its `thumbnailUrl`, so the browse grid renders straight from the allow-set with
 no per-row fetch. A failed/empty fetch preserves the last-good table (never unblocks).
 `filterWhitelisted` gates `PodcastItem`/`EpisodeItem` against this table (respecting filters-off)
 as defense-in-depth; an episode `SongItem` is gated on the podcast whitelist, never the artist one.
@@ -71,7 +71,8 @@ as defense-in-depth; an episode `SongItem` is gated on the podcast whitelist, ne
   Never read `player.*` inside `database.query {}`. Rows show an "N left" hint; the menu has local
   mark-played/unplayed.
 - **Episode-only player controls**: speed pill + +/-30s skips, shown only for `isEpisode`; the
-  service resets speed to 1x on any non-episode so podcast speed never leaks into music.
+  service resets speed to 1x when leaving an episode for a non-episode, so podcast speed never
+  leaks into music (a music tempo set via Tempo & Pitch persists across music tracks).
 - **Account sync** (subscriptions, episodes-for-later) gates on `isPersonalAccountSignedIn` -
   never SAPISID (the pooled-account leak rule). Anonymous sessions are local-only; save/subscribe
   toggles are optimistic. Channel subscribe must send `params="EgIIAhgA"` (the `YouTube.subscribeChannel`

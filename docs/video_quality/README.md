@@ -15,9 +15,9 @@ Prove any change against the live CDN with `tests/video-qualities.mjs` first.
 | --- | --- |
 | `playback/VideoQualityLogic.kt` | **Pure, JVM-tested.** Builds the ladder (one rung per qualityLabel, progressive wins its label, then avc1 > vp9 > av01), resolves a target to the best rung at-or-below, the rebuffer-downgrade math, codec→decoder-mime mapping. |
 | `playback/VideoRendition.kt` | The cache-key grammar: `video:<id>` (automatic), `video:<id>:p<itag>` / `:q<itag>` (explicit progressive/adaptive rung), `videoaudio:<id>` (the merge-audio partner); `allRenditionKeys` lists the family. The itag lives IN the key so rungs can't share spans. |
-| `playback/VideoDecoderCaps.kt` | `MediaCodecList` capability gate — never offer a rung this device can't decode (WEB_REMIX's 1440p/2160p are vp9-only). |
-| `playback/VideoModeController.kt` | The swap state machine: entry at the target rung, the switcher, the rebuffer guard, error handling. Main-thread-confined. |
-| `utils/YTPlayerUtils.kt` | Resolution: one video response yields the chosen format + every rung's URL (`videoRungUrls`) + the merge-audio partner (`mergeAudioUrl`) + the download-audio partner (`downloadAudioUrl`), all pure-local cipher work. |
+| `playback/VideoDecoderCaps.kt` | `MediaCodecList` capability gate — never offer a rung this device can't decode (1440p/2160p are vp9-only). |
+| `playback/VideoModeController.kt` | The swap state machine: entry at the target rung, the switcher, the rebuffer guard, error handling. Swap state is main-thread-confined; the quality maps are concurrent. |
+| `utils/YTPlayerUtils.kt` | Resolution: one streaming video response yields the chosen format + every rung's URL (`videoRungUrls`, web clients only) + the merge-audio partner (`mergeAudioUrl`); a download response yields the download-audio partner (`downloadAudioUrl`) instead - all pure-local cipher work. |
 | `playback/MusicService.kt` | The `ResolvingDataSource` branches (`video:` / `videoaudio:`), URL-cache seeding + itag-drift purge, `MergingMediaSource` wiring, `prefetchVideoRendition`. |
 | `utils/VideoMuxer.kt` | Framework remux of video-only + audio → MP4 (avc1) / WebM (vp9, API 29+). `Result.TRANSIENT` vs `Result.INCOMPATIBLE`. |
 | `playback/MediaStoreDownloadManager.kt` | The two-stream adaptive download + mux. |
@@ -33,8 +33,8 @@ ladder lands.
 
 A **progressive** rung is one muxed stream. An **adaptive** rung (`:q`) is video-only, so
 `createMediaSourceFactory` wraps it in a `MergingMediaSource` with the item's audio under the
-`videoaudio:<id>` key. Every `preferVideo=true` resolution (video branch, live merge branch, prefetch)
-resolves the merge audio at **HIGH** so its itag agrees across all three — the itag-drift purge depends
+`videoaudio:<id>` key. Every merge-audio resolution (video-branch seed, live merge branch, prefetch)
+resolves at **HIGH** so its itag agrees across all three — the itag-drift purge depends
 on that.
 
 ### Honor the user's choice

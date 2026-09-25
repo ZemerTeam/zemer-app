@@ -58,7 +58,7 @@ auto-generated art tracks), so recency always uses `uploadDate`.
    `browseId` is skipped.
 3. Per artist (`artistCandidates`): follow the Albums/Singles "more" endpoints to the
    **recency-sorted** discography grids and take the top `TOP` of each (the artist landing-page
-   carousel is **not** sorted - never read order off it).
+   carousel is **not** sorted; it is used only when the page has no "more" grid).
 4. Per candidate (`releaseDate`): album browse → track list (`albumTracks`, whose length is
    `trackCount`) → first track's `/player` → `microformat.microformatDataRenderer.uploadDate`
    (available with visitorData only, no cookie). Drop anything older than the window.

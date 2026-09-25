@@ -44,8 +44,8 @@ just-loaded track's bar does not creep up from 0). The seek bar and the stall de
 `advanceRemoteAfterEnd()` runs on the controller's scope (the service Main scope): if the debounce has
 passed it sets `shouldPlay = true`, then either replays the current item for repeat-one (seek to 0 +
 `triggerRemoteLoad`) or `seekToNext()`s locally (the transition reloads the receiver). The debounce
-timestamp is stamped **only when it actually advances** (a no-op report on the last track must not burn
-the window) and inside this function for repeat-one, which fires no media-item transition of its own.
+timestamp is stamped here **only when it actually advances** (a no-op report on the last track must not
+burn the window); repeat-one needs this stamp because its within-item seek fires no media-item transition.
 Everything is serialised on one thread, and SDK-thread callbacks hop onto it before touching Media3.
 
 ## Tracker resets

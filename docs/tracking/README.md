@@ -109,10 +109,12 @@ Set when a queue is built, never per-surface guesswork:
 
 ## `play.client` / `play.player` — Zemer extensions
 
-(`handoff-docs/zemer-tracking-play-client-fields-request.md`.) `MusicService` records
-`PlaybackData.streamClient` (and, for the deciphered web clients in `WEB_STREAM_CLIENTS`,
-`CipherDeobfuscator.lastUsedPlayerHash`) at stream-resolution time via `Tracker.onStreamResolved`; the
-play event attaches them. Absent for downloaded/local playback. The last resolution per videoId wins.
+(`handoff-docs/zemer-tracking-play-client-fields-request.md`.) `MusicService` records the stream
+client (`PlaybackData.streamClient`, or the SABR resolve's) and, for deciphered web clients
+(`WEB_STREAM_CLIENTS` / a web SABR client), `CipherDeobfuscator.lastUsedPlayerHash` at stream-resolution
+time via `Tracker.onStreamResolved`; the play event attaches them. A downloaded/local play resolves
+nothing, so it carries them only if the same videoId streamed earlier in the process (the last
+resolution per videoId wins).
 
 ## `impression` — what the app SHOWED
 

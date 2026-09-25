@@ -15,7 +15,7 @@ unaffected (streaming stays InnerTube + the cipher). Server-side contract:
 | `/album` | ✅ | `offlineAlbum` — members in stored order, per-track filter, header carries the album's own `playlistId` (never the MPRE browseId). |
 | `/home-rows` | ✅ | `offlineHomeRows` — `home_rank` shard order; topCommunity computed at read time. |
 | `/zemer-playlists` | ✅ | List + detail; `auto-*` raw-order ranks reproduced; chart-movement badges are live-only. |
-| `/podcast-genres` | ✅ | `offlinePodcastGenres`/`offlinePodcastGenre` — titles/kinds from the `genrecatalog` shard, else a slug-uppercase fallback. |
+| `/podcast-genres` | ✅ | `offlinePodcastGenres`/`offlinePodcastGenre` — titles/kinds from the `genrecatalog` shard, else the slug with its first letter capitalised. |
 | `/podcast`, `/podcast-channel`, `/podcasts`, `/podcasts/new-episodes` | ✅ | `OfflineReadProvider` podcast reads. |
 | `/radio` | ⚠️ partial | `offlineRadio` — see "Offline radio"; `kind == "genre"` stays live-only. |
 | `/playlist`, `/podcast-home-rows`, `/video-home-rows`, `/genres`, `/stations` | ❌ | Live-only. |
@@ -106,7 +106,7 @@ mid-station. A malformed token (`parse` → null, incl. a negative offset) ends 
 - **Enabled = daily auto-update on ANY connection** (no metered gate — a product decision): `App.kt`
   runs `OfflineSubsetSyncer.maybeSync()` shortly after start, gated on `AUTO_UPDATE_INTERVAL_MS` (24 h).
   UI-triggered downloads go through `requestSync`, on the syncer's OWN scope, so leaving a screen never
-  cancels a download. `WhitelistCache` is a `@Volatile` whole-map swap so a concurrent refresh never
+  cancels a download. `WhitelistCache` swaps an immutable map whole (a `StateFlow`) so a concurrent refresh never
   exposes an empty/partial map to the overlay.
 
 ## Surfaces

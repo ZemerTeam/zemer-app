@@ -32,7 +32,7 @@ The app's search entry point, on the `WEB_REMIX` client:
 The app decodes with kotlinx `ignoreUnknownKeys=true`, `explicitNulls=false`, **no
 `coerceInputValues`**. So a Kotlin property that is **non-null and has no default** is REQUIRED: if
 YouTube stops sending it, `body<SearchResponse>()` throws `MissingFieldException` and the **entire**
-response fails — `YouTube.search().getOrNull()` swallows it to `null` and the caller sees no results.
+response fails — `YouTube.search()` returns a failure, which its callers turn into no results (or an error).
 One missing field kills every result.
 
 `schema.mjs` encodes, per renderer reachable from a search response, which fields are required vs
@@ -68,13 +68,14 @@ node tests/search/verify-album-fix.mjs          # albums on the artist /browse p
 `diag-auth.mjs` holds authenticated `search`/`browse` helpers for these probes — **diagnostic only**,
 not a model of the app's real (unauthenticated) search path.
 
-### Lyrics-source research probes (one-off, not CI; need the sibling `zemer-search` checkout)
+### Lyrics-source research probes (one-off, not CI)
 
 The `lyrics-*.mjs`, `jyrics-*.mjs`, `jkaraoke-resolve.mjs`, `corpus-*.mjs`, `drive-*-resolve*.mjs` and
 `names-resolve-yt.mjs` scripts are the coverage/accuracy probes that chose the app's lyrics sources (Zemer resolver
-sources, SimpMusic, LrcLib, YouTube). They read the sibling `zemer-search` repo's `data/corpus.db` +
-`corpus/lyrics.mjs` through `jyrics-common.mjs` (`ZEMER_SEARCH=/path/to/zemer-search` overrides the default
-workspace sibling) and write under the gitignored `tests/search/.cache/`. Diagnostic only, never wired into CI.
+sources, SimpMusic, LrcLib, YouTube). They write under the gitignored `tests/search/.cache/`; `corpus-*.mjs`,
+`jkaraoke-resolve.mjs` and `drive-folder-resolve2.mjs` also read the sibling `zemer-search` repo's `data/corpus.db`
+(+ `corpus/lyrics.mjs`) through `jyrics-common.mjs` (`ZEMER_SEARCH=/path/to/zemer-search` overrides the default
+workspace sibling). Diagnostic only, never wired into CI.
 
 ## Out of scope (by design)
 

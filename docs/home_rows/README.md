@@ -18,15 +18,17 @@ nothing):
    loads is the pure `QuickPicksPresentation`: a pull-to-refresh keeps the displayed rows until the final
    list lands (no intermediate reshuffle), surviving items keep their position with newcomers appended,
    and a pool under `MIN_POOL_FOR_ROTATION` (8) allowed songs is shown whole (rotation would flip a tiny
-   library's row between two subsets on every pull). The rows read the live Room row via
-   `rememberLiveSong`, which falls back to the snapshot when the whitelist sync deletes the row mid-display.
+   library's row between two subsets on every pull). Quick Picks and Forgotten Favorites (and their
+   See-all) read the live Room row via `rememberLiveSong`, which falls back to the snapshot when the
+   whitelist sync deletes the row mid-display.
 3. **Latest Releases** comes from the flipphoneguy feed; **Zemer Playlists** from `/zemer-playlists`
    (`docs/zemer_playlists/README.md`).
 4. **Zemer Radio** is the Home **Radio** tab, from `GET /stations` (`docs/stations/README.md`).
 
 The **only** `YouTube.*` content call in `HomeViewModel` is `accountInfo()` — a signed-in user's own
 name/avatar for the account card. There is **no InnerTube scrape fallback**: if `/home-rows` is
-unreachable, the featured rows just hide (local rows + Latest Releases still populate).
+unreachable (and no offline snapshot serves it), the featured rows just hide (local rows + Latest
+Releases still populate).
 
 The home tab was the first surface of the ongoing InnerTube → Zemer migration (see `AGENTS.md` §The
 home tab for the direction and the remaining punch list); streaming/playback stays on InnerTube + the
@@ -45,13 +47,14 @@ cipher.
 ## The `/home-rows` contract
 
 ```
-GET https://search.zemer.io/home-rows?allowFemale=0&blockVideos=1&kidZone=0
-→ { topAlbums:[ZemerAlbum+artistId+explicit], topVideos:[ZemerTrack+artistId+realVideo],
+GET https://search.zemer.io/home-rows?allowFemale=0&blockVideos=0&kidZone=0
+→ { topAlbums:[ZemerAlbum+artistId], topVideos:[ZemerTrack+artistId+realVideo],
     topArtists:[ZemerArtist], topCommunity:[ZemerPlaylist] }
 ```
 
-- All three content flags sent explicitly every request (server is default-OPEN; `kidZone` always `0`
-  — home is never reachable from the KidZone tab).
+- All three content flags sent explicitly every request (server is default-OPEN; `blockVideos` is
+  pinned `0` by `zemerSearchOptions` — blocked videos render as audio; `kidZone` always `0` — home is
+  never reachable from the KidZone tab).
 - Cards carry the **artist channel id** (`artistId` / `ZemerArtist.id`). Load-bearing: the
   one-per-artist `rotateByArtist` dedup and the ranked-gate defence-in-depth both key on it and
   **no-op when it is null**.
@@ -78,8 +81,8 @@ GET https://search.zemer.io/home-rows?allowFemale=0&blockVideos=1&kidZone=0
 - **The shuffle button is "Radio mode"** — `HomeViewModel.shuffleRadioQueue()` →
   `ZemerRadioQueue(kind = "shuffle", seed = null)`, a whole-catalog, whitelist-pure `/radio` station.
   Don't reintroduce the lucky-item InnerTube radio or a per-item `radioEndpoint != null` filter.
-- **"See all" reads the published snapshot.** `HomeSeeAllStore` holds the FULL (un-rotated) filtered pool
-  `HomeViewModel` publishes each load; the see-all pages render straight from it (no re-fetch, no
+- **"See all" reads the published snapshot.** `HomeSeeAllStore` holds the FULL filtered pool (led by the
+  row's displayed items, in row order) that `HomeViewModel` publishes each load; the see-all pages render straight from it (no re-fetch, no
   re-filter), so they can never disagree with the row. Featured grids are 2-column.
 - **Row sizing.** Featured rows use `rotateByArtist(maxPerArtist = 1, target = 20)`. Featured Playlists
   have no curator id, so no `rotateByArtist`: the pool is shuffled, the ids shown on the previous load

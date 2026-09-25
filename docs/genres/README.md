@@ -14,7 +14,8 @@ Genre describes style at the **song** level (via its release), independent of th
    paged songs/videos tracklist), `GET /genres?id=<slug>&facet=<facet>` (one facet's FULL list, paged
    — the see-all screens), and `GET /radio?kind=genre&seed=<slug>` (genre radio). All in
    `search/ZemerSearchClient.kt`; wire models in `search/ZemerGenresModels.kt`.
-2. **All content flags sent on every call** (`allowFemale`, `blockVideos`, `kidZone=0`) — the server
+2. **All content flags sent on every call** (`allowFemale`; `blockVideos=0`, pinned by
+   `zemerSearchOptions`; `kidZone=0`) — the server
    is default-OPEN; the lists are the unit-tested `zemerGenresParameters()` /
    `zemerGenreFacetParameters()` (`ZemerSearchOptions` ← `ContentFilterState`).
 3. Surfaces: a Home chip strip (`ui/screens/HomeGenresRow.kt`, VM `ZemerGenresViewModel`, toggled by
@@ -35,7 +36,7 @@ Genre describes style at the **song** level (via its release), independent of th
   encoding — kept pure for the JVM tests).
 - **`kind` grouping is fail-closed.** `GenreKind.fromSlug` maps `style`/`occasion`/`non-music`;
   `musicGenres()` drops `non-music` **and any unknown/new kind** so spoken-word never renders beside
-  songs. `genresByKind()` buckets Styles then Occasions.
+  songs. `genresByKind()` buckets by kind; `GenresScreen` renders Styles then Occasions.
 - **Editorially hidden slugs.** `HIDDEN_GENRE_SLUGS` (`lullaby`, `carlebach`, `workout`, `kids`) are
   dropped from browse app-side (owner decision); their songs stay reachable elsewhere. `acapella` is
   pinned LAST via `pinLast()`.
@@ -60,7 +61,7 @@ Genre describes style at the **song** level (via its release), independent of th
 
 ## The visual layer (monochrome + the one theme accent)
 
-Color comes only from album art, never applied decoratively:
+Beyond the one accent, color comes only from album art, never applied decoratively:
 
 - **Per-genre motif icons** (`ui/component/GenreIcons.kt`): a slug-keyed `@DrawableRes` map to
   `res/drawable/genre_*.xml` (Material Symbols outlined, plus hand-drawn `genre_menorah` (chanukah),
@@ -79,8 +80,8 @@ Color comes only from album art, never applied decoratively:
   flow, so the weave-only header is used). Failed/loading columns show a neutral `ColorPainter`,
   never a transparent gap. The VM preloads the same URLs as soon as the page lands.
 - **Fonts** (`ui/theme/Type.kt`): `HeaderFontFamily` (Heebo heavy, full Hebrew) is used only on the
-  genre titles, Play pill and catalog card titles (and the Music Status creator names) — NOT
-  app-wide; `AppTypography` stays platform default.
+  genre titles, Play pill and catalog card titles (and the Music Status creator names / story-viewer
+  date labels) — NOT app-wide; `AppTypography` stays platform default.
 
 ## Stations
 
