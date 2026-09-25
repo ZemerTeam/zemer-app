@@ -9,7 +9,12 @@
 //   ANDROID_CREATOR ...... HTTP 400 with auth, LOGIN_REQUIRED without. Dead both ways.
 //   ANDROID_VR 1.61.48/1.43.32 (all variants) ... "Sign in to confirm you're not a bot" at
 //                          /player — the gate keys on the VERSION (probed the old versions under
-//                          the eureka UA: still gated). Only 1.65.10 passes; it lives in clients.mjs.
+//                          the eureka UA: still gated). 1.65.10 passes the gate but 403s after 0
+//                          bytes on a whole-song drain (retired 2026-08-25, below).
+//   MWEB ................. attestation-walled on gated content on BOTH transports: progressive 403s
+//                          past the 1-MiB wall under every pot binding; SABR is capped by
+//                          STREAM_PROTECTION_STATUS=2 after a free window (retired 2026-09,
+//                          tests/MWEB-INVESTIGATION.md).
 //   TVHTML5_SIMPLY_EMBEDDED_PLAYER ... server-killed ("YouTube is no longer supported in this
 //                          application or device").
 // Do NOT move these back into clients.mjs — that file mirrors the app's live registry.
@@ -66,6 +71,11 @@ export const RETIRED = [
     userAgent: "com.google.android.apps.youtube.vr.oculus/1.65.10 (Linux; U; Android 12L; eureka-user Build/SQ3A.220605.009.A1) gzip",
     osName: "Android", osVersion: "12L", deviceMake: "Oculus", deviceModel: "Quest 3", androidSdkVersion: "32",
     loginSupported: false, useSignatureTimestamp: false },
+
+  // Attestation-walled on gated content (see the header): removed from the app 2026-09.
+  { key: "MWEB", clientName: "MWEB", clientVersion: "2.20260708.05.00", clientId: "2",
+    userAgent: "Mozilla/5.0 (iPad; CPU OS 16_7_10 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1,gzip(gfe)",
+    loginSupported: true, loginRequired: true, useSignatureTimestamp: true, useWebPoTokens: true },
 
   { key: "TVHTML5_SIMPLY_EMBEDDED_PLAYER", clientName: "TVHTML5_SIMPLY_EMBEDDED_PLAYER", clientVersion: "2.0", clientId: "85",
     userAgent: "Mozilla/5.0 (PlayStation; PlayStation 4/12.02) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.4 Safari/605.1.15",

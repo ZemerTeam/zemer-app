@@ -15,7 +15,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { postSearch, cred, FILTERS, getItems, getShelfContinuation, getContinuation } from "./lib.mjs";
+import { postSearch, FILTERS, getItems, getShelfContinuation, getContinuation } from "./lib.mjs";
 import { validate } from "./schema.mjs";
 import { toYTItem } from "./parsers.mjs";
 
@@ -109,10 +109,11 @@ const sectionContents = (j) =>
   j?.contents?.tabbedSearchResultsRenderer?.tabs?.[0]?.tabRenderer?.content?.sectionListRenderer?.contents ?? null;
 
 // ---- YouTube.search(filter) --------------------------------------------------------------------
-async function runFiltered(query, filterName, visitorData) {
+async function runFiltered(query, filterName) {
   const params = FILTERS[filterName];
   console.log(`\n  [search filter=${filterName}] "${query}"`);
-  const { status, json } = await postSearch({ query, params, visitorData });
+  // App-exact: InnerTube.search sends no visitorData (sendVisitorData = false) and no cookie/auth.
+  const { status, json } = await postSearch({ query, params });
   save(`filter_${filterName}_${query}.json`.replace(/\s+/g, "_"), json);
   console.log(`    HTTP ${status}`);
   reportStrict(`${filterName} "${query}"`, json, "SearchResponse");
@@ -141,16 +142,15 @@ async function runFiltered(query, filterName, visitorData) {
 }
 
 async function main() {
-  const { visitorData, source } = await cred();
   const queries = QUERIES.length ? QUERIES : DEFAULT_QUERIES;
-  console.log(`cred=${source ? "yes" : "no"}  visitorData=${visitorData ? "yes" : "no"}  queries=${JSON.stringify(queries)}`);
-  console.log("NOTE: search is unauthenticated in the app (setLogin=false) — this harness sends visitorData only, no cookie/auth.");
+  console.log(`queries=${JSON.stringify(queries)}`);
+  console.log("NOTE: app-exact request - InnerTube.search runs setLogin=false, sendVisitorData=false: no visitorData, no cookie/auth.");
   console.log("NOTE: zemer's artist-whitelist filter (WhitelistFilter.kt) runs AFTER these functions in the ViewModel and");
   console.log("      drops everything whose artist isn't whitelisted. It needs the app DB, so it is OUT OF SCOPE here.");
 
   for (const q of queries) {
     console.log(`\n${"=".repeat(78)}\nQUERY: "${q}"\n${"=".repeat(78)}`);
-    for (const f of Object.keys(FILTERS)) await runFiltered(q, f, visitorData);
+    for (const f of Object.keys(FILTERS)) await runFiltered(q, f);
   }
 
   console.log(`\n${"=".repeat(78)}\nVERDICT\n${"=".repeat(78)}`);

@@ -91,11 +91,12 @@ export async function generatePoToken(identifier) {
 export async function mintWebPoTokens({ visitorData, videoId }) {
   if (!visitorData) throw new Error("mintWebPoTokens: visitorData is required");
   const minter = await createMinter(visitorData);
-  // App order/bindings (PoTokenGenerator): the streaming poToken (bound to the
-  // session = visitorData) is minted exactly once, BEFORE the player token.
-  const streamingDataPoToken = await minter.mint(visitorData);
-  // The player-request poToken is bound to the videoId.
-  const playerRequestPoToken = videoId ? await minter.mint(videoId) : null;
+  // App order/bindings (cipher PoTokenGenerator.getWebClientPoToken): the session token (bound to
+  // visitorData) is minted first and rides the /player request as playerRequestPoToken; the per-video
+  // token is the streamingDataPoToken appended to the stream URL as &pot= - googlevideo serves only
+  // the first 1 MiB unless that URL pot is bound to the videoId (tests/pot-probe.mjs).
+  const playerRequestPoToken = await minter.mint(visitorData);
+  const streamingDataPoToken = videoId ? await minter.mint(videoId) : null;
   return { playerRequestPoToken, streamingDataPoToken };
 }
 

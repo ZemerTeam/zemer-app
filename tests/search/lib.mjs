@@ -3,9 +3,11 @@
 //
 //   InnerTube.search(WEB_REMIX, ...)            -> POST /youtubei/v1/search
 //
-// IMPORTANT (verified against InnerTube.kt ytClient): the call runs with setLogin=false, so the app
-// sends search requests with the WEB_REMIX client headers + X-Goog-Visitor-Id ONLY — NO cookie, NO
-// SAPISIDHASH Authorization. Search is unauthenticated. We match that here (visitorData only).
+// IMPORTANT (verified against InnerTube.kt search): the call runs with setLogin=false,
+// sendVisitorData=false, so the app sends search requests with the WEB_REMIX client headers ONLY - no
+// X-Goog-Visitor-Id / context visitorData, no cookie, no SAPISIDHASH Authorization. postSearch matches
+// that when called without visitorData (run.mjs, the app-exact checker); the research scripts that
+// pass one opt into a request the app never sends.
 import crypto from "node:crypto";
 import { getCred } from "../cred.mjs";
 import { CLIENTS, ORIGIN } from "../clients.mjs";
@@ -46,7 +48,7 @@ function context(visitorData) {
 
 // POST /search. Pass { query, params } for a fresh search, or { continuation } to page (the app
 // sends the token as the `continuation` AND `ctoken` query params with a null body query/params).
-export async function postSearch({ query = null, params = null, continuation = null, visitorData }) {
+export async function postSearch({ query = null, params = null, continuation = null, visitorData = null }) {
   const body = { context: context(visitorData), query, params };
   const url = new URL(`${ORIGIN}/youtubei/v1/search`);
   url.searchParams.set("prettyPrint", "false");
