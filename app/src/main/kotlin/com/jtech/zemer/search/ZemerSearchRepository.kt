@@ -111,7 +111,8 @@ internal suspend fun <T> serverOrOffline(server: suspend () -> T, offline: suspe
  * snapshot the call throws, and the ViewModel shows the search-error state with Retry. A rare
  * not-yet-harvested miss (regular-channel-only songs, brand-new releases inside the harvest lag) shows
  * the graceful empty state — the residual the server side is closing via the #108 regular-channel
- * harvest. `/playlist` and `/radio` are live-only (not in the snapshot).
+ * harvest. `/playlist` is live-only (not in the snapshot); `/radio` is served offline only partially
+ * (see [radio]).
  *
  * Responses are memoized in a small LRU keyed by (k, filters, query): the song/video/album/artist/
  * featured-playlist chips all request the same k, so after the first they hit the cache instead of
@@ -213,7 +214,7 @@ class ZemerSearchRepository @Inject constructor(
     // --- Podcasts. Server-first with the on-device snapshot fallback (server reply 4: the subset now
     // carries podcast shards, pre-gated to approved channels). The browse grid + channel allow-set come
     // from the Room-backed content mirror. Playback stays InnerTube: an episode carries its YouTube
-    // videoId and plays through the existing pipeline. `/playlist` + `/radio` remain live-only. ---
+    // videoId and plays through the existing pipeline. ---
 
     /**
      * The kid-flagged show catalog (`/podcasts?kidZone=1`) as browsable cards — the KidZone
@@ -346,7 +347,7 @@ class ZemerSearchRepository @Inject constructor(
      * The live Zemer Stations for the "Zemer Radio" home row ([liveStations]: live-only cards,
      * absolute covers, fail-soft empty). Deliberately NOT wrapped in [serverOrOffline] — a
      * synchronized broadcast cannot be served from a snapshot, so stations are live-only like
-     * `/playlist` and `/radio`. Not cached: the responses are clock-dependent, and the row's
+     * `/playlist`. Not cached: the responses are clock-dependent, and the row's
      * `nowPlaying` line refreshes once per home load by contract (handoff, settled 2026-07-29).
      */
     suspend fun stations(): List<ZemerStation> =

@@ -84,7 +84,6 @@ constructor(
         }
     }
 
-    // requestPodcastThumbnail is gone: the server `/podcasts` browse list carries a ready-to-load
-    // thumbnail on every row, synced straight into the whitelist table, so there is no per-row art
-    // fetch to make anymore.
+    // No per-row art fetch: each content-mirror whitelist doc (`podcastChannelsWhitelist`) carries a
+    // ready-to-load thumbnailUrl, synced straight into the whitelist table.
 }
