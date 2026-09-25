@@ -31,7 +31,8 @@ concurrency group (`cancel-in-progress: false`) so overlapping runs can't open d
    ahead of the submodule pointer. Falls back to the submodule copy with a `::warning::`; if both
    fail, the run is red.
 2. **Multi-sample the live players**: `node tests/scan-live-players.mjs /tmp/player_configs.json 30`
-   samples `iframe_api` (what `PlayerJsFetcher` uses) 30× plus `music.youtube.com` a few times, so a
+   samples `iframe_api` (what `PlayerJsFetcher` uses) 30× plus `music.youtube.com`, a watch page and an
+embed page `max(2, n/6)` times each, so a
    low-rate A/B **canary** is caught before it rotates in (a single sample would usually miss it). Unknown hashes are re-checked by md5 alias, and "known" is decided by the harness
    loader - a pushed-but-invalid entry still counts as unknown. Exits non-zero only when the live
    config itself is invalid.
@@ -109,9 +110,10 @@ table until updated, so prefer backward-compatible optional fields. Build debug 
 | Config beats heuristic; heuristic never blocks self-heal | `FunctionNameExtractorPrecedenceTest` |
 | Validated remote table reaches memory even if disk fails | `PlayerConfigStoreApplyRemoteTest` |
 | No 304-lock (ETag without body / torn writes) | `PlayerConfigStoreCacheTest` |
-| forceRefresh single-flight, cooldown under lock, offline doesn't arm it | `PlayerConfigStoreForceRefreshTest` |
+| forceRefresh returns true for an already-present hash with no fetch and no cooldown | `PlayerConfigStoreForceRefreshTest` |
 | `configEpoch` advances only on a real change | `PlayerConfigStoreEpochTest` |
 | Forced and stream-rejection cooldowns independent | `PlayerConfigStoreCooldownTest` |
 
-Not test-enforced, from code comments: config cache filenames never start with `player_`, and
+Not test-enforced, from code comments: forceRefresh's cooldown decided under `refreshMutex` and not
+armed when the fetch never reached the server, config cache filenames never start with `player_`, and
 `REFRESH_TTL_MS` mirrors `PlayerJsFetcher.CACHE_TTL_MS`.

@@ -79,8 +79,8 @@ silent. `DevEventHandler.playbackError` → `CastController.onRemotePlaybackErro
    toast `cast_playback_failed`, disconnect.
 
 Bookkeeping: callbacks within `ERROR_BURST_WINDOW_MS` count as one failure; each media-item transition
-resets the per-track attempt count but **not** the abandoned-tracks streak; `PROGRESS_RESET_SEC` of real
-playback resets both; connect (`markRemoteLoaded`) and disconnect reset everything.
+resets the per-track attempt count but **not** the abandoned-tracks streak; a remote clock report at or
+past `PROGRESS_RESET_SEC` (10 s) resets both; connect (`markRemoteLoaded`) and disconnect reset everything.
 
 ## The phone-side stream relay (`CastStreamRelay`)
 

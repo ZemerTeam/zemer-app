@@ -115,7 +115,7 @@ Work top-down. `cipher.mjs` and `potoken.mjs` are the two health checks; run the
 
 ### A. `cipher.mjs` throws `no cipher config for live player (hashes: XXXX, YYYY)`
 YouTube rotated `player_ias` and `player_configs.json` has no entry for it - the most common break
-(`.github/workflows/player-monitor.yml` watches for it hourly).
+(`.github/workflows/player-monitor.yml` watches for it every 30 minutes).
 
 - **To keep testing immediately:** pin a still-served known player (`PLAYER_HASH=<hash>` from
   `player_configs.json`). The STS sent in `/player` makes YouTube return a signatureCipher compatible

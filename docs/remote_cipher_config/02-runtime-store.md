@@ -87,8 +87,8 @@ returns whether the table **changed**.
 ## Tests (`cipher/library/src/test/kotlin/com/zemer/cipher/`, `./gradlew :library:testDebugUnitTest` in `cipher/`)
 
 `PlayerConfigStoreCacheTest` (304-lock purge, atomic writes), `PlayerConfigStoreApplyRemoteTest`
-(memory before disk, disk-failure survival), `PlayerConfigStoreForceRefreshTest` (cooldown under
-lock, hash-presence return, offline reset), `PlayerConfigStoreEpochTest` (epoch advances only on a
+(memory before disk, disk-failure survival), `PlayerConfigStoreForceRefreshTest` (a hash
+already present returns true with no fetch and never arms the cooldown), `PlayerConfigStoreEpochTest` (epoch advances only on a
 real change), `PlayerConfigStoreCooldownTest` (the two cooldowns are independent),
 `PlayerConfigMergeTest`, `BundledAssetTest`. Seams: `cacheDirForTest`, `setTableForTest`,
 `arm*CooldownForTest`.

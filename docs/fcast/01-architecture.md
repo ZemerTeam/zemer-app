@@ -7,7 +7,7 @@
                    discoveryHandler  - owns the SDK
                    castLibLoader     - owns the .so
                    castController    - the control plane
-                   player = CastAwarePlayer(exo, discoveryHandler, scope)
+                   sessionPlayer = CastAwarePlayer(player, discoveryHandler, scope)
                               |
       +-----------------------+-----------------------+
       |                       |                       |
@@ -50,8 +50,9 @@ drives the local player - a split-brain ([04](04-playback-and-transport.md)).
 | `PlayerConnection` | the bound Activity | `MainActivity.onServiceConnected` |
 
 The handler and the session outlive any `PlayerConnection`, so the control plane lives in
-`CastController`, never in `PlayerConnection` - which keeps only the UI seam and delegates its cast hooks
-(`onPlayQueueWhileCasting`, `markRemoteLoaded`, `advanceRemoteAfterEnd`) to the controller.
+`CastController`, never in `PlayerConnection` - which keeps only the UI seam and delegates its one cast
+hook (`onPlayQueueWhileCasting`) to the controller (`markRemoteLoaded` / `advanceRemoteAfterEnd` are
+called by `CastConnector`).
 
 ### Connect / disconnect
 
