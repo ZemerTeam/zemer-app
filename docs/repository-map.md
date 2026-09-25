@@ -97,7 +97,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `.github/workflows/ui-audit.yml` | 56 lines | `.yml` |
 | `.gitignore` | 117 lines | `[none]` |
 | `.gitmodules` | 3 lines | `[none]` |
-| `AGENTS.md` | 1001 lines | `.md` |
+| `AGENTS.md` | 1003 lines | `.md` |
 | `LICENSE` | 674 lines | `[none]` |
 | `README.md` | 9 lines | `.md` |
 | `app/.gitignore` | 1 lines | `[none]` |
@@ -1186,7 +1186,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `docs/app/preferences-sync-auth.md` | 221 lines | `.md` |
 | `docs/app/viewmodels.md` | 130 lines | `.md` |
 | `docs/build-release.md` | 58 lines | `.md` |
-| `docs/fcast/01-architecture.md` | 66 lines | `.md` |
+| `docs/fcast/01-architecture.md` | 67 lines | `.md` |
 | `docs/fcast/02-on-demand-native-lib.md` | 59 lines | `.md` |
 | `docs/fcast/03-discovery-and-connection.md` | 112 lines | `.md` |
 | `docs/fcast/04-playback-and-transport.md` | 153 lines | `.md` |
@@ -1222,7 +1222,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `docs/remote_cipher_config/01-concepts-and-format.md` | 131 lines | `.md` |
 | `docs/remote_cipher_config/02-runtime-store.md` | 94 lines | `.md` |
 | `docs/remote_cipher_config/03-extraction-and-self-heal.md` | 99 lines | `.md` |
-| `docs/remote_cipher_config/04-operations.md` | 117 lines | `.md` |
+| `docs/remote_cipher_config/04-operations.md` | 119 lines | `.md` |
 | `docs/remote_cipher_config/README.md` | 56 lines | `.md` |
 | `docs/repository-map.md` | 1463 lines | `.md` |
 | `docs/sabr/README.md` | 365 lines | `.md` |
@@ -1236,7 +1236,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `docs/video_quality/README.md` | 127 lines | `.md` |
 | `docs/watchtime/README.md` | 178 lines | `.md` |
 | `docs/whitelist/README.md` | 228 lines | `.md` |
-| `docs/zemer_playlists/README.md` | 93 lines | `.md` |
+| `docs/zemer_playlists/README.md` | 94 lines | `.md` |
 | `gradle.properties` | 40 lines | `.properties` |
 | `gradle/libs.versions.toml` | 150 lines | `.toml` |
 | `gradle/wrapper/gradle-wrapper.jar` | 45457 bytes | `.jar` |
