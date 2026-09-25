@@ -84,7 +84,9 @@ internal class SabrVideoStream(
             restartAttempts = restartAttempts, durationMs = config.durationMs,
             contentLength = format.contentLength, marginMs = seekMarginMs,
         )) {
-            SabrSeekLogic.Grace, SabrSeekLogic.LetDrain -> return
+            SabrSeekLogic.Grace -> return
+            // The session is left to drain to the target: pace it from the reader's real position.
+            SabrSeekLogic.LetDrain -> buffer.raiseDemandTo(position)
             SabrSeekLogic.GiveUp -> {
                 val msg = "SABR video seek could not be served at $position after $restartAttempts attempts"
                 videoBuffer.markError(msg); audioBuffer.markError(msg)
@@ -143,7 +145,6 @@ internal class SabrVideoStream(
         // Pacing windows: the drain stays this far ahead of each reader, no further.
         const val AHEAD_VIDEO_BYTES = 32L * 1024 * 1024
         const val AHEAD_AUDIO_BYTES = 8L * 1024 * 1024
-        // Forward gaps the sequential drain is allowed to close instead of a seek-restart.
     }
 }
 

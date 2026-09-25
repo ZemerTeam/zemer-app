@@ -31,7 +31,11 @@ internal object SabrSeekLogic {
     }
 
     sealed interface Action
-    /** An alive session started at/before the target is draining toward it — leave it alone. */
+    /**
+     * An alive session started at/before the target is draining toward it — leave it alone. The stream
+     * raises the buffer's demand watermark to the target ([SabrBuffer.raiseDemandTo]) so the paced
+     * drain actually proceeds toward it instead of waiting on the pre-seek read position.
+     */
     object LetDrain : Action
     /** A just-started session hasn't landed its first segment yet — give it grace. */
     object Grace : Action
