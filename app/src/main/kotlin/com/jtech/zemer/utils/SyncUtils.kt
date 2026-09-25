@@ -709,6 +709,12 @@ class SyncUtils @Inject constructor(
                     return@onSuccess
                 }
                 val allowedSongs = page.songs.filterWhitelistedWithLocalArtists(database, allowedArtistIds)
+                // Filtering left nothing: keep the local copy (songs AND metadata) rather than
+                // emptying it - see playlistRebuildNeeded.
+                if (allowedSongs.isEmpty()) {
+                    android.util.Log.d("SyncUtils", "syncPlaylistNow: $browseId filtered to nothing - kept")
+                    return@onSuccess
+                }
                 // Keep the playlist metadata in step with the reconciled songs (the same fields the
                 // library sync refreshes) so the two paths produce identical DB state.
                 database.playlist(playlistId).firstOrNull()?.playlist?.let { entity ->
@@ -729,15 +735,9 @@ class SyncUtils @Inject constructor(
     }
 
     private suspend fun syncPlaylist(browseId: String, playlistId: String, allowedSongIds: Set<String>) {
-        // Only sync if we have pre-filtered allowed songs
-        if (allowedSongIds.isEmpty()) {
-            // Clear all songs from playlist since no artists are allowed
-            database.transaction {
-                clearPlaylist(playlistId)
-            }
-            android.util.Log.d("SyncUtils", "Playlist $playlistId cleared - no allowed songs")
-            return
-        }
+        // Nothing allowed means nothing to rebuild from - never a reason to wipe the local copy
+        // (playlistRebuildNeeded). Skip the network read entirely.
+        if (allowedSongIds.isEmpty()) return
 
         try {
             YouTube.playlist(browseId).completed().onSuccess { page ->
@@ -749,15 +749,12 @@ class SyncUtils @Inject constructor(
                     .filterIsInstance<SongItem>()
                     .map(SongItem::toMediaMetadata)
                 val localRows = database.playlistSongs(playlistId).first().sortedBy { it.map.position }
-                val localIds = localRows.map { it.song.id }
 
-                // Compare (id, setVideoId) pairs, not just ids: setVideoId is what remote
-                // remove/reorder need, so an unchanged-membership playlist still rebuilds once to
-                // backfill entry ids that were never persisted.
-                if (songs.map { it.id to it.setVideoId } == localRows.map { it.song.id to it.map.setVideoId }) return@onSuccess
-                // Filtering left nothing while the playlist locally still has songs — skip rather than
-                // clear, so a transient sparse read can't empty an otherwise-populated playlist.
-                if (songs.isEmpty() && localIds.isNotEmpty()) return@onSuccess
+                if (!playlistRebuildNeeded(
+                        filtered = songs.map { it.id to it.setVideoId },
+                        local = localRows.map { it.song.id to it.map.setVideoId },
+                    )
+                ) return@onSuccess
                 if (database.playlist(playlistId).firstOrNull() == null) return@onSuccess
 
                 // Pre-load existing songs to avoid blocking inside transaction
