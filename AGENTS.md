@@ -2073,9 +2073,11 @@ Node ≥20 scripts (deps declared in `tests/package.json` with the lockfile trac
 
 ## Documentation
 
+`handoff-docs/...` paths cited throughout this file are the app↔server contract docs; they live outside this repo (the maintainers' handoff-docs folder), not under the repo root.
+
 `docs/` mixes a few generated files with hand-authored feature docs:
 
-- `docs/generate.py` regenerates `docs/reference/{kotlin-files,non-kotlin-files,resource-index}.md`, `docs/build-release.md`, and the `### Counts` / inventory tail of `docs/repository-map.md` (the prose above it is hand-maintained) from tracked source (file inventory; Gradle / CI / native / JVM-module facts). It is idempotent - converges in one run - and needs PyYAML (`pip install pyyaml`) for `build-release.md`. **Never hand-edit those generated files**; change the source or the generator.
+- `docs/generate.py` regenerates `docs/reference/{kotlin-files,non-kotlin-files,resource-index}.md`, `docs/build-release.md`, the `### Counts` / inventory tail of `docs/repository-map.md` (the prose above it is hand-maintained), and the inventory tables inside `docs/app/{README,database,playback,preferences-sync-auth,viewmodels}.md`, `docs/ui/README.md` and `docs/innertube/README.md` - each wrapped in a `<!-- generated:NAME -->` ... `<!-- /generated:NAME -->` marker pair (file/package/directory counts, DAO + Room schema tables, preference keys, ViewModels, nav routes, InnerTube consumers); only the text between markers is rewritten, the prose around them stays hand-authored. All from tracked source (file inventory; Gradle / CI / native / JVM-module facts; the latest `app/schemas` JSON). It is idempotent - converges in one run - and needs PyYAML (`pip install pyyaml`) for `build-release.md`. **Never hand-edit those generated files or regions**; change the source or the generator (`REGION_DOCS`).
 - `.github/workflows/docs-regenerate.yml` runs the generator on every push to `main` and commits any change back (`[skip ci]`), so the generated docs stay current automatically. Running `python3 docs/generate.py` locally before a commit is still good practice.
 - Everything else is hand-authored - this `AGENTS.md`, `docs/ui/standards.md` (the UI rulebook), the per-feature READMEs and the `docs/app/`, `docs/ui/README.md`, `docs/innertube/` inventories - so it drifts unless updated with the code.
 
