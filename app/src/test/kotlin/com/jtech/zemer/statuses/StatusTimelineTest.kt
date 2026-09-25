@@ -19,7 +19,7 @@ class StatusTimelineTest {
     // to the timeline math, so the rest is filler.
     private fun post(id: String, postedAt: String) = StatusPost(
         id = id, kind = "image", mediaPath = null, thumbPath = null, caption = null,
-        textBody = null, textBgColor = null, linkUrl = null, durationSeconds = null,
+        textBody = null, textBgColor = null, durationSeconds = null,
         postedAt = postedAt,
     )
 
