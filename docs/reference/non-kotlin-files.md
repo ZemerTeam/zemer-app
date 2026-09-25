@@ -12,7 +12,7 @@ Every tracked non-Kotlin path outside `docs/` is listed. Text files report line 
 | `.github/workflows/ui-audit.yml` | 56 lines | text `.yml` |
 | `.gitignore` | 117 lines | text `[none]` |
 | `.gitmodules` | 3 lines | text `[none]` |
-| `AGENTS.md` | 2066 lines | text `.md` |
+| `AGENTS.md` | 2086 lines | text `.md` |
 | `LICENSE` | 674 lines | text `[none]` |
 | `README.md` | 9 lines | text `.md` |
 | `app/.gitignore` | 1 lines | text `[none]` |
@@ -314,9 +314,9 @@ Every tracked non-Kotlin path outside `docs/` is listed. Text files report line 
 | `scripts/ui-audit.sh` | 248 lines | text `.sh` |
 | `scripts/ui-strings-scan.py` | 96 lines | text `.py` |
 | `settings.gradle.kts` | 54 lines | text `.kts`; plugins `org.gradle.toolchains.foojay-resolver-convention` |
-| `tests/INVESTIGATION.md` | 279 lines | text `.md` |
-| `tests/MWEB-INVESTIGATION.md` | 114 lines | text `.md` |
-| `tests/README.md` | 175 lines | text `.md` |
+| `tests/INVESTIGATION.md` | 281 lines | text `.md` |
+| `tests/MWEB-INVESTIGATION.md` | 118 lines | text `.md` |
+| `tests/README.md` | 178 lines | text `.md` |
 | `tests/analyze-player.mjs` | 53 lines | text `.mjs` |
 | `tests/broken-clients.mjs` | 143 lines | text `.mjs` |
 | `tests/check-live-player.mjs` | 81 lines | text `.mjs` |
@@ -390,7 +390,7 @@ Every tracked non-Kotlin path outside `docs/` is listed. Text files report line 
 | `tests/sabr-watchtime.mjs` | 157 lines | text `.mjs` |
 | `tests/scan-live-players.mjs` | 124 lines | text `.mjs` |
 | `tests/scan-live-players.test.mjs` | 44 lines | text `.mjs` |
-| `tests/search/README.md` | 121 lines | text `.md` |
+| `tests/search/README.md` | 124 lines | text `.md` |
 | `tests/search/album-facet-probe.mjs` | 42 lines | text `.mjs` |
 | `tests/search/corpus-ambiguity.mjs` | 15 lines | text `.mjs` |
 | `tests/search/corpus-resolve.mjs` | 69 lines | text `.mjs` |
