@@ -347,8 +347,8 @@ class ZemerSearchRepository @Inject constructor(
      * The live Zemer Stations for the "Zemer Radio" home row ([liveStations]: live-only cards,
      * absolute covers, fail-soft empty). Deliberately NOT wrapped in [serverOrOffline] — a
      * synchronized broadcast cannot be served from a snapshot, so stations are live-only like
-     * `/playlist`. Not cached: the responses are clock-dependent, and the row's
-     * `nowPlaying` line refreshes once per home load by contract (handoff, settled 2026-07-29).
+     * `/playlist`. Not cached: the responses are clock-dependent, and the row's `nowPlaying` line
+     * refreshes on load and every 60 s while on screen (`STATION_ROW_REFRESH_MS`).
      */
     suspend fun stations(): List<ZemerStation> =
         client.stations().liveStations(::resolveZemerUrl)
