@@ -226,6 +226,9 @@ over every January, and `zemer:auto-acapella-top-50` exists only during the Thre
 slug for either would read as a surface that stopped reporting and close the gate for the rest of
 the year.
 
+**Pending:** `GenreScreen` now reports impressions under `genre:<slug>` (see the surfaces table above),
+which is not in this list yet. Add `genre:` (a prefix) when the tracking maintainer updates it.
+
 Whenever a release instruments a new surface, send the tracking maintainer the updated list — until
 every declared surface reports ≥10 devices the dampener stays gated, and an *undeclared* surface is
 worse: it silently reopens the partial-coverage hole the gate exists to close.

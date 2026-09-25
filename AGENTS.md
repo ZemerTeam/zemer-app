@@ -572,7 +572,7 @@ are non-obvious and regression-prone; full detail in `docs/whitelist/README.md`:
 - **Playlist covers come from the filtered tracks, never the raw curator image.** A community/online
   playlist's `playlist.thumbnail` is YouTube's curator art and bypasses the filter, so a mostly-female
   playlist would otherwise show a female cover even when female is blocked.
-  `ui/screens/playlist/filteredPlaylistCover(songs)` derives both the opened-playlist header cover and
+  `filteredPlaylistCover(filteredSongs, thumbnailOf)` (`ui/screens/playlist/PlaylistHeaderCover.kt`) derives both the opened-playlist header cover and
   the saved-to-Library cover from the first *content-filtered* track (`songs` is already
   `filterWhitelisted`-filtered), falling back to the neutral `queue_music` placeholder / null
   `thumbnailUrl` - **never** `playlist.thumbnail`. Mirrors the local-playlist screens; don't revert
@@ -623,7 +623,7 @@ The rules that must not regress:
   `search/ZemerGenresModels.kt`, JVM-tested in `ZemerGenresTest`.
 - **All three content flags on every call** (default-OPEN server; `zemerGenresParameters` /
   `zemerGenreFacetParameters`, unit-tested). All genre endpoints are **live-only** (no offline
-  snapshot, like `/playlist`/`/radio`/`/stations`). The catalog has a 60 s flag-keyed TTL memo in
+  snapshot, like `/playlist`/`/stations`; offline `/radio` is partial and excludes `kind=genre`). The catalog has a 60 s flag-keyed TTL memo in
   `ZemerSearchRepository.genres()` (collapses the Home→see-all→back nav burst); detail/facet are
   uncached.
 - **The detail Play button is genre RADIO** (`ZemerRadioQueue.genre(slug)` → `/radio?kind=genre`),
@@ -875,7 +875,7 @@ rule covers repeated *logic*. The current shared helpers - reach for these befor
   **crashes** - the helper makes a blank id a no-op; the pure `artistRoute`/`albumRoute` builders are
   unit-tested (`AppNavigationTest`). Query-param routes keep their own builders (`ZemerRoutes.kt`).
   Ratcheted by `R16-navroute` (baseline 0).
-- **The row 3-dot menu body:** `ytItemMenu(item, navController, coroutineScope, onDismiss, isVideo)`
+- **The row 3-dot menu body:** `ytItemMenu(item, navController, coroutineScope, onDismiss, isVideo, kidZone)`
   (`ui/menu/YouTubeItemMenu.kt`) returns the `@Composable ColumnScope.() -> Unit` for `menuState.show`,
   dispatching `SongItem`/`AlbumItem`/`ArtistItem`/`PlaylistItem` to the right `YouTube*Menu` - never
   re-write that `when` per screen.
@@ -1082,7 +1082,7 @@ Rules that must not regress:
   in the Zemer-Playlists shelf are the real trending/top surface. Don't reintroduce a charts-scraped row.
 - The `/home-rows` contract and every design decision are recorded in
   `handoff-docs/zemer-app-home-rows-request.md` (the app↔server thread) and
-  `home-rows-plan.md`. App↔server field changes travel there, never as edits to the zemer-search repo.
+  `handoff-docs/home-rows-plan.md`. App↔server field changes travel there, never as edits to the zemer-search repo.
 
 ### Zemer Radio (`/radio` - every radio surface; SELECTION only)
 

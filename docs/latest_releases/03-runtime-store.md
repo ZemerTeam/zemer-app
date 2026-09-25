@@ -87,7 +87,7 @@ A Ktor `get(FEED_URL)`:
 ### `readValidDiskCache()` (`:190-206`) — the staleness gate
 
 1. Read the meta's last-fetch timestamp.
-2. **If the meta is missing, or `now - lastFetch > MAX_STALE_MS` (3 days), drop the cache**
+2. **If the meta is missing, or `now - lastFetchMs > MAX_STALE_MS` (3 days), drop the cache**
    (`clearDiskCache()`) and return null (`:192-197`). This is why a server that has been down
    for days lets old "latest" releases disappear rather than lingering — proven by the test
    `cache older than 3 days is dropped` (`LatestReleasesStoreTest.kt:86-95`).
