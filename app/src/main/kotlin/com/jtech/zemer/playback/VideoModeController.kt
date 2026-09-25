@@ -39,20 +39,19 @@ import org.fcast.sender_sdk.DeviceConnectionState
  * behind the in-player Song/Video toggle (the [CastController] pattern). The queue item never changes
  * (same mediaId, same MediaMetadata tag, same index — I4); a "video mode" only replaces the current
  * MediaItem's URI/cacheKey with a `video:<id>` rendition ([VideoRendition]) that the resolver serves as a
- * progressive muxed stream, seeks to the captured position, and reverts on ANY track transition, cast
+ * video stream, seeks to the captured position, and reverts on ANY track transition, cast
  * connect, block toggle, error, or restart (I2/I5).
  *
  * All pure decisions live in [VideoModeLogic]/[ListenAccumulator] (JVM-tested); this class does the
- * player mutations, which need a device and are covered by the step-3 on-device checklist. Everything
+ * player mutations, which need a device. Everything
  * runs on [scope] (the service Main scope), so the swap-tracking fields are single-thread-confined.
  *
- * NOTE (step-3 empirical shrink, 2026-07-08): the authenticated `next()` counterpart probe found NO
- * `playlistPanelVideoWrapperRenderer`s (see the step-3 PROGRESS report), so the COUNTERPART rendition —
+ * NOTE (2026-07-08): the authenticated `next()` counterpart probe found NO
+ * `playlistPanelVideoWrapperRenderer`s, so the COUNTERPART rendition —
  * an audio song → its separate music video — does not light up for the tested account. The plumbing is
  * kept (it costs nothing and turns on automatically if a pooled/Premium account ever returns wrappers,
  * fed passively via [recordCounterparts]); the shipping renditions are SELF (a video item shows its own
- * video) and LOCAL (a downloaded muxed video file). Pooled-account counterpart availability is flagged
- * for the step-6 on-device pass.
+ * video) and LOCAL (a downloaded muxed video file).
  */
 class VideoModeController(
     private val service: MusicService,
@@ -86,9 +85,9 @@ class VideoModeController(
     // Per-id quality ladders published by the stream resolver, and the CURRENT effective per-item
     // quality state. Two maps on purpose:
     //  - qualityOverrides = the effective session pick (an in-player choice OR a machine write from
-    //    the rebuffer guard / error revert). Drives STREAMING entry.
+    //    the rebuffer guard). Drives STREAMING entry.
     //  - userQualityPicks = ONLY the user's explicit switcher choices. Drives DOWNLOADS, so a
-    //    transient guard-downgrade or an error's AUTO pin never silently downgrades a later download
+    //    transient guard-downgrade never silently downgrades a later download
     //    of that item (the user asked to watch, not to permanently save low quality).
     // Concurrent maps, NOT main-confined like the swap state: [downloadVideoQuality] is read from the
     // player menu's IO coroutine while the main thread writes picks — a plain HashMap would race.
@@ -201,8 +200,8 @@ class VideoModeController(
     /**
      * Whether the CURRENT item should download its muxed video rather than audio-only (Option A). The
      * player download menu reads this so a video-capable item is never saved audio-only (which would
-     * leave the toggle silently streaming). Connectivity-independent (you download while online, and a
-     * blocked item's row is hidden by [DownloadMenuLogic] regardless).
+     * leave the toggle silently streaming). Connectivity-independent (you download while online); the
+     * player menu gates it on !blockVideos, so a blocked user's download stays plain audio.
      */
     val currentItemIsVideo: StateFlow<Boolean> =
         combine(service.currentMediaMetadata, availabilityCache.revision) { meta, _ ->
@@ -338,8 +337,8 @@ class VideoModeController(
     /**
      * The quality label a video DOWNLOAD of [mediaId] should target, or null for the automatic
      * (progressive) pick: the user's EXPLICIT in-player pick for that item, else the persisted
-     * default. Deliberately NOT the effective session state — a rebuffer downgrade or an error's
-     * AUTO pin (both machine writes to qualityOverrides) must not silently downgrade a later
+     * default. Deliberately NOT the effective session state — a rebuffer downgrade (a machine
+     * write to qualityOverrides) must not silently downgrade a later
      * download of what the user chose to watch.
      */
     fun downloadVideoQuality(mediaId: String): String? =
@@ -516,7 +515,7 @@ class VideoModeController(
      * in-memory and a disk-cache hit SKIPS resolution entirely (MusicService's cached early-return),
      * so after a process restart a fully-cached video-song would never record its type and the
      * Song/Video toggle would silently stay hidden. One metadata-only player call per unknown item
-     * per session closes that hole. (On-demand COUNTERPART discovery stays dormant — the step-3
+     * per session closes that hole. (On-demand COUNTERPART discovery stays dormant — the
      * authenticated `next()` probe found none; this records the item's OWN type only.)
      */
     fun requestVideoAvailability(mediaId: String) {
@@ -727,7 +726,7 @@ class VideoModeController(
     private fun resolveAndSwapSabr(renditionId: String, audioItem: MediaItem, index: Int, targetLabel: String, entry: Boolean) {
         scope.launch {
             val result = try {
-                // The four per-client toggle reads are blocking DataStore reads — do them off the main
+                // The three per-client toggle reads are blocking DataStore reads — do them off the main
                 // thread (scope is the service Main scope) before handing them to the IO resolve.
                 val enabledClients = withContext(Dispatchers.IO) { service.sabrEnabledClients() }
                 com.jtech.zemer.playback.sabr.SabrVideoResolver.resolve(

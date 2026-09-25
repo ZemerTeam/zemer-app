@@ -74,7 +74,7 @@ private fun copyFcast(context: Context) {
 /**
  * The cast device picker, shown via the shared menu bottom-sheet host (LocalMenuState) — same shape as
  * Metrolist's. The FCast native lib isn't bundled, so before any casting it asks for consent to a
- * one-time download (then a spinner), surfaces failures with retry, and offers a receiver-install link
+ * one-time download (then its progress), surfaces failures with retry, and offers a receiver-install link
  * with share / copy. Self-contained: collects its own state and resolves the stream URL at connect time.
  */
 @Composable
@@ -213,7 +213,7 @@ fun CastPicker(
 
 /**
  * Consent dialog shown immediately when casting is enabled in Settings: asks before the one-time
- * download, shows a spinner while downloading, and auto-dismisses once ready (or offers retry on
+ * download, shows its progress while downloading, and auto-dismisses once ready (or offers retry on
  * failure). Same states/strings as the picker, so the two are consistent.
  */
 @Composable
@@ -414,7 +414,7 @@ private fun CastDownloadSuccessEffect(libState: CastLibState) {
     }
 }
 
-/** Spinner + a centered caption — the shared "working…" body for the downloading and searching states. */
+/** Spinner + a centered caption — the "working…" body for the searching state. */
 @Composable
 private fun CastSpinnerText(@androidx.annotation.StringRes textRes: Int) {
     CircularProgressIndicator(modifier = Modifier.size(28.dp), strokeWidth = 2.dp)

@@ -11,7 +11,7 @@ import kotlinx.coroutines.flow.first
 
 /**
  * The ONE place the podcast-library data sources (subscription scope + podcast whitelist filter) live,
- * so LibraryPodcastsViewModel and WhitelistedPodcastsViewModel can't drift. A fix to the scope or the
+ * so the podcast ViewModels that read them can't drift. A fix to the scope or the
  * filter is made here once.
  */
 object PodcastLibrarySources {

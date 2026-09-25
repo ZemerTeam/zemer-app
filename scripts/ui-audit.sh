@@ -71,7 +71,7 @@
 #                  on Radio/Podcasts/Videos that never resolves. Loading skeletons must match the real
 #                  content that replaces them; a per-tab skeleton never renders on another tab.
 #
-# Genuine fixed-value exceptions (AMOLED pure-black, the lyric-image *export*, color-picker
+# Genuine fixed-value exceptions (the lyric-image *export*, color-picker
 # swatches) are allowed: they live in the baseline. Keep them minimal; --update records them.
 set -u
 
@@ -101,7 +101,7 @@ violations() {
     | grep -v "/theme/" | sed -E 's/:.*//' | sed 's/$/\tR12-blur/'
   # R13: dead/legacy download-state reads in UI. Download/progress state is ONE path —
   # DownloadStateResolver + the DownloadStatusUi helpers (persisted isDownloaded + live MediaStore).
-  # The legacy ExoPlayer `downloadUtil.downloads` / `getDownload()` map is never written, and a
+  # The legacy ExoPlayer `downloadUtil.downloads` / `getDownload()` map was removed, and a
   # per-surface `Icon.Download(` re-implements the unified badge. Baselined at zero.
   grep -rnE "downloadUtil\.downloads|\.getDownload\(|Icon\.Download\(" "$UI" --include=*.kt 2>/dev/null \
     | grep -v "/theme/" | sed -E 's/:.*//' | sed 's/$/\tR13-download/'

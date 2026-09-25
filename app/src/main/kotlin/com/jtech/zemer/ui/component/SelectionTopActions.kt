@@ -11,10 +11,9 @@ import com.jtech.zemer.R
 import com.jtech.zemer.ui.utils.ItemWrapper
 
 /**
- * THE select-mode top-bar action cluster, shared by every screen that supports multi-select (library
- * songs/videos, the playlist screens, album, etc.) so the close / count / select-all / overflow row
- * is identical everywhere and can't drift. Drop it inside the screen's `TopAppBar` title `Row` for the
- * `selection == true` branch.
+ * THE select-mode action cluster for screens whose select mode lives in a header row (library songs,
+ * the saved-status library) so the close / count / select-all / overflow row is identical everywhere
+ * and can't drift. Drop it inside the screen's header `Row` for the `selection == true` branch.
  *
  * The screen keeps owning its selection state ([wrapped] is its `List<ItemWrapper<T>>`); this only
  * renders the actions. [countLabel] formats the selected count (e.g. `n_song` vs `n_video` plural),

@@ -15,7 +15,7 @@ import java.text.Normalizer
  * always in time order. Timings are measured, never estimated: a parsed line with no key match is not given
  * a time of its own, it rides the preceding matched line's tag (the same equal-time continuation the
  * server's own synced bodies use for a line sung on the previous line's beat), so no text is ever lost to
- * sync; and a body where too few lines matched on either side stays plain.
+ * sync; and a body where too few of its own lines matched stays plain.
  */
 object LineTimesLrc {
     /** The share of the PARSED body's lines that must find a time (the server's own rule; below it the server sends `syncTruncated` instead). */

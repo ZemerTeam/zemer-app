@@ -6,7 +6,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
 object WhitelistCache {
-    // A @Volatile immutable map swapped whole, NOT a mutable map mutated in place: the old
+    // An immutable map swapped whole via a StateFlow, NOT a mutable map mutated in place: the old
     // clear-then-refill left a window where concurrent readers (notably the offline subset's
     // live-whitelist overlay) saw an empty or partial whitelist mid-refresh — an empty read
     // short-circuits the overlay and briefly serves de-whitelisted content.

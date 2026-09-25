@@ -250,8 +250,8 @@ fun BottomSheetPlayer(
         }
     }
 
-    // Kick the on-demand counterpart lookup when the expanded player shows a new item (a no-op today —
-    // the counterpart source is dormant per step 3 — but the call site is kept for when it re-lights).
+    // Kick the on-demand SELF-type probe (requestVideoAvailability) when the expanded player shows a new
+    // item, so a cache-hit video-song still gets its Song/Video toggle.
     // When the item is already video-capable (the pill is showing), also PREFETCH the rendition in the
     // background: the resolution + full quality-ladder URL table are warm before the user taps Video,
     // so entering video mode (at any target quality) starts with a single CDN range request.
@@ -278,7 +278,6 @@ fun BottomSheetPlayer(
     var sliderPosition by remember {
         mutableStateOf<Long?>(null)
     }
-    // Track if we're in control focus mode (showing outlines)
 
     val fallbackColor = MaterialTheme.colorScheme.surface.toArgb()
     // Shared, bounded, deduped gradient extraction (see rememberPlayerGradient).
@@ -390,7 +389,7 @@ fun BottomSheetPlayer(
     )
 
     // Opening lyrics over an inline video would leave the video decoding invisibly behind the sheet
-    // (DESIGN §4) — revert to audio (position-continuous). Video is a per-play opt-in; closing lyrics
+    // — revert to audio (position-continuous). Video is a per-play opt-in; closing lyrics
     // does not auto-restore it.
     LaunchedEffect(lyricsSheetState.isExpanded, isVideoMode) {
         if (PlayerVideoUiLogic.shouldRevertVideoForLyrics(lyricsSheetState.isExpanded, isVideoMode)) {
@@ -894,7 +893,7 @@ fun BottomSheetPlayer(
         }
 
         // Fullscreen video overlay — drawn last so it covers the expanded player (I6: same surface,
-        // re-parented). Only while expanded + in video mode + fullscreen requested.
+        // re-parented). Only while expanded + in video mode + fullscreen requested + not in PiP.
         if (PlayerVideoUiLogic.showFullscreenVideo(state.isExpanded, isVideoMode, isFullscreen, inPip)) {
             PlayerVideoFullscreen(onExit = { isFullscreen = false })
         }
@@ -904,8 +903,8 @@ fun BottomSheetPlayer(
 /**
  * Episode-only transport extras (podcasts are long): a playback-speed pill that cycles
  * 1×→1.25×→1.5×→1.75×→2× and 30-second skip-back / skip-forward. Shown only when an episode is
- * playing; music keeps its normal transport, and MusicService resets speed to 1× when a non-episode
- * starts so episode speed never leaks into songs.
+ * playing; music keeps its normal transport, and MusicService resets speed to 1× when an episode gives
+ * way to a non-episode so episode speed never leaks into songs.
  */
 @Composable
 private fun EpisodePlaybackControls(
@@ -961,11 +960,3 @@ private fun EpisodePlaybackControls(
         }
     }
 }
-
-/**
- * A circular skip-previous / skip-next button for the new-design transport cluster: the standard
- * D-pad accent focus border, a spring "pump" while pressed, and tap + long-press-to-seek (the long
- * press repeats [onSkip] every 200 ms). A tap fires the button's own onClick; the combinedClickable
- * adds the long press. Both are gated by [enabled], so a disabled skip cannot be triggered.
- * Extracted so prev and next share one definition instead of two ~48-line copies.
- */

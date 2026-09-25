@@ -104,7 +104,7 @@ internal class SabrSession(
     @Volatile var firstWrittenOffset: Long = -1L
         private set
 
-    /** Start time this session was asked to serve from (for the stream's restart decisions). */
+    /** Start time this session was asked to serve from. */
     val requestedStartMs: Long get() = startTimeMs
 
     private val protobuf = "application/x-protobuf".toMediaType()

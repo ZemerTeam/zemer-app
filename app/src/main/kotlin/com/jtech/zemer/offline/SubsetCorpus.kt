@@ -2,12 +2,12 @@ package com.jtech.zemer.offline
 
 /**
  * The decoded on-device corpus snapshot — the Kotlin mirror of the zemer-search SQLite tables the
- * shards carry (see [SubsetDecoder] for the wire layout). Read endpoints ([OfflineReadLayer]) run over
+ * shards carry (see [SubsetDecoder] for the wire layout). Read endpoints (SubsetReadLayer) run over
  * this in memory, exactly as the server runs them over SQLite, so an offline response matches the
  * live one field-for-field for the reproducible endpoints.
  *
  * Raw tables are plain lists; the maps/groupings the reads need are built lazily on first use so a
- * corpus that is loaded but never queried (e.g. app start with offline search off) costs only the parse.
+ * corpus that is loaded but never queried costs only the parse.
  */
 data class SubsetCorpus(
     val artists: List<SubArtist>,

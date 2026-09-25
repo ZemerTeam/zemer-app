@@ -99,7 +99,6 @@ internal fun ContentFiltersScreen(
                 }
             } catch (e: ApiException) {
                 showSignInDialog = false
-                // Handle sign-in failure
             }
         } else {
             showSignInDialog = false

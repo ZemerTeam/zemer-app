@@ -41,7 +41,7 @@ class FemaleMatcher internal constructor(
 private val WHITESPACE = Regex("\\s+")
 private fun norm(s: String?): String = SubsetNormalize.plainTokens(s).joinToString(" ")
 private fun skel(s: String?): String = SubsetNormalize.skeletonKey(s).replace(WHITESPACE, "")
-private val HEB_LETTER = Regex("[֐-׿]") // /[֐-׿]/
+private val HEB_LETTER = Regex("[֐-׿]")
 private fun hasHeb(s: String?): Boolean = HEB_LETTER.containsMatchIn(s ?: "")
 
 /**

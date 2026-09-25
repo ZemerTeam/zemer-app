@@ -12,9 +12,10 @@ import java.util.WeakHashMap
 
 /**
  * Grouped (categorized) offline search — the on-device port of `zemer-search/index/categories.mjs`
- * plus the `/search` handler in `zemer-search/server/api.mjs`. Builds seven per-category indexes over a
- * [SubsetCorpus] (artists / songs / albums / singles / videos / playlists / community, each doc carrying
- * the content-filter flags) and returns top-k per category as [ZemerSearchResponse] — the SAME wire model
+ * plus the `/search` handler in `zemer-search/server/api.mjs`. Builds nine per-category indexes over a
+ * [SubsetCorpus] (artists / songs / albums / singles / videos / playlists / community / podcasts /
+ * episodes, each doc carrying the content-filter flags) and returns top-k per category as
+ * [ZemerSearchResponse] — the SAME wire model
  * the app decodes from the live server, so an offline result is consumed identically to a server one.
  *
  * The category split, the content filter, the community survival rule and the post-filter count/cover
@@ -102,7 +103,7 @@ internal class CatCommunityMember(
 )
 
 /**
- * The seven built indexes for one corpus, plus the data the post-filter recompute needs. Build once.
+ * The nine built indexes for one corpus, plus the data the post-filter recompute needs. Build once.
  *
  * Deliberately holds NO [SubsetCorpus] reference: instances are cached in a `WeakHashMap` keyed by
  * the corpus, and a value strongly referencing its own key can never be collected (WeakHashMap's
@@ -264,7 +265,7 @@ class BuiltCategories internal constructor(
 
     companion object {
         /**
-         * buildCategories over a [corpus] (categories.mjs `buildCategories`). Produces the seven indexes;
+         * buildCategories over a [corpus] (categories.mjs `buildCategories`). Produces the nine indexes;
          * [female] is the shared matcher (build once via [buildFemaleMatcher]).
          */
         fun build(corpus: SubsetCorpus, female: FemaleMatcher): BuiltCategories {

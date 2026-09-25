@@ -24,7 +24,7 @@ const PLAYER_JS_URL = (hash) =>
 
 // Loaded from cipher/library/src/main/assets/player_configs.json — the same file the app
 // bundles and fetches remotely. Keyed by BOTH the URL hash and the MD5 fallback alias.
-// Lazy + memoized: ~14 scripts import this module, and a missing submodule or a bad
+// Lazy + memoized: many scripts import this module, and a missing submodule or a bad
 // config file should fail the scripts that USE configs (with the loader's actionable
 // message), not kill every import at module-load time.
 let knownPlayerConfigsCache = null;
@@ -104,7 +104,7 @@ export async function createCipher({ verbose = false } = {}) {
     );
   }
 
-  // Inject the exports into the IIFE closure, exactly like CipherWebView.loadPlayerJsFromFile().
+  // Inject the exports into the IIFE closure, exactly like CipherWebView.buildModifiedPlayerJsImpl().
   const sigStmt = `window._cipherSigFunc = function(sig){ try { return ${cfg.sigExpr.replace("INPUT", "sig")}; } catch(e){ return null; } };`;
   const nStmt = `window._nTransformFunc = function(n){ try { return ${cfg.nExpr.replace("INPUT", "n")}; } catch(e){ return n; } };`;
   const exportCode = `; ${sigStmt} ${nStmt} `;

@@ -157,7 +157,6 @@ class BackupRestoreViewModel @Inject constructor(
                 if (lines.first().startsWith("#EXTM3U")) {
                     lines.forEachIndexed { _, rawLine ->
                         if (rawLine.startsWith("#EXTINF:")) {
-                            // maybe later write this to be more efficient
                             val artists =
                                 rawLine.substringAfter("#EXTINF:").substringAfter(',').substringBefore(" - ").split(';')
                             val title = rawLine.substringAfter("#EXTINF:").substringAfter(',').substringAfter(" - ")

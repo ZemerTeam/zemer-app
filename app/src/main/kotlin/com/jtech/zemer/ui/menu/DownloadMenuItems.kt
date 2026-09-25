@@ -17,8 +17,7 @@ import com.jtech.zemer.ui.component.Material3MenuItemData
  * THE download row for every Material3 item/collection menu. One builder means identical icon, label,
  * progress display and — crucially — identical behaviour: tapping a download row NEVER dismisses the
  * menu, so the row animates straight from "Download" → live progress ring + "%" → "Remove download"
- * while the sheet stays open. (This is the fix for the old inconsistency where some menus dismissed on
- * download and some didn't.) Pass the [DownloadRowKind] decided by
+ * while the sheet stays open. Pass the [DownloadRowKind] decided by
  * [com.jtech.zemer.playback.DownloadMenuLogic]; [progress] is the 0..1 fraction for the DOWNLOADING
  * ring. Returns null for [DownloadRowKind.HIDDEN] so callers can `?.let(::add)`.
  */

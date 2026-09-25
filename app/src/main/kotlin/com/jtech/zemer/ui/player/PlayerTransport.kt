@@ -189,6 +189,11 @@ fun PlayerTransportRow(
     }
 }
 
+/**
+ * A circular skip-previous / skip-next button for the transport cluster: the D-pad accent focus
+ * border, a spring "pump" while pressed, and tap + long-press-to-seek (the long press repeats
+ * [onSkip] every 200 ms until release). Both paths are gated by [enabled].
+ */
 @Composable
 internal fun TransportSkipButton(
     iconRes: Int,

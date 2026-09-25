@@ -3,7 +3,7 @@ package com.jtech.zemer.playback
 /**
  * Which download row a menu should show for an item or collection. Decoupled from Compose so the
  * decision is unit-tested without an Android runtime — the row's look/behaviour live in one builder
- * ([com.jtech.zemer.ui.menu.DownloadMenuItem]) and the decision lives here, so neither can drift.
+ * ([com.jtech.zemer.ui.menu.downloadMenuItem]) and the decision lives here, so neither can drift.
  */
 enum class DownloadRowKind {
     /** Offer "Download to device". */

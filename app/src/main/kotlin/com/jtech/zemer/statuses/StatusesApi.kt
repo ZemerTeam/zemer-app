@@ -138,7 +138,7 @@ fun statusAvatarUrl(path: String?): String? =
 fun statusMediaUrl(path: String?): String? =
     path?.let { if (it.startsWith("http")) it else "$CDN/status-media/$it" }
 
-// --- Public API. All calls are blocking; run them off the main thread (the repository uses IO). ---
+// --- Public API. The non-suspend calls are blocking; run them off the main thread (the repository uses IO). ---
 
 /** All creators across the given music [categoryIds], deduplicated, most recent first. */
 suspend fun fetchStatusCreators(base: String, key: String, categoryIds: List<String>): List<StatusCreator> = coroutineScope {

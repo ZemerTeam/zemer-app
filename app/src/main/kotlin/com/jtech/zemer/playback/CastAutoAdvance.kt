@@ -1,15 +1,16 @@
 package com.jtech.zemer.playback
 
 /**
- * Pure end-of-track decision logic for FCast auto-advance, extracted from [PlayerConnection] so the
+ * Pure end-of-track decision logic for FCast auto-advance, kept out of [CastController] so the
  * timing thresholds are unit-testable without a player, the FCast SDK, or an Android runtime.
  *
- * Two detectors decide a cast track has finished and the queue should advance:
- *  - the remote device reports IDLE coming from PLAYING near the end ([finishedNearEnd]), and
+ * Three detectors decide a cast track has finished and the queue should advance:
+ *  - the remote device reports IDLE coming from PLAYING near the end ([finishedNearEnd]),
+ *  - it reports PAUSED coming from PLAYING at the very end ([nearEnd] with [PAUSED_END_EPSILON_SEC]), and
  *  - the remote clock stops advancing near the end ([nearEnd] with [STALL_END_EPSILON_SEC] + [stalled]),
  *    fed the *interpolated* clock so a coarse remote clock still reaches the end.
  *
- * Both are gated by [debouncePassed] so they — and a genuine media-item transition — can't
+ * All are gated by [debouncePassed] so they — and a genuine media-item transition — can't
  * double-advance and skip a track. Remote position/duration are in SECONDS (as the FCast SDK
  * reports them); the debounce/stall windows are in MILLISECONDS.
  */

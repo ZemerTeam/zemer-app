@@ -38,10 +38,10 @@ import com.jtech.zemer.statuses.visibleRecentIds
 import com.jtech.zemer.ui.theme.HeaderFontFamily
 
 /**
- * One JewishStatus creator as a WhatsApp/Stories-style avatar circle: a SEGMENTED story ring (one arc
+ * One status creator as a WhatsApp/Stories-style avatar circle: a SEGMENTED story ring (one arc
  * per recent status) that is the app accent while any status is unseen and mutes to a subtle outline
  * once every status has been viewed (WhatsApp read state) — a read circle is still openable. The
- * avatar loads from the R2 CDN; an optional verified badge sits at the bottom-right. Fully app-themed.
+ * avatar URL resolves through [statusAvatarUrl]. Fully app-themed.
  * Presentation-only; the caller wires the tap.
  */
 @Composable

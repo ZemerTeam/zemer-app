@@ -177,7 +177,7 @@ async function main() {
   }
 
   // Structured, machine-readable verdict — the STABLE CONTRACT the automation consumes, so
-  // tools/propose-config.mjs never screen-scrapes this human log text. `ambiguous` = more than one
+  // zemer-cipher's tools/propose-config.mjs never screen-scrapes this human log text. `ambiguous` = more than one
   // candidate both deciphered AND ran a real n-transform; the pipeline refuses those rather than
   // guess which one the server truly wants.
   console.log("VALIDATOR_RESULT=" + JSON.stringify({

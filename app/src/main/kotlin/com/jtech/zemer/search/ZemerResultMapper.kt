@@ -21,24 +21,24 @@ import com.metrolist.innertube.models.SearchSuggestions
 import com.jtech.zemer.utils.BlockedIdsCache
 import com.jtech.zemer.utils.ContentFilterState
 
-/**
- * Adapts a [ZemerSearchResponse] into the exact `YTItem`/page types the existing search UI already
- * renders, so the screens, rows, playback and navigation are all reused unchanged:
- *
- * - songs & videos → [SongItem] (thumbnail derived from the videoId; `endpoint` left null, which the
- *   results screen already handles by playing `WatchEndpoint(videoId = id)`).
- * - artists → [ArtistItem], albums + singles → [AlbumItem], playlists & community → [PlaylistItem]
- *   (the artist-owned `playlists` back the Featured chip, the `community` list backs the Community chip).
- *
- * Zemer results are already whitelist-scoped server-side, so the local whitelist filter is NOT applied
- * here (Zemer's whitelist-pure corpus has no explicit content).
- */
 // Zemer-only search chips — podcasts and episodes have no YouTube [SearchFilter] equivalent. The value
 // is a private key used ONLY client-side to pick the `/search` response's podcast/episode category in
 // [ZemerResultMapper.filtered]; it is never sent to any server (Zemer filtering is response-side).
 val ZEMER_FILTER_PODCAST = SearchFilter("zemer_podcast")
 val ZEMER_FILTER_EPISODE = SearchFilter("zemer_episode")
 
+/**
+ * Adapts a [ZemerSearchResponse] into the exact `YTItem`/page types the existing search UI already
+ * renders, so the screens, rows, playback and navigation are all reused unchanged:
+ *
+ * - songs & videos → [SongItem] (thumbnail = the server's art, else derived from the videoId;
+ *   `endpoint` left null — the results screen plays a tap as seed-first radio, `ZemerRadioQueue.song`).
+ * - artists → [ArtistItem], albums + singles → [AlbumItem], playlists & community → [PlaylistItem]
+ *   (the artist-owned `playlists` back the Featured chip, the `community` list backs the Community chip).
+ *
+ * Zemer results are already whitelist-scoped server-side, so the local whitelist filter is NOT applied
+ * here (Zemer's whitelist-pure corpus has no explicit content).
+ */
 object ZemerResultMapper {
 
     /**
@@ -92,7 +92,7 @@ object ZemerResultMapper {
             browseId = id,
             playlistId = playlistId ?: id,
             title = title,
-            // `artistId` present on /home-rows album cards (null elsewhere) — see [toSongItem].
+            // `artistId` present on /home-rows, /artist and /search album cards — see [toSongItem].
             artists = if (artist.isBlank()) null else listOf(Artist(name = artist, id = artistId)),
             year = year,
             thumbnail = thumbnail.orEmpty(),
@@ -250,8 +250,7 @@ object ZemerResultMapper {
      * A Zemer `/album` response as the [AlbumPage] the album screen + DB persist flow already consume,
      * so the Zemer path reuses that whole pipeline unchanged. Like every Zemer surface the tracks are
      * whitelist-scoped server-side, so only the surgical id-overrides ([dropBlocked]) run here.
-     * [playlistId] is
-     * the search card's OP playlist id — the server header carries none — falling back to the browseId.
+     * [playlistId] is the opener's OP playlist id, falling back to the header's own, then the browseId.
      */
     fun ZemerAlbumResponse.toAlbumPage(playlistId: String?): AlbumPage {
         val albumItem = AlbumItem(
@@ -292,11 +291,11 @@ object ZemerResultMapper {
 
     /**
      * A Zemer `/artist` response as the [ArtistPage] the artist screen already consumes: the flat
-     * songs / videos / albums / singles / playlists arrays become the screen's sections, in that order.
+     * songs / videos / albums / singles / playlists arrays become the screen's sections.
      * Tracks are whitelist-scoped server-side, so only the surgical id-overrides ([dropBlocked]) run
      * here. Section titles reuse the same English constants as the summary view. The header carries no
      * play/shuffle/radio endpoint (the corpus has none): the screen plays Shuffle from these tracks
-     * locally, and the Radio button waits for Zemer Radio.
+     * locally, and Radio runs the Zemer `/radio` queue.
      */
     fun ZemerArtistResponse.toArtistPage(
         formatSongCount: (Int) -> String? = { null },
@@ -514,7 +513,7 @@ object ZemerResultMapper {
 
     /**
      * The genre header mosaic's covers: the genre's top release art (albums first — the strongest
-     * covers — then singles, then song art to fill), blanks dropped, de-duped, downsized to the
+     * covers — then singles, then song art to fill), blanks dropped, downsized to the
      * mosaic variant ([mosaicVariant] — sized for the ~230dp-tall header band, not full art),
      * de-duped, and capped at [max]. Needs at least [min] UNIQUE covers to render (they tile evenly
      * to fill the width, so 3-4 covers look like a proper strip; below that a lone/stretched cover
@@ -596,7 +595,7 @@ object ZemerResultMapper {
      * The grouped summary view (`filter == null`): items grouped by type into sections. Songs and
      * videos get SEPARATE sections (Songs / Videos) — each drills into its own chip — so a video-song
      * is never shown in both. The "Videos" section header is relabelled "Video songs" by the screen when
-     * videos play as audio. The "Playlists" section shows the community playlists only — its header
+     * videos are blocked. The "Playlists" section shows the community playlists only — its header
      * drills into the Community chip, so previewing community here keeps tap-through consistent
      * (artist-owned/featured playlists are reached via the Featured chip). Empty sections are omitted.
      * (No "Top result" card — the Zemer server does not return one.)
@@ -616,9 +615,8 @@ object ZemerResultMapper {
             section(TITLE_VIDEOS, videoSongItems(resp))
             section(TITLE_ARTISTS, artistItems(resp))
             section(TITLE_PLAYLISTS, playlists)
-            // Podcast SHOWS + EPISODES folded in (server reply 2026-08-01). No filter chip, so these
-            // sections render with a non-interactive header (NavigationTitle no-ops without a chip) —
-            // the rows themselves open the show / play the episode.
+            // Podcast SHOWS + EPISODES folded in (server reply 2026-08-01); their headers drill into
+            // the Zemer-only [ZEMER_FILTER_PODCAST] / [ZEMER_FILTER_EPISODE] chips.
             section(TITLE_PODCASTS, resp.podcastShowItems())
             section(TITLE_EPISODES, resp.podcastEpisodeItems())
         }
@@ -649,8 +647,8 @@ object ZemerResultMapper {
 
     /**
      * As-you-type dropdown — the two-part layout Metrolist uses: tappable text **completions**
-     * (`queries`) on top, then full live result rows (`recommendedItems`) across ALL categories in the
-     * same order as the summary screen. Completions are Zemer-native: artist names first (the most
+     * (`queries`) on top, then full live result rows (`recommendedItems`) across ALL categories.
+     * Completions are Zemer-native: artist names first (the most
      * useful "search everything by…" completion and the one that absorbs Hebrew/romanization fuzz),
      * then a few song titles to fill — deduped case-insensitively and capped. The combined rows are
      * de-duped by id (a videoId can appear in both songs and videos) so the id-keyed list can't crash.

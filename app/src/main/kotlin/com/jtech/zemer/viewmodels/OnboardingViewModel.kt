@@ -48,7 +48,7 @@ class OnboardingViewModel @Inject constructor(
                 try {
                     syncService.performManualSync()
                 } catch (e: Exception) {
-                    // Log error but don't fail the sign-in
+                    // Don't fail the sign-in on a sync error
                 }
             }
         }
@@ -61,7 +61,7 @@ class OnboardingViewModel @Inject constructor(
                 syncService.setSyncEnabled(true)
                 syncService.performManualSync()
             } catch (e: Exception) {
-                // Log error but don't fail the sign-in
+                // Don't fail the sign-in on a sync error
             }
         }
     }

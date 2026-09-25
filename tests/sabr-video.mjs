@@ -120,8 +120,8 @@ const bestVideo = (j) => (j?.streamingData?.adaptiveFormats || [])
   // itag -> format metadata (for buffer sizing + completion proof of whatever tracks the server serves).
   const byItag = {};
   for (const f of (sd.adaptiveFormats || [])) byItag[f.itag] = { itag: f.itag, lastModified: f.lastModified, clen: Number(f.contentLength) || 0, kind: f.width == null ? "audio" : "video", label: `${f.qualityLabel || (f.width ? f.height + "p" : "")} ${(f.mimeType || "").split(";")[0]}`.trim() };
-  // Tracks are DISCOVERED from the served MEDIA_HEADER itags (the server picks the video format; we
-  // requested video=136 + audio=251 as preferred). Each track reassembles its own byte stream.
+  // Tracks are DISCOVERED from the served MEDIA_HEADER itags (we request vfmt + afmt as the preferred
+  // formats). Each track reassembles its own byte stream.
   const tracks = {};
   const track = (itag) => (tracks[itag] ||= { ...(byItag[itag] || { itag, kind: "?", clen: 0, label: "itag " + itag }), segs: new Map(), assembled: Buffer.alloc(byItag[itag]?.clen || 0), init: 0, cursor: {}, lastSeq: 0, bufEndMs: 0, endSeg: 0, firstSeq: 0, firstMs: 0, firstOff: -1 });
   console.log(`play=${j.playabilityStatus?.status}  requested video=${vfmt.itag}(${byItag[vfmt.itag]?.label}) audio=${afmt.itag}(${byItag[afmt.itag]?.label})\n`);

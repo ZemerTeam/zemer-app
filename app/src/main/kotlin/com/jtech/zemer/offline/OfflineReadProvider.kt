@@ -35,7 +35,7 @@ import javax.inject.Singleton
  * The decoded corpus is cached behind a [SoftReference] — warm across repeated offline reads, but never
  * pinning heap the app needs elsewhere (the snapshot is tens of MB in memory). It is reloaded when the
  * on-disk manifest version changes (a sync landed) or the GC reclaimed it. All flags mirror the client:
- * `kidZone` is always false (the client sends `kidZone=0` for these surfaces).
+ * `kidZone` is false (the client sends `kidZone=0`) except where a podcast read takes it as a parameter.
  *
  * `/radio` is now PARTIALLY reproducible (2026-09-11 addendum: the `radio-<n>` shards carry the
  * popularity + co-occurrence graph — see [SubsetRadio]'s doc for exactly which kinds/tiers). `/playlist`
@@ -60,7 +60,7 @@ class OfflineReadProvider @Inject constructor(
 
     /**
      * The decoded snapshot, gated on freshness ([subsetSnapshotIsFresh] — an unsyncable device must
-     * not serve an ever-aging copy) and overlaid with the live Firestore-synced whitelist
+     * not serve an ever-aging copy) and overlaid with the live synced whitelist
      * ([SubsetCorpus.withLiveWhitelist] — a de-whitelisted or since-female-flagged artist is dropped
      * the moment the app's whitelist sync lands, not on the next snapshot download). The cache is
      * keyed on both the manifest version and the whitelist fingerprint so either changing rebuilds.
@@ -112,8 +112,9 @@ class OfflineReadProvider @Inject constructor(
             snapshot()?.let { offlineCuratedPlaylist(it.corpus, it.female, id, allowFemale, blockVideos, kidZone = false) }
         }
 
-    // Podcasts (server reply 4 — pre-gated to approved channels in the snapshot). The browse-grid + channel
-    // allow-set come from the Room-backed content mirror, not here; these serve the drill-in reads.
+    // Podcasts (server reply 4 — pre-gated to approved channels in the snapshot). The normal browse grid +
+    // channel allow-set come from the Room-backed content mirror, not here; these serve the drill-in reads
+    // and the KidZone grid's outage fallback ([podcasts]).
     suspend fun podcast(id: String, offset: Int, allowFemale: Boolean, blockVideos: Boolean, kidZone: Boolean = false): ZemerPodcastResponse? =
         withContext(Dispatchers.IO) {
             snapshot()?.let { offlinePodcast(it.corpus, id, offset, allowFemale, blockVideos, kidZone) }

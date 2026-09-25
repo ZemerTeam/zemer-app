@@ -101,7 +101,6 @@ async function testClient(clientName, visitorData, label, signatureTimestamp = n
       console.log(`First format: itag=${f.itag}, hasUrl=${hasUrl}, hasCipher=${hasCipher}`);
 
       if (hasUrl) {
-        // Test if URL works
         const testRes = await fetch(f.url, { method: 'HEAD' });
         console.log(`URL validation: ${testRes.status}`);
       } else if (hasCipher) {
@@ -118,15 +117,12 @@ async function main() {
   console.log(`Clean visitorData: ${CLEAN_VISITOR_DATA.length} chars`);
   console.log(`Bloated visitorData: ${BLOATED_VISITOR_DATA.length} chars`);
 
-  const STS = 20611; // Current signatureTimestamp
+  const STS = 20611; // player 69e2a55d's signatureTimestamp
 
-  // Test MWEB with clean visitorData + STS
   await testClient('MWEB', CLEAN_VISITOR_DATA, 'CLEAN', STS);
 
-  // Test MWEB with bloated visitorData + STS
   await testClient('MWEB', BLOATED_VISITOR_DATA, 'BLOATED', STS);
 
-  // Test WEB_REMIX with clean visitorData + STS
   await testClient('WEB_REMIX', CLEAN_VISITOR_DATA, 'CLEAN', STS);
 
   // Test VISIONOS (no visitorData or STS needed)

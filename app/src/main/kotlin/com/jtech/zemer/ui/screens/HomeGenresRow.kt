@@ -33,7 +33,7 @@ import com.jtech.zemer.ui.component.GenreChip
 import com.jtech.zemer.ui.component.podcastGenreIcon
 
 /**
- * The reusable Home genre-chips strip: ONE row of hollow accent-outlined [GenreChip] pills — a single
+ * The reusable Home genre-chips strip: ONE row of tonal [GenreChip] pills — a single
  * row cannot fall out of alignment (the two-row pairing left ragged gaps and was reviewed out) — with a
  * MAGNETIC fling: inertial decay settling into a soft spring snap on the nearest chip, so a swipe feels
  * weighted instead of a hard stop. Decoupled from any genre SOURCE — [chips] is a `(slug, title)` list

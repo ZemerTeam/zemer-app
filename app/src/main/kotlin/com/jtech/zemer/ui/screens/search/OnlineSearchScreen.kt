@@ -132,8 +132,6 @@ fun OnlineSearchScreen(
     val displayItems = remember(viewState.items, blockPodcasts) {
         dropBlockedPodcastItems(viewState.items, blockPodcasts)
     }
-    // The dropdown follows the active engine (see OnlineSearchSuggestionViewModel), so a Zemer playlist
-    // shown here must open through the server path — route on the same provider preference.
 
     val lazyListState = rememberLazyListState()
     val firstItemKey = remember(viewState) {

@@ -32,7 +32,7 @@ fun Player.toggleRepeatMode() {
 }
 
 /**
- * The ONE repeat-mode icon mapping for plain-icon surfaces (player transport, queue expanded bar,
+ * The ONE repeat-mode icon mapping for plain-icon surfaces (queue expanded bar,
  * lyrics, notification): an active mode gets the distinct filled-badge glyph, so OFF is visually
  * different from ON rather than the same icon a few shades lighter (#400). The collapsed-queue
  * pill row is the deliberate exception — it shows the ON state by filling the pill itself (the

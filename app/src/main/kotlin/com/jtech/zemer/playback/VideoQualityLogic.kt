@@ -13,7 +13,8 @@ import com.metrolist.innertube.models.response.PlayerResponse
  *   stream ([MergingMediaSource][androidx.media3.exoplayer.source.MergingMediaSource]) and a download
  *   fetches video+audio separately and remuxes on-device.
  * @param mp4Avc true when the rung is avc1-in-mp4 — the on-device remux (framework MediaMuxer, MP4
- *   output) requirement; non-avc rungs are stream-only.
+ *   output) requirement; vp9 rungs remux to WebM instead, av01 is stream-only
+ *   ([VideoQualityLogic.isDownloadableRung]).
  */
 data class VideoQualityRung(
     val label: String,

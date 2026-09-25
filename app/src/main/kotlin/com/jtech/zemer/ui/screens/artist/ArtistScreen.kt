@@ -180,7 +180,7 @@ fun ArtistScreen(
     }
 
     LaunchedEffect(libraryArtist) {
-        // always show local page for local artists. Show local page remote artist when offline
+        // always show local page for local artists
         showLocal = libraryArtist?.artist?.isLocal == true
     }
 
@@ -652,9 +652,6 @@ fun ArtistScreen(
                         val distinctItems = section.items.distinctBy { it.id }
                             .let { rows -> if (isVideoSection && !blockVideos) rows.filterNot { it.id in songSectionIds } else rows }
 
-                        // Video sections are no longer hidden: when imagery is blocked (or the audio
-                        // pref is on) they render as audio "video song" rows instead of watchable tiles.
-
                         // The top-songs shelf is a capped PREVIEW (its "more" arrow opens the full list) —
                         // InnerTube returned only ~5, but /artist returns the whole catalog, so cap the inline
                         // song list here to match instead of listing every song. Carousels + videos keep their
@@ -689,10 +686,8 @@ fun ArtistScreen(
                         }
 
                         // A non-video SongItem shelf (the "Songs"/top-songs list) renders as a vertical
-                        // LIST; videos/albums/singles/playlists render as the horizontal GRID. This keyed on
-                        // SongItem.album != null before — always set on the InnerTube path but absent on the
-                        // Zemer /artist songs — so key on item type + section instead. Same result for the
-                        // InnerTube path (its song shelf is non-video and album-tagged), fixes the Zemer path.
+                        // LIST; videos/albums/singles/playlists render as the horizontal GRID. Keyed on item
+                        // type + section, not SongItem.album (absent on the Zemer /artist songs).
                         // Video sections keep the SAME grid for blocked users (just retitled "Video songs"
                         // above) — the tiles play audio-first, so no special layout is needed.
                         if (section.items.firstOrNull() is SongItem && !isVideoSection) {
@@ -896,8 +891,7 @@ fun ArtistScreen(
             TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent)
         } else {
             // Once scrolled past the header, use the shared bar color so it matches every other
-            // screen and does not grey-out on scroll (the default scrolledContainerColor isn't
-            // AMOLED-aware).
+            // screen and does not change color on scroll (container == scrolled).
             zemerTopAppBarColors()
         }
     )

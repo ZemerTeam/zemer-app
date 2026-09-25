@@ -123,7 +123,7 @@ class SubsetReadLayerTest {
         assertNull("v2 is not a raw track item → no rank", r.tracks[1].rank)
         // the album item surfaces as a browsable row (its members serve here).
         assertEquals(listOf("al1"), r.albums.map { it.id })
-        // card: relative cover URL + count + summed runtime.
+        // card: cover URL + count + summed runtime.
         // Absolute (not the server's relative path): the offline path bypasses the client-side
         // resolveZemerUrl pass, and Coil cannot load a schemeless URL.
         assertEquals("https://search.zemer.io/zemer-playlists/cover?id=auto-mix", r.playlist.thumbnail)

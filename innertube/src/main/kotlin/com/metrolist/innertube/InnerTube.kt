@@ -81,15 +81,15 @@ class InnerTube {
                 dns(ResilientDns())
                 // Increase connection pool for parallel requests
                 connectionPool(ConnectionPool(
-                    maxIdleConnections = 200,  // Keep 200 connections alive
-                    keepAliveDuration = 5,     // Keep alive for 5 minutes
+                    maxIdleConnections = 200,
+                    keepAliveDuration = 5,
                     TimeUnit.MINUTES
                 ))
 
                 // Increase max concurrent requests
                 dispatcher(Dispatcher().apply {
-                    maxRequests = 500            // Total max requests
-                    maxRequestsPerHost = 100     // Per-host max requests
+                    maxRequests = 500
+                    maxRequestsPerHost = 100
                 })
 
                 // Aggressive timeouts
@@ -226,7 +226,7 @@ class InnerTube {
         parameter("c", client.clientName)
         parameter("cpn", cpn)
         // Watch-time session shape (handoff: emulate-youtube-music-stream): the playback ping opens
-        // the stats session at play START with the current media time; absent for legacy callers.
+        // the stats session at play START with the current media time.
         cmt?.let { parameter("cmt", it) }
         final?.let { parameter("final", if (it) "1" else "0") }
         // Extra params the official WEB_REMIX client carries, verified from live base.js `Y2`:

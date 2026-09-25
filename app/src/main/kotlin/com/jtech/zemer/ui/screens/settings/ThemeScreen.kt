@@ -329,7 +329,7 @@ private fun ModeCircle(
         DarkMode.OFF -> false
     }
 
-    // Preview fill from the brand seed (the app has no system wallpaper path).
+    // Preview fill from the brand seed.
     val modeColorScheme = rememberDynamicColorScheme(
         seedColor = BrandThemeColor,
         isDark = effectiveDark,

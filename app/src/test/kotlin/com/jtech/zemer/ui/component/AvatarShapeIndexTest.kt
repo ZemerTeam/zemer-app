@@ -6,7 +6,7 @@ import org.junit.Test
 
 /**
  * Regression guard for [avatarPolygonIndex] - the pure selection behind the expressive avatar shapes.
- * The rest of the expressive UI (loaders, wavy bars, toggle chips, the carousel, the press bounce) is
+ * The rest of the expressive UI (loaders, wavy bars, toggle chips, the carousel) is
  * Compose-only and not unit-testable without Robolectric, which this project does not have.
  */
 class AvatarShapeIndexTest {

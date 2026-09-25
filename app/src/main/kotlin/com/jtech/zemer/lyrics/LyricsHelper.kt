@@ -41,7 +41,6 @@ constructor(
         val videoId = mediaMetadata.id
 
         // Check network connectivity before making network requests
-        // Use synchronous check as fallback if flow doesn't emit
         val isNetworkAvailable = try {
             networkConnectivity.isCurrentlyConnected()
         } catch (_: Exception) {
@@ -50,7 +49,7 @@ constructor(
         }
         
         if (!isNetworkAvailable) {
-            // Still proceed but return not found to avoid hanging
+            // Offline: return not found instead of hanging on the providers
             return Fetched(LYRICS_NOT_FOUND, null)
         }
 

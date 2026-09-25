@@ -21,8 +21,8 @@ import javax.inject.Inject
 /**
  * Backs the podcast-genre catalog screen: `/podcast-genres` grouped into the server-owned kind
  * sections ([podcastGenreSections] — flat when the server sends no `kinds`). Same fetch discipline as
- * [ZemerGenreCatalogViewModel]: a fresh fetch per screen open, a re-fetch on content-flag change, and
- * a response fetched under stale flags is dropped.
+ * [ZemerGenreCatalogViewModel]: a fetch per screen open (behind the same 60 s memo), a re-fetch on
+ * content-flag change, and a response fetched under stale flags is dropped.
  */
 @HiltViewModel
 class PodcastGenreCatalogViewModel @Inject constructor(

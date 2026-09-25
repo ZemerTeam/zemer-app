@@ -3,8 +3,8 @@ package com.jtech.zemer.playback
 /**
  * Guards the tracking/history signal across audio↔video rendition swaps (I4). A swap ends the current
  * ExoPlayer `PlaybackStats` session mid-listen, so `onPlaybackStatsReady` fires — without this guard a
- * single toggle would double-fire the `play` tracking event, double-insert the history `Event`, and
- * double-register YouTube playback for one listen.
+ * single toggle would double-fire the `play` tracking event and double-insert the history `Event`
+ * for one listen.
  *
  * The rule: a stats-ready that was caused by a swap is **suppressed**, its play time **stashed**; the
  * next non-swap (real) end **emits once** with the accumulated total. Pure + JVM-tested; the controller

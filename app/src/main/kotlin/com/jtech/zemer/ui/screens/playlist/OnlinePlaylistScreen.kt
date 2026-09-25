@@ -471,7 +471,7 @@ fun OnlinePlaylistScreen(
                     }
 
                 } else {
-                    // Show error state when playlist is null and there's an error
+                    // Playlist is null: the error state, or (no error) the neutral not-found state
                     item(key = "error_state") {
                         if (error != null) {
                             ErrorRetryState(

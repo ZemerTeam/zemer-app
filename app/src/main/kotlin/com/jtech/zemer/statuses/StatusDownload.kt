@@ -8,7 +8,7 @@ import org.json.JSONObject
  * list, group, filter and re-open it WITHOUT the live feed. Persisted as JSON in [StatusDownloadsStore]
  * (DataStore, no Room migration). [mediaUri] is the MediaStore `content://` uri of the saved file; for a
  * text status that file is the rendered PNG, while [kind] stays `"text"` so the chip filter and badge
- * still classify it correctly (and [textBody] keeps the original words for a future selectable view).
+ * still classify it correctly (and [textBody] keeps the original words for the library tile and the saved viewer's copy button).
  */
 data class StatusDownload(
     val id: String,
@@ -18,7 +18,7 @@ data class StatusDownload(
     val creatorAvatar: String?,     // avatar path/url, so the saved viewer's header matches the live one
     val postedAt: String,           // ISO-8601, the status's posted time (drives the filename + date sort)
     val caption: String?,
-    val textBody: String?,          // original body for a text status (kept for a future selectable view)
+    val textBody: String?,          // original body for a text status (library tile text + saved viewer copy)
     val mediaUri: String,           // MediaStore content:// uri of the saved gallery file
     val savedAt: Long,              // epoch millis when saved (drives the "recently saved" sort)
 ) {

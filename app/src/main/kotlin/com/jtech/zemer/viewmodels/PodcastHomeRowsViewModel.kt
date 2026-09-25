@@ -22,10 +22,10 @@ import kotlinx.coroutines.sync.withLock
 import javax.inject.Inject
 
 /**
- * Backs the Home Podcasts tab's telemetry-ranked rows — **Top Podcasts** + **Trending Episodes**, the
- * podcast analogue of [HomeViewModel]'s Featured rows. Isolated from [HomeViewModel]
+ * Backs the Home Podcasts tab's telemetry-ranked rows — **Featured Podcasts**, **Top Podcasts** +
+ * **Trending Episodes**, the podcast analogue of [HomeViewModel]'s Featured rows. Isolated from [HomeViewModel]
  * (the LatestReleases/Stations pattern, same as [PodcastGenresHomeViewModel]) so a `/podcast-home-rows`
- * failure only hides the two rows (empty lists), never the rest of Home. Screen-open [refresh], reload
+ * failure only hides these rows (empty lists), never the rest of Home. Screen-open [refresh], reload
  * on content-flag change, fetches serialized behind a [Mutex], stale-flag responses dropped, a failure
  * keeps the previous rows.
  */

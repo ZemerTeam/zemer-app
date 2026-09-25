@@ -22,7 +22,7 @@ import androidx.compose.ui.unit.dp
 
 /**
  * The bottom title / subtitle overlay shared by the full-bleed carousel HEROES (Latest Releases +
- * Trending Videos): a bottom-anchored transparent->black gradient carrying the white [title] and a
+ * Featured Videos): a bottom-anchored transparent->black gradient carrying the white [title] and a
  * 75%-white [subtitle], both single-line marquee, plus an optional [extraContent] column slot (Latest
  * Releases puts its library badges there). Extracted so the two heroes' overlays can't drift. Place it
  * inside the hero's artwork [BoxScope]; it self-aligns to the bottom.

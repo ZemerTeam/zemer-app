@@ -39,8 +39,8 @@ internal val BrandOnPrimaryContainerDark = Color(0xFFFFD9DD)
 val SystemWallpaperThemeColor = Color(0x00000001)
 
 /**
- * The Color Palette row, in display order: the dynamic (album-art) sentinel first, the brand accent
- * (default) second, then a spectrum of accents. The crimson entry is nudged off [DefaultThemeColor]
+ * The Color Palette row, in display order: the dynamic (album-art) and System (wallpaper) sentinels, the
+ * brand accent (default), then a spectrum of accents. The crimson entry is nudged off [DefaultThemeColor]
  * (0xFFED5564) so no swatch collides with that legacy sentinel.
  */
 val PaletteColors: List<ThemePalette> = listOf(
@@ -71,7 +71,7 @@ val PaletteColors: List<ThemePalette> = listOf(
 /**
  * The default accent for a fresh install: the Zemer brand palette, on every device. (System/wallpaper
  * and the other accents stay available in the picker; they are just not the default.) This is the
- * value stored under `SelectedThemeColorKey` when the user has never picked one.
+ * `SelectedThemeColorKey` default when the user has never picked one.
  */
 val DefaultAccentColor: Color = BrandThemeColor
 

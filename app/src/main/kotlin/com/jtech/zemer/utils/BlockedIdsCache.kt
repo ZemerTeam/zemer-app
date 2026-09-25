@@ -18,9 +18,10 @@ package com.jtech.zemer.utils
  * The id is matched against [com.metrolist.innertube.models.YTItem.id] — the videoId for songs/videos,
  * the playlistId for playlists, the browseId/channelId for albums/artists — so one table covers every
  * item type. Unlike the artist membership whitelist (never run over raw Zemer results, as it would clip
- * legitimate hits), an id+reason override is surgical and safe to apply on BOTH engines, every surface.
+ * legitimate hits), an id+reason override is surgical and safe to apply on every surface.
  *
- * Synced read-only from the Firestore `blockedContentIds` collection; the app NEVER writes/deletes it.
+ * Synced read-only from `blockedContentIds` (content mirror first, Firestore fallback); the app NEVER
+ * writes/deletes it.
  * The snapshot is a single `@Volatile` map, replaced atomically — a concurrent reader always sees a
  * complete, consistent table, and a failed sync leaves the previous table intact (never unblocks).
  */

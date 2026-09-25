@@ -9,10 +9,10 @@ import timber.log.Timber
 /**
  * Central registry for artists that should be treated as Israeli and excluded from surfaced content.
  *
- * The data is stored in Firestore under the `israeliArtists` collection with documents containing
- * either an `id` or `artistId` field. The registry is cached in memory after the first load to
- * avoid repeated network requests and can be reused across view models to ensure consistent
- * filtering.
+ * The data is read mirror-first (content mirror `/israeliArtists`) with the Firestore `israeliArtists`
+ * collection as fallback, whose documents contain either an `id` or `artistId` field. The registry is
+ * cached in memory after the first load to avoid repeated network requests and can be reused across
+ * view models to ensure consistent filtering.
  */
 object IsraeliArtistRegistry {
     @Volatile

@@ -12,7 +12,7 @@ import com.jtech.zemer.playback.sabr.SabrProto.vField
  */
 internal object SabrMessages {
 
-    /** The audio format a SABR session streams — from the /player response's chosen adaptiveFormat. */
+    /** The format a SABR track streams (audio or video) — from the /player response's adaptiveFormats. */
     class Format(val itag: Int, val lastModified: Long, val contentLength: Long)
 
     /** Identity for the SABR streamerContext.clientInfo (must match the /player request client). */

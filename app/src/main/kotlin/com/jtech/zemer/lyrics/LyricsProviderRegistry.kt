@@ -17,7 +17,7 @@ import com.jtech.zemer.lyrics.youtube.YouTubeSubtitleLyricsProvider
 object LyricsProviderRegistry {
     private val providerMap = linkedMapOf<String, LyricsProvider>(
         // Accuracy first, then coverage on THIS catalog: Zemer is the only cross-verified source; SimpMusic
-        // matches the exact YouTube videoId (can't mismatch); LrcLib is identity-gated; YouTube's
+        // is keyed by the exact YouTube videoId (duration-gated); LrcLib is identity-gated; YouTube's
         // tab is lower trust, tried last. The pick rule (synced-first among trusted providers, low-trust YouTube only
         // when nothing else answered) is SyncedFirstPicker.
         "Zemer" to ZemerLyricsProvider,

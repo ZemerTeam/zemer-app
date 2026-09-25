@@ -49,8 +49,8 @@ internal object SabrProto {
     class Value(val v: Long, val bytes: ByteArray?)
 
     /**
-     * Parse a protobuf message into field-number -> ordered values. Unknown/other wire types are skipped
-     * safely (fixed64 as 8 bytes, fixed32 as 4). Never throws on truncation — returns what it parsed.
+     * Parse a protobuf message into field-number -> ordered values (fixed64 is skipped as 8 bytes; an
+     * unknown wire type stops the parse). Never throws on truncation — returns what it parsed.
      */
     fun read(buf: ByteArray, from: Int = 0, to: Int = buf.size): Map<Int, MutableList<Value>> {
         val out = HashMap<Int, MutableList<Value>>()

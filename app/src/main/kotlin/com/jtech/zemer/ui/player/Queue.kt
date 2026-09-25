@@ -205,7 +205,6 @@ fun Queue(
         },
         modifier = modifier,
         collapsedContent = {
-                // New design
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(6.dp),
                     verticalAlignment = Alignment.CenterVertically,
@@ -286,7 +285,7 @@ fun Queue(
                     }
 
                     // Podcast episodes have no lyrics — hide the affordance instead of opening an
-                    // empty sheet (same gate as the old-design row below).
+                    // empty sheet.
                     if (mediaMetadata?.isEpisode != true) {
                         QueuePillButton(
                             shape = middleShape,
@@ -670,8 +669,8 @@ fun Queue(
                                                 if (!selection) {
                                                     selection = true
                                                 }
-                                                selectedSongs.clear() // Clear all selections
-                                                selectedSongs.add(window.mediaItem.metadata!!) // Select current item
+                                                selectedSongs.clear()
+                                                selectedSongs.add(window.mediaItem.metadata!!)
                                             },
                                         ),
                                 )
@@ -919,9 +918,9 @@ fun Queue(
 }
 
 /**
- * One collapsed-queue action pill (the queue/sleep/lyrics/shuffle/repeat row under the new player
- * design): a 42.dp bordered box whose [shape] rounds the row's end caps. Every pill in that row
- * renders through this so the treatment can't drift per button.
+ * One collapsed-queue action pill (the queue/sleep/lyrics/shuffle/repeat row): a 42.dp bordered box
+ * whose [shape] rounds the row's end caps. Every pill in that row renders through this so the
+ * treatment can't drift per button.
  */
 @Composable
 private fun QueuePillButton(

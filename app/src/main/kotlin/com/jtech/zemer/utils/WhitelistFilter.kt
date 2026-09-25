@@ -30,7 +30,7 @@ private object WhitelistEntryCache {
 /**
  * Check if a song should be displayed based on whitelist.
  * Returns true if ANY of the song's artists are whitelisted.
- * If whitelist is empty, returns false (show nothing).
+ * With filtering on and an empty whitelist, returns false (show nothing).
  */
 private suspend fun SongItem.isWhitelisted(
     database: MusicDatabase,
@@ -64,7 +64,7 @@ private suspend fun SongItem.isWhitelisted(
 /**
  * Check if an album should be displayed based on whitelist.
  * Returns true if ANY of the album's artists are whitelisted.
- * If whitelist is empty, returns false (show nothing).
+ * With filtering on and an empty whitelist, returns false (show nothing).
  */
 private suspend fun AlbumItem.isWhitelisted(
     database: MusicDatabase,
@@ -99,7 +99,7 @@ private suspend fun AlbumItem.isWhitelisted(
 /**
  * Check if an artist should be displayed based on whitelist.
  * Returns true if the artist is whitelisted.
- * If whitelist is empty, returns false (show nothing).
+ * With filtering on and an empty whitelist, returns false (show nothing).
  */
 private suspend fun ArtistItem.isWhitelisted(
     database: MusicDatabase,
@@ -154,11 +154,10 @@ suspend fun List<YTItem>.filterWhitelisted(
         }
         val allowed = when (item) {
             is SongItem ->
-                // An episode routed through here arrives as a SongItem(isEpisode = true) (e.g. the
-                // Episodes-for-Later sync, newEpisodes). It must be gated by the SEPARATE podcast
-                // whitelist, never the music artist whitelist - podcast hosts are not
-                // artist-whitelisted, so running an episode through isWhitelisted() would wrongly
-                // drop every one.
+                // An episode routed through here arrives as a SongItem(isEpisode = true). It must be
+                // gated by the SEPARATE podcast whitelist, never the music artist whitelist - podcast
+                // hosts are not artist-whitelisted, so running an episode through isWhitelisted()
+                // would wrongly drop every one.
                 if (item.isEpisode) {
                     database.podcastPasses(item.artists.map { it.id }, config)
                 } else item.isWhitelisted(

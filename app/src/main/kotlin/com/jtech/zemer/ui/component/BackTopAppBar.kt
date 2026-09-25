@@ -17,8 +17,8 @@ import androidx.navigation.NavController
  * the same so the bar does not change shade on scroll.
  *
  * Use this as `colors = zemerTopAppBarColors()` on any screen-level `TopAppBar`. The only bars that
- * should NOT use it are the deliberately full-bleed color screens (login gate, onboarding) and the
- * video player (fixed black over video).
+ * should NOT use it are the deliberately full-bleed color screens (login gate, onboarding) and
+ * ArtistScreen's transparent over-header state.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

@@ -172,7 +172,6 @@ fun ActionPromptDialog(
                 modifier = Modifier.padding(24.dp)
             ) {
                 Column(modifier = Modifier.padding(12.dp)) {
-                    // title
                     if (titleBar != null) {
                         Row {
                             titleBar()
@@ -187,7 +186,7 @@ fun ActionPromptDialog(
                         Spacer(Modifier.height(16.dp))
                     }
 
-                    content() // body
+                    content()
                 }
 
                 Row(
@@ -285,7 +284,7 @@ fun TextFieldDialog(
     keyboardType: KeyboardType = KeyboardType.Text,
     onDone: (String) -> Unit = {},
 
-    // new multi-field support
+    // multi-field support
     textFields: List<Pair<String, TextFieldValue>>? = null,
     onTextFieldsChange: ((Int, TextFieldValue) -> Unit)? = null,
     onDoneMultiple: ((List<String>) -> Unit)? = null,

@@ -134,7 +134,6 @@ constructor(
     // silently downgrade the user's explicit quality), cleared on success/cancel/delete only.
     private val requestedVideoQuality = ConcurrentHashMap<String, String>()
 
-    // Download queue
     private val downloadQueue = mutableListOf<Song>()
     // Touched from several coroutines (processQueue, performDownload's finally, cancel/delete) — must be
     // concurrent or it can corrupt / leak an uncancellable orphan job.
@@ -151,9 +150,6 @@ constructor(
         private const val PROGRESS_UPDATE_THRESHOLD = 0.02f // 2% change
     }
 
-    /**
-     * Download state for a song
-     */
     data class DownloadState(
         val songId: String,
         val status: Status,
@@ -185,9 +181,7 @@ constructor(
     ) {
         Timber.d("downloadVideo called: id=${song.id}, title=${song.song.title}, inputIsVideo=${song.song.isVideo}")
         scope.launch {
-            // Start notification service
             MediaStoreDownloadService.start(context)
-            // Check if already downloading or completed
             val currentState = _downloadStates.value[song.id]
             if (currentState?.status == DownloadState.Status.DOWNLOADING ||
                 currentState?.status == DownloadState.Status.COMPLETED
@@ -224,7 +218,6 @@ constructor(
                 )
             }
 
-            // Start download
             processQueue()
         }
     }
@@ -237,9 +230,7 @@ constructor(
     fun downloadSong(song: Song, fromUser: Boolean = false) {
         Timber.d("downloadSong called: id=${song.id}, title=${song.song.title}, isVideo=${song.song.isVideo}")
         scope.launch {
-            // Start notification service
             MediaStoreDownloadService.start(context)
-            // Check if already downloading or completed
             val currentState = _downloadStates.value[song.id]
             if (currentState?.status == DownloadState.Status.DOWNLOADING ||
                 currentState?.status == DownloadState.Status.COMPLETED
@@ -253,7 +244,6 @@ constructor(
             // For audio downloads, ensure isVideo is false (song may have been marked as video previously)
             val audioSong = song.copy(song = song.song.copy(isVideo = false))
 
-            // Check if already exists in MediaStore
             // Make sure the song and its relations exist in the database so we can flag it
             // as downloaded later (needed for the Library > Downloaded view).
             ensureSongPersisted(audioSong)
@@ -286,7 +276,6 @@ constructor(
                 return@launch
             }
 
-            // Add to queue
             synchronized(downloadQueue) {
                 if (!downloadQueue.any { it.id == audioSong.id }) {
                     downloadQueue.add(audioSong)
@@ -300,7 +289,6 @@ constructor(
                 }
             }
 
-            // Start download
             processQueue()
         }
     }
@@ -312,18 +300,15 @@ constructor(
      */
     fun cancelDownload(songId: String) {
         scope.launch {
-            // Cancel active download
             activeDownloads[songId]?.cancel()
             activeDownloads.remove(songId)
             requestedVideoBitrate.remove(songId)
             requestedVideoQuality.remove(songId)
 
-            // Remove from queue
             synchronized(downloadQueue) {
                 downloadQueue.removeAll { it.id == songId }
             }
 
-            // Update state
             updateDownloadState(
                 songId,
                 DownloadState(
@@ -343,7 +328,6 @@ constructor(
         scope.launch {
             val song = database.song(songId).first() ?: return@launch
 
-            // Reset download state
             updateDownloadState(
                 songId,
                 DownloadState(
@@ -352,7 +336,6 @@ constructor(
                 )
             )
 
-            // Use video download if the song is marked as video
             if (song.song.isVideo) {
                 downloadVideo(song)
             } else {
@@ -392,13 +375,9 @@ constructor(
             }
         }
 
-        // Clear state entry
         _downloadStates.value = _downloadStates.value - songId
     }
 
-    /**
-     * Process the download queue
-     */
     private suspend fun processQueue() {
         // Get and remove from queue atomically to prevent duplicate processing
         val song = synchronized(downloadQueue) {
@@ -425,7 +404,6 @@ constructor(
                     // (a large file over a metered connection the user explicitly capped). It is cleared
                     // on success, cancel and delete instead.
 
-                    // Process next item in queue
                     processQueue()
                 }
             }
@@ -457,9 +435,9 @@ constructor(
             )
 
             // RELAY mode: a kosher-filtered device can't reach googlevideo, so skip on-device /player
-            // resolution entirely and pull the audio from the whitelisted relay (webm/opus, itag 251).
-            // The relay serves audio only, so a relay download is always audio regardless of the requested
-            // rendition (a filtered device could not fetch a muxed video file anyway).
+            // resolution entirely and pull the audio from the whitelisted relay.
+            // The relay's /download serves audio only, so a relay download is always audio regardless of
+            // the requested rendition.
             val relayMode =
                 context.dataStore.getSuspend(PlaybackModeKey).toEnum(PlaybackMode.DIRECT) == PlaybackMode.RELAY
             val videoDownload = isVideoDownload && !relayMode
@@ -534,9 +512,8 @@ constructor(
             }
             Timber.d("Download URL length: ${downloadUrl.length}, relay=$relayMode, sabrAudio=$sabrAudioMode, sabrVideo=$sabrVideoMode")
 
-            // Create temporary file for download
             val extension = if (relayMode || sabrAudioMode) {
-                "webm" // relay/SABR audio is webm/opus (itag 251); the real container is sniffed on save
+                "webm" // placeholder for relay/SABR audio; the real container is sniffed on save
             } else if (sabrVideoMode) {
                 "mp4" // SABR video temp container; the muxed container (mp4/webm) drives saveExtension below
             } else {
@@ -590,8 +567,8 @@ constructor(
                     throw Exception("Download failed - temp file not created or empty")
                 }
 
-                // The extension/MIME used for the MediaStore entry. The relay serves Opus in a WebM
-                // container (or occasionally MP4); `.webm` is REJECTED by MediaStore.Audio (Android maps
+                // The extension/MIME used for the MediaStore entry. Relay/SABR audio arrives as Opus in
+                // WebM or as MP4; `.webm` is REJECTED by MediaStore.Audio (Android maps
                 // .webm to video/webm, inconsistent with an audio entry -> insert returns null -> "Failed
                 // to save file to MediaStore"). Sniff the real container and label WebM as .opus / MP4 as
                 // .m4a — both MediaStore-accepted, and in-app playback sniffs the real container regardless.
@@ -618,7 +595,7 @@ constructor(
                 }?.plus(1)
                 // Songs reached via an album/playlist page often carry no duration (0), which shows as
                 // "0:00" in the Downloaded list — backfill it from the playback response so the saved
-                // file's metadata AND the DB row get a real length. In relay mode there is no playback
+                // file's metadata AND the DB row get a real length. In relay/SABR mode there is no playback
                 // response (playbackData is null), so read the length straight off the downloaded file.
                 val effectiveDurationSec = song.song.duration.takeIf { it > 0 }
                     ?: playbackData?.videoDetails?.lengthSeconds?.toIntOrNull()
@@ -691,7 +668,6 @@ constructor(
                     // Download succeeded — the requested bitrate has served its purpose.
                     requestedVideoBitrate.remove(song.id)
                     requestedVideoQuality.remove(song.id)
-                    // Mark as completed
                     updateDownloadState(
                         song.id,
                         DownloadState(
@@ -703,15 +679,14 @@ constructor(
 
                     // Update database with MediaStore URI (preserving isVideo flag), backfilling the
                     // duration AND thumbnail if the source had none so the Downloaded list shows a real
-                    // time and artwork — a standalone video opened from the Video player is built with
-                    // neither, and the old per-screen download set the thumbnail explicitly.
+                    // time and artwork.
                     val effectiveThumbnailUrl = song.song.thumbnailUrl?.takeIf { it.isNotBlank() }
                         ?: playbackData?.videoDetails?.thumbnail?.thumbnails?.lastOrNull()?.url
                     val songWithMeta = song.copy(
                         song = song.song.copy(
                             duration = if (song.song.duration > 0) song.song.duration else effectiveDurationSec,
                             thumbnailUrl = effectiveThumbnailUrl,
-                            // A relay download is always audio (relay serves no muxed video), so a
+                            // A relay download is always audio (the relay's /download serves no video), so a
                             // video-song saves an audio-only file. Persist isVideo=false so the LOCAL video
                             // toggle is never offered over a file with no video track (black video) and the
                             // track is not hidden from the downloaded-music list.
@@ -724,7 +699,6 @@ constructor(
                     throw Exception("Failed to save file to MediaStore")
                 }
             } finally {
-                // Clean up temp file
                 if (tempFile.exists()) {
                     tempFile.delete()
                 }
@@ -767,7 +741,6 @@ constructor(
                 delay(delayMs)
                 performDownload(song, retryAttempt + 1)
             } else {
-                // Max retries reached
                 updateDownloadState(
                     song.id,
                     DownloadState(
@@ -786,7 +759,7 @@ constructor(
     private class RelayUnavailableException : Exception("Relay: track unavailable (404)")
 
     /**
-     * Best-effort media duration in seconds from a downloaded file, for RELAY downloads where there is no
+     * Best-effort media duration in seconds from a downloaded file, for RELAY/SABR downloads where there is no
      * /player response to read `lengthSeconds` from. Returns null on any failure (the caller falls back to
      * 0, i.e. unchanged behavior). Not on a UI thread (performDownload runs on the download coroutine).
      */
@@ -824,9 +797,6 @@ constructor(
             RelayDownload.DEFAULT_AUDIO_EXTENSION
         }
 
-    /**
-     * Download a file from a URL to a temp file with progress tracking
-     */
     /**
      * The beyond-progressive video download: the chosen rung is VIDEO-ONLY (adaptive), so fetch the
      * video stream and the audio stream separately, verify each against its declared contentLength
@@ -929,12 +899,6 @@ constructor(
     }
 
     /**
-     * SABR video download: drain the dual-track session to two temp files, then remux to [outputFile].
-     * Returns whether the muxed container is WebM (vp9) vs MP4 (avc1), so the caller labels the saved
-     * file. Mirrors [downloadAdaptiveVideoAndMux]'s mux-result handling (INCOMPATIBLE clears the requested
-     * quality so a retry falls back; TRANSIENT preserves it). An incomplete SABR drain throws (retryable).
-     */
-    /**
      * A throttled progress bridge for the SABR drains — the [downloadFile] cadence (every 250ms or a
      * 2%+ move) fed by the sessions' per-response byte counts, so a SABR download renders a moving ring
      * instead of a frozen, seemingly-stuck download.
@@ -964,6 +928,12 @@ constructor(
         }
     }
 
+    /**
+     * SABR video download: drain the dual-track session to two temp files, then remux to [outputFile].
+     * Returns whether the muxed container is WebM (vp9) vs MP4 (avc1), so the caller labels the saved
+     * file. Mirrors [downloadAdaptiveVideoAndMux]'s mux-result handling (INCOMPATIBLE clears the requested
+     * quality so a retry falls back; TRANSIENT preserves it). An incomplete SABR drain throws (retryable).
+     */
     private suspend fun downloadSabrVideoAndMux(
         song: Song,
         enabled: Set<String>,
@@ -1008,7 +978,6 @@ constructor(
         // connection early, and committing a truncated track poisons the remux/file.
         expectedBytes: Long? = null,
     ) = withContext(Dispatchers.IO) {
-        // Validate URL before attempting to build request
         val validatedUrl = UrlValidator.validateAndParseUrl(url)
             ?: throw Exception("Invalid download URL: $url")
 
@@ -1242,9 +1211,6 @@ constructor(
         }
     }
 
-    /**
-     * Get the download state for a song
-     */
     fun getDownloadState(songId: String): DownloadState? {
         return _downloadStates.value[songId]
     }
