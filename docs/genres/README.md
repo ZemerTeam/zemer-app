@@ -2,7 +2,7 @@
 
 Hand-authored docset for the **Genres** feature: a Home chip strip, a browsable catalog, per-genre
 detail pages, and genre radio, served by the zemer-search server (`https://search.zemer.io`). The
-server-side contract lives in `~/zemer-fix/handoff-docs/zemer-app-genres.md` (endpoints, slug
+server-side contract lives in `handoff-docs/zemer-app-genres.md` (endpoints, slug
 vocabulary, kinds); this doc is the app side. Every claim cites the file that proves it.
 
 ## TL;DR

@@ -3,7 +3,7 @@
 **Synchronized broadcast radio**: one shared, server-programmed wall-clock schedule per station -
 every listener hears the SAME track at the SAME moment, joining mid-song like FM. The server owns
 the *program*; audio still streams from YouTube + the cipher like everywhere else. The app-side
-contract (and its settled Q&A + addendum) is `~/zemer-fix/handoff-docs/zemer-app-stations.md`; the
+contract (and its settled Q&A + addendum) is `handoff-docs/zemer-app-stations.md`; the
 non-negotiable invariants live in `AGENTS.md` §Zemer Stations. This doc is the map.
 
 ## The two radio products

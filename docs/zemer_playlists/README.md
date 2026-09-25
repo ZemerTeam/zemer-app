@@ -91,7 +91,7 @@ Song — deploy order never matters.
 
 ## Server coordination
 
-App↔server changes travel as request docs in `~/zemer-fix/handoff-docs/` (not in either repo):
+App↔server changes travel as request docs in `handoff-docs/` (not in either repo):
 `zemer-curated-playlists-endpoint.md` (the original integration spec),
 `…-track-provenance-request.md` (`fromAlbum`), `…-albums-list-request.md` (`albums`). The server
 side lives in the zemer-search repo (`/zemer-playlists` in `server/api.mjs`,

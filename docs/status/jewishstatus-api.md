@@ -11,7 +11,7 @@ today (`com.jtech.zemer.statuses`). Verified against the live endpoints **2026-0
 | REST base | `https://raiodurvjneoehnphkrs.supabase.co/rest/v1` |
 | Media CDN | `https://pub-0dd407ad34e240909673d1619658d5c2.r2.dev` (Cloudflare R2) |
 | Auth | Supabase **publishable** anon key, sent as `apikey` **and** `Authorization: Bearer <key>` |
-| Key | `sb_publishable_Pj9SDOxf5Xxw9LavwAl5yw_5ldleSyD` |
+| Key | the platform's publishable anon key (delivered by the status-sources config; not recorded here) |
 
 The key is **client-safe** (RLS-scoped, read-only) - it is the same key the JewishStatus web app ships
 publicly. The app does NOT bake the REST base, key or category UUIDs in: they arrive from the server-driven

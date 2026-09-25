@@ -14,7 +14,7 @@ categories). Reverse-engineered from the site's web bundle and verified against 
 | Edge functions | `https://api.yidstatus.com/functions/v1/<name>` |
 | Media / storage | `https://fsinwalqhgwapevwibmd.supabase.co/storage/v1/object/public/status-media/...` (full URLs are returned in responses) |
 | Auth | Supabase **anon** JWT, sent as the `apikey` header |
-| Key | `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZzaW53YWxxaGd3YXBldndpYm1kIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI2ODEyODUsImV4cCI6MjA5ODI1NzI4NX0.ZwrXgeUknPSDAWsOzdI8jdj7wCO9xOe7glLSj3OB_vA` |
+| Key | the platform's anon JWT (delivered by the status-sources config; not recorded here) |
 
 The key is **client-safe** (RLS-scoped anon role, read-only) and is shipped in the yidstatus public web
 bundle. It is **not** a secret. (The site also loads a *second* Supabase project,

@@ -65,7 +65,7 @@ transparent, pure-black card over the current screen (like Google's Sound Search
 
 ## Provenance
 
-Ported from the sibling Metrolist fork's recognition feature (`~/zemer-fix/Metrolist`), then
+Ported from the sibling Metrolist fork's recognition feature, then
 adapted for Zemer: renamed into the `com.jtech.zemer.*` namespace, the Shazam metadata is never
 displayed (whitelist bridge instead), the widget/popup are Zemer-built (Glance + a transparent
 activity, no foreground microphone service), and recognition history stores only whitelisted songs.

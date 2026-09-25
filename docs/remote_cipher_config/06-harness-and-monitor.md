@@ -84,7 +84,7 @@ reasoning the file itself documents:
    issues; the body flags low-rate hits as canaries-caught-early) — as the Zemer-Dude GitHub App
    (token from `actions/create-github-app-token`) when `vars.ZEMER_APP_ID` is set, else the
    default `GITHUB_TOKEN` — and send one summary email to
-   `dietdroidwp@gmail.com` via Gmail SMTP secrets listing every unknown hash with its
+   the maintainer (the workflow's `to:` address) via Gmail SMTP secrets listing every unknown hash with its
    frequency/md5/sts (sent even if issue creation fails). All contain the exact runbook
    commands (doc 07).
 

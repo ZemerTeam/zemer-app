@@ -4,7 +4,7 @@ A **fallback for a Zemer-server outage** — not a general offline mode. Every r
 `search.zemer.io` first; only when the server is **unreachable** does the app serve a downloaded,
 incrementally-synced snapshot of the corpus, so search and browse keep working until the server is
 back. Playback is unaffected either way (streaming stays InnerTube + the cipher). The server-side
-contract lives in the handoff doc `~/zemer-fix/handoff-docs/zemer-app-ondevice-fallback-subset.md`.
+contract lives in the handoff doc `handoff-docs/zemer-app-ondevice-fallback-subset.md`.
 
 ## What the backup serves (and what it never does)
 

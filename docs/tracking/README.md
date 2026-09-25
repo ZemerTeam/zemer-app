@@ -2,7 +2,7 @@
 
 Hand-authored docset for the tracking integration: anonymous usage events posted to
 `https://tracking.zemer.io/v1/events`, the data layer for Zemer's future recommendation algorithm.
-The authoritative wire spec is the handoff doc (`~/zemer-fix/handoff-docs/
+The authoritative wire spec is the handoff doc (`handoff-docs/
 zemer-tracking-app-integration.md`, mirrored in summary here); every claim below cites the file
 that proves it.
 

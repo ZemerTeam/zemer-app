@@ -2,7 +2,7 @@
 
 Hand-authored docset for the **home tab**: how each row is sourced, why the tab makes no InnerTube
 call for content, and the rules that must not regress. Full app↔server design lives in the handoff
-thread `~/zemer-fix/handoff-docs/zemer-app-home-rows-request.md` + `~/zemer-fix/handoff-docs/home-rows-plan.md`.
+thread `handoff-docs/zemer-app-home-rows-request.md` + `handoff-docs/home-rows-plan.md`.
 
 ## TL;DR
 
