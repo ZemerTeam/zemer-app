@@ -14,8 +14,11 @@ one precedence:
 2. **Legacy regex patterns only on a miss.**
 
 Config entries are CDN-proven; the patterns are unanchored heuristics that can false-match anywhere in
-the ~2 MB player. **A heuristic must never shadow a validated config, and a heuristic false positive
-must never block the forced refresh** (`FunctionNameExtractorPrecedenceTest`).
+the ~2 MB player. **A heuristic must never shadow a validated config**
+(`FunctionNameExtractorPrecedenceTest`), **and a false positive on one side must never block the
+forced refresh the other side's miss triggers.** If both sides false-match an unknown player, no
+forced refresh runs; the config then arrives via the stream-rejection refresh (below, once a wrong
+decipher yields a URL the CDN rejects) or the startup TTL refresh.
 
 `extractSignatureTimestamp()` order: (1) the anchored `signatureTimestamp` literal in the player JS
 (immune to config typos and bad pushes - a config's `sts` is not CDN-validated); (2) the config's

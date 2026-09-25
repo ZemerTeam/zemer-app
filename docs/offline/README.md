@@ -1,9 +1,10 @@
 # Offline search backup (`app/src/main/kotlin/com/jtech/zemer/offline/`)
 
-A **fallback for a Zemer-server outage** — not a general offline mode. Every request goes to
-`search.zemer.io` first; only when the server is **unreachable** does the app serve a downloaded,
-incrementally-synced snapshot of the corpus. Playback is unaffected (streaming stays InnerTube + the
-cipher). Server-side contract: `handoff-docs/zemer-app-ondevice-fallback-subset.md`.
+A **fallback for a Zemer-server outage** — not a general offline mode. Every request (except an offline
+radio continuation, which stays offline) goes to `search.zemer.io` first; only when the server is
+**unreachable** does the app serve a downloaded, incrementally-synced snapshot of the corpus. Playback is
+unaffected (streaming stays InnerTube + the cipher). Server-side contract:
+`handoff-docs/zemer-app-ondevice-fallback-subset.md`.
 
 ## What the backup serves
 

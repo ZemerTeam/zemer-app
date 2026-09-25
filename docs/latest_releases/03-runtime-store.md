@@ -39,8 +39,8 @@ In memory: `@Volatile cached` (last-good releases), `@Volatile gaveUp`, a `Mutex
 - **`readValidDiskCache()`**: a missing meta, or `now - lastFetchMs > MAX_STALE_MS`, **deletes** the
   cache and returns null; so does a read/parse error.
 - **Meta**: two lines - ETag (may be empty), `lastFetchMs`; anything malformed reads as null.
-- **`writeAtomic`**: write `<file>.tmp` then rename (fallback: direct write), so a crash can't leave a
-  torn file.
+- **`writeAtomic`**: write `<file>.tmp` then rename, so a crash can't leave a torn file - unless the
+  rename fails, when it falls back to a direct write of `<file>`, which can.
 
 ## Failure modes (`LatestReleasesStoreTest`)
 

@@ -34,7 +34,8 @@ pm install-commit <sid> && sleep 1 && am start -n <component>
 - Pass the APK **path** to `install-write`, never pipe it (`cat apk | pm install-write` copies the whole
   APK through a shell pipe); the split name is a fixed `base.apk`, so no file name is interpolated into
   the shell command.
-- The relaunch is chained onto the commit ([03](03-restart.md)); a successful commit returns `Success`.
+- The relaunch is chained onto the commit ([03](03-restart.md)); `Success` is returned only when the whole
+  chained command (the commit and, when present, the relaunch) succeeds.
 - `parseSessionId(output)` (first integer in the first output line) is pure and covered by `InstallerTest`.
 - `hasRootAccess()` (`Shell.getShell().isRoot`) **opens the root shell and shows the Magisk/SuperSU grant
   prompt**, so it is called only when the user selects Root, and always off the main thread.

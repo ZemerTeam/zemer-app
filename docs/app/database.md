@@ -550,7 +550,7 @@ Every `fun` in `db/DatabaseDao.kt` in source order (overloads repeat the name). 
 | `incrementTotalPlayTime` | `songId: String, playTime: Long` | `Unit` |
 | `updateEpisodePosition` | `songId: String, positionMs: Long` | `Int` |
 | `episodePosition` | `songId: String` | `Long?` |
-| `episodeResumePositions` |  | `Flow<Map<@MapColumn("") String, @MapColumn("") Long>>` |
+| `episodeResumePositions` |  | `Flow<Map<@MapColumn("id") String, @MapColumn("lastPositionMs") Long>>` |
 | `incrementPlayCount` | `songId: String, year: Int, month: Int` | `Unit` |
 | `incrementPlayCount` | `songId: String` | `Unit` |
 | `inLibrary` | `songId: String, inLibrary: LocalDateTime?` | `Unit` |

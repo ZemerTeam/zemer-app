@@ -1,10 +1,11 @@
 # Watch-time reporting - emulating a genuine YouTube Music playback-stats session
 
-Every DIRECT Zemer play (music, video-songs, podcast episodes; SABR transport included) sends the same
-view + watch-time signals a real YouTube Music (WEB_REMIX) web session sends, so real plays give the
-artist their *legitimate* credit: **one `cpn` per listen**, a **playback ping at play START**,
-**watchtime pings** at the server's scheduled cadence plus on pause/seek carrying the **really-watched**
-segments, and a **`final=1`** ping at the end.
+Every eligible online DIRECT Zemer play (music, video-songs, podcast episodes; SABR transport included;
+see *Hard exclusions*) sends the same playback-stats telemetry a real YouTube Music (WEB_REMIX) web
+session sends, so real plays can earn the artist their *legitimate* credit: **one `cpn` per listen**, a
+**playback ping at play START**, **watchtime pings** at the server's scheduled cadence plus on
+pause/seek carrying the **really-watched** segments, and a **`final=1`** ping at the end. An offline
+play is queued and reported on reconnect instead (see *Deferred offline recovery*).
 
 ## The rules that rule everything
 
@@ -13,9 +14,10 @@ segments, and a **`final=1`** ping at the end.
    player positions; a paused player accrues nothing; a seek is never watched time.
 2. **Telemetry must never break playback.** Beacons are fire-and-forget on the service scope; a network
    failure logs at most a `Timber.d` line.
-3. **The view is minted by the playback ping** (`videostatsPlaybackUrl`, `cmt=<start>`, `final=0`), fired
-   at play START with no duration gate - YouTube counts a view from the first frame. Watch time does not
-   gate the view but feeds Engaged views and YPP watch hours, so honesty stays the hard rule.
+3. **The playback ping opens the session** (`videostatsPlaybackUrl`, `cmt=<start>`, `final=0`), fired
+   at play START with no duration gate. It is telemetry; what YouTube credits is YouTube's decision.
+   Observed on the owner's live channel: direct Zemer plays appeared in YouTube Studio as views and
+   watch time.
 4. **Never reintroduce an end-of-listen `registerPlayback` call** - it would double-report the session.
 
 ## The model (the official WEB_REMIX client)
@@ -129,15 +131,15 @@ The official client stamps its beacon cpn on the googlevideo **media** request t
   must see 206 throughout. Run it whenever this path changes.
 
 Correlation is best-effort: a replay served from the persistent cache fetches nothing from the CDN, and
-watch time still credits. Never disable the cache to force per-play delivery.
+the beacons still report. Never disable the cache to force per-play delivery.
 
 ## What to expect (so the strip isn't mistaken for a bug)
 
-Views are durable. Watch time from **concentrated single-account / one-IP testing is retroactively
-stripped** by YouTube's invalid-traffic sweep acting on the traffic *pattern* - a complete official
-browser session was stripped identically, so **do not chase it by adding beacons** (qoe / source / atr /
-ptracking). The payoff is real distributed users. **Never** route beacons through the relay /
-free-proxy egress.
+Observed: views are durable, while watch time from **concentrated single-account / one-IP testing
+was retroactively stripped** - consistent with invalid-traffic filtering on the traffic *pattern*,
+since a complete official browser session was stripped identically, so **do not chase it by adding
+beacons** (qoe / source / atr / ptracking). The payoff is real distributed users. **Never** route
+beacons through the relay / free-proxy egress.
 
 ## Deferred offline recovery (`DeferredStatsQueue` - additive, live path untouched)
 
@@ -149,8 +151,8 @@ on reconnect as a **deferred** session from a fresh `/player`. The rules:
 - **Same honesty rule.** The queued `st`/`et` are the real ranges `WatchTimeSegments` produced; `cmt` is
   the final position; `rt` is the real watched seconds; the open ping's `cmt` is
   `DeferredStatsRecord.openCmt()` (the first watched range's start, never 0). The only gate is the
-  ≥500 ms segment floor - **no minimum-duration gate**, so any genuinely watched offline play mints a
-  view on reconnect, like the live path. `PauseListenHistoryKey` suppresses capture with the live path's
+  ≥500 ms segment floor - **no minimum-duration gate**, so any genuinely watched offline play is
+  reported on reconnect, like the live path. `PauseListenHistoryKey` suppresses capture with the live path's
   per-ping semantics (paused at start captures nothing; accumulation stops at the first paused ping).
 - **No Room, no migration.** `tracking/TrackingQueue` over `filesDir/deferred-stats.jsonl` (cap
   `MAX_SIZE` 500, drop-oldest, atomic rewrite) + `tracking/FlushSchedule` backoff. A corrupt line

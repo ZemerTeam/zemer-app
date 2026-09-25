@@ -11,7 +11,8 @@ mic ─▶ RecognitionAudioCapture.capture(context)
         ▼
      Fingerprint(signature, sampleDurationMs)
         ▼  Shazam.recognize(signature, sampleDurationMs)        [network: amp.shazam.com]
-     Shazam.Outcome.Found(RecognitionResult) | NoMatch | Failed   ← never shown to the user
+     Shazam.Outcome.NoMatch → RecognizeUiState.NoMatch  |  Failed → Error   (return: no resolver call)
+     Shazam.Outcome.Found(RecognitionResult)                      ← never shown to the user
         ▼  RecognitionResolver.resolveWhitelisted(database, title, artist)
      YouTube.search("<title> <artist>", FILTER_SONG)
         │  .filterWhitelisted(database, forced filtersEnabled=true)   ── Gate 1

@@ -16,7 +16,8 @@ Rewrites, in place (re-running until a fixed point, so one invocation is idempot
     preferences-sync-auth,viewmodels}.md, docs/ui/README.md and docs/innertube/README.md
     (see REGION_DOCS): only the text between a `<!-- generated:NAME ... -->` and its
     `<!-- /generated:NAME -->` marker is replaced; the prose around the markers stays
-    hand-authored. A region missing from its doc, or a marker with an unknown NAME, is an error.
+    hand-authored. A region missing from its doc, a marker with an unknown NAME, or an unpaired or
+    nested marker is an error.
     Room entity/view tables come from the highest-numbered app/schemas/*/<N>.json.
 
 Everything is derived from `git ls-files` and the file contents. No behaviour is inferred.
@@ -505,6 +506,7 @@ IT_KT = "innertube/src/main/kotlin/com/metrolist/innertube/"
 DECL_CAP = 25          # declarations shown per file in the app/*.md file tables
 KEY_DECL_CAP = 12      # "key declarations" in the ui/ and innertube/ file tables
 REGION_RE = re.compile(r"(<!-- generated:([\w-]+)[^\n]*?-->\n)(.*?)(<!-- /generated:\2 -->)", re.DOTALL)
+MARKER_RE = re.compile(r"<!-- (/?)generated:([\w-]+)[^\n]*?-->")
 
 
 def _kt_files(prefix):
@@ -549,25 +551,40 @@ def key_decl_table(paths, cap=KEY_DECL_CAP):
     return "\n".join(out)
 
 
-def strip_kotlin_keep_lines(src):
-    """Blank out comments and string contents (quotes kept) with a single scanner, so a `//` or
-    `/*` inside a string never starts a comment. Used for the DAO method signatures."""
+def strip_kotlin_keep_lines(src, keep_strings=False):
+    """Blank out comments and (unless `keep_strings`) string contents, quotes kept, with a single
+    scanner, so a `//` or `/*` inside a string never starts a comment. Every masked character becomes a
+    space (newlines kept), so the result is index-aligned with `src` and with the other mode's result.
+    Used for the DAO method signatures."""
     out, i, n = [], 0, len(src)
+
+    def blank(a, b):
+        out.append("".join("\n" if ch == "\n" else " " for ch in src[a:b]))
+
     while i < n:
         c = src[i]
         if src.startswith("//", i):
             j = src.find("\n", i)
-            i = n if j < 0 else j
+            j = n if j < 0 else j
+            blank(i, j)
+            i = j
             continue
         if src.startswith("/*", i):
             j = src.find("*/", i + 2)
-            i = n if j < 0 else j + 2
-            out.append(" ")
+            j = n if j < 0 else j + 2
+            blank(i, j)
+            i = j
             continue
         if src.startswith('"""', i):
-            j = src.find('"""', i + 3)
-            i = n if j < 0 else j + 3
-            out.append('""')
+            k = src.find('"""', i + 3)
+            j = n if k < 0 else k + 3
+            if keep_strings:
+                out.append(src[i:j])
+            else:
+                out.append(src[i:i + 3])
+                blank(i + 3, n if k < 0 else k)
+                out.append(src[k:j] if k >= 0 else "")
+            i = j
             continue
         if c in "\"'":
             j = i + 1
@@ -575,8 +592,14 @@ def strip_kotlin_keep_lines(src):
                 if src[j] == "\\":
                     j += 1
                 j += 1
-            out.append(c + c)
-            i = j + 1
+            j = min(j + 1, n)
+            if keep_strings:
+                out.append(src[i:j])
+            else:
+                out.append(c)
+                blank(i + 1, j - 1)
+                out.append(src[j - 1:j] if j - 1 > i else "")
+            i = j
             continue
         out.append(c)
         i += 1
@@ -589,7 +612,8 @@ FUN_SIG_RE = re.compile(r"\bfun\s+(?:<[^>]*>\s*)?(?:[\w.<>?, ]+\.)?(\w+)\s*\(")
 def fun_signatures(src):
     """Every `fun` in source order: name, parameter text and declared return type
     (`(inferred)` for an expression body without one, `Unit` for a block body without one)."""
-    s = strip_kotlin_keep_lines(src)
+    s = strip_kotlin_keep_lines(src)  # scanned: brackets/`=`/`{` inside strings never count
+    t = strip_kotlin_keep_lines(src, keep_strings=True)  # shown: index-aligned with `s`, literals intact
     res = []
     for m in FUN_SIG_RE.finditer(s):
         i = j = m.end()
@@ -600,11 +624,11 @@ def fun_signatures(src):
             elif s[j] == ")":
                 depth -= 1
             j += 1
-        params = " ".join(s[i:j - 1].split()).rstrip(",").strip()
+        params = " ".join(t[i:j - 1].split()).rstrip(",").strip()
         rest = s[j:j + 400]
         mm = re.match(r"\s*:\s*([^{=\n]+)", rest)
         if mm:
-            ret = " ".join(mm.group(1).split()).strip()
+            ret = " ".join(t[j + mm.start(1):j + mm.end(1)].split()).strip()
         else:
             ret = "(inferred)" if re.match(r"\s*=", rest) else "Unit"
         res.append(dict(name=m.group(1), params=params, ret=re.sub(r"\s+where\s.*$", "", ret)))
@@ -1194,6 +1218,20 @@ REGION_DOCS = {
 def rewrite_regions(rel, generators):
     """Replace the body of every `<!-- generated:NAME -->` region in `rel`; prose outside stays."""
     text = read_text(rel)
+    # Validate every marker first: REGION_RE alone skips a stray marker (an unknown NAME passes
+    # silently) and pairs a duplicated opener with the next closer (deleting the prose between).
+    open_name = None
+    for mk in MARKER_RE.finditer(text):
+        closing, name = mk.group(1), mk.group(2)
+        if name not in generators:
+            raise SystemExit(f"{rel}: unknown generated region '{name}' (not in REGION_DOCS)")
+        if closing and open_name != name:
+            raise SystemExit(f"{rel}: '<!-- /generated:{name} -->' closes no open '{name}' region")
+        if not closing and open_name is not None:
+            raise SystemExit(f"{rel}: generated region '{name}' opens inside unclosed '{open_name}'")
+        open_name = None if closing else name
+    if open_name is not None:
+        raise SystemExit(f"{rel}: generated region '{open_name}' is never closed")
     found = set()
 
     def repl(m):

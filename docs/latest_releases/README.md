@@ -10,8 +10,8 @@ The global YouTube feeds (`FEmusic_new_releases`, charts) carry almost no kosher
 2. The app **fetches it** (`LatestReleasesStore`), caches it on disk, and **re-filters** it through
    the same `filterWhitelisted` every other surface uses (`LatestReleasesViewModel`).
 3. It renders as a **carousel shelf on Home** (Music tab, after Music Status, directly above Zemer
-   Playlists) plus a **"See all" screen**. A **single** (`trackCount == 1`) plays with radio on tap; an
-   **album** opens its page.
+   Playlists) plus a **"See all" screen**. A **single** (`trackCount == 1` with a `sampleVideoId`) plays
+   with radio on tap; anything else (an **album**) opens its page.
 
 ## The "never break the rest of the UI" contract
 

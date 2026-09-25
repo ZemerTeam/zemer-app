@@ -222,7 +222,8 @@ Use these; do not hand-roll equivalents.
 - Use the app's `Dialog.kt` helpers (`DefaultDialog`, `ListDialog`, `TextFieldDialog`,
   `ActionPromptDialog`) — never raw Material 3 `AlertDialog`/`BasicAlertDialog`. The helpers use
   `AlertDialogDefaults.containerColor` (`surfaceContainerHigh`), which the theme's pure-black scheme
-  already drives to black in AMOLED mode — do not thread a pureBlack parameter or hardcode a color.
+  deliberately leaves unchanged, so dialogs stay visible on the black canvas in AMOLED mode — do not
+  thread a pureBlack parameter or hardcode a color.
 - The bare compose `Dialog` primitive is reserved for non-modal custom containers; the current
   cases are `AccountSettingsDialog` (full-screen scrim with a top-anchored panel) and
   `MainActivity`'s shared-song panel. Anything

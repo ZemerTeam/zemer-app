@@ -11,11 +11,11 @@ Updating is **acquire** (check + download the APK to cache) then **install**; th
 install. `InstallerType` names the method, `AppInstaller` performs it, and
 `rememberApkInstallController` is the one place that calls `AppInstaller` - it gates Standard behind the
 "install unknown apps" permission and shows an "installing…" heads-up before a silent install kills the
-process. **Standard** (`ACTION_VIEW` to the system installer) always works but needs the user's taps.
-**Root** installs silently and relaunches itself by chaining `am start` onto its commit. **Shizuku**
-installs silently, finishes asynchronously through `InstallReceiver`, and does **not** auto-restart (its
-privileged process is reaped with ours), so the user reopens the app. A missing or denied privilege
-surfaces an inline error, and the user can fall back to Standard.
+process. **Standard** (`ACTION_VIEW` to the system installer) needs no privilege, only that access and the
+user's confirmation. **Root** installs silently and relaunches itself by chaining `am start` onto its commit.
+**Shizuku** installs silently, finishes asynchronously through `InstallReceiver`, and does **not**
+auto-restart (its privileged process is reaped with ours), so the user reopens the app. A missing or
+denied privilege surfaces an inline error, and the user can fall back to Standard.
 
 ```
 app/src/main/kotlin/com/jtech/zemer/utils/updater/

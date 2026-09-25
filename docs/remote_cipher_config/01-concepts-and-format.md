@@ -38,7 +38,8 @@ its own entry.
 
 **VM constant pairs are not unique**: several `(int, int)` pairs return a plausible-looking string,
 and only one is accepted by the CDN. The ground truth is `node tests/validate-player-config.mjs <hash>`,
-which deciphers a real stream and GETs it: **HTTP 206 = correct, 403 = wrong**. (A config can also look
+which deciphers a real stream and GETs it: **a pair works only on 206/200 plus a real n-transform**;
+any other status needs investigation ([04](04-operations.md)). (A config can also look
 fine for the first 1 MiB and die later if the `pot=` token isn't bound to the videoId - that is a
 poToken problem, not a config problem; see `tests/INVESTIGATION.md`.)
 
@@ -86,8 +87,9 @@ Two severities, deliberately:
   on map order, so ambiguity is a defect).
 
 Every consumer of a `ParseResult.Failure` keeps its previous state (store: memory + disk cache;
-monitor: hash counts as unknown and alerts; harness: aborts). No path lets an invalid file degrade a
-device below its last-good table.
+monitor: hash counts as unknown and alerts; harness: aborts), so no file-level defect degrades a
+device below its last-good table. A `Success` with skipped entries is applied as the new remote map
+(`bundled + remote`), so a skipped hash that only the previous remote copy carried drops out.
 
 ### `schemaVersion` policy
 
@@ -99,9 +101,10 @@ until an APK update. A new optional field that v1 readers ignore is **not** a bu
 
 Config values end up in JavaScript evaluated inside the cipher WebView, and the remote file is treated
 as untrusted (compromised repo, poisoned cache, tampered response). The defense is **shape, not
-sanitization**: `sig` can express only one call of a short identifier with two integer literals and
-`INPUT`; `nClass` only a bare identifier. The worst a malicious value can do is call the wrong
-player-internal function → deciphering fails → playback falls back.
+sanitization**: `sig` can express only one call of a short name of identifier characters
+(`[A-Za-z0-9$_]{1,8}`) with two integer literals and `INPUT`; `nClass` only such a bare name. The worst
+a malicious value can do is call the wrong player-internal function (or fail to parse, e.g. a
+digit-leading name) → deciphering fails → playback falls back.
 
 `nClass` is interpolated into a **locally built template** (`PlayerConfigParser.buildNJsExpression`);
 the file can never supply the expression itself:

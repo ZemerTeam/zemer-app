@@ -78,7 +78,8 @@ connect at a track boundary does not cast the outgoing item at `pos == duration`
 
 ## `DevEventHandler` - the per-connection callback sink
 
-**Every callback starts with the stale-device guard** (`handler.connectedDevice !== device` → ignore).
+**Every acting callback except `playbackError` starts with the stale-device guard**
+(`handler.connectedDevice !== device` → ignore; `playbackError` reports first, then checks it).
 The `stopPlayback` sent to an outgoing device solicits final reports (a `PAUSED`, a clock reset to 0 -
 Chromecast does this, an `END`) and its handler stays live until the SDK reader thread dies; unguarded,
 a stale `PAUSED` would flip `shouldPlay` off (the new device loads then re-pauses), a stale 0 would

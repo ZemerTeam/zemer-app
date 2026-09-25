@@ -32,7 +32,8 @@ LatestReleasesViewModel.init                     LatestReleasesStore
 ```
 
 Each surface gets its own `hiltViewModel()` instance, but the store is a process-wide `object`, so
-the cache and the once-per-launch refresh are shared.
+the cache and the give-up state are shared. Each instance calls `refresh()`; the store's mutex
+serializes the calls but does not dedupe them, so a later instance re-sends the conditional GET.
 
 ## The ViewModel
 

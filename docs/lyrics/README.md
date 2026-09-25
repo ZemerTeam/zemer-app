@@ -185,8 +185,9 @@ minted that would hide lyrics once online). Opening the pane is then a Room read
   walk (`LyricsStoreTest`).
 * **Cache refresh is by CHAIN GENERATION**, not one-off booleans: `LyricsEntity.CHAIN_GENERATION` (currently 2;
   bump it when the chain gains sources or sync it did not have) vs the persisted `LyricsChainGenerationKey`; an
-  install below it runs `DatabaseDao.purgeRefreshableLyrics` once — drops not-found rows (the chain may cover the
-  song now) and auto-cached PLAIN rows (it may sync them now), keeps every synced body, `manual` and `legacy` rows —
-  then stores the generation. The DAO query is Room and not JVM-testable here.
+  install below it queues `DatabaseDao.purgeRefreshableLyrics` once (fire-and-forget `database.query`) — drops
+  not-found rows (the chain may cover the song now) and auto-cached PLAIN rows (it may sync them now), keeps every
+  synced body, `manual` and `legacy` rows — and stores the generation without waiting for the purge to run. The DAO
+  query is Room and not JVM-testable here.
 * No further DB migrations for lyrics without an explicit decision (the 35→36 `provider` column is the one that
   exists). New lyrics strings go in the default-English files only (`values-iw/` is managed separately).

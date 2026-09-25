@@ -13,9 +13,10 @@
 - **`tests/validate-player-config.mjs <hash> ["<sig>" <nClass>]`** - downloads the player, enumerates
   candidate `(sig, nClass)` pairs (or tests the given one), rebuilds the cipher like a device (jsdom,
   the same shims, `nTrick`), resolves a real WEB_REMIX `/player` response pinned to that player's STS
-  with the logged-in `innertube_cookie.txt`, deciphers a real stream and **GETs the CDN: 206 = correct,
-  403 = wrong**. Prints a paste-ready entry with the md5 alias; re-validates an already-committed entry
-  first.
+  with the logged-in `innertube_cookie.txt`, deciphers a real stream and **GETs the CDN: a pair works
+  only on 206/200 plus a real n-transform (`nProbe.changed`)** - a bare 206 inside the free first MiB
+  doesn't prove `n`; any other status needs investigation. Prints a paste-ready entry with the md5
+  alias; re-validates an already-committed entry first.
 - **`tests/config-covers.mjs <hash> <file>`** - prints `covered` / `uncovered`; exits 1 with the
   validation error when a device would reject the whole file.
 - **`tests/scan-live-players.mjs <configs> <n>`** - the monitor's scanner (pure core `aggregate` /

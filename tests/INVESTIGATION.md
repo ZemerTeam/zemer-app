@@ -12,8 +12,11 @@ the findings the app depends on).
    googlevideo CDN, with the real logged-in cookie. Never reason from convention - the convention was
    wrong here (the stream URL wants a **videoId**-bound poToken, not the visitorData one yt-dlp/NewPipe use).
 2. **Reproduce the app's EXACT path.** Same `/player` request as `InnerTube.kt`, same sig+n cipher as
-   the `cipher` submodule (run in jsdom instead of an Android WebView), same poTokens as
-   `PoTokenGenerator`. A test that diverges from the app proves nothing about the app.
+   the `cipher` submodule (run in jsdom instead of an Android WebView), same poToken minting as
+   `PoTokenGenerator`. A test that diverges from the app proves nothing about the app - and the token
+   *slots* currently do diverge (§1): `URL_POT=player` matches only the app's media-URL pot
+   (`web-remix-stream.mjs` still sends the videoId token in `/player`); only `pot-probe.mjs`'s
+   `req=visRaw` × `url pot=video` cell carries both of the app's tokens.
 3. **Isolate one variable at a time.** `pot-probe.mjs` holds the request constant and varies only the
    URL pot; `client-fulldownload.mjs` holds the video constant and varies only the client.
 
@@ -32,7 +35,7 @@ The scripts are deliberate ports of specific app code; when the app changes, the
 | `cipher/library/src/main/assets/player_configs.json` | `player-configs.mjs` reads the SAME file | per-player sig expression + n-trick class + STS + MD5 alias, looked up by player hash and injected by `cipher.mjs` |
 | `cipher/.../CipherWebView.kt` (Android WebView) | `cipher.mjs` (jsdom) | injects exports into the base.js IIFE, calls `_cipherSigFunc` / `_nTransformFunc` |
 | `cipher/.../CipherDeobfuscator.kt` | `cipher.mjs` `deobfuscateStreamUrl` / `transformNParamInUrl` | parse `s/sp/url`, apply sig, replace `n=` |
-| `cipher/.../potoken/PoTokenGenerator.kt` + `PoTokenWebView.kt` | `potoken.mjs` (bgutils-js) | BotGuard mint, request key `O43z0dpjhgX20SCx4KAo`. `potoken.mjs` mints the **pre-fix** mapping (streaming pot <- visitorData); the app appends the videoId-bound pot, so `URL_POT=player` reproduces the app's URL |
+| `cipher/.../potoken/PoTokenGenerator.kt` + `PoTokenWebView.kt` | `potoken.mjs` (bgutils-js) | BotGuard mint, request key `O43z0dpjhgX20SCx4KAo`. `potoken.mjs` mints the **pre-fix** mapping (streaming pot <- visitorData); the app appends the videoId-bound pot, so `URL_POT=player` reproduces the app's media URL - but `web-remix-stream.mjs`'s `/player` request still carries the videoId-bound token where the app sends the visitorData one |
 | `YTPlayerUtils.playerResponseForPlayback()` | `web-remix-stream.mjs` `resolveAppUrl()` | full resolve: player -> findFormat -> sig -> n -> pot |
 | `YTPlayerUtils.findFormat()` | `findFormat()` in the scripts | best audio by bitrate + a webm bias (+10240 when webm is allowed) -> itag 251 opus |
 | ExoPlayer HTTP data source (`MusicService` data-source chain) | `fetchRange()` / `drainWhole()` | range GETs on fresh connections; seek = range at a far offset |
@@ -89,7 +92,7 @@ Prints the tokens + lengths. If it errors, bgutils/BotGuard changed (Runbook D).
 ### `web-remix-stream.mjs` - reproduce drop/seek; verify a fix
 ```bash
 node tests/web-remix-stream.mjs                 # URL_POT=streaming (pre-fix binding) - reproduces the wall
-URL_POT=player node tests/web-remix-stream.mjs  # videoId pot (the app's URL) - should serve past the window
+URL_POT=player node tests/web-remix-stream.mjs  # videoId pot (the app's URL pot) - should serve past the window
 ```
 Read the `B/B2/C/D` lines: `B continuation` should be "no drop"; `C seek` should be 206; `D one open
 GET` should deliver the whole file. The `P pot-variant probe` shows which binding the CDN wants now.
@@ -198,7 +201,10 @@ confirms the harness still resolves a playable stream.
 ## 7. Reference facts
 
 - **Free window:** googlevideo serves the first **1,048,576 bytes** of a stream without a valid content
-  pot; past that, every new connection 403s.
+  pot; past that, in the measured WEB_REMIX runs (`pot-probe.mjs` fresh-connection fetches,
+  `web-remix-stream.mjs` sequential chunks) every new connection 403s unless the URL pot is
+  videoId-bound. A lone range past 1 MiB can still 206 on a cold connection (seen with MWEB,
+  `MWEB-INVESTIGATION.md`), so only a sequential drain proves a URL.
 - **Required pot binding:** stream URL `&pot=` bound to the **videoId**; the `/player` request pot bound
   to the **session (visitorData)**.
 - **base.js:** `https://www.youtube.com/s/player/<hash>/player_ias.vflset/en_GB/base.js`, hash from

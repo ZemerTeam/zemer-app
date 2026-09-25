@@ -1,7 +1,8 @@
 # Remote cipher config - the remote-updatable player-config system
 
-Hand-authored docset for the system that lets a **pushed JSON file fix deciphering on every deployed
-Zemer app within minutes, with no APK release**. The code lives in the `cipher/` submodule
+Hand-authored docset for the system that lets a **pushed JSON file fix deciphering on deployed Zemer
+apps with no APK release** - picked up at the next stale startup refresh, or within minutes once the
+unknown player breaks extraction (see below). The code lives in the `cipher/` submodule
 (`ZemerTeam/zemer-cipher`, package `com.zemer.cipher`) plus the `tests/` harness and the
 `player-monitor.yml` workflow in this repo.
 
@@ -13,7 +14,8 @@ per-player knowledge lives in **one JSON file**:
 cipher/library/src/main/assets/player_configs.json
 ```
 
-consumed in three places that read the same bytes, so they cannot drift:
+consumed in three places that share its format and validation rules - but not necessarily one
+revision (the APK bundles the pinned submodule's copy, devices fetch live `master`, which can be ahead):
 
 | Consumer | How | Code |
 |---|---|---|
@@ -22,21 +24,23 @@ consumed in three places that read the same bytes, so they cannot drift:
 | Tests / CI monitor | the submodule copy or the live URL, same validation rules | `tests/player-configs.mjs`, `tests/config-covers.mjs`, `tests/scan-live-players.mjs` |
 
 **Pushing an entry to zemer-cipher `master` is the deploy.** Devices pick it up at the next stale
-startup refresh, or immediately when an unknown player breaks extraction mid-session.
+startup refresh, or at the moment an unknown player breaks extraction mid-session (a forced refresh,
+at most one per 5-minute cooldown).
 
 ## Mental model
 
 An entry is *data describing two function calls*, not code. `PlayerConfigParser` regex-locks every
 field so the file cannot carry JavaScript; the executable n-transform is built device-side from a
 pinned template. `PlayerConfigStore` holds an immutable merged map (bundled ⊕ remote, remote wins)
-behind a `@Volatile` reference - lock-free reads, whole-map swaps. An invalid remote file is rejected
-wholesale and the device keeps its last-good table, so the worst a bad push can do is *nothing*. CI
-scans YouTube every 30 minutes and alerts on an unknown player; a human derives the entry, proves it
-against the live CDN (`node tests/validate-player-config.mjs <hash>` → HTTP 206), and pushes it.
+behind a `@Volatile` reference - lock-free reads, whole-map swaps. A remote file with a file-level
+defect is rejected wholesale and the device keeps its last-good table; an invalid entry is skipped
+([01](01-concepts-and-format.md)). CI scans YouTube every 30 minutes and alerts on an unknown
+player; a human derives the entry, proves it against the live CDN
+(`node tests/validate-player-config.mjs <hash>` → a 206 with a real n-transform), and pushes it.
 
 ## Pages
 
-1. [Concepts & file format](01-concepts-and-format.md) - what a config is, why only a CDN 206
+1. [Concepts & file format](01-concepts-and-format.md) - what a config is, why only the live CDN
    proves it, the schema, validation rules, the security boundary, parity fixtures.
 2. [The runtime store](02-runtime-store.md) - `PlayerConfigStore`: init, refresh paths, cooldowns,
    the disk cache and the failure modes it defends against.

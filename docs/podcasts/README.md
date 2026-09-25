@@ -54,8 +54,9 @@ as defense-in-depth; an episode `SongItem` is gated on the podcast whitelist, ne
   Episodes (`/podcasts/new-episodes`, scoped CLIENT-side to locally-subscribed shows so it works
   for anonymous sessions).
 - **Library -> Podcasts**: EPISODES / CHANNELS / DOWNLOADED sub-tabs with their own sort keys
-  (never the Songs keys). Shared data sources (whitelist filter + account-leak gate) live in
-  `utils/PodcastLibrarySources`, used by every podcast VM so they cannot drift.
+  (never the Songs keys). Shared data sources (subscription scope + the channel-whitelist/female gate)
+  live in `utils/PodcastLibrarySources`, used by `LibraryPodcastsViewModel`,
+  `WhitelistedPodcastsViewModel` and `PodcastSubscriptionsHomeViewModel` so they cannot drift.
 - **Search**: podcast/episode groups fold into `/search`; a show row routes via
   `whitelistedPodcastRoute`, an episode row plays by videoId.
 

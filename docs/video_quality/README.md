@@ -85,7 +85,8 @@ dead response). `removeDownload` purges the whole key family.
 
 A progressive rung downloads as one file. An **adaptive** rung downloads video-only + a
 **container-matched audio partner from the SAME response and client** (`PlaybackData.downloadAudioUrl` —
-mp4/avc → AAC, webm/vp9 → Opus; no second `/player`, no client-disagreement mux failure), verifies each
+mp4/avc → AAC, webm/vp9 → Opus; no second `/player`, no client-disagreement mux failure - only when
+that response carried no usable audio does a defensive second resolution run), verifies each
 stream against its declared `contentLength`, then remuxes on-device (`VideoMuxer`, timestamp-interleaved
 sample copy, no re-encode). The target is decoder-capability-gated but not metered-capped. A
 `TRANSIENT` mux failure preserves `requestedVideoQuality` for the retry; only `INCOMPATIBLE` clears it

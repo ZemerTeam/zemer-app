@@ -72,8 +72,8 @@ The rows, **Play and Shuffle all read the same filtered list** (`filterCuratedTr
 unit-tested), so shuffling under a chip plays exactly what is shown. Rows never pass `albumIndex` —
 the shared row renders a number *instead of* artwork.
 
-`fromAlbum` and `albums` are decoded leniently: an older server without them yields an empty Albums
-chip / everything reads as a Song, so deploy order never matters.
+`fromAlbum` and `albums` are decoded leniently: an older server without them yields no albums (so the
+chip row is hidden) and every track reads as a Song, so deploy order never matters.
 
 ## Server coordination
 
