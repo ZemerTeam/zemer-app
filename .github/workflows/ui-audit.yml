@@ -4,8 +4,8 @@ name: UI audit
 #  - ui-audit.sh: fails on NEW raw fontSize/Color(0x..)/AlertDialog/menu-ListItem/blur and any new
 #    legacy download read in ui/ (R13), beyond scripts/ui-audit-baseline.tsv.
 #  - check-download-unification.sh: whole-app guard that download/progress state stays on the one
-#    path (no legacy DownloadUtil.downloads/getDownload reads, no Download.STATE_* outside the
-#    download infra, no per-surface Icon.Download). See docs/ui/standards.md §12.
+#    path (no legacy DownloadUtil.downloads/getDownload reads, no Download.STATE_* anywhere, no
+#    per-surface Icon.Download). See docs/ui/standards.md §12.
 #  - check-dead-resources.sh: dead-resource ratchet — every string/drawable/raw resource must be
 #    referenced; known-dead strings.xml entries are grandfathered in
 #    scripts/dead-resources-baseline.txt (shrink-only).

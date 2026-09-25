@@ -3,8 +3,8 @@
 #
 # Background: the app downloads exclusively through MediaStore (MediaStoreDownloadManager) and the
 # durable truth is SongEntity.isDownloaded. The legacy ExoPlayer download map
-# (DownloadUtil.downloads / DownloadUtil.getDownload) is never written for those downloads, so any UI
-# that reads it silently reports "not downloaded". Likewise, download/progress state must be rendered
+# (DownloadUtil.downloads / DownloadUtil.getDownload) was never written for those downloads, so any UI
+# that read it silently reported "not downloaded". Likewise, download/progress state must be rendered
 # through the shared helpers, never a per-surface re-implementation. This script fails CI the moment a
 # banned pattern reappears ANYWHERE under app/src/main (ui-audit's R13 only covers ui/).
 #
