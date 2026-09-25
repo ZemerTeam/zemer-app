@@ -9,22 +9,13 @@
 
 ## Android app configuration
 
+SDK levels, version, JVM target, BuildConfig fields and the (absent) native build are in the generated
+module-facts table of [`app/README.md`](app/README.md). Not listed there:
+
 | Fact | Value |
 | --- | --- |
-| Module | `app` |
-| Android namespace | `com.jtech.zemer` |
-| Application ID | `com.jtech.zemer` |
-| Compile SDK | `36` |
-| Minimum SDK | `26` |
-| Target SDK | `36` |
-| Version code/name | `38` / `38` |
-| Java/Kotlin target | JVM 21 |
-| Compose | Enabled |
-| BuildConfig | Enabled; fields `ARCHITECTURE`, `COMMIT_HASH`, `RUN_NUMBER`, `GOOGLE_TOKEN_EXCHANGE_URL`, `CONTENT_MIRROR_URL`, `ZEMER_LYRICS_BASE_URL` |
-| Room schema output | `app/schemas` |
-| ABI filters | `arm64-v8a`, `armeabi-v7a` |
+| ABI filters | `arm64-v8a`, `armeabi-v7a` (select bundled dependency native libraries only; the app has no native code) |
 | Locale filters | `en`, `iw` |
-| Native build | None - the app has no `app/src/main/cpp` and no `externalNativeBuild`; the ABI filters only select bundled dependency native libraries. |
 
 ## Manifest-declared Android components
 
@@ -51,31 +42,11 @@
 | `app` | `com.jtech.zemer`, `com.dpi` | Android application, Compose UI, playback, Room database, DataStore preferences, Firebase auth/sync, whitelist filtering, widgets, accessibility, and density scaling. |
 | `innertube` | `com.metrolist.innertube` | Ktor/OkHttp JVM library for YouTube Music InnerTube requests, response models, and page parsers (dependencies: five Ktor artifacts, `okhttp-dnsoverhttps`, JUnit for tests). |
 
-## Latest committed Room schema (`InternalDatabase` schema 36)
+## Latest committed Room schema
 
-`app/schemas/com.jtech.zemer.db.InternalDatabase/36.json` declares 19 entities and 3 views (`sorted_song_artist_map`, `sorted_song_album_map`, `playlist_song_map_preview`). Per-entity detail: [`app/database.md`](app/database.md).
-
-| Table | Fields in schema 36 |
-| --- | --- |
-| `song` | `id`, `title`, `duration`, `thumbnailUrl`, `albumId`, `albumName`, `explicit`, `year`, `date`, `dateModified`, `liked`, `likedDate`, `totalPlayTime`, `lastPositionMs`, `inLibrary`, `dateDownload`, `isLocal`, `libraryAddToken`, `libraryRemoveToken`, `romanizeLyrics`, `isDownloaded`, `mediaStoreUri`, `isUploaded`, `isVideo`, `isEpisode` |
-| `artist` | `id`, `name`, `thumbnailUrl`, `channelId`, `lastUpdateTime`, `bookmarkedAt`, `isLocal`, `isPodcastChannel` |
-| `album` | `id`, `playlistId`, `title`, `year`, `thumbnailUrl`, `themeColor`, `songCount`, `duration`, `explicit`, `lastUpdateTime`, `bookmarkedAt`, `likedDate`, `inLibrary`, `isLocal`, `isUploaded` |
-| `playlist` | `id`, `name`, `browseId`, `createdAt`, `lastUpdateTime`, `isEditable`, `bookmarkedAt`, `remoteSongCount`, `playEndpointParams`, `thumbnailUrl`, `shuffleEndpointParams`, `radioEndpointParams`, `isLocal` |
-| `song_artist_map` | `songId`, `artistId`, `position` |
-| `song_album_map` | `songId`, `albumId`, `index` |
-| `album_artist_map` | `albumId`, `artistId`, `order` |
-| `playlist_song_map` | `id`, `playlistId`, `songId`, `position`, `setVideoId` |
-| `search_history` | `id`, `query` |
-| `format` | `id`, `itag`, `mimeType`, `codecs`, `bitrate`, `sampleRate`, `contentLength`, `loudnessDb`, `playbackUrl`, `streamClient` |
-| `lyrics` | `id`, `lyrics`, `provider` |
-| `event` | `id`, `songId`, `timestamp`, `playTime` |
-| `related_song_map` | `id`, `songId`, `relatedSongId` |
-| `set_video_id` | `videoId`, `setVideoId` |
-| `playCount` | `song`, `year`, `month`, `count` |
-| `artist_whitelist` | `artistId`, `artistName`, `addedAt`, `source`, `lastSyncedAt`, `isFemale`, `isChasid`, `isGenZ`, `isKids`, `isKidZone`, `displayName`, `altName` |
-| `recognition_history` | `id`, `songId`, `title`, `artist`, `thumbnailUrl`, `artistIds`, `recognizedAt` |
-| `podcast_whitelist` | `channelId`, `name`, `thumbnailUrl`, `isFemale`, `isKidZone`, `isVerified`, `showCount`, `lastSyncedAt` |
-| `podcast` | `id`, `title`, `author`, `thumbnailUrl`, `channelId`, `bookmarkedAt`, `lastUpdateTime` |
+The highest-numbered file under `app/schemas/com.jtech.zemer.db.InternalDatabase/` is the current
+schema; its entities, views, fields, keys and indices are the generated tables in
+[`app/database.md`](app/database.md).
 
 ## File and declaration inventory
 
@@ -83,12 +54,12 @@ The following inventory is generated from repository files outside `.git`, `.gra
 
 ### Counts
 
-- Files counted: `1381`
+- Files counted: `1372`
 - By extension:
   - `.kt`: `887`
   - `.xml`: `192`
   - `.mjs`: `110`
-  - `.md`: `73`
+  - `.md`: `64`
   - `.json`: `50`
   - `.webp`: `15`
   - `.html`: `6`
@@ -126,7 +97,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `.github/workflows/ui-audit.yml` | 56 lines | `.yml` |
 | `.gitignore` | 117 lines | `[none]` |
 | `.gitmodules` | 3 lines | `[none]` |
-| `AGENTS.md` | 2088 lines | `.md` |
+| `AGENTS.md` | 1000 lines | `.md` |
 | `LICENSE` | 674 lines | `[none]` |
 | `README.md` | 9 lines | `.md` |
 | `app/.gitignore` | 1 lines | `[none]` |
@@ -1208,73 +1179,64 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/universal/release/baselineProfiles/0/app-universal-release.dm` | 10017 bytes | `.dm` |
 | `app/universal/release/baselineProfiles/1/app-universal-release.dm` | 9981 bytes | `.dm` |
 | `build.gradle.kts` | 37 lines | `.kts` |
-| `docs/README.md` | 51 lines | `.md` |
+| `docs/README.md` | 44 lines | `.md` |
 | `docs/app/README.md` | 187 lines | `.md` |
 | `docs/app/database.md` | 656 lines | `.md` |
 | `docs/app/playback.md` | 119 lines | `.md` |
 | `docs/app/preferences-sync-auth.md` | 221 lines | `.md` |
 | `docs/app/viewmodels.md` | 130 lines | `.md` |
 | `docs/build-release.md` | 58 lines | `.md` |
-| `docs/fcast/01-architecture.md` | 123 lines | `.md` |
-| `docs/fcast/02-on-demand-native-lib.md` | 134 lines | `.md` |
-| `docs/fcast/03-discovery-and-connection.md` | 257 lines | `.md` |
-| `docs/fcast/04-playback-and-transport.md` | 293 lines | `.md` |
-| `docs/fcast/05-auto-advance.md` | 228 lines | `.md` |
-| `docs/fcast/06-ui.md` | 129 lines | `.md` |
-| `docs/fcast/07-testing-and-troubleshooting.md` | 182 lines | `.md` |
-| `docs/fcast/README.md` | 85 lines | `.md` |
+| `docs/fcast/01-architecture.md` | 66 lines | `.md` |
+| `docs/fcast/02-on-demand-native-lib.md` | 59 lines | `.md` |
+| `docs/fcast/03-discovery-and-connection.md` | 112 lines | `.md` |
+| `docs/fcast/04-playback-and-transport.md` | 153 lines | `.md` |
+| `docs/fcast/05-auto-advance.md` | 116 lines | `.md` |
+| `docs/fcast/06-ui.md` | 67 lines | `.md` |
+| `docs/fcast/07-testing-and-troubleshooting.md` | 119 lines | `.md` |
+| `docs/fcast/README.md` | 68 lines | `.md` |
 | `docs/generate.py` | 1267 lines | `.py` |
-| `docs/genres/README.md` | 120 lines | `.md` |
-| `docs/home_rows/README.md` | 110 lines | `.md` |
+| `docs/genres/README.md` | 98 lines | `.md` |
+| `docs/home_rows/README.md` | 86 lines | `.md` |
 | `docs/innertube/README.md` | 186 lines | `.md` |
-| `docs/latest_releases/01-architecture-and-data-flow.md` | 98 lines | `.md` |
-| `docs/latest_releases/02-feed-format-and-server.md` | 95 lines | `.md` |
-| `docs/latest_releases/03-runtime-store.md` | 128 lines | `.md` |
-| `docs/latest_releases/04-viewmodel-and-filtering.md` | 135 lines | `.md` |
-| `docs/latest_releases/05-ui.md` | 180 lines | `.md` |
-| `docs/latest_releases/06-test-harness.md` | 143 lines | `.md` |
-| `docs/latest_releases/07-runbook.md` | 108 lines | `.md` |
-| `docs/latest_releases/README.md` | 84 lines | `.md` |
+| `docs/latest_releases/01-architecture-and-data-flow.md` | 79 lines | `.md` |
+| `docs/latest_releases/02-feed-format-and-server.md` | 77 lines | `.md` |
+| `docs/latest_releases/03-runtime-store.md` | 57 lines | `.md` |
+| `docs/latest_releases/04-ui.md` | 58 lines | `.md` |
+| `docs/latest_releases/README.md` | 57 lines | `.md` |
 | `docs/lyrics/README.md` | 194 lines | `.md` |
 | `docs/multi_update/01-architecture.md` | 81 lines | `.md` |
 | `docs/multi_update/02-install-methods.md` | 102 lines | `.md` |
 | `docs/multi_update/03-restart.md` | 71 lines | `.md` |
 | `docs/multi_update/04-wiring.md` | 99 lines | `.md` |
 | `docs/multi_update/05-runbook.md` | 84 lines | `.md` |
-| `docs/multi_update/README.md` | 78 lines | `.md` |
-| `docs/offline/README.md` | 156 lines | `.md` |
-| `docs/podcasts/README.md` | 87 lines | `.md` |
-| `docs/recognize_music/01-architecture-and-pipeline.md` | 93 lines | `.md` |
-| `docs/recognize_music/02-whitelist-guarantee.md` | 100 lines | `.md` |
-| `docs/recognize_music/03-entry-points-and-ui.md` | 75 lines | `.md` |
-| `docs/recognize_music/04-recognition-history.md` | 86 lines | `.md` |
-| `docs/recognize_music/05-widget.md` | 75 lines | `.md` |
-| `docs/recognize_music/06-testing-and-maintenance.md` | 56 lines | `.md` |
-| `docs/recognize_music/README.md` | 71 lines | `.md` |
+| `docs/multi_update/README.md` | 41 lines | `.md` |
+| `docs/offline/README.md` | 130 lines | `.md` |
+| `docs/podcasts/README.md` | 86 lines | `.md` |
+| `docs/recognize_music/01-architecture-and-pipeline.md` | 64 lines | `.md` |
+| `docs/recognize_music/02-whitelist-guarantee.md` | 69 lines | `.md` |
+| `docs/recognize_music/03-entry-points-and-ui.md` | 80 lines | `.md` |
+| `docs/recognize_music/README.md` | 73 lines | `.md` |
 | `docs/reference/kotlin-files.md` | 900 lines | `.md` |
 | `docs/reference/non-kotlin-files.md` | 434 lines | `.md` |
 | `docs/reference/resource-index.md` | 303 lines | `.md` |
-| `docs/remote_cipher_config/01-why-it-exists.md` | 88 lines | `.md` |
-| `docs/remote_cipher_config/02-file-format.md` | 119 lines | `.md` |
-| `docs/remote_cipher_config/03-runtime-store.md` | 157 lines | `.md` |
-| `docs/remote_cipher_config/04-validation-and-security.md` | 105 lines | `.md` |
-| `docs/remote_cipher_config/05-extraction-and-self-heal.md` | 156 lines | `.md` |
-| `docs/remote_cipher_config/06-harness-and-monitor.md` | 107 lines | `.md` |
-| `docs/remote_cipher_config/07-runbook.md` | 101 lines | `.md` |
-| `docs/remote_cipher_config/README.md` | 112 lines | `.md` |
-| `docs/repository-map.md` | 1501 lines | `.md` |
-| `docs/sabr/README.md` | 548 lines | `.md` |
-| `docs/stations/README.md` | 69 lines | `.md` |
-| `docs/status/README.md` | 122 lines | `.md` |
-| `docs/status/jewishstatus-api.md` | 182 lines | `.md` |
-| `docs/status/yidstatus-api.md` | 241 lines | `.md` |
+| `docs/remote_cipher_config/01-concepts-and-format.md` | 131 lines | `.md` |
+| `docs/remote_cipher_config/02-runtime-store.md` | 94 lines | `.md` |
+| `docs/remote_cipher_config/03-extraction-and-self-heal.md` | 99 lines | `.md` |
+| `docs/remote_cipher_config/04-operations.md` | 117 lines | `.md` |
+| `docs/remote_cipher_config/README.md` | 56 lines | `.md` |
+| `docs/repository-map.md` | 1463 lines | `.md` |
+| `docs/sabr/README.md` | 365 lines | `.md` |
+| `docs/stations/README.md` | 66 lines | `.md` |
+| `docs/status/README.md` | 94 lines | `.md` |
+| `docs/status/jewishstatus-api.md` | 71 lines | `.md` |
+| `docs/status/yidstatus-api.md` | 50 lines | `.md` |
 | `docs/tracking/README.md` | 357 lines | `.md` |
 | `docs/ui/README.md` | 585 lines | `.md` |
-| `docs/ui/standards.md` | 408 lines | `.md` |
-| `docs/video_quality/README.md` | 137 lines | `.md` |
-| `docs/watchtime/README.md` | 304 lines | `.md` |
-| `docs/whitelist/README.md` | 269 lines | `.md` |
-| `docs/zemer_playlists/README.md` | 115 lines | `.md` |
+| `docs/ui/standards.md` | 397 lines | `.md` |
+| `docs/video_quality/README.md` | 127 lines | `.md` |
+| `docs/watchtime/README.md` | 178 lines | `.md` |
+| `docs/whitelist/README.md` | 228 lines | `.md` |
+| `docs/zemer_playlists/README.md` | 93 lines | `.md` |
 | `gradle.properties` | 40 lines | `.properties` |
 | `gradle/libs.versions.toml` | 150 lines | `.toml` |
 | `gradle/wrapper/gradle-wrapper.jar` | 45457 bytes | `.jar` |
@@ -1381,9 +1343,9 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `scripts/ui-audit.sh` | 248 lines | `.sh` |
 | `scripts/ui-strings-scan.py` | 96 lines | `.py` |
 | `settings.gradle.kts` | 54 lines | `.kts` |
-| `tests/INVESTIGATION.md` | 281 lines | `.md` |
-| `tests/MWEB-INVESTIGATION.md` | 118 lines | `.md` |
-| `tests/README.md` | 178 lines | `.md` |
+| `tests/INVESTIGATION.md` | 221 lines | `.md` |
+| `tests/MWEB-INVESTIGATION.md` | 47 lines | `.md` |
+| `tests/README.md` | 128 lines | `.md` |
 | `tests/analyze-player.mjs` | 53 lines | `.mjs` |
 | `tests/broken-clients.mjs` | 143 lines | `.mjs` |
 | `tests/check-live-player.mjs` | 81 lines | `.mjs` |
@@ -1436,7 +1398,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `tests/re-deep.mjs` | 79 lines | `.mjs` |
 | `tests/re-ios.mjs` | 69 lines | `.mjs` |
 | `tests/re-oauth.mjs` | 116 lines | `.mjs` |
-| `tests/recent-releases/README.md` | 62 lines | `.md` |
+| `tests/recent-releases/README.md` | 45 lines | `.md` |
 | `tests/recent-releases/build-feed.mjs` | 145 lines | `.mjs` |
 | `tests/recent-releases/lib.mjs` | 239 lines | `.mjs` |
 | `tests/recent-releases/probe-dates.mjs` | 80 lines | `.mjs` |
@@ -1457,7 +1419,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `tests/sabr-watchtime.mjs` | 157 lines | `.mjs` |
 | `tests/scan-live-players.mjs` | 124 lines | `.mjs` |
 | `tests/scan-live-players.test.mjs` | 44 lines | `.mjs` |
-| `tests/search/README.md` | 124 lines | `.md` |
+| `tests/search/README.md` | 95 lines | `.md` |
 | `tests/search/album-facet-probe.mjs` | 42 lines | `.mjs` |
 | `tests/search/corpus-ambiguity.mjs` | 15 lines | `.mjs` |
 | `tests/search/corpus-resolve.mjs` | 69 lines | `.mjs` |

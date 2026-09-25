@@ -1,6 +1,6 @@
 # Zemer repository documentation
 
-This documentation records facts visible in tracked repository files and avoids product claims that are not backed by source files, Gradle configuration, Android resources, generated Room schemas, or Kotlin declarations. Runtime data from YouTube, Firebase, Android services, or user preferences is documented only as code paths and stored fields.
+Every fact here is derived from tracked files (source, Gradle, resources, Room schemas); runtime data from YouTube, Firebase or user preferences is documented only as the code paths and stored fields that handle it.
 
 Two kinds of documents live here:
 
@@ -11,7 +11,7 @@ Two kinds of documents live here:
 
 | Document | Scope |
 | --- | --- |
-| [`repository-map.md`](repository-map.md) | Top-level project structure, Gradle modules, Android manifest facts, the latest Room schema, source/resource counts, and the generated every-file inventory. |
+| [`repository-map.md`](repository-map.md) | Top-level project structure, Gradle modules, Android manifest facts, source/resource counts, and the generated every-file inventory. |
 | [`app/README.md`](app/README.md) | `:app` module map: Gradle facts, manifest components, Kotlin package/directory inventory, and a contributor study map (the app has no native code). |
 | [`app/database.md`](app/database.md) | Room database facts: the latest schema's entities and views, fields, primary keys, indices, migrations, DAO annotation counts, and DAO method inventory. |
 | [`app/playback.md`](app/playback.md) | Playback, queues, relay/SABR, download service, media session constants, player UI files, and manifest playback components. |
@@ -42,10 +42,3 @@ Two kinds of documents live here:
 | [`reference/kotlin-files.md`](reference/kotlin-files.md) | Generated. Every tracked Kotlin file with line count, package, composable flag, import count, declaration count, and external import roots. |
 | [`reference/non-kotlin-files.md`](reference/non-kotlin-files.md) | Generated. Every tracked non-Kotlin file with line/byte count and file-type-specific metadata for XML, JSON, Gradle, scripts, assets, resources, and gitlinks. |
 | [`reference/resource-index.md`](reference/resource-index.md) | Generated. Android resource directory/file inventory with XML roots and resource names where parseable. |
-
-## Ground rules used while documenting
-
-- Facts are derived from tracked files and local source inspection only.
-- Generated build directories and Gradle caches are not treated as product source.
-- Inventories use scripts over tracked files; they intentionally report declarations and metadata instead of inventing behavior.
-- If a tracked path is a gitlink or cannot be text-decoded, the docs record that fact rather than content.

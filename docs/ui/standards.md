@@ -1,9 +1,8 @@
 # UI standards and rules
 
-How to build UI in this app so new screens look and behave like the existing ones. Match these
-conventions rather than inventing parallel patterns. All UI is Jetpack Compose + Material 3.
-Most of the codebase follows them; some older screens predate parts of this doc (section 8 in
-particular), so `scripts/ui-audit.sh` ratchets the known gaps down without blocking you.
+How to build UI in this app so new screens look and behave like the existing ones. All UI is
+Jetpack Compose + Material 3. A few older sites predate parts of this doc; `scripts/ui-audit.sh`
+baselines those gaps (`scripts/ui-audit-baseline.tsv`) and ratchets them down.
 
 ## 1. Reuse before building
 
@@ -14,17 +13,13 @@ particular), so `scripts/ui-audit.sh` ratchets the known gaps down without block
   icon buttons (`IconButton.kt`), chips (`ChipsRow.kt`), placeholders (`EmptyPlaceholder.kt`,
   `AppStateViews.kt`), one-time feature promos (`OfflineBackupPromo.kt` — a self-gating dismissible
   banner backed by DataStore keys; copy its pattern for the next discovery banner), and more.
-- The onboarding radio-choice card is `ui/component/OnboardingChoiceCard.kt` — onboarding steps (bottom-nav setup, search
-  backup) must use it, never a bespoke per-screen card (it carries the mandatory §11 focus
-  treatment a copy is exactly how a screen forgets).
-- Do not introduce a second component that duplicates one of these. (For example, settings rows use
-  the `Preference.kt` widgets below — do not add a parallel "settings group" widget set; grouped/
-  separated rows use the components in section 11 — do not hand-roll cards per row.)
-- **Componentize on every touch.** Whenever you edit a screen, check whether a shared component
-  already covers what you are writing; if it does, use it. The moment you would write a *second*
-  near-copy of a widget that already exists elsewhere, extract it into `ui/component/` (or reuse the
-  existing one) and repoint every site in the same pass — never leave two hand-rolled copies to
-  drift. In particular: the top-bar back button is `BackNavigationIcon` (`IconButton.kt`) or the
+- The onboarding radio-choice card is `ui/component/OnboardingChoiceCard.kt` — onboarding steps must
+  use it, never a bespoke per-screen card (it carries the mandatory §11 focus treatment a copy forgets).
+- Do not introduce a second component that duplicates one of these (settings rows use the
+  `Preference.kt` widgets; grouped/separated rows use the section 11 components).
+- **Componentize on every touch.** The moment you would write a *second* near-copy of a widget that
+  already exists elsewhere, extract it into `ui/component/` (or reuse the existing one) and repoint
+  every site in the same pass. In particular: the top-bar back button is `BackNavigationIcon` (`IconButton.kt`) or the
   whole back-only bar `BackTopAppBar` (`BackTopAppBar.kt`), the row 3-dot overflow is
   `MoreVertMenuButton`, and a plain `TopAppBar` action icon is `TopAppBarActionButton` — the last
   three in `IconButton.kt`. A discovery row that opens a menu for a mixed
@@ -38,7 +33,7 @@ particular), so `scripts/ui-audit.sh` ratchets the known gaps down without block
   the full-bleed login/onboarding bars and ArtistScreen's over-header transparent state. Do not hand-roll a title `Text` or omit `colors` on a new screen bar.
 - **Never hand-build an id-bearing nav route.** `navController.navigate("artist/$id")` /
   `navigate("album/$id")` crashes when the id is blank (an empty id builds `"artist/"`, which matches
-  no destination and throws — this was a real bug). Use the null-safe `navigateToArtist(id)` /
+  no destination and throws). Use the null-safe `navigateToArtist(id)` /
   `navigateToAlbum(id)` in `ui/utils/AppNavigation.kt` — a blank id is a no-op, and the pure
   `artistRoute`/`albumRoute` builders are unit-tested. Enforced by `R16-navroute` (baseline 0). Zemer
   routes with query params keep their builders (`zemerAlbumRoute`, `zemerPlaylistRoute`, `ZemerRoutes.kt`).
@@ -67,9 +62,8 @@ particular), so `scripts/ui-audit.sh` ratchets the known gaps down without block
 - Enforcement (ratcheting): `scripts/ui-audit.sh` rules `R14-backbtn` and `R15-morevert` fail CI on
   any *new* raw `R.drawable.arrow_back` / `R.drawable.more_vert` in a screen — build the back button
   and the overflow menu from the shared components instead. The existing hand-rolls are baselined in
-  `scripts/ui-audit-baseline.tsv` (only a few remain — three `R14-backbtn` and one `R15-morevert`;
-  burn them down when you touch the screen; a state-branching nav icon that legitimately flips to
-  `close` in selection mode stays baselined).
+  `scripts/ui-audit-baseline.tsv` (burn them down when you touch the screen; a state-branching nav
+  icon that legitimately flips to `close` in selection mode stays baselined).
   The remaining reuse rules here (the other shared components, the `Material3SettingsGroup` settings
   cards, the `.focusable()` D-pad treatment) are not greppable and stay a code-review gate.
 
@@ -193,7 +187,7 @@ Use these; do not hand-roll equivalents.
 
 - Add new user-facing strings to the default-English files — both
   `app/src/main/res/values/strings.xml` and `app/src/main/res/values/metrolist_strings.xml` are
-  editable (the old "never touch `strings.xml`" rule was a Metrolist-fork holdover, now retired).
+  editable.
 - Never edit the translated files under `app/src/main/res/values-iw/` — other locales are managed
   separately.
 - No hardcoded user-facing text in Kotlin; always `stringResource(R.string.x)` (or
@@ -207,8 +201,7 @@ Use these; do not hand-roll equivalents.
 - Enforcement: `scripts/ui-audit.sh` fails CI on any new hardcoded user-facing string under `ui/`
   (R5-hardcoded, baseline zero). The check is a multi-line-aware scanner
   (`scripts/ui-strings-scan.py`), not a line grep, so it also catches a literal that sits on a
-  different line from its `Text(`/`text =`/`Toast`/`section =` — the shape that used to slip
-  through.
+  different line from its `Text(`/`text =`/`Toast`/`section =`.
 
 ## 6. Lists and reordering
 
@@ -272,10 +265,10 @@ Use these; do not hand-roll equivalents.
 - Enforcement: `scripts/ui-audit.sh` (ratcheting) fails CI on *new* raw `fontSize = N.sp`,
   `Color(0x..)`, or `Modifier.blur(` (R12 — route player blur through the effective style) under
   `ui/` (outside `theme/`); the current known cases are baselined in `scripts/ui-audit-baseline.tsv`
-  and can only shrink (run `--update` after fixing some). The only fixed colors still baselined are the
-  lyric-image *export* (`LyricsImageCard.kt`, `Lyrics.kt` — it renders a shareable bitmap, not
-  themed UI). Palette/color-picker swatches live in `ui/theme/`, which is exempt. AMOLED pure-black
-  comes from the scheme, never a hex. Keep such cases minimal.
+  and can only shrink (run `--update` after fixing some). The only fixed colors/sizes still baselined
+  are the lyric-image *export* (`LyricsImageCard.kt`, `Lyrics.kt` — a shareable bitmap, not themed
+  UI). Palette/color-picker swatches live in `ui/theme/`, which is exempt. AMOLED pure-black comes
+  from the scheme, never a hex.
 - **Material 3 Expressive — prefer it when a fitting component exists.** The app stays on standard
   `MaterialTheme` (never a global `MaterialExpressiveTheme` / `MotionScheme.expressive()` swap), but
   adopts individual **Material 3 Expressive** components behind a per-site
@@ -285,11 +278,10 @@ Use these; do not hand-roll equivalents.
   video buffering, section loads; ratcheted **R25**), `MediaLoadingSpinner` (the BARE over-media / card
   tap-to-play spinner; ratcheted **R26**), `CarouselHeroFrame` + `HeroTitleOverlay` (full-bleed carousel
   heroes), the filter-chip `TonalToggleButton`, `MaterialShapes`, and the `rememberPopScale` /
-  `rememberActivationPopScale` motion helpers (a per-tap press-bounce on the shared `GridItem` /
-  `ListItem` was tried and removed — it fired on scroll-start too; do not reintroduce it). Stays
-  standard on purpose: tiny in-button
-  and determinate spinners (`CircularProgressIndicator`), and springiness added per-interaction rather
-  than by a theme.
+  `rememberActivationPopScale` motion helpers. Never add a per-tap press-bounce to the shared
+  `GridItem` / `ListItem` (it also fires when a touch starts a scroll). Stays standard on purpose:
+  tiny in-button and determinate spinners (`CircularProgressIndicator`), and springiness added
+  per-interaction rather than by a theme.
 
 ## 9. Icons
 
@@ -323,7 +315,7 @@ per row or a parallel group widget:
 Rules for these and any new row component:
 
 - **D-pad (non-negotiable):** the row must be `.focusable()` with an animated focus background +
-  border. Metrolist's upstream rows omit this; ours must not. For a bespoke clickable row/card
+  border (upstream Metrolist rows omit it). For a bespoke clickable row/card
   outside the shared group components, apply `Modifier.focusBorder()` (`FocusBorder.kt`) — the single
   source of truth for that treatment — placed **before** `.clickable {}` in the chain so the ripple
   is clipped (`Material3MenuItemRow` / `Material3SettingsItemRow` inline the same effect).
@@ -360,15 +352,13 @@ Rules for these and any new row component:
   hosted in the full-height `ModalBottomSheet` of `BottomSheetMenu.kt`, with the menu's own
   `LazyColumn` as the single scroll container. Leave that `LazyColumn` user-scrollable (the default)
   and let its `contentPadding` carry the bottom `WindowInsets.systemBars` inset — do **not** gate
-  scrolling on orientation/screen (e.g. `userScrollEnabled = !isPortrait`). Tall menus fit on the
-  developer's device but overflow on shorter screens, larger font/display scale, or with a gesture
-  nav bar; disabling scroll there makes the bottom items unreachable.
+  scrolling on orientation/screen (e.g. `userScrollEnabled = !isPortrait`): on shorter screens,
+  larger font/display scale or with a gesture nav bar the bottom items become unreachable.
 
 ## 12. Download state (one source of truth)
 
 Download/progress state is computed in exactly one place and read everywhere — never re-derived per
-surface. This is what keeps a downloaded album/song/playlist showing "Remove download" (and a live
-progress ring) identically in the library, Home, search rows, every menu and every header.
+surface, so every row, menu and header agrees.
 
 - The rule lives in `playback/DownloadStateResolver.kt` (pure, unit-tested): a song is **DOWNLOADED**
   when the persisted `SongEntity.isDownloaded` flag is set **OR** the live MediaStore state is
@@ -387,22 +377,21 @@ progress ring) identically in the library, Home, search rows, every menu and eve
 - **A collection never gets a FAILED/retry row.** `collectionRow` returns only REMOVE / DOWNLOADING /
   DOWNLOAD — a failed member leaves the aggregate NOT_DOWNLOADED, so the collection offers DOWNLOAD
   (which re-enqueues just the missing members = retry) and is removable once complete. A collection
-  "retry" row was a dead end that hid Download *and* Remove and re-failed the dead track forever. Only
+  "retry" row is a dead end (it hides Download *and* Remove and re-fails the dead track forever). Only
   single songs get a FAILED row (`songRow`).
 - **Async/online collection menus (album / playlist / multi-select) read ONE resolved list for every
   action.** Resolve/fetch the tracks at click time (fetch-if-empty), then Download, Remove **and** the
   aggregate status all iterate that *same* resolved list — never the original (possibly-empty) `songs`
-  prop. A Remove that loops the empty prop while Download loops the fetched list removes nothing (real
-  bug on the Home long-press playlist menu). For online items: aggregate via `aggregateByIds` (+ a
+  prop (a Remove that loops the empty prop removes nothing). For online items: aggregate via `aggregateByIds` (+ a
   persisted-downloaded id set) so progress shows without Room entities, and on Download **persist each
   item then download** (`database.insert`/`transaction { insert }` then `database.song(id).first()`) —
   a bare lookup of a not-yet-persisted id no-ops, so the first tap appears to do nothing.
-- **Manager invariants** (`MediaStoreDownloadManager`, no Robolectric so verified by code + on-device):
+- **Manager invariants** (`MediaStoreDownloadManager`; no Robolectric, so verified by code review + on-device):
   `markSongAsDownloaded` bases the row on the **existing** DB row and overwrites only download columns
   (never clobber `liked`/`inLibrary` with a caller's stale `Song`); `performDownload` backfills
   `duration` **and** `thumbnailUrl` from the playback response; the per-download video bitrate is
   cleared only on success/cancel/delete (never on a failed attempt, so retry keeps the chosen quality).
-- The legacy ExoPlayer `DownloadUtil.downloads` / `getDownload()` map is dead (nothing writes it for
-  MediaStore downloads). **Do not read it, and do not hand-roll an `Icon.Download(`.** Enforcement:
+- The legacy ExoPlayer `DownloadUtil.downloads` / `getDownload()` map is dead for status. **Do not read
+  it, and do not hand-roll an `Icon.Download(`.** Enforcement:
   `scripts/ui-audit.sh` rule `R13-download` (baselined at zero) fails CI on any new
   `downloadUtil.downloads`, `.getDownload(` or `Icon.Download(` under `ui/`.
