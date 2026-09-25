@@ -58,7 +58,7 @@ Genre describes style at the **song** level (via its release), independent of th
   browsable. Reuses the shared `YtItemGrid` + `BackTopAppBar`. The see-all arrow shows on any
   non-empty shelf (like the artist page) — never gate it on the header counts.
 
-## The visual layer (monochrome + one gold accent)
+## The visual layer (monochrome + the one theme accent)
 
 Color comes only from album art, never applied decoratively:
 
