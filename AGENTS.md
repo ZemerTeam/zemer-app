@@ -77,7 +77,7 @@ The alternative to progressive URLs for clients YouTube moved to SABR/UMP (`serv
 - **Stream lifetime is registry-owned, NEVER per DataSource open** (audio `SabrStreamRegistry`, video `SabrVideoRegistry`): a seek's close→reopen or a repeat-one replay reuses the live stream (no second /player, no re-drain, no duplicate FormatEntity/watch-time seed). Streams end only on registry replace / evict / remove / `MusicService.onDestroy` (both registries cleared). Replays ride the persistent `SabrSpool` replay cache and the 45-min resolve cache; a stalling client is recorded (`recordStall`) and deprioritized.
 - **Downloads over SABR** (`MediaStoreDownloadManager` `sabrAudioMode`/`sabrVideoMode`) resolve with `register=false` (never touch the playback registry), return null → retry on an INCOMPLETE drain, run under `runInterruptible` with the throttled `sabrProgressReporter`. Video downloads drain two tracks and remux via `VideoMuxer` with DIRECT's gates (`pickRung(downloadable=true)`: remux-capable rungs, container-matched audio).
 - **Video over SABR** pins the exact itag (`preferredVideoFormatId`, field 17) and has a live quality switcher (`setVideoQuality`/`downgradeForStall` share `resolveAndSwapSabr`; AUTO caps at 720p). **The resolve returns a READY, UNREGISTERED stream, installed in the registry only at the main-thread swap COMMIT after the `stillOurs` guard**, with position + playWhenReady captured AT COMMIT. The SABR DataSources call `transferEnded()` only after `transferStarted()`.
-- **Full DIRECT parity - never call SABR a reduced mode:** stats/views/watch time (resolve seeds `watchTimeReporter.onTrackingResolved`; every media POST is stamped with the listen's cpn via `MusicService.sabrCpnFor`), audio quality, instant switch + `prefetchVideoRendition`, metered AUTO cap, loudness, replay caches, demand-paced data usage, seeking, and online/offline stats (docs/sabr/README.md §7.2).
+- **Full DIRECT parity - never call SABR a reduced mode:** stats/views/watch time (resolve seeds `watchTimeReporter.onTrackingResolved`; every media POST is stamped with the listen's cpn via `MusicService.sabrCpnFor`), audio quality, instant switch + `prefetchVideoRendition`, metered AUTO cap, loudness, replay caches, demand-paced data usage, seeking, and online/offline stats (docs/sabr/README.md §7.1).
 - **The harness is the proof** (`tests/sabr-stream.mjs`, `sabr-clients.mjs`, `sabr-video.mjs`, `sabr-video-clients.mjs`, `sabr-seek.mjs`, `sabr-watchtime.mjs`): prove any change against the live CDN there first, then on-device. Settings: Stream Sources → Experimental (SABR toggle) + "SABR clients".
 
 ### Watch-time reporting (the YouTube playback-stats session; DIRECT and SABR, never RELAY/cast)
@@ -263,9 +263,11 @@ inventing scope):
 - **Non-engine InnerTube search users** (each needs its own design): `RecognitionResolver`, the Android
   Auto voice search (`MediaLibrarySessionCallback`), the add-to-playlist online search
   (`AddToPlaylistDialogOnline`).
-- **`YouTube.next` selection:** `YouTubeQueue` (playlist/artist Shuffle menus, the artist-page shuffle,
+- **`YouTube.next` selection:** `YouTubeQueue` (the playlist menu's Play/Shuffle, the artist menu and artist-page shuffle,
   playlist deep links, the Home easter egg) and `MusicService`'s related-songs pipeline
   (`YouTube.next` + `YouTube.related`).
+- **Other content fetches:** the `AlbumPlayButton` pre-play fetch (`Items.kt`) + `AlbumMenu` Refetch (`YouTube.album`),
+  the non-Zemer `OnlinePlaylistViewModel` (`YouTube.playlist`), `ArtistThumbResolver` + the library-artist refresh (`YouTube.artist`).
 - **Android Auto browse** reads pooled-cookie InnerTube surfaces (`YouTube.home`; see §Accounts).
 - Account-tied InnerTube (`SyncUtils` library sync, `accountInfo()`) is inherent to personal login - not
   on this list.
@@ -320,7 +322,7 @@ Rules that must not regress:
 
 All radio runs on the Zemer `/radio` endpoint (whitelist-pure, blocked-ids filtered server-side + the
 client `dropBlocked` pass) via **`playback/queues/ZemerRadioQueue`** - artist / album / song / playlist /
-genre seeds and `kind=shuffle`. No radio path uses `YouTube.next()`; the audio stream is still
+genre seeds and `kind=shuffle`. No user-started radio path uses `YouTube.next()` (the `YouTubeQueue` next()-fill is on the §The home tab punch list); the audio stream is still
 InnerTube + the cipher. Rules:
 
 - **The continuation token is opaque**: the queue keeps no cursor, `nextPage()` echoes the last token.
@@ -518,7 +520,7 @@ App map: `docs/podcasts/README.md`. Rules that must not regress:
 - **Podcast genre sections are SERVER-OWNED**: `/podcast-genres` rows carry a `kind` slug plus an ordered
   `kinds` catalog, grouped by the pure, tested `podcastGenreSections` and rendered through `GenreCardGrid`.
   Unlike music's fail-closed kind drop, an unknown/blank podcast kind falls to a trailing headerless
-  section; no `kinds` (older server / offline) = flat grid. Icons: the owner-reviewed `podcastGenreIcon`.
+  section; no `kinds` (older server / no `genrecatalog` shard) = flat grid. Icons: the owner-reviewed `podcastGenreIcon`.
 - **Subscribe (channel) vs. save (show) are distinct.** Channel Subscribe writes a bookmarked
   `ArtistEntity` with `isPodcastChannel = 1` (→ `bookmarkedPodcastChannels()`) and calls
   `YouTube.subscribeChannel`, which **must send `params="EgIIAhgA"`** or the server no-ops. The button
@@ -536,7 +538,7 @@ App map: `docs/podcasts/README.md`. Rules that must not regress:
   left" hint (`episodeResumePositions()`); the song menu has local mark-played/unplayed.
 - **Episode-only player controls** (`EpisodePlaybackControls`, only when `mediaMetadata.isEpisode`): a
   speed pill (`EPISODE_SPEEDS` 1×–2×) + ±30s skips. `MusicService` resets `playbackSpeed` to 1× when an
-  episode gives way to a non-episode, so speed never leaks into music.
+  episode gives way to a non-episode (never on every transition - a music Tempo & Pitch persists).
 - **"Continue Listening"** (`HomeContinueListeningRow` + isolated fail-soft `ContinueListeningViewModel`,
   on the Podcasts tab under the genre strip): in-progress episodes, recency from the play `event` table
   (`continueListeningEpisodes()`) - **no new column**.
@@ -761,7 +763,7 @@ async (`scope.launch` + `withContext(IO)`), never `runBlocking` on the listener'
 mediaId as the stream, and `CacheDataSource` serves cached spans regardless of URI - so a muxed download
 + streamed spans mixed two containers (black video / extractor errors). **Every position-0 open that
 picks the local file purges the id's `playerCache` resource first**, and `DownloadUtil.removeDownload`
-purges the bare id + the whole `VideoRendition.allRenditionKeys` family on delete. (2) **Downloads must
+purges the bare id + the whole `VideoRendition.allRenditionKeys` family on delete (one `runCatching` per key). (2) **Downloads must
 never write `DownloadUtil.sharedUrlCache`** - a download's `forDownload` format is a different
 itag/container and poisons a later seek's stream source.
 
