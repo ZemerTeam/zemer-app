@@ -476,12 +476,12 @@ config are in `docs/status/`. The feature is **fail-soft and isolated**; the rul
   `SavedStatusViewModel` grouping by creator): cube-pager creators, `StatusStoryTopOverlay`,
   auto-advance, tap/press-hold, background-pause, `ExpandableStatusCaption` / copy pill,
   `StatusLoadingIndicator`, the `cubeFace` transform; only the media comes from the files. The
-  `faceCreator` gate + the byte-bounded `rememberVideoThumbnail` poster cache keep swipes flash-free.
+  `faceCreator` gate keeps swipes flash-free (a video shows the loading indicator, never a poster).
 - **The library is a flat grid** (no grouped view): kind chips (All/Video/Image/Text), a
   Recently-saved/Recently-posted sort, a creator-avatar filter row when >1 creator; long-press opens
   `SavedStatusMenu` (`Material3MenuGroup` Select / Remove); Select enters multi-select via the shared
-  `SelectionTopActions` + `ItemWrapper`. Text tiles render natively, video tiles via
-  `rememberVideoThumbnail`.
+  `SelectionTopActions` + `ItemWrapper`. Text tiles render natively, video tiles via the byte-bounded
+  `rememberVideoThumbnail` poster cache.
 
 ### Podcasts (browse → show → episodes → play; a "Kosher" podcast client on top)
 
