@@ -90,9 +90,9 @@ mid-station. A malformed token (`parse` → null, incl. a negative offset) ends 
   `java.nio.channels.UnresolvedAddressException` (Ktor CIO's no-network/dead-DNS signal, an
   `IllegalArgumentException` — without it airplane mode would never fall back). A 404-null is returned
   as-is; a non-network exception is never masked; cancellation propagates.
-- **Only SERVER responses are memoized** in the search LRU — the access-ordered LRU never ages a hit
-  out and `invalidate()` only runs from the error-state Retry, so a cached offline result would outlive
-  the outage.
+- **Only SERVER responses are memoized** in the search LRU — the access-ordered LRU (`CACHE_SIZE` 12) has
+  no TTL and refreshes an entry on every hit, and `invalidate()` only runs from the error-state
+  Retry, so a cached offline result would outlive the outage.
 - **Kosher defenses** (the offline read layer is the THIRD enforcement site of the filtering contract —
   `docs/whitelist/README.md`):
   - `subsetSnapshotIsFresh` — a snapshot older than `SUBSET_MAX_SNAPSHOT_AGE_MS` (14 days) refuses to

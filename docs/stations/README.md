@@ -38,7 +38,7 @@ every raw-player surface is gated on `PlayerConnection.isStationBroadcast` (and
 `PlayerConnection.seekTo/seekToNext/seekToPrevious` early-return): mini-player swipes, the full
 player's thumbnail swipe, queue-sheet taps, lyrics buttons and line-tap seeks, the widget's skip
 actions, repeat/shuffle toggles, and the Start-radio affordances (menu row hidden, notification button
-disabled). Queue MUTATIONS (Play next / Add to queue) deliberately EXIT broadcast mode
+disabled, `MusicService.startRadioSeamlessly` chokepoint guard). Queue MUTATIONS (Play next / Add to queue) deliberately EXIT broadcast mode
 (`exitStationOnQueueMutation`). The full player swaps the seek slider for the read-only
 `StationLiveBar`; the mini player shows the shared `StationLiveBadge`.
 

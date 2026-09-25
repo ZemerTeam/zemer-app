@@ -47,8 +47,9 @@ content filtering. The app's job is fetch → render → play:
   card disappears.
 - **The section can never break Home.** Its own `ZemerCuratedPlaylistsViewModel` (the
   `LatestReleasesViewModel` isolation pattern): a failed fetch keeps the previous list and reports via
-  `reportException`; it refreshes on VM creation, on every content-filter flag change
-  (`reloadOnContentFlagChange`), on every Home screen-open, and on pull-to-refresh.
+  `reportException`; it refreshes on every Home screen-open, on pull-to-refresh, and on every
+  content-filter flag change (`reloadOnContentFlagChange`, which drops the initial emission so a
+  screen open is exactly one fetch - there is no separate fetch on VM creation).
 
 ## The detail screen's All / Albums / Songs chips
 
