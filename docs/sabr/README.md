@@ -183,9 +183,8 @@ TVHTML5_SIMPLY`; the first that returns SABR inputs wins. Each is toggleable
 - **Direct** (VISIONOS): no STS/player pot; the url is used as-is (no n-transform, no url-pot).
 - The `streamerContext.poToken` is the **session (visitorData-bound)** token for all of them
   (`playerRequestPoToken`), so a fresh resolve always needs the WebView pot.
-- **Pot decoding is tolerant** (`SabrStreamResolver.decodeBase64`): `PoTokenGenerator` emits standard
-  base64 (`+/`), bgutils url-safe (`-_`); normalize, pad, decode. A strict URL_SAFE decode throws on the
-  app's tokens.
+- **Pot decoding is tolerant** (`SabrStreamResolver.decodeBase64`): the app's pot is url-safe base64
+  (`-_`, cipher `u8ToBase64`); the decoder accepts either alphabet, normalizes to standard, pads and decodes.
 - **Audio pick** (`pickAudio`, `SabrAudioPickTest`) mirrors `YTPlayerUtils`: bitrate weighted by
   `AudioQuality` (AUTO follows the metered state) plus the opus/webm bonus. `opusAllowed = false` (a
   COMPATIBLE / pre-API-29 download) restricts to AAC (`audio/mp4`) and drops the bonus - DIRECT's

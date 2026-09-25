@@ -1225,7 +1225,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `docs/remote_cipher_config/04-operations.md` | 120 lines | `.md` |
 | `docs/remote_cipher_config/README.md` | 60 lines | `.md` |
 | `docs/repository-map.md` | 1463 lines | `.md` |
-| `docs/sabr/README.md` | 365 lines | `.md` |
+| `docs/sabr/README.md` | 364 lines | `.md` |
 | `docs/stations/README.md` | 66 lines | `.md` |
 | `docs/status/README.md` | 94 lines | `.md` |
 | `docs/status/jewishstatus-api.md` | 71 lines | `.md` |
