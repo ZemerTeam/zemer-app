@@ -15,23 +15,9 @@ export const CLIENTS = [
   { key: "WEB_CREATOR", clientName: "WEB_CREATOR", clientVersion: "1.20260213.00.00", clientId: "62",
     userAgent: USER_AGENT_WEB, loginSupported: true, loginRequired: true, useSignatureTimestamp: true, useWebPoTokens: true },
 
-  { key: "MWEB", clientName: "MWEB", clientVersion: "2.20260708.05.00", clientId: "2",
-    userAgent: "Mozilla/5.0 (iPad; CPU OS 16_7_10 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1,gzip(gfe)",
-    loginSupported: true, loginRequired: true, useSignatureTimestamp: true, useWebPoTokens: true },
-
-
   { key: "TVHTML5_SIMPLY", clientName: "TVHTML5_SIMPLY", clientVersion: "1.0", clientId: "75",
     userAgent: "Mozilla/5.0 (ChromiumStylePlatform) Cobalt/25.lts.30.1034943-gold (unlike Gecko), Unknown_TV_Unknown_0/Unknown (Unknown, Unknown)",
     loginSupported: false, useSignatureTimestamp: true, useWebPoTokens: true },
-
-
-
-
-
-
-
-
-
 
   { key: "VISIONOS", clientName: "VISIONOS", clientVersion: "1.02", clientId: "101",
     userAgent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 15_7_3) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.0 Safari/605.1.15",

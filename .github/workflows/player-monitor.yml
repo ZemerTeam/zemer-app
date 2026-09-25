@@ -176,7 +176,8 @@ jobs:
           username: ${{ secrets.GMAIL_USERNAME }}
           password: ${{ secrets.GMAIL_APP_PASSWORD }}
           subject: "New YouTube player(s) detected — cipher update required"
-          to: dietdroidwp@gmail.com
+          # Recipient lives in a repository secret (MONITOR_ALERT_EMAIL), never in the public repo.
+          to: ${{ secrets.MONITOR_ALERT_EMAIL }}
           from: Zemer CI <${{ secrets.GMAIL_USERNAME }}>
           body: |
             New / unknown YouTube player(s) detected by the multi-sample monitor — cipher update required.

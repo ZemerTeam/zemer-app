@@ -123,7 +123,7 @@ object SabrVideoResolver {
     private suspend fun builtFor(videoId: String, enabled: Set<String>, targetLabel: String, maxAutoBitrateKbps: Int?): Pair<Built, VideoQualityRung>? {
         cached(videoId)?.let { hit ->
             val rung = pickRung(hit.ladder, targetLabel, maxAutoBitrateKbps)
-            if (rung != null && hit.videoFormats.containsKey(rung.itag)) {
+            if (rung != null) {
                 Timber.tag(TAG).d("SABR video cache hit for $videoId -> ${rung.label}")
                 return hit to rung
             }
@@ -195,7 +195,7 @@ object SabrVideoResolver {
             // Re-pick with the download gates (the builtFor pick is the STREAMING pick, which may land
             // on a rung no on-device mux can save).
             val rung = pickRung(
-                built.ladder.filter { built.videoFormats.containsKey(it.itag) },
+                built.ladder,
                 targetLabel, maxAutoBitrateKbps,
                 downloadable = true, opusWebmMuxSupported = opusWebmMuxSupported,
             ) ?: return@withContext null
@@ -290,6 +290,15 @@ object SabrVideoResolver {
     }
 
     /**
+     * The [ladder] rungs a SABR session can actually pin: those whose format reports a contentLength
+     * the reassembly buffer can hold ([SabrBuffer.lengthValid]). Order is kept. A rung outside this set
+     * used to stay on the published ladder, so picking it in the switcher missed the resolve cache,
+     * paid a fresh /player + poToken, and then played a DIFFERENT rung than the one tapped.
+     */
+    internal fun pinnableRungs(ladder: List<VideoQualityRung>, contentLengthOf: (itag: Int) -> Long?): List<VideoQualityRung> =
+        ladder.filter { r -> contentLengthOf(r.itag)?.let(SabrBuffer::lengthValid) == true }
+
+    /**
      * Pick the rung for [targetLabel]. AUTO (selectRung returns null) mirrors DIRECT's automatic pick:
      * capped at [AUTO_HEIGHT] AND at [maxAutoBitrateKbps] (the metered-aware cap) — an explicit label is
      * never capped (the "explicit quality is honoured on every connection" rule). [downloadable]
@@ -336,20 +345,20 @@ object SabrVideoResolver {
                     .maxByOrNull { it.bitrate }
                     ?.let { AudioPick(SabrMessages.Format(it.itag, it.lastModified ?: 0L, it.contentLength!!), it.mimeType) }
             // The same ladder the DIRECT switcher renders, minus progressive (SABR video is dual-track,
-            // video-only + audio) and minus rungs this device can't decode (never pin an undecodable itag).
-            val ladder = VideoQualityLogic.rungs(streaming).filter { !it.progressive && VideoDecoderCaps.supports(it) }
+            // video-only + audio), minus rungs this device can't decode (never pin an undecodable itag),
+            // and minus rungs whose contentLength the reassembly buffer cannot hold - the published
+            // ladder only ever offers a rung a switch can actually pin.
+            val formatByItag = streaming.adaptiveFormats.associateBy { it.itag }
+            val ladder = pinnableRungs(
+                VideoQualityLogic.rungs(streaming).filter { !it.progressive && VideoDecoderCaps.supports(it) },
+            ) { itag -> formatByItag[itag]?.contentLength }
             if (ladder.isEmpty()) return null
             // Every rung's wire format, so a later quality switch clones the config with NO network.
-            // Rungs whose contentLength the reassembly buffer cannot hold are excluded here, so neither
-            // playback nor a download can ever pin one.
-            val videoFormats = buildMap {
-                for (r in ladder) {
-                    val f = streaming.adaptiveFormats.firstOrNull { it.itag == r.itag } ?: continue
-                    val len = f.contentLength?.takeIf(SabrBuffer::lengthValid) ?: continue
-                    put(r.itag, SabrMessages.Format(f.itag, f.lastModified ?: 0L, len))
-                }
+            val videoFormats = ladder.associate { r ->
+                val f = formatByItag.getValue(r.itag)
+                r.itag to SabrMessages.Format(f.itag, f.lastModified ?: 0L, f.contentLength!!)
             }
-            val chosen = pickRung(ladder.filter { videoFormats.containsKey(it.itag) }, targetLabel, maxAutoBitrateKbps) ?: return null
+            val chosen = pickRung(ladder, targetLabel, maxAutoBitrateKbps) ?: return null
             val videoFmt = streaming.adaptiveFormats.firstOrNull { it.itag == chosen.itag } ?: return null
             val videoLen = videoFmt.contentLength ?: return null
 

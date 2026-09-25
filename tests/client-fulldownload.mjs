@@ -16,11 +16,10 @@ const VIDEO_ID = process.argv[2] || process.env.VIDEO_ID || "JTF9fLJvniI";
 const dec = (s) => { try { return s && /%[0-9A-Fa-f]{2}/.test(s) ? decodeURIComponent(s) : s; } catch { return s; } };
 const kb = (n) => `${(n / 1024).toFixed(0)}KB`;
 // Clients to test for full delivery: the app's MAIN_CLIENT + ALL_FALLBACK_CLIENTS in the same
-// order as YTPlayerUtils.kt ("ANDROID" here = the app's MOBILE client). Override with
+// order as YTPlayerUtils.kt. Override with
 // CLIENTS=WEB_REMIX,TVHTML5,... to test a subset.
 const TEST = process.env.CLIENTS?.split(",").map((s) => s.trim()).filter(Boolean) || [
-  "WEB_REMIX", "VISIONOS", "VISIONOS_0_1", "WEB_CREATOR",
-  "TVHTML5_SIMPLY", "MWEB",
+  "WEB_REMIX", "VISIONOS", "VISIONOS_0_1", "WEB_CREATOR", "TVHTML5_SIMPLY",
 ];
 
 function sapisidHash(cookie) {

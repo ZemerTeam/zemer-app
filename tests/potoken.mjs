@@ -2,11 +2,11 @@
 //
 // YouTube web clients (WEB / WEB_REMIX / TVHTML5) need a poToken in two places.
 // Bindings verified against the app's PoTokenGenerator.getWebClientPoToken(videoId, sessionId):
-//   - streamingDataPoToken : appended to the media URL as &pot=...
-//                            content binding = the SESSION id (visitorData). Minted FIRST, once.
 //   - playerRequestPoToken : sent in serviceIntegrityDimensions.poToken on the /player request.
-//                            content binding = the VIDEO ID. Minted after the streaming token.
-// (PoTokenResult(playerPot, streamingPot) = PoTokenResult(generate(videoId), generate(visitorData)).)
+//                            content binding = the SESSION id (visitorData). Minted FIRST, once.
+//   - streamingDataPoToken : appended to the media URL as &pot=...
+//                            content binding = the VIDEO ID. Minted after the session token.
+// (PoTokenResult(playerRequestPoToken = sessionPot, streamingDataPoToken = videoPot).)
 // Session id is ALWAYS visitorData — dataSyncId is rejected by BotGuard as a session context.
 //
 // Run directly to mint + print tokens (uses ../innertube_cookie.txt for visitorData):
@@ -40,7 +40,7 @@ function ensureDom() {
  * app mints both the player token (binding=visitorData) and the streaming token
  * (binding=videoId) from a single attestation.
  *
- * @param {string} sessionIdentifier  visitorData (or dataSyncId)
+ * @param {string} sessionIdentifier  visitorData
  */
 export async function createMinter(sessionIdentifier) {
   ensureDom();
@@ -91,11 +91,12 @@ export async function generatePoToken(identifier) {
 export async function mintWebPoTokens({ visitorData, videoId }) {
   if (!visitorData) throw new Error("mintWebPoTokens: visitorData is required");
   const minter = await createMinter(visitorData);
-  // App order/bindings (PoTokenGenerator): the streaming poToken (bound to the
-  // session = visitorData) is minted exactly once, BEFORE the player token.
-  const streamingDataPoToken = await minter.mint(visitorData);
-  // The player-request poToken is bound to the videoId.
-  const playerRequestPoToken = videoId ? await minter.mint(videoId) : null;
+  // App order/bindings (cipher PoTokenGenerator.getWebClientPoToken): the session token (bound to
+  // visitorData) is minted first and rides the /player request as playerRequestPoToken; the per-video
+  // token is the streamingDataPoToken appended to the stream URL as &pot= - googlevideo serves only
+  // the first 1 MiB unless that URL pot is bound to the videoId (tests/pot-probe.mjs).
+  const playerRequestPoToken = await minter.mint(visitorData);
+  const streamingDataPoToken = videoId ? await minter.mint(videoId) : null;
   return { playerRequestPoToken, streamingDataPoToken };
 }
 

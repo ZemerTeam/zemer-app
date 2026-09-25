@@ -64,7 +64,6 @@ import com.jtech.zemer.db.entities.PodcastEntity
 import com.jtech.zemer.db.entities.Song
 import com.jtech.zemer.extensions.shareText
 import com.jtech.zemer.extensions.toMediaItem
-import com.jtech.zemer.extensions.togglePlayPause
 import com.jtech.zemer.playback.queues.ListQueue
 import com.jtech.zemer.tracking.PlaySource
 import com.jtech.zemer.ui.component.ChipsRow
@@ -225,7 +224,7 @@ fun LibraryPodcastsScreen(
                                 isSaved = song.song.inLibrary != null,
                                 onClick = {
                                     if (mediaMetadata?.id == song.id) {
-                                        playerConnection.player.togglePlayPause()
+                                        playerConnection.playPause()
                                     } else {
                                         playerConnection.playQueue(
                                             ListQueue(
@@ -379,7 +378,7 @@ fun LibraryPodcastsScreen(
                                 .combinedClickable(
                                     onClick = {
                                         if (episode.id == mediaMetadata?.id) {
-                                            playerConnection.player.togglePlayPause()
+                                            playerConnection.playPause()
                                         } else {
                                             playerConnection.playQueue(
                                                 ListQueue(

@@ -111,7 +111,8 @@ internal suspend fun <T> serverOrOffline(server: suspend () -> T, offline: suspe
  * snapshot the call throws, and the ViewModel shows the search-error state with Retry. A rare
  * not-yet-harvested miss (regular-channel-only songs, brand-new releases inside the harvest lag) shows
  * the graceful empty state — the residual the server side is closing via the #108 regular-channel
- * harvest. `/playlist` and `/radio` are live-only (not in the snapshot).
+ * harvest. `/playlist` is live-only (not in the snapshot); `/radio` is served offline only partially
+ * (see [radio]).
  *
  * Responses are memoized in a small LRU keyed by (k, filters, query): the song/video/album/artist/
  * featured-playlist chips all request the same k, so after the first they hit the cache instead of
@@ -213,7 +214,7 @@ class ZemerSearchRepository @Inject constructor(
     // --- Podcasts. Server-first with the on-device snapshot fallback (server reply 4: the subset now
     // carries podcast shards, pre-gated to approved channels). The browse grid + channel allow-set come
     // from the Room-backed content mirror. Playback stays InnerTube: an episode carries its YouTube
-    // videoId and plays through the existing pipeline. `/playlist` + `/radio` remain live-only. ---
+    // videoId and plays through the existing pipeline. ---
 
     /**
      * The kid-flagged show catalog (`/podcasts?kidZone=1`) as browsable cards — the KidZone
@@ -261,9 +262,9 @@ class ZemerSearchRepository @Inject constructor(
             ?.let { it.toChannelEpisodeItems() to it.nextOffset }
 
     /**
-     * The telemetry-ranked Podcasts-tab rows (Top Podcasts + Trending Episodes). Live-only (discovery,
-     * like `/playlist`/`/radio`) — no offline snapshot; the caller's fail-soft VM hides the rows on a
-     * failure. The server applies an alphabetical fallback for `topPodcasts` while telemetry is thin.
+     * The Podcasts-tab rows (Featured Podcasts + the telemetry-ranked Top Podcasts + Trending Episodes).
+     * Live-only (discovery, like `/playlist`) — no offline snapshot; the caller's fail-soft VM hides the
+     * rows on a failure. The server applies an alphabetical fallback for `topPodcasts` while telemetry is thin.
      */
     suspend fun podcastHomeRows(options: ZemerSearchOptions): ZemerResultMapper.PodcastHomeRows =
         ZemerResultMapper.podcastHomeRows(client.podcastHomeRows(options.allowFemale, options.blockVideos))
@@ -346,8 +347,8 @@ class ZemerSearchRepository @Inject constructor(
      * The live Zemer Stations for the "Zemer Radio" home row ([liveStations]: live-only cards,
      * absolute covers, fail-soft empty). Deliberately NOT wrapped in [serverOrOffline] — a
      * synchronized broadcast cannot be served from a snapshot, so stations are live-only like
-     * `/playlist` and `/radio`. Not cached: the responses are clock-dependent, and the row's
-     * `nowPlaying` line refreshes once per home load by contract (handoff, settled 2026-07-29).
+     * `/playlist`. Not cached: the responses are clock-dependent, and the row's `nowPlaying` line
+     * refreshes on load and every 60 s while on screen (`STATION_ROW_REFRESH_MS`).
      */
     suspend fun stations(): List<ZemerStation> =
         client.stations().liveStations(::resolveZemerUrl)
@@ -415,9 +416,9 @@ class ZemerSearchRepository @Inject constructor(
 
     /**
      * The genre catalog for the home chips row + the catalog screen, in the server's
-     * most-populated-first order, with counts computed against the flags sent. LIVE-ONLY: the genre
-     * taxonomy is not in the offline snapshot, so this is deliberately not wrapped in
-     * [serverOrOffline] (like `/playlist`, `/radio` and `/stations`). Memoized for a short TTL,
+     * most-populated-first order, with counts computed against the flags sent. LIVE-ONLY: the offline
+     * read layer serves no `/genres`, so this is deliberately not wrapped in
+     * [serverOrOffline] (like `/playlist` and `/stations`). Memoized for a short TTL,
      * KEYED ON THE FLAG PAIR (so a response fetched under one flag set is never rendered under
      * another): the catalog is fetched by two independent surfaces (the Home strip's ViewModel and
      * the catalog screen's) and Home re-fires its refresh on every return to the tab, so a common

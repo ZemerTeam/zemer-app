@@ -10,8 +10,8 @@
 // free MiB).
 //
 //   node tests/video-progressive-stream.mjs <videoId>   # pass an OMV/UGC (real video) id
-//   MAX_KBPS=6000 URL_POT=streaming node tests/video-progressive-stream.mjs <videoId>
-//   URL_POT=player node tests/video-progressive-stream.mjs <videoId>   # videoId-bound pot variant
+//   MAX_KBPS=6000 URL_POT=streaming node tests/video-progressive-stream.mjs <videoId>   # app pot (videoId)
+//   URL_POT=player node tests/video-progressive-stream.mjs <videoId>   # visitorData-bound pot variant
 //
 // Needs innertube_cookie.txt at the repo root (gitignored). Prints which pot binding drains the file.
 
@@ -240,11 +240,11 @@ async function battery(label, r, ua, { reResolve, potVariants } = {}) {
   let tokens;
   try {
     tokens = await mintWebPoTokens({ visitorData, videoId: VIDEO_ID });
-    console.log(`poTokens minted ${msOf(t, performance.now())}  player(videoId)=${tokens.playerRequestPoToken?.slice(0, 16)}…  streaming(visitorData)=${tokens.streamingDataPoToken?.slice(0, 16)}…`);
+    console.log(`poTokens minted ${msOf(t, performance.now())}  player(visitorData)=${tokens.playerRequestPoToken?.slice(0, 16)}…  streaming(videoId)=${tokens.streamingDataPoToken?.slice(0, 16)}…`);
   } catch (e) { console.log(`poToken mint FAILED: ${e.message}`); tokens = {}; }
 
   console.log(`\n========== WEB_REMIX video rendition (app path, preferVideo) ==========`);
-  console.log(`URL_POT=${process.env.URL_POT || "streaming"} (streaming=visitorData/app default, player=videoId, none)`);
+  console.log(`URL_POT=${process.env.URL_POT || "streaming"} (streaming=videoId/app default, player=visitorData, none)`);
   try {
     const r = await resolveAppUrl(WEB_REMIX, { cipher, tokens, cred });
     console.log(`http=${r.http} playability=${r.ps.status}${r.ps.reason ? ` (${r.ps.reason})` : ""} musicVideoType=${r.musicVideoType} progressiveFormats=${r.nProgressive} adaptive=${r.nAdaptive}`);
@@ -258,8 +258,8 @@ async function battery(label, r, ua, { reResolve, potVariants } = {}) {
             const base = u.replace(/([?&])pot=[^&]*/, "$1").replace(/[?&]$/, "");
             return {
               "no pot": base,
-              "streaming pot (app)": `${base}${base.includes("?") ? "&" : "?"}pot=${encodeURIComponent(tokens.streamingDataPoToken)}`,
-              "player pot (videoId)": `${base}${base.includes("?") ? "&" : "?"}pot=${encodeURIComponent(tokens.playerRequestPoToken)}`,
+              "streaming pot (videoId, app)": `${base}${base.includes("?") ? "&" : "?"}pot=${encodeURIComponent(tokens.streamingDataPoToken)}`,
+              "player pot (visitorData)": `${base}${base.includes("?") ? "&" : "?"}pot=${encodeURIComponent(tokens.playerRequestPoToken)}`,
             };
           },
           reResolve: async () => {

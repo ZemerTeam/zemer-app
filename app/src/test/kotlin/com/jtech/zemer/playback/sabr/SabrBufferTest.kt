@@ -198,6 +198,39 @@ class SabrBufferTest {
     }
 
     @Test
+    fun `raiseDemandTo releases a paced session when the reader waits past the drained frontier`() {
+        // Finding: a forward seek past the frontier of a session that is left to drain (LetDrain) never
+        // moved the watermark - it only advances on a served read, and the reader is waiting on an
+        // UNCOVERED byte. The paced session stayed parked and the reader waited forever.
+        val buf = buf(100)
+        buf.writeAt(0, ByteArray(50), 0, 50)             // drained [0,50)
+        val out = ByteArray(5)
+        assertEquals(5, buf.readCovered(0, out, 0, 5))   // reader played to byte 5
+        assertEquals(0, buf.readCovered(70, out, 0, 5))  // then seeks to 70: uncovered, nothing served
+        val released = java.util.concurrent.CompletableFuture<Boolean>()
+        val pacer = Thread { buf.awaitDemand(10) { false }; released.complete(true) }
+        pacer.start()
+        Thread.sleep(300)
+        assertFalse(released.isDone)                     // the hang: 45 buffered past the stale watermark
+        buf.raiseDemandTo(70)                            // the stream's LetDrain branch
+        assertTrue(released.get(3, java.util.concurrent.TimeUnit.SECONDS))
+        pacer.join(3000)
+        assertEquals(0L, buf.demandGap())                // measured from the target (uncovered)
+    }
+
+    @Test
+    fun `raiseDemandTo never moves the watermark backward`() {
+        val buf = buf(100)
+        buf.writeAt(0, ByteArray(50), 0, 50)
+        val out = ByteArray(40)
+        var pos = 0
+        while (pos < 40) { val n = buf.readCovered(pos.toLong(), out, pos, 40 - pos); if (n <= 0) break; pos += n }
+        assertEquals(10L, buf.demandGap())               // watermark 40, covered to 50
+        buf.raiseDemandTo(20)                            // behind the watermark: ignored
+        assertEquals(10L, buf.demandGap())
+    }
+
+    @Test
     fun `completeFrom serves an existing spool file read-only (the replay cache)`() {
         val f = java.io.File.createTempFile("sabr-test", ".done").apply { deleteOnExit() }
         f.writeBytes(bytes(9, 8, 7, 6))

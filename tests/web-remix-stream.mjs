@@ -3,7 +3,7 @@
 // Pipeline (identical to YTPlayerUtils.playerResponseForPlayback for the WEB_REMIX main client):
 //   1. cipher.mjs fetches the SAME base.js -> STS + sig/n (run in jsdom, byte-identical to the
 //      app's CipherWebView).
-//   2. potoken.mjs mints the SAME two tokens: player(videoId) + streaming(visitorData).
+//   2. potoken.mjs mints the SAME two tokens: player(visitorData) + streaming(videoId).
 //   3. raw /player POST to music.youtube.com, faithful to InnerTube.kt (WEB_REMIX context,
 //      X-Goog-* headers, SAPISIDHASH auth, signatureTimestamp, serviceIntegrityDimensions.poToken).
 //   4. findFormat: adaptiveFormats.filter(isAudio && isOriginal).maxBy(bitrate + webm bias).
@@ -143,8 +143,8 @@ async function resolveAppUrl(c, { cipher, tokens, cred }) {
       url = cipher.transformNParamInUrl(url);
       nUsed = url !== before;
       // URL_POT selects which token to append:
-      //   streaming (default) = visitorData-bound = the app's CURRENT behavior (reproduces the 403)
-      //   player              = videoId-bound      = the FIX
+      //   streaming (default) = videoId-bound     = the app's URL pot (drains past the 1 MiB wall)
+      //   player              = visitorData-bound = the old binding (reproduces the 403 past 1 MiB)
       //   none                = no pot
       const urlPotMode = process.env.URL_POT || "streaming";
       const urlPot = urlPotMode === "player" ? tokens?.playerRequestPoToken
@@ -239,11 +239,11 @@ async function battery(label, r, ua, { reResolve, potVariants } = {}) {
   let tokens;
   try {
     tokens = await mintWebPoTokens({ visitorData, videoId: VIDEO_ID });
-    console.log(`poTokens minted ${msOf(t, performance.now())}  player(videoId)=${tokens.playerRequestPoToken?.slice(0, 16)}…(${tokens.playerRequestPoToken?.length})  streaming(visitorData)=${tokens.streamingDataPoToken?.slice(0, 16)}…(${tokens.streamingDataPoToken?.length})`);
+    console.log(`poTokens minted ${msOf(t, performance.now())}  player(visitorData)=${tokens.playerRequestPoToken?.slice(0, 16)}…(${tokens.playerRequestPoToken?.length})  streaming(videoId)=${tokens.streamingDataPoToken?.slice(0, 16)}…(${tokens.streamingDataPoToken?.length})`);
   } catch (e) { console.log(`poToken mint FAILED: ${e.message}`); tokens = {}; }
 
   console.log(`\n========== WEB_REMIX (app main client, exact path) ==========`);
-  console.log(`URL_POT=${process.env.URL_POT || "streaming"} (streaming=visitorData/app default, player=videoId/fix, none)`);
+  console.log(`URL_POT=${process.env.URL_POT || "streaming"} (streaming=videoId/app default, player=visitorData/old 403, none)`);
   try {
     const r = await resolveAppUrl(WEB_REMIX, { cipher, tokens, cred });
     console.log(`http=${r.http} playability=${r.ps.status}${r.ps.reason ? ` (${r.ps.reason})` : ""} formats=${r.nFormats} sabr=${r.sabrUrl}`);
@@ -254,8 +254,8 @@ async function battery(label, r, ua, { reResolve, potVariants } = {}) {
           const base = u.replace(/([?&])pot=[^&]*/, "$1").replace(/[?&]$/, "");
           return {
             "no pot": base,
-            "streaming pot (app)": `${base}${base.includes("?") ? "&" : "?"}pot=${encodeURIComponent(tokens.streamingDataPoToken)}`,
-            "player pot (videoId)": `${base}${base.includes("?") ? "&" : "?"}pot=${encodeURIComponent(tokens.playerRequestPoToken)}`,
+            "streaming pot (videoId, app)": `${base}${base.includes("?") ? "&" : "?"}pot=${encodeURIComponent(tokens.streamingDataPoToken)}`,
+            "player pot (visitorData)": `${base}${base.includes("?") ? "&" : "?"}pot=${encodeURIComponent(tokens.playerRequestPoToken)}`,
           };
         },
         reResolve: async () => {

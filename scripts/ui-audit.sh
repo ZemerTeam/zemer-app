@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# UI standards audit (docs/ui/standards.md, sections 5, 7-8: strings, dialogs, theme & color).
+# UI standards audit (docs/ui/standards.md, sections 1, 5, 7-8, 11, 12: reuse, strings, dialogs, theme & color, menus, downloads).
 #
 # Ratcheting check: it FAILS only on NEW Rule 5/7/8 violations beyond the committed baseline
 # (scripts/ui-audit-baseline.tsv). The current known violations are allowlisted, so CI is green
@@ -65,6 +65,9 @@
 #                  (extensions/ContextExt.kt), which also shows the confirmation toast. Baseline 0.
 #   R21-toast      hand-rolled `Toast.makeText(...).show()` -> use Context.toast(text|resId, long)
 #                  (extensions/ContextExt.kt). Baseline 0.
+#   R27-playpause  a raw `player.togglePlayPause()` in UI code -> use PlayerConnection.playPause(), which
+#                  routes the toggle to the cast receiver while casting (the raw toggle resumes LOCAL
+#                  audio on top of a cast). Baseline 0.
 #   R22-home-shimmer (positive assertion, not a shrink-count) the Home loading skeleton is shaped like
 #                  the MUSIC home (title + card row) and is driven by music-VM state, so it MUST be
 #                  scoped to `homeTab == HomeContentTab.MUSIC` — else it paints an inaccurate skeleton
@@ -174,6 +177,10 @@ violations() {
   # and ZemerLoadingIndicator (they end in ...LoadingIndicator but are preceded by a letter).
   grep -rnE "(^|[^.A-Za-z])LoadingIndicator\(" "$UI" --include=*.kt 2>/dev/null \
     | grep -v "/theme/" | grep -v "component/MediaLoadingSpinner.kt" | sed -E 's/:.*//' | sed 's/$/\tR26-loader-bare/'
+  # R27: a raw Player.togglePlayPause() in UI code bypasses the cast routing in
+  # PlayerConnection.playPause() - while casting it resumes LOCAL audio on top of the cast. Baseline 0.
+  grep -rnE "\.togglePlayPause\(\)" "$UI" --include=*.kt 2>/dev/null \
+    | grep -v "/theme/" | sed -E 's/:.*//' | sed 's/$/\tR27-playpause/'
 }
 
 # Aggregate to "<path>\t<rule>\t<count>", sorted.
@@ -223,7 +230,7 @@ improved="$(awk -F'\t' '
 ' <(printf "%s\n" "$cur") "$BASELINE")"
 
 if [ -n "$new" ]; then
-  echo "UI audit FAILED — new Rule 5/7/8/11/12/13/14/15/16/17/18/19/20/21 violations (docs/ui/standards.md sections 1, 5, 7-8, 11, 13):"
+  echo "UI audit FAILED — new Rule 5/7/8/11/12/13/14/15/16/17/18/19/20/21/23-27 violations (docs/ui/standards.md sections 1, 5, 7-8, 11, 12):"
   echo "$new"
   echo
   echo "Route font sizes through MaterialTheme.typography (Type.kt), colors through"
@@ -240,7 +247,7 @@ if [ -n "$new" ]; then
 fi
 
 total="$(violations | grep -c .)"
-echo "UI audit passed — no new Rule 5/7/8/11/12/13/14/15/16/17/18/19/20/21 violations (baseline: $total known, only allowed to shrink)."
+echo "UI audit passed — no new Rule 5/7/8/11/12/13/14/15/16/17/18/19/20/21/23-27 violations (baseline: $total known, only allowed to shrink)."
 if [ -n "$improved" ]; then
   echo "Burned down since the baseline — tighten it with \`bash scripts/ui-audit.sh --update\`:"
   echo "$improved"

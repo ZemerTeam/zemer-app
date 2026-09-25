@@ -21,12 +21,13 @@ private const val SILENT_INSTALL_HEADS_UP_MS = 1200L
 
 /**
  * Drives an APK install from a Composable: gates the Standard installer behind
- * the "install unknown apps" permission (retrying once it is granted) and, for
- * silent installs (root) that complete in-process, schedules an app restart.
+ * the "install unknown apps" permission (retrying once it is granted) and shows
+ * the "installing…" heads-up before a silent install replaces the package.
  *
- * Shizuku finishes asynchronously via [InstallReceiver], which schedules its own
- * restart on success — so a [InstallResult.RequiresUserAction] result here does
- * not (and must not) trigger a restart.
+ * It schedules no restart itself: a root install relaunches the app by chaining
+ * `am start` onto the commit in the root shell ([AppInstaller], [AppRestarter]);
+ * Shizuku finishes asynchronously via [InstallReceiver] and does not restart (the
+ * user reopens the app).
  *
  * Both the updater settings screen and the startup update dialog use this so the
  * install behaviour stays identical across entry points.

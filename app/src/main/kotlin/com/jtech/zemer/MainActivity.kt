@@ -981,8 +981,8 @@ class MainActivity : ComponentActivity() {
                         }
 
                         // Auto-install when download completes, honoring the chosen install method.
-                        // Shared controller gates the Standard installer's permission and restarts
-                        // the app after a silent update — same behaviour as the Updater screen.
+                        // Shared controller gates the Standard installer's permission and shows the
+                        // silent-install heads-up — same behaviour as the Updater screen.
                         val (installerTypeOrdinal) = rememberPreference(InstallerTypeKey, defaultValue = InstallerType.NATIVE.ordinal)
                         val installController = rememberApkInstallController(InstallerType.fromOrdinal(installerTypeOrdinal)) { result ->
                             when (result) {
