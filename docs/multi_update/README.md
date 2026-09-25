@@ -1,78 +1,41 @@
-# Multi-method self-update — in-app APK installation
+# Multi-method self-update - in-app APK installation
 
-Hand-authored docset for Zemer's in-app updater: how a downloaded APK gets installed
-through one of several methods (Standard / Root / Shizuku), and how the app relaunches
-itself after a silent update. The feature is merged to `main`; every claim cites the file and
-symbol that proves it.
+How the in-app updater installs a downloaded APK through one of three methods (Standard / Root /
+Shizuku), and how the app comes back after a silent update. Hand-authored; the update *check* and
+*download* (stable `ghtrack.zemer.io`, nightly `nightly.zemer.io`) are covered in the `AGENTS.md`
+"in-app updater" section.
 
-## TL;DR
+## Mental model
 
-Zemer is distributed as a sideloaded APK (not through any app store), so it updates itself: it
-checks a remote endpoint for a newer version, downloads the APK, and installs it. The install step is the interesting part.
-A plain `ACTION_VIEW` hand-off to the system installer ("Standard") always works but makes
-the user tap through the OS installer UI. For users who have **root** or **Shizuku**, the
-app can instead install **silently**; root then relaunches itself, while Shizuku closes and
-is reopened by hand (its privileged process is reaped with ours, so it can't auto-restart).
-
-The install layer is a small package adapted from
-[APK-MultiUpdate](https://github.com/alltechdev/APK-MultiUpdate) (GPL-3.0), whose silent
-paths come from Aurora Store:
+Updating is **acquire** (check + download the APK to cache) then **install**; this docset covers
+install. `InstallerType` names the method, `AppInstaller` performs it, and
+`rememberApkInstallController` is the one place that calls `AppInstaller` - it gates Standard behind the
+"install unknown apps" permission and shows an "installing…" heads-up before a silent install kills the
+process. **Standard** (`ACTION_VIEW` to the system installer) always works but needs the user's taps.
+**Root** installs silently and relaunches itself by chaining `am start` onto its commit. **Shizuku**
+installs silently, finishes asynchronously through `InstallReceiver`, and does **not** auto-restart (its
+privileged process is reaped with ours), so the user reopens the app. A missing or denied privilege
+surfaces an inline error, and the user can fall back to Standard.
 
 ```
 app/src/main/kotlin/com/jtech/zemer/utils/updater/
-├── Installer.kt              # InstallerType enum (NATIVE / ROOT / SHIZUKU)
-├── AppInstaller.kt           # the install methods + availability checks
-├── InstallReceiver.kt        # PackageInstaller session callback (Shizuku)
-├── AppRestarter.kt           # relaunch the app after a silent update
+├── Installer.kt              # InstallerType (NATIVE / ROOT / SHIZUKU)
+├── AppInstaller.kt           # InstallResult + the install methods + availability checks
+├── InstallReceiver.kt        # PackageInstaller session callback (Shizuku only)
+├── AppRestarter.kt           # the am-start relaunch command (root)
 └── ApkInstallController.kt   # Compose hook shared by both install entry points
 ```
 
-The chosen method is one DataStore preference (`InstallerTypeKey`, an `InstallerType`
-ordinal). Two screens trigger an install — the Updater settings screen and the startup
-update dialog — and both go through the same `rememberApkInstallController`, so behaviour is
-identical at both entry points.
+The install layer is adapted from [APK-MultiUpdate](https://github.com/alltechdev/APK-MultiUpdate)
+(GPL-3.0), whose silent paths come from Aurora Store. Upstream's fourth method, **Dhizuku, is
+deliberately left out**: it requires `android:testOnly="true"`, which blocks normal installs of a
+distributed APK. Do not add it (or the flag) back.
 
-> Dhizuku (a fourth method in upstream APK-MultiUpdate) was deliberately **left out**: it
-> requires `android:testOnly="true"` on the manifest, which blocks normal installs of a
-> distributed APK. Dropping it also removed that constraint entirely.
+## Pages
 
-## The pages
-
-1. **[01-architecture.md](01-architecture.md)** — the pieces and the data flow from "check"
-   to "installed", where this sits relative to the two update-source checkers, and the
-   single shared install path.
-2. **[02-install-methods.md](02-install-methods.md)** — the three methods in
-   `AppInstaller`: how each installs, what it requires, the availability/permission checks,
-   and the sync-vs-async result models that matter for the restart.
-3. **[03-restart.md](03-restart.md)** — `AppRestarter`: why a silent self-update kills our
-   process, why the relaunch is scheduled through `AlarmManager`, and the two success
-   signals that trigger it.
-4. **[04-wiring.md](04-wiring.md)** — everything outside the `updater/` package: Gradle
-   dependencies, the manifest (receiver, ShizukuProvider, `overrideLibrary`), the
-   lazy `HiddenApiBypass` exemption (`AppInstaller.ensureHiddenApiBypass`, on first Shizuku
-   install), ProGuard keep rules, and the FileProvider.
-5. **[05-runbook.md](05-runbook.md)** — testing the flow on-device, the version-downgrade
-   trick, known edge cases, and where to look when an install fails.
-
-## One-paragraph mental model
-
-Updating is two stages: **acquire** (check + download the APK to cache) and **install**.
-This feature owns the install stage. `InstallerType` names how to install; `AppInstaller`
-does it; `rememberApkInstallController` is the one place that calls `AppInstaller`, gating
-the Standard method behind the "install unknown apps" permission and warning the user before
-a silent install kills the app. Root finishes synchronously (its `install()` returns
-`InstallResult.Success`) and relaunches itself by chaining `am start` onto its commit;
-Shizuku finishes asynchronously through `InstallReceiver` and does **not** auto-restart (its
-privileged process is reaped with ours), so the user reopens it. Everything degrades safely:
-a missing/denied privilege surfaces an inline error and the user can fall back to Standard.
-
-## Implementation history (the actual commits)
-
-Developed on `feat/multi-update`, now merged to `main` (the branch no longer exists):
-
-| Commit | What |
-|---|---|
-| `4880591` | the feature: `updater/` package (Native/Root/Shizuku), `InstallerTypeKey`, the Updater-screen install-method picker, manifest + Gradle + ProGuard wiring; replaced `UpdateChecker.installApk` |
-| `213b0a8` | auto-restart after silent updates (`AppRestarter`); extracted `rememberApkInstallController` so the startup dialog and Updater screen share one install path; fixed the download progress bar (dropped the unreliable standalone HEAD); `pm install-write` by path instead of a `cat` pipe; removed dead strings |
-| `de2434e`, `e523955` | relaunch via the privileged shell (`am start`) instead of a blocked AlarmManager activity start; tried/tuned the Shizuku path |
-| later | removed the Shizuku auto-restart (its remote process is reaped with ours); added a per-method "installing…" heads-up + a short delay so the silent kill is not abrupt |
+1. [01-architecture](01-architecture.md) - where install sits, the two update checkers, the shared
+   install path, the persisted method.
+2. [02-install-methods](02-install-methods.md) - each method, its requirements and result model.
+3. [03-restart](03-restart.md) - why a silent update kills us, the root relaunch, the heads-up.
+4. [04-wiring](04-wiring.md) - Gradle, manifest, the lazy hidden-API exemption, ProGuard, FileProvider.
+5. [05-runbook](05-runbook.md) - on-device testing, verification, failure table.

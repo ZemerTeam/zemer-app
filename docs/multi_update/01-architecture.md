@@ -1,81 +1,56 @@
-# 01 — Architecture and data flow
-
-## Where the install layer sits
-
-Updating has two stages. This feature owns the second one:
+# 01 - Architecture and data flow
 
 ```
-  ACQUIRE (pre-existing)                      INSTALL (this feature)
+  ACQUIRE                                      INSTALL (this docset)
 
-  check for a newer version  ->  download  ->  pick a method  ->  install  ->  (restart)
+  check  ->  download  ->  pick a method  ->  install  ->  (root relaunches itself)
 
-  UpdateChecker.checkForUpdates               ApkInstallController
-  UpdateChecker.downloadUpdate                  -> AppInstaller.install
-  (emits DownloadState.Downloaded)              (root chains its own am-start relaunch)
+  UpdateChecker.checkForUpdates                ApkInstallController
+  UpdateChecker.downloadUpdate                   -> AppInstaller.install
+  (emits DownloadState.Downloaded)
 ```
 
-The acquire stage already existed. The install stage used to be a single
-`UpdateChecker.installApk()` that did an `ACTION_VIEW` hand-off; this feature replaced it
-with the `updater/` package and a chooser.
+## The two update checkers (context)
 
-## The two update-source checkers (context, not part of this feature)
-
-Zemer has **two** independent "is there a newer version?" surfaces. Neither is changed by
-this feature; both ultimately feed an APK file into the install stage:
+Both feed an APK into the world; only `UpdateChecker` feeds the installer.
 
 | Checker | Source | Used by | File |
 |---|---|---|---|
-| `UpdateChecker` | stable: `https://ghtrack.zemer.io` (`/api`, `/changelog`, `/download`); nightly channel: `https://nightly.zemer.io/api` (SHA-pinned `downloadUrl`, size + SHA-256 verified before install) | the Updater settings screen, the startup update dialog | `utils/UpdateChecker.kt`, `utils/updater/NightlyUpdates.kt` |
-| `Updater` | Firestore doc `appUpdates/latest` (per-arch URLs) | "new version available" row in Account settings (opens the URL) | `utils/Updater.kt` |
+| `UpdateChecker` | stable `https://ghtrack.zemer.io` (`/api`, `/changelog`, `/download`); nightly `https://nightly.zemer.io/api` (SHA-pinned `downloadUrl`, size + SHA-256 verified before install) | the Updater settings screen, the startup update dialog | `utils/UpdateChecker.kt`, `utils/updater/NightlyUpdates.kt` |
+| `Updater` | Firestore `appUpdates/latest` | the daily update notification in `MainActivity` and the Account settings "new version" row - both just open the download URL | `utils/Updater.kt` |
 
-The **download-and-install** path is `UpdateChecker.downloadUpdate(context)`, which streams
-the APK to `context.cacheDir/zemer-update.apk` and emits `DownloadState.Downloaded(apkFile)`
-(`UpdateChecker.kt`). That file is what the installer consumes. The Firestore `Updater` is a
-separate browser-hand-off surface and does not flow through the installer.
+`UpdateChecker.downloadUpdate(context)` downloads to a `.part` file in `context.cacheDir`, promotes it to
+`zemer-update.apk`, and emits `DownloadState.Downloaded(apkFile)` - the file the installer consumes.
 
 ## The single shared install path
 
-Two composables start an install, and both call the same controller so they cannot drift:
-
 | Entry point | File | Trigger |
 |---|---|---|
-| Updater settings screen | `ui/screens/settings/UpdaterSettings.kt` | user taps "Install" / download completes in the dialog |
-| Startup update dialog | `MainActivity.kt` (`LaunchedEffect(downloadState)`) | a queued update auto-installs when its download completes |
+| Updater settings screen | `ui/screens/settings/UpdaterSettings.kt` | the download completing in its dialog |
+| Startup update dialog | `MainActivity.kt` (`LaunchedEffect(downloadState)`) | the download completing |
 
-Both obtain a controller from `rememberApkInstallController(installerType, onResult)`
-(`ApkInstallController.kt`) and call `controller.install(apkFile)`. The controller:
+Both get a controller from `rememberApkInstallController(installerType, onResult)` and call
+`controller.install(apkFile)`. **Add install behaviour to the controller, never to a call site** - the two
+entry points drifted when `MainActivity` called `AppInstaller` directly (a Standard install with the
+permission off failed silently and the dialog never reset). The controller:
 
-1. If the method is `NATIVE` and `canInstallPackages()` is false, launches the
-   "install unknown apps" settings intent and retries once it returns
-   (`rememberLauncherForActivityResult`).
-2. For a silent method (root/Shizuku), waits `SILENT_INSTALL_HEADS_UP_MS` so the
-   "installing…" heads-up renders before the install kills the process ([03](03-restart.md)).
-3. Calls `AppInstaller.install(context, apkFile, installerType)` on a coroutine. Root
-   relaunches itself by chaining `am start` onto its commit; Shizuku does not auto-restart.
-4. Hands the `InstallResult` back to the caller via `onResult` so each screen maps it to its
-   own UI state (`Success` → reset, `RequiresUserAction` → let the system UI take over,
-   `Error` → show the message).
+1. For `NATIVE` without `canInstallPackages()`, launches the "install unknown apps" settings intent and
+   retries once it returns.
+2. For a silent method, waits `SILENT_INSTALL_HEADS_UP_MS` so the "installing…" note renders before the
+   process dies ([03](03-restart.md)).
+3. Runs `AppInstaller.install(context, apkFile, installerType)` (exposing `isInstalling` for the dialog).
+4. Passes the `InstallResult` to `onResult`; each screen maps it (`Success` → reset, `RequiresUserAction`
+   → the system UI takes over, `Error` → show the message). It also forwards Shizuku's real outcome from
+   `InstallReceiver.events`, so a Shizuku failure shows in the dialog, not only as a toast.
 
-Before this was extracted (commit `213b0a8`), `MainActivity` called `AppInstaller.install`
-directly: it skipped the `NATIVE` permission gate and only handled `Error`, so a Standard
-install with the permission off failed silently and the dialog never reset. The shared
-controller removed that divergence.
+## The selected method
 
-## State and the selected method
+One DataStore preference, `InstallerTypeKey = intPreferencesKey("installerType")`
+(`constants/PreferenceKeys.kt`), storing an `InstallerType` **ordinal**. Read it through
+`InstallerType.fromOrdinal`, which falls back to `NATIVE` for unknown values. Because the ordinal is
+persisted, the enum is append-only ([02](02-install-methods.md)).
 
-The chosen method persists as one DataStore preference:
-
-```
-val InstallerTypeKey = intPreferencesKey("installerType")   // constants/PreferenceKeys.kt
-```
-
-It stores an `InstallerType` **ordinal**. Read it back through
-`InstallerType.fromOrdinal(ordinal)`, which falls back to `NATIVE` for any out-of-range
-value (`Installer.kt`). Because the ordinal is persisted, the enum constants are
-append-only — see [02](02-install-methods.md).
-
-The Updater screen renders the picker with the shared `ListPreference` component (a radio
-dialog), reading each option's label from `InstallerType.title`. Selecting Root or Shizuku
-runs that method's availability checks before persisting the choice; for Shizuku the
-permission is requested *after* persisting (the grant is async). Failures show inline under
-the row (`UpdaterSettings.kt`, `selectInstaller`).
+The Updater screen renders the picker with the shared `ListPreference`, labelled by
+`InstallerType.title`. `selectInstaller` runs the chosen method's availability checks (off the main
+thread) before persisting; for Shizuku it persists **before** the async permission request. Failures show
+inline under the row.

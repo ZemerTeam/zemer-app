@@ -1,70 +1,13 @@
-# YidStatus API (yidstatus.com)
+# YidStatus API
 
-Public API behind **yidstatus.com**, a second WhatsApp/Stories-style platform for Jewish/kosher creators
-(video / image / text / audio "statuses"). Much larger than JewishStatus (hundreds of creators across many
-categories). Reverse-engineered from the site's web bundle and verified against the live endpoints
-**2026-08-02**.
+The public Supabase API behind yidstatus.com (custom API domain fronting a Supabase project), as called
+by `statuses/YidStatusApi.kt` (a `keyword-feed` provider). The base URL, anon JWT and music keywords come
+from the status-sources config (see [README](README.md)); the feed path and `Origin` header are baked in.
 
-## Hosts & auth
-
-| | Value |
-|---|---|
-| API base | `https://api.yidstatus.com` (custom domain fronting Supabase project `fsinwalqhgwapevwibmd`) |
-| REST base | `https://api.yidstatus.com/rest/v1` |
-| Edge functions | `https://api.yidstatus.com/functions/v1/<name>` |
-| Media / storage | `https://fsinwalqhgwapevwibmd.supabase.co/storage/v1/object/public/status-media/...` (full URLs are returned in responses) |
-| Auth | Supabase **anon** JWT, sent as the `apikey` header |
-| Key | the platform's anon JWT (delivered by the status-sources config; not recorded here) |
-
-The key is **client-safe** (RLS-scoped anon role, read-only) and is shipped in the yidstatus public web
-bundle. It is **not** a secret. (The site also loads a *second* Supabase project,
-`hioieoplqqefurwznrol`, for its own analytics/profiles/favorites; the content lives on
-`api.yidstatus.com` only.)
-
-### CRITICAL: the feed requires an Origin header
-
-`POST /functions/v1/feed` returns `403 {"error":"Forbidden"}` unless the request carries:
+## The one call: `POST <base>/functions/v1/feed`
 
 ```
-Origin: https://yidstatus.com
-```
-
-This is a server-side check inside the edge function (confirmed: identical request with the header
-returns `200`; without it, `403`). The CORS preflight advertises
-`access-control-allow-origin: https://yidstatus.com`.
-
-**Use OkHttp, NOT HttpURLConnection.** `Origin` is a JDK/Android "restricted header" that
-`HttpURLConnection.setRequestProperty("Origin", ...)` SILENTLY DROPS (verified: the request goes out with
-no Origin and gets `403 {"error":"Forbidden"}`). OkHttp sends it. The app's `YidStatusApi` uses an OkHttp
-client for exactly this reason. It is trivially spoofable, so it works today, but treat it as fragile: the
-platform can change the allowlist, add Turnstile, or rate-limit by IP at any time. Fail soft.
-
-The plain PostgREST RPCs (below) are **not** Origin-gated; they work with just the `apikey` header.
-
-## Endpoints
-
-### 1. Creator strip - `POST /rpc/avatar_strip`
-
-A small, weighted, shuffled subset of creators for the story strip. Works with just `apikey`.
-
-```
-POST /rest/v1/rpc/avatar_strip
-apikey: <key>
-Content-Type: application/json
-
-{ "p_limit": 60 }
-```
-
-Returns an array of `{ id, name, avatar, avatar_url, color, verified }`. Useful for a lightweight creator
-list, but it does **not** include statuses and is a curated subset, so for full data prefer the feed.
-
-### 2. The feed - `POST /functions/v1/feed`  (primary)
-
-Returns EVERYTHING for a rolling window in one call: every eligible influencer plus every status in the
-last `days` days. This is the main read path.
-
-```
-POST /functions/v1/feed
+POST <base>/functions/v1/feed
 apikey: <key>
 Content-Type: application/json
 Origin: https://yidstatus.com
@@ -72,170 +15,36 @@ Origin: https://yidstatus.com
 { "days": 1, "since": null }
 ```
 
-- `days` (int): rolling window size. Cost and caps (measured 2026-08-02):
+- **`Origin` is mandatory.** The edge function returns `403 {"error":"Forbidden"}` without it, and
+  `HttpURLConnection` silently drops `Origin` (a JDK/Android restricted header) - hence the OkHttp
+  client (`yidHttpClient`). A non-2xx throws; the repository treats it as fail-soft.
+- **`days` stays at `YID_FEED_DAYS` = 1.** The feed is GLOBAL (all categories, no server-side category
+  filter), returns every status in the window in one response, and the edge function hard-errors past
+  ~15 days. `since` is always null.
+- **No per-creator endpoint.** The statuses table is not publicly readable, so a creator's posts are only
+  what the feed carried: the repository primes its posts cache from the feed and never calls a
+  per-creator fetch for a feed creator, and there is no deep "jump to date" history for YidStatus.
 
-  | days | payload | note |
-  |------|---------|------|
-  | 1 | 3.35 MB | ~2 calendar dates; 20 music creators / 42 music statuses |
-  | 7 | 19.3 MB | |
-  | 15 | 41.0 MB | last size that succeeds |
-  | 20 / 30 | error | `WORKER_RESOURCE_LIMIT` - the edge function runs out of compute |
+The app reads only the envelope's `influencers` and `statuses` arrays (`storyAds`, `placements`,
+highlights etc. are ignored).
 
-  The feed is GLOBAL (all categories) so the payload is dominated by non-music creators; there is no
-  server-side category/influencer filter. Use a **small window** (the app uses `days:1`).
-- `since` (string|null): ISO timestamp cursor for **incremental** fetches (statuses newer than `since`).
-- The site retries up to 3 times with backoff; a `4xx` is terminal.
+## Fields the app reads
 
-**No per-creator history.** There is no public endpoint that returns one creator's full history: the
-`statuses` table is anon-denied, and the admin `backfill` action returns `Unauthorized` without an admin
-session. Combined with the window cap above, this means a deep "jump to date" (months of history, like
-JewishStatus) is **not achievable** from YidStatus's public API - only the last ~1-2 days are available.
-Everything else (viewer, cube transition, seen/ring state, search, sections) reaches full parity.
+**Influencer** (`parseYidCreators`): `id`, `slug`, `name`, `avatar_url` (full URL), `category` +
+`categories` (matched against the keywords), and `paused` / `unlisted` / `review_hidden` (any true ->
+excluded).
 
-Response envelope:
+**Status** (`parseYidStatuses`): `id`, `influencer_id` (the creator linkage), `type`
+(`video`/`image`/`text` kept; `audio` and unknown dropped), `is_ad` (true -> dropped), `media_url` and
+`poster_url` (full URLs; `poster_url` is null for images), `caption` (a `text` status's body),
+`background_color`, `link_title`, `duration_seconds`, `timestamp` (ISO-8601 UTC).
 
-| Key | Type | Notes |
-|-----|------|-------|
-| `influencers` | array | All creators (see [Influencer](#influencer)). |
-| `statuses` | array | All statuses in the window; each carries `influencer_id` (see [Status](#status)). |
-| `flags` | array | `{key,value}` feature flags. |
-| `placements` | array | Ad placements. Not content. |
-| `storyAds` | array | Story ads. Not content - filter out. |
-| `highlights` / `highlightStatuses` | array | Curated highlight reels + their statuses. |
-| `channelMessages` | array | Channel messages. |
+## Music filter and grouping
 
-Group `statuses` by `influencer_id` to reconstruct per-creator stories; sort each group by `timestamp`.
+A creator is kept when any `category`/`categories` entry contains any configured keyword (substring,
+case-insensitive; `YidStatusApiTest` pins the matching with an example set). Statuses are grouped by
+`influencer_id` and sorted oldest-first per creator (the ring and resume logic assume ascending time);
+creators with no status in the window are dropped, and each kept creator's `recentPostIds` /
+`recentPostKinds` come from its grouped statuses.
 
-### 3. Reactions / telemetry (write, optional)
-
-- `POST /rpc/react_to_status` body `{sid, vis, emoji}` - react to a status.
-- `POST /rpc/record_site_event` body `{ev, sid, iid, vis, extra}` - the site's own analytics. Do not call.
-- `POST /rpc/popular_search_terms` body `{p_days, p_limit}` - search suggestions.
-
-### 4. Admin (do not use)
-
-`POST /functions/v1/admin` dispatches admin actions (`login`, `backfill`, `update`, `delete_status`,
-`group_feed`, ...) and requires an authenticated admin session. Listed only so it is not mistaken for a
-public read path. Likewise `admin-analytics`, `admin-businesses`, `admin-files`, `admin-lite`,
-`admin-settings`, `account-merge`, `signup`, `member`, `report`, `subscribe`, `reset-code`, `business`.
-
-## Data models
-
-### Influencer
-
-Full key set: `address, avatar, avatar_url, bio, categories, category, color, contact_email,
-contact_prefs, created_at, custom_links, id, kind, locations, messaging_disabled, name, paused,
-public_wa, review_hidden, search_keywords, slug, sub_locations, unlisted, verified, weight`.
-
-Fields that matter for a client:
-
-| Field | Type | Notes |
-|-------|------|-------|
-| `id` | uuid | Creator id (== `status.influencer_id`). |
-| `name` | string | Display name. |
-| `slug` | string | URL slug. |
-| `avatar_url` | string | **Full** avatar URL (Supabase storage). May be null; `avatar` holds initials as a fallback. |
-| `color` | string | Hex accent color. |
-| `verified` | bool | Verified badge. |
-| `category` / `categories` | string / string[] | Category taxonomy (see [music filter](#music-category-filter)). |
-| `kind` | string | `influencer` (201) or `business` (112). |
-| `paused` / `unlisted` / `review_hidden` | bool | **Exclude** any that are true. |
-| `weight` | number | Ranking weight. |
-
-### Status
-
-Full key set: `background_color, caption, channel_at, creator_keywords, duration_seconds, featured_at, id,
-influencer_id, is_ad, link_description, link_image_checked_at, link_image_url, link_preview, link_title,
-media_url, ocr_text, poster_url, promoted_*, reactions, seed_reactions, site_*, sponsor, summary, tags,
-text_color, text_font, timestamp, topics, type, views`.
-
-Fields that matter:
-
-| Field | Type | Notes |
-|-------|------|-------|
-| `id` | uuid | Status id. |
-| `influencer_id` | uuid | Owning creator (the linkage - the feed is global). |
-| `type` | string | `video` \| `image` \| `text` \| **`audio`**. Counts in one 7-day pull: video 5678, image 5324, text 2358, audio 20. |
-| `media_url` | string? | **Full** media URL. Null for `text`. |
-| `poster_url` | string? | **Full** thumbnail/poster URL. Present for `video`; **null for `image`** (use `media_url` as the frame). |
-| `caption` | string? | Caption; for a `text` status this holds the body text. |
-| `summary` | string? | Short summary (sometimes present alongside caption). |
-| `background_color` | string? | `#RRGGBB` for a `text` status. |
-| `text_color` / `text_font` | string? | Text-status styling. |
-| `duration_seconds` | int? | For `audio`/`video`; may be null. |
-| `timestamp` | string | ISO-8601 UTC, e.g. `2026-08-02T16:04:06+00:00`. Convert to device-local for display. |
-| `is_ad` | bool | **Exclude** when true (ads). |
-| `sponsor` | object? | Sponsor info when sponsored. |
-| `link_title` / `link_description` / `link_image_url` / `link_preview` | - | Rich link-preview data. |
-
-## Media URLs
-
-Unlike JewishStatus, media URLs come back **fully qualified** in the response (no prefixing needed), e.g.
-
-```
-avatar : https://fsinwalqhgwapevwibmd.supabase.co/storage/v1/object/public/status-media/avatar-<id>.jpg
-media  : .../status-media/status/<HASH>.mp4   (or .jpg / .ogg)
-poster : .../status-media/posters/<HASH>.jpg
-```
-
-## Music-category filter
-
-The feed is all-categories (News, Entertainment, Services, Real Estate, etc.). To keep the app kosher and
-on-topic, filter influencers to the **music** categories. Category counts in the sampled feed:
-
-| Music-relevant category | Influencers |
-|-------------------------|-------------|
-| `Music` | 15 |
-| `Singer` | 6 |
-| `Kumzits` | 2 |
-| (adjacent, decide per product) `Simcha / Events` | 5 |
-| (adjacent) `Entertainment` | 18 |
-| (adjacent) `Comedy` | 4 |
-
-Match case-insensitively against BOTH `category` and every entry of `categories` (a creator can carry
-several). Everything else (News, Services, Real Estate, Kosher Food, Business, ...) is excluded.
-
-**Shipped filter (server-driven):** the app keeps a creator whose category contains any of the
-`musicKeywords` of the `keyword-feed` provider in the status-sources config (`content.zemer.io/status-sources`,
-`statuses/StatusSourcesConfig.kt`; substring, case-insensitive) - the keyword set is not baked into the app
-(`YidStatusApiTest` pins the matching with an example set). **Comedy and general Entertainment are
-deliberately excluded** (owner decision - the row is music-only). JewishStatus needs no such filter (its
-configured source categories are already music-scoped server-side).
-
-## How the app uses it
-
-`com.jtech.zemer.statuses.YidStatusApi`:
-
-- `fetchYidStatusFeed(base, key, keywords)` (`days` defaults to `YID_FEED_DAYS` = 1; base/key/keywords
-  from the status-sources config) - one `POST /functions/v1/feed` via **OkHttp** (for the `Origin` header),
-  reduced to music creators + their statuses (oldest-first per creator), ads/audio/hidden filtered.
-- Merged with JewishStatus in `StatusesRepository` (`mergeStatusCreators`, dedup by normalized name) and
-  parsed under unit test in `app/src/test/.../statuses/YidStatusApiTest.kt`.
-- App-side architecture (fail-soft isolation, viewer, content filter, live-refresh) is in the repo
-  `AGENTS.md` "Music Status" section.
-
-## Differences from JewishStatus (for a shared client)
-
-- **One global feed** vs per-creator pagination. Fetch once, group by `influencer_id`, sort by
-  `timestamp`. There is no `recent_post_ids` - derive the ring/segment count from the grouped statuses.
-- **Full media URLs** vs relative paths.
-- **`audio` status type** exists (no JewishStatus analog) - handle or skip.
-- **`is_ad` / `storyAds` / `placements`** must be filtered for kosher content.
-- **Origin header** is mandatory for the feed (see above).
-- **Timestamps** field is `timestamp` (not `posted_at`), still UTC.
-- **Category filter** is required (the platform is not music-only).
-
-## Verification snippet
-
-Confirmed working (2026-08-02):
-
-```
-curl -s -X POST "https://api.yidstatus.com/functions/v1/feed" \
-  -H "content-type: application/json" \
-  -H "apikey: <anon-key>" \
-  -H "Origin: https://yidstatus.com" \
-  -d '{"days":1,"since":null}'
-```
-
-Returns `{ influencers:[...], statuses:[...], flags, placements, storyAds, highlights, highlightStatuses,
-channelMessages }`. Omitting the `Origin` header returns `403 {"error":"Forbidden"}`.
+Tests: `YidStatusApiTest`.

@@ -1,102 +1,73 @@
-# 02 — The install methods
+# 02 - The install methods
 
-All three live in `AppInstaller` (`utils/updater/AppInstaller.kt`), behind one entry point:
+All live in `AppInstaller` (`utils/updater/AppInstaller.kt`) behind
+`suspend fun install(context, apkFile, installerType): InstallResult` (runs on `Dispatchers.IO`).
 
-```kotlin
-suspend fun install(context, apkFile, installerType): InstallResult   // on Dispatchers.IO
-```
-
-`InstallResult` (same file) is a three-state sealed class:
-
-| Result | Meaning |
+| `InstallResult` | Meaning |
 |---|---|
-| `Success` | installed silently, in-process, right now (root) |
-| `RequiresUserAction` | the OS / a session callback will finish it (Standard launches the system installer; Shizuku commits a session and waits for the broadcast) |
-| `Error(message)` | failed; `message` is a localized, user-facing string |
+| `Success` | installed silently and synchronously (root) |
+| `RequiresUserAction` | something else finishes it: the system installer UI (Standard) or the session broadcast (Shizuku) |
+| `Error(message)` | failed; `message` is user-facing |
 
-`InstallerType` (`Installer.kt`) is the enum of methods. Its ordinal is persisted in
-DataStore, so **constants are append-only — never reorder or remove** (an
-`InstallerTest` pins the ordinals):
+`InstallerType` (`Installer.kt`) is `NATIVE`, `ROOT`, `SHIZUKU`, each with a `title` and an optional
+`installingNote` heads-up (`installing_note_restart` for root, `installing_note_reopen` for Shizuku,
+none for Standard). **The ordinal is persisted, so constants are append-only - never reorder or remove**
+(`InstallerTest` pins the ordinals).
 
-```kotlin
-enum class InstallerType(
-    @StringRes val title: Int,
-    @StringRes val installingNote: Int?,   // "installing…" heads-up; null = none
-) {
-    NATIVE(R.string.installer_native_title, installingNote = null),                           // ordinal 0
-    ROOT(R.string.installer_root_title, installingNote = R.string.installing_note_restart),   // ordinal 1
-    SHIZUKU(R.string.installer_shizuku_title, installingNote = R.string.installing_note_reopen); // ordinal 2
-    companion object { fun fromOrdinal(ordinal: Int): InstallerType = entries.getOrElse(ordinal) { NATIVE } }
-}
-```
+## NATIVE (Standard) - `installNative`
 
-## NATIVE (Standard) — `installNative`
+`Intent.ACTION_VIEW` with a `FileProvider` URI (authority `${packageName}.FileProvider`) and
+`FLAG_GRANT_READ_URI_PERMISSION`; returns `RequiresUserAction`. Works on every device, but needs the
+"install unknown apps" permission, which the controller gates (`canInstallPackages` /
+`getInstallPermissionIntent`). The default and the fallback.
 
-Hands the APK to the system package installer via `Intent.ACTION_VIEW` with a
-`FileProvider` content URI (authority `${packageName}.FileProvider`) and
-`FLAG_GRANT_READ_URI_PERMISSION`. Returns `RequiresUserAction` — the user confirms in the OS
-installer UI. **Requirements: none** (every device has it), but needs the
-"install unknown apps" permission, which the controller gates and requests
-(`canInstallPackages` / `getInstallPermissionIntent`). This is the default and the fallback.
+## ROOT - `installRoot`
 
-## ROOT — `installRoot`
-
-Drives `pm` over a root shell (libsu, `com.topjohnwu.superuser.Shell`):
+`pm` over a libsu root shell (`com.topjohnwu.superuser.Shell`):
 
 ```
-pm install-create -i <pkg> --user 0 -r -S <size>     → parse the session id
-pm install-write  -S <size> <sid> <name> <apk-path>  → pm reads the file by path
-pm install-commit <sid>
+pm install-create -i <pkg> --user 0 -r -S <size>          → session id (parseSessionId)
+pm install-write -S <size> <sid> base.apk "<apk-path>"    → pm reads the file by path
+pm install-commit <sid> && sleep 1 && am start -n <component>
 ```
 
-Synchronous: on a successful commit it returns `Success` (which is what triggers the restart
-from the controller). The session id is parsed by `parseSessionId(output)` — a small pure
-helper (first integer in the first output line) that `InstallerTest` covers.
-**Requirements: a rooted device.** `hasRootAccess()` calls `Shell.getShell().isRoot`, which
-**opens the root shell and shows the Magisk/SuperSU grant prompt** — so it is only ever
-called when the user actively selects Root, never to populate UI, and always off the main
-thread (`Dispatchers.IO`).
+- Pass the APK **path** to `install-write`, never pipe it (`cat apk | pm install-write` copies the whole
+  APK through a shell pipe); the split name is a fixed `base.apk`, so no file name is interpolated into
+  the shell command.
+- The relaunch is chained onto the commit ([03](03-restart.md)); a successful commit returns `Success`.
+- `parseSessionId(output)` (first integer in the first output line) is pure and covered by `InstallerTest`.
+- `hasRootAccess()` (`Shell.getShell().isRoot`) **opens the root shell and shows the Magisk/SuperSU grant
+  prompt**, so it is called only when the user selects Root, and always off the main thread.
 
-> The `install-write` step passes the APK **path** to `pm` rather than piping it
-> (`cat apk | pm install-write`). Piping copies the whole APK through a shell pipe; the path
-> form lets `pm` read the file directly (fixed in `213b0a8`).
+## SHIZUKU - `installShizuku`
 
-## SHIZUKU — `installShizuku`
+The hidden `PackageInstaller` APIs through a Shizuku-wrapped binder, with `Refine.unsafeCast` bridging the
+hidden `*Hidden` types:
 
-Uses the hidden `PackageInstaller` APIs through a Shizuku-wrapped binder, with
-`rikka.tools.refine` (`Refine.unsafeCast`) bridging the hidden `*Hidden` types:
+1. Fail fast unless `isShizukuAlive()` (`Shizuku.pingBinder()`) and `hasShizukuPermission()`; apply the
+   hidden-API exemption lazily ([04](04-wiring.md)).
+2. `IPackageManager` from `SystemServiceHelper.getSystemService("package")` in a `ShizukuBinderWrapper`;
+   build a `PackageInstallerHidden` (constructor differs from API 31).
+3. Create a `MODE_FULL_INSTALL` session with `INSTALL_REPLACE_EXISTING`, write + fsync the APK,
+   `commit()` with a `PendingIntent` to `InstallReceiver`.
 
-1. `IPackageManager` via `SystemServiceHelper.getSystemService("package")` wrapped in a
-   `ShizukuBinderWrapper`.
-2. Create a `MODE_FULL_INSTALL` session with `INSTALL_REPLACE_EXISTING`.
-3. Write the APK into the session, `commit()` with a `PendingIntent` targeting
-   `InstallReceiver`.
+Returns `RequiresUserAction` immediately; the real outcome is the broadcast. A `NoSuchMethodError` (the
+hidden constructors changed on newer Android) is caught and surfaced as `shizuku_not_supported_version`,
+not a crash. Selection also checks `hasShizukuOrSui(context)` (the Shizuku package is installed).
 
-Returns `RequiresUserAction` immediately — the **real** outcome arrives asynchronously as a
-`PackageInstaller` status broadcast to `InstallReceiver` (see below and
-[03](03-restart.md)). **Requirements: Shizuku installed, running, and permission granted.**
-Three guards back this: `hasShizukuOrSui(context)` (package present),
-`isShizukuAlive()` (`Shizuku.pingBinder()`), `hasShizukuPermission()`
-(`Shizuku.checkSelfPermission()`). The hidden-constructor signatures changed in Android 16+,
-so a `NoSuchMethodError` is caught specifically and surfaced as
-`shizuku_not_supported_version` rather than a crash.
+### The Shizuku permission grant (`UpdaterSettings.kt`)
 
-### The Shizuku permission dance (`UpdaterSettings.kt`)
+The grant is asynchronous. The screen registers a `Shizuku.OnRequestPermissionResultListener` in a
+`DisposableEffect` (grant → persist, denial → `shizuku_permission_required`). `selectInstaller` checks
+installed → alive, **persists the selection**, then calls `Shizuku.requestPermission(0)` only if the
+permission is missing - so leaving the screen mid-prompt cannot lose the choice, and `installShizuku`
+re-validates the permission at install time.
 
-Selecting Shizuku may need a permission grant, which is asynchronous. The screen registers a
-`Shizuku.OnRequestPermissionResultListener` in a `DisposableEffect`; on grant it persists the
-choice, on denial it shows `shizuku_permission_required`. `selectInstaller` checks
-installed → alive, **persists the selection**, then calls `Shizuku.requestPermission(0)` only
-when the permission is missing. Persisting before the async grant means leaving the Updater
-screen mid-prompt can't lose the choice; the install path re-validates the permission
-(see [05](05-runbook.md)).
+## `InstallReceiver` - the Shizuku session callback
 
-## InstallReceiver — the Shizuku session callback
-
-`InstallReceiver` (`utils/updater/InstallReceiver.kt`, action
-`com.jtech.zemer.INSTALL_STATUS`, registered in the manifest) handles the
-`PackageInstaller` session status — **only the Shizuku path routes through it**:
+Action `InstallReceiver.ACTION_INSTALL_STATUS` (`com.jtech.zemer.INSTALL_STATUS`), manifest-registered;
+only the Shizuku path uses it:
 
 - `STATUS_PENDING_USER_ACTION` → launch the confirm intent.
-- `STATUS_SUCCESS` → success toast (Shizuku does **not** auto-restart — see [03](03-restart.md)).
-- any `STATUS_FAILURE*` → localized failure toast.
+- `STATUS_SUCCESS` → emit `Success` on `events` + success toast (no auto-restart).
+- `STATUS_FAILURE*` → emit `Error(message)` on `events` + failure toast.
