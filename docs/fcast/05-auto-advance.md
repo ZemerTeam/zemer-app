@@ -1,176 +1,116 @@
-# 05 — End-of-track auto-advance
+# 05 - Auto-advance, error recovery, relay, idle watchdog
 
-The FCast SDK does not advance our queue when a track finishes — it just plays the
-one URL we loaded. So `CastController` (owned by the process-scoped `MusicService`)
-detects end-of-track on the receiver and drives the next load. Because no single
-SDK signal is reliable across receivers, **three independent detectors** feed one
-debounced advance.
+The SDK plays the one URL it was given and never advances our queue, so `CastController` (process-scoped,
+owned by `MusicService`) detects end-of-track on the receiver and drives the next load. No single signal
+is reliable across receivers (the FCast Receiver Android app, for one, ends a track with
+`PLAYING → PAUSED` at `pos == duration` and sends neither `END` nor `IDLE`), so **three detectors** feed
+one debounced `advanceRemoteAfterEnd()`.
 
-All timing thresholds are pure and unit-tested in `CastAutoAdvance`:
+## Thresholds (`CastAutoAdvance`, pure, `CastAutoAdvanceTest`)
 
-```kotlin
-object CastAutoAdvance {
-    const val STALL_END_EPSILON_SEC  = 3.0     // a stalled clock this close to the end == finished
-    const val STALL_SILENCE_MS       = 4000L   // remote clock silent at least this long == stalled
-    const val ADVANCE_DEBOUNCE_MS    = 8000L   // detectors + a real transition can't double-advance
-    const val IDLE_END_WINDOW_SEC    = 10.0    // IDLE-from-PLAYING within this window of the end == finished
-    const val IDLE_END_TAIL_FRACTION = 0.1     // …or within this proportional tail (whichever is larger)
-    const val PAUSED_END_EPSILON_SEC = 2.0     // PAUSED-from-PLAYING this close to the end == finished (tight!)
+| Constant | Value | Meaning |
+| --- | --- | --- |
+| `STALL_END_EPSILON_SEC` | 3.0 | a stalled clock this close to the end = finished |
+| `STALL_SILENCE_MS` | 4000 | clock silent this long = stalled |
+| `ADVANCE_DEBOUNCE_MS` | 8000 | detectors + a real transition cannot double-advance |
+| `IDLE_END_WINDOW_SEC` / `IDLE_END_TAIL_FRACTION` | 10.0 / 0.1 | IDLE within max(window, tail × duration) of the end = finished |
+| `PAUSED_END_EPSILON_SEC` | 2.0 | PAUSED this close to the end = finished (tight) |
 
-    fun nearEnd(durationSec, lastPositionSec, epsilonSec) =
-        durationSec > 0.0 && lastPositionSec >= durationSec - epsilonSec
-    // Generous on purpose — a coarse FCast clock can stop reporting several seconds before the real end.
-    fun finishedNearEnd(durationSec, lastPositionSec) = durationSec > 0.0 &&
-        lastPositionSec >= durationSec - maxOf(IDLE_END_WINDOW_SEC, durationSec * IDLE_END_TAIL_FRACTION)
-    // Chromecast zeroes the clock just BEFORE IDLE — judge the IDLE edge by the last real (> 0) report.
-    fun endEdgePositionSec(reportedSec, lastProgressSec) =
-        if (reportedSec > 0.0) reportedSec else lastProgressSec
-    fun debouncePassed(nowMs, lastTransitionMs) = nowMs - lastTransitionMs > ADVANCE_DEBOUNCE_MS
-    fun stalled(stalledForMs) = stalledForMs > STALL_SILENCE_MS
-}
-```
+Helpers: `nearEnd`, `finishedNearEnd` (the generous IDLE window), `endEdgePositionSec`, `debouncePassed`,
+`stalled`.
 
-> **The remote clock is coarse.** FCast receivers report position only ~1 Hz and
-> sometimes stop a few seconds before the real end, which both makes the seek bar
-> choppy and starves the end detectors. `FCastDiscoveryHandler.interpolatedRemoteTimeSec()`
-> extrapolates the last report by the elapsed wall-clock while PLAYING (capped at
-> the duration). The seek bar and the **stall** detector read the interpolated clock
-> so playback looks smooth and a clock that stopped short still reaches the end; the
-> **IDLE** detector instead uses the generous `finishedNearEnd` window.
+**The remote clock is coarse** (~1 Hz reports, sometimes stopping seconds before the end).
+`FCastDiscoveryHandler.interpolatedRemoteTimeSec()` extrapolates the last report by elapsed wall-clock
+while PLAYING, capped at the duration, and returns the raw value until a real duration arrives (so a
+just-loaded track's bar does not creep up from 0). The seek bar and the stall detector use it.
 
-## The detectors
+## The detectors (all in `CastController`)
 
-All live in `CastController` and call the shared `advanceRemoteAfterEnd()`. No single
-signal is reliable across receivers — verified on real hardware, the **FCast Receiver
-Android** app ends a track by going `PLAYING → PAUSED` at `pos == duration`, sending
-*no* `END` event and *never* `IDLE` — so end-of-track is caught three ways:
+1. **SDK `END` event** → `onTrackEnded` → `advanceRemoteAfterEnd()`.
+2. **End state after PLAYING** (a `remotePlaybackState` collector):
+   - `IDLE` with `finishedNearEnd(duration, endEdgePositionSec(remoteTime, lastProgressSec))`. Chromecast
+     resets the reported clock to 0 just **before** reporting IDLE at end-of-track, so the edge is judged
+     by `lastProgressSec` (the last report > 0) when the current one is 0 - judging the raw 0 froze the
+     queue at track end. `lastProgressSec` is reset on every load, connect and disconnect, so it never
+     carries a previous track's near-end position.
+   - `PAUSED` with `nearEnd(…, PAUSED_END_EPSILON_SEC)`: the tight window separates a receiver's
+     end-of-track auto-pause from a real mid-track pause. That PAUSED must also not clear the play intent
+     ([03](03-discovery-and-connection.md)), and `advanceRemoteAfterEnd` re-asserts `shouldPlay = true`.
+3. **Stall poll** - a 1 Hz loop, running only while connected (`collectLatest` on the connection state):
+   fires when the clock has been silent past `STALL_SILENCE_MS`, the **interpolated** clock is `nearEnd(…,
+   STALL_END_EPSILON_SEC)`, **and** the receiver is not PAUSED. The paused carve-out is essential: a pause
+   freezes the clock exactly like a stall, and pausing near the end would otherwise auto-skip.
 
-1. **SDK `END` event** — `DevEventHandler.mediaEvent(END)` → `onTrackEnded` →
-   `advanceRemoteAfterEnd()`. The cleanest signal when the receiver sends it.
+`advanceRemoteAfterEnd()` runs on the controller's scope (the service Main scope): if the debounce has
+passed it sets `shouldPlay = true`, then either replays the current item for repeat-one (seek to 0 +
+`triggerRemoteLoad`) or `seekToNext()`s locally (the transition reloads the receiver). The debounce
+timestamp is stamped here **only when it actually advances** (a no-op report on the last track must not
+burn the window); repeat-one needs this stamp because its within-item seek fires no media-item transition.
+Everything is serialised on one thread, and SDK-thread callbacks hop onto it before touching Media3.
 
-2. **End state from PLAYING** — a collector on `remotePlaybackState`. Two end signals:
-   - `PLAYING → IDLE` while `finishedNearEnd(dur, pos)` — a **generous** window (a
-     coarse clock stops reporting early). IDLE far from the end is a stop/error.
-     The position judged is `endEdgePositionSec(pos, handler.lastProgressSec)`:
-     **Chromecast-protocol receivers reset the reported clock to 0 a few ms
-     BEFORE reporting IDLE** at end-of-track, so on the IDLE edge the current
-     report already reads 0 and only the last real (> 0) progress report still
-     holds the true end position — without the fallback the queue froze at track
-     end on Chromecast (and the stall detector can't recover: once IDLE the
-     interpolated clock stays at 0). FCast receivers go IDLE with the clock still
-     near the end, so for them the fallback is the identity.
-     `FCastDiscoveryHandler.lastProgressSec` is reset on every content (re)load,
-     connect, and disconnect, so it can never carry a previous track's near-end
-     position into a new one; a mid-track stop on the TV still does not advance.
-   - `PLAYING → PAUSED` while `nearEnd(dur, pos, PAUSED_END_EPSILON_SEC)` — a **tight**
-     window (2 s). Some receivers auto-pause at `pos == duration` to signal the end;
-     the tight epsilon distinguishes that from a deliberate mid-track pause (which must
-     not advance). A PAUSED report at the very end also must **not** flip the play
-     intent off (`FCastDiscoveryHandler.playbackStateChanged`), or the next track would
-     load paused; and `advanceRemoteAfterEnd` re-asserts `shouldPlay = true`.
+## Tracker resets
 
-3. **Stall poll** — a 1 Hz loop (only while casting) that fires when the remote
-   clock has been silent past `STALL_SILENCE_MS` and `nearEnd(…,
-   STALL_END_EPSILON_SEC)` **of the interpolated clock**, **and** the receiver is
-   not deliberately paused (`!CastPlayback.isPaused(...)`). The paused carve-out is
-   essential: pausing freezes the clock exactly like a stall, and without it pausing
-   near the end would silently auto-skip the track.
+- The `remoteTime` collector records `lastRemotePosition` **unconditionally** (a load resets the clock
+  backward to the resume position, which must replace the previous track's near-end value) and stamps
+  `lastRemoteTimeUpdateAt` (stall silence) and, on a forward move > `PROGRESS_EPSILON_SEC`,
+  `lastForwardProgressAt` (idle watchdog).
+- `triggerRemoteLoad` resets the trackers **and the visible clock** (`remoteTime`/`remoteDuration`)
+  synchronously - `handler.load()` only runs after the async stream resolve, and until then the new song
+  would show the old track's full bar. It also cancels any in-flight resolve for a previous track, so a
+  slow earlier resolve cannot land on the receiver after a faster later one; a failed resolve clears
+  `remoteLoadedMediaId` and reports `FCast: could not resolve a stream URL for <id>`.
+- `onDisconnect` resets every tracker, the debounce, `remoteLoadedMediaId` and the error counters, so a
+  later connect does not auto-skip on stale state.
 
-```kotlin
-fun advanceRemoteAfterEnd() = scope.launch {
-    if (!CastAutoAdvance.debouncePassed(now(), lastTransitionTime)) return@launch
-    // Stamp the debounce only when we actually advance (a no-op end report on the last track must not
-    // burn the window against a later real event).
-    if (player.repeatMode == REPEAT_MODE_ONE) { lastTransitionTime = now(); player.seekTo(currentIndex, 0); triggerRemoteLoad(currentItem) }
-    else if (canSkipNext()) { lastTransitionTime = now(); player.seekToNext() }  // → onMediaItemTransition → reload
-}
-```
+## Errors are not ends: the recovery ladder
 
-## Why a debounce, on one thread
+The detectors only advance near the end, so a receiver whose stream fetch fails mid-track would sit
+silent. `DevEventHandler.playbackError` → `CastController.onRemotePlaybackError` escalates per the pure
+`CastErrorRecovery.actionForAttempt` (`CastErrorRecoveryTest`):
 
-The three detectors can fire near-simultaneously, and a real media-item
-transition also bumps `lastTransitionTime`. `advanceRemoteAfterEnd` runs on the
-connection scope (main thread) and does the debounce check + the timestamp stamp
-there — serialised on one thread — so the detectors (and a genuine transition)
-can't double-advance and skip a track. The **repeat-one** path matters here: it
-replays the same index, which fires *no* media-item transition of its own, so the
-debounce stamp must happen inside `advanceRemoteAfterEnd` (it does), or the
-window would never refresh.
+1. **RELOAD** - re-send the receiver's URL, resuming at `lastProgressSec` (a fresh connection re-rolls
+   its network path).
+2. **RESOLVE_FRESH** - `MusicService.invalidateStreamCache`, re-resolve, reload (still resuming).
+3. **DIRECT_URL** - only when the failing URL is a relay URL (`castStreamRelay.servesUrl`): load the raw
+   googlevideo URL, in case the receiver cannot reach the relay at all. Per-track, non-sticky.
+4. **ADVANCE** - skip the track, capped at `MAX_CONSECUTIVE_ERROR_ADVANCES` consecutive abandoned tracks
+   so a dead network cannot machine-gun the queue.
+5. **GIVE_UP** - when the cap is hit or there is nowhere to go (repeat-one / no next item): report,
+   toast `cast_playback_failed`, disconnect.
 
-The `END` callback arrives on a native SDK thread; `advanceRemoteAfterEnd`
-marshals onto the main thread because Media3's player must be touched on its
-application thread.
+Bookkeeping: callbacks within `ERROR_BURST_WINDOW_MS` count as one failure; each media-item transition
+resets the per-track attempt count but **not** the abandoned-tracks streak; a remote clock report at or
+past `PROGRESS_RESET_SEC` (10 s) resets both; connect (`markRemoteLoaded`) and disconnect reset everything.
 
-## The stall trackers and the position reset
+## The phone-side stream relay (`CastStreamRelay`)
 
-The IDLE detector compares against `lastRemotePosition`; the stall detector against
-`lastRemoteTimeUpdateAt` (silence) plus the interpolated clock. Both trackers are
-maintained by a collector on `remoteTime`:
+googlevideo binds a stream URL to the network identity that minted it and 403s other identities past
+the first free MiB, so a receiver behind CGNAT IPv4 or on another IPv6 prefix cannot fetch the phone's
+URLs directly. The relay is a minimal LAN HTTP server that proxies the stream, so the fetching identity
+is the minting one by construction.
 
-```kotlin
-service.discoveryHandler.remoteTime.collect { time ->
-    lastRemotePosition = time                 // unconditional — see below
-    lastRemoteTimeUpdateAt = System.currentTimeMillis()
-}
-```
+- `MusicService.relayedStreamUrl(mediaId, rawUrl)` returns `http://<phone>:<port>/stream/<token>` (random
+  port, a random 128-bit token per media id), or `rawUrl` when the relay cannot serve (no receiver
+  address, no route, server failed to start; logged as "Relay unavailable", and a thrown error is
+  reported as `Cast relay URL`). `CastConnector` and `CastController` both use it.
+- The server binds the wildcard address; the URL host is re-derived per URL by a UDP route probe toward
+  `receiverAddress`, which `CastConnector` sets from `CastConnect.relayTargetAddress` (IPv4 preferred -
+  mDNS IPv6 entries are often link-local and cannot be a URL host).
+- A client `HEAD` becomes an upstream `GET` (googlevideo HEAD false-negatives). An upstream 403/expiry or
+  a mid-body drop is re-resolved (forced fresh on the last attempt) and spliced at the exact byte offset
+  the receiver already has. The pure HTTP/Range math is `CastRelayProtocol`.
+- While a relay URL is out, `CastSessionLocks` holds a `WIFI_MODE_FULL_HIGH_PERF` lock + a partial wake
+  lock (a screen-off phone would otherwise starve the receiver).
+- `onDisconnect` stops the relay and locks via `MusicService.stopCastRelay()` after `RELAY_STOP_GRACE_MS`
+  and only if still disconnected: a device switch's deferred `Disconnected` lands after the new connect
+  has handed out a relay URL.
 
-`lastRemotePosition` is recorded **unconditionally** (not only when `time > 0`).
-`connectTo()` / `load()` reset `remoteTime` to `0` for a new track, and that `0`
-*must* clear the previous track's near-end position. Otherwise a fresh connect —
-or a **device switch**, whose old-device `Disconnected` is intentionally ignored
-so the `onDisconnect` reset never runs — leaves `lastRemotePosition` stale near
-the end, and the stall detector compares it against the *new* track's duration and
-spuriously auto-skips it. Recording `0` is safe because `nearEnd(dur, 0, eps)` is
-false for any real-length track. This property is pinned by a regression test in
-`CastAutoAdvanceTest` ("resetting last position to zero clears a stale near-end").
+## The idle watchdog
 
-On disconnect, `CastController`'s `onDisconnect` handler also resets
-`lastRemotePosition`, `lastRemoteTimeUpdateAt`, `lastTransitionTime`, and
-`remoteLoadedMediaId` — so a later reconnect/new track doesn't auto-skip on stale
-near-end state.
-
-`triggerRemoteLoad` also resets the **visible** remote clock (`remoteTime` /
-`remoteDuration` → 0) *synchronously*, not just in `handler.load()` which runs after
-the async stream resolve. Without it, when the queue advances the UI switches to the
-new song immediately while the remote clock still reads the previous track's near-end
-position/duration — a full progress bar that then drops to 0. And
-`interpolatedRemoteTimeSec()` returns the raw value (no extrapolation) until a real
-duration arrives, so the bar doesn't creep up from 0 on the just-loaded track.
-
-## Errors are not ends: the receiver-error recovery ladder
-
-The three detectors deliberately advance only *near the end* — a mid-track stop or error must
-never skip a track the user is listening to. That leaves a gap: when the **receiver's own fetch
-of the stream URL fails** (googlevideo refuses its connection — see the symptom table in
-[07](07-testing-and-troubleshooting.md)), the track dies at an arbitrary position and no end
-detector can ever fire. Historically the error was swallowed (report-only) and the session sat
-silent — indistinguishable from auto-advance breaking.
-
-`DevEventHandler.playbackError` now drives `CastController.onRemotePlaybackError`, which
-escalates per the pure, unit-tested `CastErrorRecovery` ladder:
-
-1. **RELOAD** — re-send the URL the receiver already had, resuming from `lastProgressSec`
-   (a fresh receiver connection re-rolls its network path; a track that died minutes in
-   picks up where it stopped, not from 0).
-2. **RESOLVE_FRESH** — drop the cached URL (`MusicService.invalidateStreamCache`), re-resolve,
-   reload (still resuming).
-3. **ADVANCE** — abandon the track and let the queue continue, **capped** at
-   `MAX_CONSECUTIVE_ERROR_ADVANCES` consecutively abandoned tracks so a dead network can't
-   machine-gun the whole queue. With repeat-one or no next item there is nowhere to go, so the
-   ladder **gives up** instead (a toast + non-fatal; never an endless replay loop).
-
-Bookkeeping that keeps the ladder honest: error callbacks within `ERROR_BURST_WINDOW_MS` count
-as one failure (a broken pipeline can emit several); each media-item transition resets the
-per-track attempt count (every track gets a fresh ladder) but **not** the abandoned-tracks
-streak; real playback progress (`PROGRESS_RESET_SEC` of remote clock) resets both; and
-connect/disconnect reset everything.
-
-## Advance survives the Activity being destroyed
-
-All three detectors and the reload live in `CastController`, owned by the
-process-scoped `MusicService` (not the Activity-scoped `PlayerConnection`). So a
-cast session keeps advancing through its queue even when the Activity is destroyed
-mid-cast. `MusicService.onMediaItemTransition` drives the single reload owner
-(`CastController.onMediaItemTransition`), so there is exactly one reload per track
-change — no double-load. (Earlier the control plane lived in `PlayerConnection`,
-which made auto-advance stop once the Activity went away; that limitation is gone.)
+A session can hang with nothing playing and never tear down (a receiver paused and abandoned, or cut off
+while its socket lingers), holding the relay, locks and foreground service. The stall poll also asks
+`CastIdleWatchdog.shouldEndIdleSession(state, idleForMs)`, where `idleForMs` is time since
+`lastForwardProgressAt` (reset by real progress, a fresh load/connect, and a resume to PLAYING):
+`PAUSED_IDLE_TIMEOUT_MS` (20 min) while paused, `STALLED_IDLE_TIMEOUT_MS` (3 min) otherwise. A hit runs
+`endIdleSession()`: toast `cast_session_ended_idle` and `disconnect()`, which recovers the local player
+and stops the relay.

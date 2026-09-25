@@ -6,7 +6,7 @@ Zemer is a "Kosher" YouTube Music client for Android (Kotlin, Jetpack Compose, M
 
 1. Pull the latest `main` before starting, to minimize merge conflicts.
 2. Commit messages follow `type(scope): short description` (e.g. `fix(player): skip HEAD validation for WEB_REMIX`, `feat(ui): add history button`); the scope is optional.
-3. User-facing strings live in two default-English files, `app/src/main/res/values/strings.xml` and `app/src/main/res/values/metrolist_strings.xml` - **both are editable**. (The old "never touch `strings.xml`" rule was a Metrolist-fork holdover, retired now that the app no longer tracks Metrolist upstream; its dead strings were removed and the dead-resource ratchet baseline emptied.) Do **not** edit the translated files under `values-iw/` (`strings.xml` and `metrolist_strings.xml`) - other locales are managed separately.
+3. User-facing strings live in two default-English files, `app/src/main/res/values/strings.xml` and `app/src/main/res/values/metrolist_strings.xml` - **both are editable** (the old Metrolist-fork "never touch `strings.xml`" rule is retired). Do **not** edit the translated files under `values-iw/` - other locales are managed separately.
 4. Database schema changes (`app/.../db/MusicDatabase.kt` + entities) require a versioned Room migration and are high-risk - confirm with a human before changing the schema.
 5. Don't rename the `com.metrolist.*` library namespace, and don't bump the app version - version bumps are a release-team decision.
 6. Follow Kotlin/Android best practices; prioritize performance, battery, and maintainability.
@@ -20,2047 +20,993 @@ Zemer is a "Kosher" YouTube Music client for Android (Kotlin, Jetpack Compose, M
 
 ## Engineering rules (non-negotiable)
 
-- **Regression tests are required** for every behavioral change or bug fix wherever a test does not demand heavy new infrastructure (plain JVM/unit tests, Robolectric, or the `tests/` streaming harness for stream/cipher/poToken work). "It builds" and "I watched it work once" are not regression protection. If a fix genuinely cannot be tested without heavy new infrastructure, say so explicitly in the change description instead of skipping silently.
-- **Keep code modular.** No new god files: split by responsibility (screen scaffolding vs. business logic vs. data access). New logic goes behind small, single-purpose functions/classes - not appended to `MainActivity.kt`, `MusicService.kt`, or other existing giants; shrink them when touching them (`OnboardingScreen.kt` was one such giant and is now split into per-step files under `ui/screens/onboarding/` - keep it that way).
+- **Regression tests are required** for every behavioral change or bug fix wherever a test does not demand heavy new infrastructure (plain JVM unit tests over pure logic or fakes, or the `tests/` streaming harness for stream/cipher/poToken work; the project has no Robolectric). "It builds" and "I watched it work once" are not regression protection. If a fix genuinely cannot be tested without heavy new infrastructure, say so explicitly in the change description instead of skipping silently.
+- **Keep code modular.** No new god files: split by responsibility (screen scaffolding vs. business logic vs. data access). New logic goes behind small, single-purpose functions/classes - not appended to `MainActivity.kt`, `MusicService.kt`, or other existing giants; shrink them when touching them (onboarding steps live as per-step files under `ui/screens/onboarding/` - keep it that way).
 - **Keep it professional.** Code must pass the bar of an external staff-engineer review: layering respected (UI does not run database/network calls inline), errors handled rather than swallowed, user-facing strings localized, no copy-pasted near-duplicates, no dead code left behind.
 
 ## Build & run
 
-- **JDK 21**, `compileSdk`/`targetSdk` 36, `minSdk` 26. The app ships `arm64-v8a` + `armeabi-v7a` ABIs (for bundled dependency native libs only - the app has no NDK build or C/C++ of its own since the bento4 removal). There are no product flavors.
+- **JDK 21**, `compileSdk`/`targetSdk` 36, `minSdk` 26. Ships `arm64-v8a` + `armeabi-v7a` ABIs (for bundled dependency native libs only - the app has no NDK build or C/C++ of its own). No product flavors.
 - `./gradlew :app:assembleDebug` - debug APK at `app/build/outputs/apk/debug/app-debug.apk`.
 - `./gradlew :app:assembleRelease` - release APK. **Build BOTH after any change**: release runs R8 (`isMinifyEnabled = true`) and catches shrink/keep-rule breakage that debug never will.
-- Submodules are required: `git submodule update --init --recursive` (`cipher/`). There is NO native code: metadata embedding is pure Kotlin (`utils/mp4/Mp4MetadataWriter`, `utils/ogg/OggOpusTagger`, with framework `AudioRemux` for defragment/rewrap) - the old bento4 NDK build is gone, and audio downloads may keep Opus (itag 251, saved as tagged `.ogg` on API 29+) instead of being forced to AAC/m4a.
-- Install to a connected device: `adb install -r app/build/outputs/apk/debug/app-debug.apk`. Stream resolution logs under logcat tag `YTPlayerUtils` (also `PoTokenWebView`, `Zemer_CipherFnExtract`).
-- CI: `.github/workflows/release-build.yml` builds a signed release on push to `main` / PRs (skips `docs/**`, `tests/**`, `**.md`); keystore + `google-services.json` come from base64 secrets.
+- Submodules are required: `git submodule update --init --recursive` (`cipher/`). Download metadata embedding is pure Kotlin (`utils/mp4/Mp4MetadataWriter`, `utils/ogg/OggOpusTagger`, framework-based `utils/mp4/AudioRemux`); audio downloads may keep Opus (itag 251, saved as tagged `.ogg` on API 29+) - see §The download system.
+- Install: `adb install -r app/build/outputs/apk/debug/app-debug.apk`. Stream resolution logs under logcat tag `YTPlayerUtils` (also `PoTokenWebView`, `Zemer_CipherFnExtract`).
+- CI: `.github/workflows/release-build.yml` builds a signed release on push to `main` / PRs to `main` (skipped for changes only under its `paths-ignore` - docs, `tests/`, unit tests, scripts, `.github/`, `*.md`, …); keystore + `google-services.json` come from base64 secrets.
 
 ## Architecture & the danger zones
 
 ### The streaming pipeline (the core; where things break)
 
 `app/.../utils/YTPlayerUtils.kt` `playerResponseForPlayback()` is the heart of the app. It:
-1. Tries `WEB_REMIX` (main client), then the `STREAM_FALLBACK_CLIENTS` list - exactly `VISIONOS (1.02)` → `VISIONOS_0_1` (the old config as its second chance) → `WEB_CREATOR` → `TVHTML5_SIMPLY` - enable-state settable per client family in the Stream Sources setting (whose displayed order the array must keep matching). The 2026-08-15 validation pass (whole-song drains via `tests/client-fulldownload.mjs`, yt-dlp-master-exact configs, on-device confirmation) **removed every proven-dead client**: the ANDROID_VR family - the pre-1.65 variants (version-keyed “confirm you’re not a bot” gate) then, 2026-08-25, the last-living 1.65.10 eureka build itself (resolves a URL but 403s after 0 bytes on a whole-song drain), MOBILE/ANDROID (HTTP 400 with auth, SABR-only without), WEB-as-stream-fallback (SABR-only; the def stays for InnerTube next/transcript), IOS/IPADOS (403 past the 1-MiB wall), ANDROID_CREATOR, TVHTML5_SIMPLY_EMBEDDED_PLAYER (server-killed), and the 7.x TVHTML5 itself (SABR-only; the "TVHTML5" toggle now governs TVHTML5_SIMPLY). Retired configs + verdicts live in `tests/clients-retired.mjs`. `MWEB` was REMOVED (2026-09) from both the DIRECT chain and the SABR roster: it is attestation-walled on gated content on BOTH transports (progressive 403 at the 1-MiB wall; SABR STREAM_PROTECTION_STATUS=2 after a ~28% free window) and only ever served ungated videos the other clients already cover. See `tests/MWEB-INVESTIGATION.md`.
+1. Tries `WEB_REMIX` (main client), then `STREAM_FALLBACK_CLIENTS` - exactly `VISIONOS` (1.02) → `VISIONOS_0_1` (the previous config as second chance) → `WEB_CREATOR` → `TVHTML5_SIMPLY` (governed by the "TVHTML5" toggle), each family enable-able in the Stream Sources setting, whose displayed order the `ALL_FALLBACK_CLIENTS` array must keep matching. Every other client was removed after whole-song drains (`tests/client-fulldownload.mjs`) proved it dead (ANDROID_VR family, MOBILE/ANDROID, WEB as a stream fallback - its def stays for InnerTube next/transcript, IOS/IPADOS, ANDROID_CREATOR, TVHTML5_SIMPLY_EMBEDDED_PLAYER, 7.x TVHTML5, MWEB); retired configs + verdicts live in `tests/clients-retired.mjs` (MWEB: `tests/MWEB-INVESTIGATION.md`). Don't re-add one without a passing whole-song drain.
 2. For web clients, deciphers the `signatureCipher` (sig + n-transform) via the **`cipher` submodule**, then appends a BotGuard `pot=` token.
 3. Validates, then hands the URL to ExoPlayer in `MusicService`.
 
-Two hard-won facts that govern this area - always verify against the live CDN via `tests/`, never reason from convention (the convention was wrong here):
-- **googlevideo serves the first 1 MiB of a stream free, then 403s every new connection** unless the URL's `&pot=` is bound to the **videoId** (not visitorData). Clients whose attestation the web poToken can't satisfy (IOS/IPADOS and MWEB - all three since removed for this reason) 403 past the wall under every binding.
-- **`validateStatus` does a HEAD that false-negatives** (403 on URLs that GET fine), so WEB_REMIX intentionally skips it.
+Two hard-won facts that govern this area - always verify against the live CDN via `tests/`, never reason from convention:
+- **googlevideo serves the first 1 MiB of a stream free, then 403s every new connection** unless the URL's `&pot=` is bound to the **videoId** (not visitorData). Clients whose attestation the web poToken can't satisfy (the reason IOS/IPADOS/MWEB were removed) 403 past the wall under every binding.
+- **`validateStatus` does a HEAD that false-negatives** (403 on URLs that GET fine), so WEB_REMIX streaming intentionally skips it.
 
 ### RELAY playback mode (`playback/relay/` - the filtered-device bypass)
 
-An **opt-in, login-less** mode for devices whose kosher filter blocks `music.youtube.com` / `googlevideo.com`.
-Discovery already rides `*.zemer.io`, so only playback breaks behind a filter; RELAY moves **only the media
-source** onto the whitelisted relay host `stream.zemer.io`. Full contract + the app↔server thread live in
-`handoff-docs/zemer-app-filtered-playback-relay-request.md`. The rules that must not regress:
+An **opt-in, login-less** mode for devices whose kosher filter blocks `music.youtube.com` / `googlevideo.com`: discovery already rides `*.zemer.io`, so RELAY moves **only the media source** onto the whitelisted relay host `stream.zemer.io`. Contract + app↔server thread: the handoff doc `zemer-app-filtered-playback-relay-request.md`. Rules that must not regress:
 
-- **One flag, default off, DIRECT is untouched.** `PlaybackModeKey` → `constants/PlaybackMode` (`DIRECT`/
-  `RELAY`), default `DIRECT`. Every relay branch is gated on it; a normal Google/anonymous login runs zero
-  relay code. **Isolation is the whole point - never let a relay change touch the DIRECT path.**
-- **The seam is `MusicService`.** `createDataSourceFactory()` (DIRECT) is unchanged; a per-open dispatcher
-  (`playbackDataSourceFactory`) picks the separate, **cache-free** `RelayDataSourceFactory` only when the
-  flag is on. `relayModeNow` mirrors the flag but is seeded **null** and resolved with a one-time
-  synchronous DataStore read on the first open, so a relay user's cold-start play is never mis-routed to
-  DIRECT. Both factories share **`resolveDownloadedFileUri`** (the DIRECT local-file logic extracted to a
-  method): a downloaded song plays from disk, decided once at position 0, with self-repair + `recoverSong`
-  + video-mode nudge - so relay never mid-track-switches (the 1f48d89 class of bug).
-- **`playback/relay/` holds the pure/isolated pieces:** `RelayStream` (URL builder - `/stream?v=` audio,
-  `&kind=video` 360p mp4, `/download?v=`), `RelayDownload` (container-sniff → extension + HTTP-status
-  classification, unit-tested), `RelayDataSourceFactory` (the isolated factory). Keep logic here, not in the
-  giants.
-- **Onboarding + gating.** The login gate has a third option **"I have a filter"** (login-less: sets
-  `RELAY`, no cookie). `MainActivity`'s gate must NOT bounce a relay session (it derives login + relay from
-  one DataStore snapshot via `produceState`). The redirect decision is the pure, tested
-  `ui/screens/LoginGateRedirect`: a **null route means `NavHost` has not set the graph yet** and the effect
-  must NOT navigate (Navigation throws "Cannot navigate to login_gate. Navigation graph has not been set" -
-  a warm start / config-change recreate delivers the DataStore snapshot before the graph exists, and that
-  crash-looped launch); the effect is keyed on the route, so it re-runs on the first real one. A **normal login globally resets `RELAY`→`DIRECT`** in
-  `App.kt` (from ANY entry point), and the **Settings toggle + the nav-drawer Account entry are hidden when
-  not login-less** (relay is accountless). These gates key off the cookie's `SAPISID` (true for anon too),
-  the codebase's standard "has a session" idiom.
-- **Downloads** pull `/download` (m4a/itag140 → embeds cover art like a normal download; the relay may fall
-  back to Opus/webm, which the sniff saves as `.opus` since MediaStore.Audio rejects `.webm`), verify
-  completeness against `Content-Length`, and play offline from the local file. **Video** re-uses the normal
-  `VideoModeLogic` path pointing at the relay's 360p `&kind=video`; an audio-only id 404s → revert to audio.
-- **The song-details sheet stays YouTube-free AND source-opaque in relay** (`ui/utils/ShowMediaInfo.kt`):
-  `getMediaInfo()` is an InnerTube call whose Views/Likes/Dislikes/Subscribers/Description are YouTube-sourced,
-  so it is **not requested** when `relayMode` (not merely hidden if a filtered device happens to fail the
-  call - an unfiltered relay session would otherwise show YouTube stats). Relay also has no local
-  `FormatEntity`, so the whole **Information** section is built into a list and rendered only when non-empty
-  (`informationItems.isNotEmpty()`) - in relay it is empty, so the section title and rows are omitted
-  entirely. The relay sheet shows only General (title/artists/media-id from the local `song`); it never
-  surfaces a "playback source" / relay row - the mode is deliberately opaque about how it resolves playback.
-- **Relay device counting + debug exclusion (two mutually-exclusive headers by build type).** On every
-  RELAY media request - `/stream` (audio and the `&kind=video` variant; a default request property on the
-  isolated relay OkHttp factory) and `/download` - the app sends exactly one of:
-  - **Release:** `x-zemer-device: <RelayDeviceIdKey>` (`RelayDeviceId.HEADER`) - a per-install random UUID
-    **separate** from the zemer-stats `TrackingDeviceIdKey`. The relay pairs it with the request's
-    filter-egress IP to count distinct devices per content-filter (Gentech/Techloq/…); the pairing is a
-    filter-choice fact, relay-only, and never joined to the PII-free telemetry. `RelayDeviceId.get*` return
-    the id only in release.
-  - **Debug:** `x-zemer-debug: 1` (`RelayStream.DEBUG_HEADER`) - the relay serves the bytes but does NOT
-    count the request, so debug streaming never inflates the relay gauge (`RelayDeviceId.get*` return null
-    in debug, so no id is sent then).
-  Both are default request properties on the relay OkHttp factory (playback) / the `/download` request, so
-  they ride relay hosts only and never leak to googlevideo or DIRECT. The header is the only per-device
-  relay signal: zemer-stats stores no IP, so telemetry alone cannot attribute a device to a filter.
-- **Errors** surface the contracted copy (404 "not available", 502/503 "try again"); the relay's egress pool
-  is server-side, so a transient 502 is retried, not the app's bug.
-- **The relay PLAYBACK OkHttpClient carries generous timeouts, NOT OkHttp's default 10s**
-  (`RelayDataSourceFactory`): the cache-free relay streams fresh over the same slow rotating-proxy egress as
-  downloads, so the 10s default throws `SocketTimeoutException` mid-stream on a hiccup or slow fresh resolve
-  → player error → stop, recurring per track in the background (the "keeps stopping" bug). Matched to the
-  download client (connect 30s / read 60s) so a slow proxy buffers instead of erroring. Relatedly,
-  `onPlayerError` reads `AutoSkipNextOnErrorKey` from a synchronous `@Volatile` mirror (like `relayModeNow`),
-  never a main-thread blocking DataStore read, so a relay error burst can't ANR the main thread.
-- **Streaming is still the danger zone:** any change here is proven with `tests/` (the DIRECT resolver
-  refactor was), and app↔relay contract changes travel as handoff-doc edits, never as guesses.
+- **One flag, default off, DIRECT is untouched.** `PlaybackModeKey` → `constants/PlaybackMode` (`DIRECT`/`RELAY`), default `DIRECT`. Every relay branch is gated on it; a normal login runs zero relay code. **Never let a relay change touch the DIRECT path.**
+- **The seam is `MusicService`.** `createDataSourceFactory()` (DIRECT) is unchanged; the per-open `playbackDataSourceFactory` (a `RoutingDataSource`) picks the separate, **cache-free** `RelayDataSourceFactory` only when the flag is on. `relayModeNow` mirrors the flag but is seeded **null** and resolved with a one-time synchronous DataStore read on the first open, so a relay user's cold-start play is never mis-routed to DIRECT. Both factories share **`resolveDownloadedFileUri`**: a downloaded song plays from disk, decided once at position 0, with self-repair + `recoverSong` + video-mode nudge - so relay never switches source mid-track.
+- **`playback/relay/` holds the pure/isolated pieces:** `RelayStream` (URL builder - `/stream?v=` audio, `&kind=video` 360p mp4, `/download?v=`), `RelayDownload` (container sniff → extension + HTTP-status classification, unit-tested), `RelayDeviceId`, `RelayDataSourceFactory`. Keep logic here, not in the giants.
+- **Onboarding + gating.** The login gate's third option **"I have a filter"** is login-less (sets `RELAY`, no cookie). `MainActivity`'s gate must NOT bounce a relay session (it derives login + relay from one DataStore snapshot via `produceState`). The redirect decision is the pure, tested `ui/screens/LoginGateRedirect`: a **null route means `NavHost` has not set the graph yet** and the effect must NOT navigate (Navigation throws "Navigation graph has not been set" - a warm start / recreate delivers the snapshot before the graph exists, which crash-looped launch); the effect is keyed on the route so it re-runs on the first real one. A **normal login globally resets `RELAY`→`DIRECT`** in `App.kt` (from ANY entry point), the **Settings relay toggle is hidden for any SAPISID session** (`cookieHasSession()` - true for anon too, the standard "has a session" idiom), and the **nav-drawer Account entry is hidden while in RELAY** (relay is accountless; that gate keys off `PlaybackModeKey`).
+- **Downloads** pull `/download` (m4a → embeds cover art like a normal download; an Opus/webm fallback is saved as `.opus` since MediaStore.Audio rejects `.webm`), verify completeness against `Content-Length`, and play offline from the local file. **Video** reuses the normal `VideoModeLogic` path pointing at `&kind=video`; an audio-only id 404s → revert to audio.
+- **The song-details sheet stays YouTube-free AND source-opaque in relay** (`ui/utils/ShowMediaInfo.kt`): the InnerTube `getMediaInfo()` call is **not requested** when `relayMode` (not merely hidden on failure - an unfiltered relay session would otherwise show YouTube stats), and the **Information** section renders only when `informationItems.isNotEmpty()` (empty in relay - no local `FormatEntity`). The sheet shows only General (title/artists/media-id) and never a "playback source"/relay row.
+- **Relay device counting (two mutually-exclusive headers by build type)** on every RELAY media request (`/stream`, incl. `&kind=video`, and `/download`), as default request properties of the relay OkHttp factory / the `/download` request, so they never reach googlevideo or DIRECT:
+  - **Release:** `x-zemer-device: <RelayDeviceIdKey>` (`RelayDeviceId.HEADER`) - a per-install random UUID **separate** from the telemetry `TrackingDeviceIdKey`; the relay pairs it with the filter-egress IP to count devices per content filter, and it is never joined to telemetry. It is the only per-device relay signal (zemer-stats stores no IP).
+  - **Debug:** `x-zemer-debug: 1` (`RelayStream.DEBUG_HEADER`) - served but not counted; `RelayDeviceId.get*` return null in debug so no id is sent.
+- **Errors** surface the contracted copy (404 "not available", 502/503 "try again"); a relay download retries a 502/503, and a relay playback error skips to the next track (never halts the queue, whatever `AutoSkipNextOnErrorKey` says).
+- **The relay playback OkHttpClient keeps generous timeouts (connect 30s / read 60s; the relay download client reads for 3 min), never OkHttp's default 10s** - cache-free relay streams over a slow rotating-proxy egress, and the default threw `SocketTimeoutException` mid-stream (the "keeps stopping" bug). `onPlayerError` reads `AutoSkipNextOnErrorKey` from a synchronous `@Volatile` mirror, never a main-thread blocking DataStore read, so a relay error burst can't ANR.
+- **Streaming is still the danger zone:** prove changes with `tests/`; app↔relay contract changes travel as handoff-doc edits, never as guesses.
 
 ### SABR playback (`playback/sabr/` - the experimental UMP transport; opt-in, OFF by default)
 
-An alternative to progressive stream URLs: YouTube has migrated several clients OFF progressive (the
-`formats[].url` is a ~1-MiB preview stub) and serves the real media over the **SABR/UMP** protocol at
-`serverAbrStreamingUrl` - a POST-a-`VideoPlaybackAbrRequest`, parse-a-UMP-response, repeat dance. This is
-the fallback for when progressive gets walled for the app's own clients too. **Fully isolated exactly like
-RELAY** - every SABR branch is gated behind the `StreamSabrKey` toggle; with it off the DIRECT path is
-byte-for-byte unchanged. The engine is a faithful Kotlin port of the proven Node reference
-(`tests/sabr-stream.mjs`), and the pure protocol core is JVM-tested. Rules that must not regress:
+The alternative to progressive URLs for clients YouTube moved to SABR/UMP (`serverAbrStreamingUrl`: POST a `VideoPlaybackAbrRequest`, parse a UMP response, repeat). A Kotlin port of `tests/sabr-stream.mjs`, **isolated exactly like RELAY**: every branch is gated on `StreamSabrKey`; with it off DIRECT is byte-for-byte unchanged. **Full detail (protocol, field numbers, engine, integration, video, downloads, harness): `docs/sabr/README.md`** - read it before touching this package. Rules that must not regress:
 
-- **The engine is pure + testable, isolated in `playback/sabr/`:** `SabrProto` (protobuf wire codec),
-  `SabrUmp` (UMP frame parser - the custom leading-bits varint, NOT the protobuf one; the MEDIA part's
-  header-id PREFIX is that UMP varint too - `SabrMessages.mediaHeaderId` must never use the protobuf
-  read, the encodings agree only below 128), `SabrMessages`
-  (request builder + response parsers; field numbers pinned to the reference; a SEEKED session's range
-  echo anchors at its own first segment, never (0,1)), `SabrSession` (the continuation state machine -
-  seek start + demand pacing; a PLAYBACK session is `restartable` so it NEVER marks the shared buffer on
-  its own failure - the stream owns the terminal error, else a dying session poisons the buffer the next
-  seek-restart reuses), `SabrSeekLogic` (the PURE, shared audio+video seek-restart decision), `SabrProtection` (the PURE
-  attestation-cap detector), `SabrBuffer` (DISK-backed positional reassembly - spool file, never a
-  heap array, so a multi-hour episode or a 2160p track can't OOM; serves any COVERED region, not just
-  a prefix; REFUSES an out-of-range contentLength at construction), `SabrSpool` (the spool dir + the
-  persistent replay cache), `SabrAudioStream` (registry-owned lifetime + the session ORCHESTRATION:
-  covered reads serve from the spool, near-frontier reads catch up, far/backward reads SEEK-RESTART
-  the session at the estimated playerTimeMs - all proven live in tests/sabr-seek.mjs; playback drains
-  are DEMAND-PACED so a skip stops the spend, and the server session survives the idle gaps),
-  `SabrDataSource` (the ExoPlayer `DataSource`). Honesty rule: an INCOMPLETE drain marks the buffer
-  ERRORED, never complete - the reader still serves every reassembled byte first, then surfaces a real
-  player error at the gap (markComplete silently truncated the track); and every stream-destroy path
-  MARKS its buffers so a parked reader is always woken (never an infinite buffering hang). Regression
-  tests: `SabrProtoTest` / `SabrUmpTest` / `SabrMessagesTest` / `SabrBufferTest` /
-  `SabrStreamLifecycleTest` / `SabrVideoRungPickTest` / `SabrSeekLogicTest` / `SabrSpoolTest` /
-  `SabrAudioPickTest` / `SabrProtectionTest`.
-- **Reassembly is by ABSOLUTE byte offset, never sequential append** (`SabrSession` writes each segment at
-  its `startRange`, `SabrBuffer` tracks a contiguous-from-0 watermark). Sequential append corrupted the
-  container, which made the extractor report a garbage duration -> `getBufferedPercentage` overflow ->
-  crash. Keep the positional write (`SabrBufferTest` pins out-of-order writes reassembling byte-exact).
-- **Seek-restart + pacing correctness (`SabrSeekLogic`, `SabrBuffer.resetDemandFrom`):** a seek to an
-  uncovered byte cancels the session and cold-starts one at the estimated `playerTimeMs`. Rules that must
-  not regress (all in `SabrSeekLogicTest`): a session that landed AT OR BEFORE the target is left to DRAIN
-  FORWARD, never restarted (re-issuing the same linear estimate only cancels the one session making
-  progress -> the old restart-loop-to-error); only a session that landed PAST the target widens the margin
-  and re-aims; an unknown `durationMs` estimates 0 (a from-0 drain that then drains forward), never an
-  endless restart-at-0. And the demand-pacing gate is re-anchored to the seek target on every restart
-  (`resetDemandFrom`) - it otherwise paces against the stale pre-seek watermark, so on a track larger than
-  the ~8 MiB ahead-window the fresh session blocked before its first POST and the seek died after the
-  restart budget. `SabrBuffer.writeAt` CLAMPS a final segment that overshoots contentLength to the declared
-  length (writes the in-range prefix) instead of dropping it whole (which left the tail forever uncovered).
-- **`CastAwarePlayer.getBufferedPercentage` is crash-safe** (double math, clamped 0..100, guards
-  TIME_UNSET/zero/NaN). media3's default throws `IllegalArgumentException: Out of range` on a pathological
-  duration/position, and the session polls it on every info change INCLUDING restore - one bad value would
-  crash-loop the app on launch with no recovery short of clearing data. Never let a buffered-percentage
-  read crash the session, for any source. This is a general hardening, not SABR-specific.
-- **The resolver is a roster of SABR-USABLE clients only** (`SabrPlayerResolver`): WEB_REMIX (main),
-  VISIONOS, TVHTML5_SIMPLY - each toggleable (`StreamSabr{WebRemix,VisionOS,TVHTML5}Key`),
-  tried in that order, first-working wins. Only clients validated to deliver a WHOLE song over SABR with
-  the app's pot (`tests/sabr-clients.mjs`) are offered; ANDROID_VR/IOS/IPADOS/WEB_CREATOR are throttled to
-  ~60s on most content and are NOT in the roster. Reuses the app's `/player`, the `PoTokenGenerator`
-  WebView pot, and the `CipherDeobfuscator` n-transform. The pick mirrors DIRECT: bitrate weighted by the
-  quality preference with the opus/webm bonus, and `opusAllowed=false` for a COMPATIBLE / pre-API-29
-  DOWNLOAD restricts to AAC (DIRECT's `downloadOpusOk` parity). On the playback path `resolve` rethrows a
-  network-class failure (`classifyErrors=true`) so `MusicService` maps it to a
-  `NETWORK_CONNECTION_FAILED` `PlaybackException` and `waitOnNetworkError` fires instead of the queue
-  skipping on a flaky network. A client whose pot can't satisfy stream protection (MWEB/IOS-class)
-  is served a free window then only `STREAM_PROTECTION_STATUS>=2` with no media; `SabrProtection`
-  detects the sustained cap and the session bails FAST with an `attestation-capped` reason so the stall
-  fallback moves to a client that can attest. MWEB was REMOVED from the roster for exactly this (walled on
-  gated content on both transports); the guard remains for any future gated client — see
-  `tests/MWEB-INVESTIGATION.md`.
-- **Web clients cipher the SABR url, direct clients don't:** WEB_REMIX/TVHTML5_SIMPLY have a CIPHERED
-  `serverAbrStreamingUrl` - its `n` is n-transformed (the key unlock that made the web family usable) and
-  the videoId-bound pot is appended as `&pot=`; VISIONOS is a direct client (identity transform, no
-  url-pot). The streamerContext poToken is the session (visitorData-bound) token for ALL of them. Decode
-  the pot tolerantly (standard `+/` OR url-safe `-_`) - the app's `PoTokenGenerator` emits standard base64.
-- **The seam is `MusicService`** (RELAY pattern): a per-open `sabrDataSourceFactory` (a `ResolvingDataSource`
-  whose callback runBlocks `SabrPlayerResolver.resolve`) is chosen only when `StreamSabrKey` is on; it
-  persists a `FormatEntity` (streamClient = e.g. `WEB_REMIX (SABR)`, and the response's `loudnessDb` -
-  audio normalization works under SABR and a SABR play never nulls what DIRECT stored) so the song-details
-  sheet shows the SABR client + format (`ShowMediaInfo` strips the ` (SABR)` suffix so a web SABR client
-  still resolves its player hash; VISIONOS SABR stays N/A - no cipher). A downloaded file still plays from
-  disk - the SABR upstream is wrapped in `DefaultDataSource.Factory` (RELAY pattern) so the local
-  `content://` uri routes to the platform sources (`SabrDataSource` accepts nothing but `sabr://`). The
-  factory is chosen by a `RoutingDataSource` that decides at `open()` (where the dataSpec key is known):
-  a DIRECT `video:`/`videoaudio:` rendition key ALWAYS routes to the DIRECT factory even under SABR (SABR
-  video mode uses `sabrvideo://`/`sabraudio://` URIs, never these keys, so the audio resolver must never
-  receive one), and the SABR flag is read from the `sabrModeNow` mirror, not a per-open blocking read. A
-  fresh SABR resolve also runs `recoverSong` (DIRECT parity) so a SABR play of a not-yet-in-DB song
-  records history/stats instead of the listen-end Event insert silently failing its foreign key.
-  **Audio stream lifetime is registry-owned, NEVER per DataSource open** (the video lesson applied to
-  audio): `SabrStreamRegistry` holds the id's live `SabrAudioStream`; a seek's close→reopen (and a
-  repeat-one replay) reuses it - no second /player + poToken, no re-drain from byte 0, no duplicate
-  FormatEntity/watch-time reseed (the resolver callback returns the `sabr://` uri straight away for a
-  usable live stream). Streams end only on registry replace / evict (small cap: current + gapless-next)
-  / remove / the `MusicService.onDestroy` clear (both registries). Replays ride TWO caches (DIRECT
-  parity): the persistent `SabrSpool` REPLAY cache (a complete drain is promoted on destroy; a later
-  play - hours/sessions later - serves entirely from disk, zero network; a failed spool replay evicts
-  its entry; a re-drain at a DIFFERENT itag evicts the stale-itag `.done` sibling on promote, and prune
-  only deletes a `.meta` that still points at the file it is evicting, so an id's live replay is never
-  stranded) and the `SabrPlayerResolver` 45 min resolve cache (songUrlCache parity, playback-only; a
-  failed stream invalidates). Stats hold on EVERY path: a fresh resolve seeds the reporter live, a
-  spool replay rides the reporter's metadata-fetch fallback (DIRECT cached-play behavior), an OFFLINE
-  replay is captured by the reporter's offline branch -> the deferred stats queue (the reporter gates
-  only RELAY/cast, never SABR). A stalling client is recorded per-id (`recordStall`, fed by the
-  sessions' onIncomplete) and deprioritized on the next resolve - the roster fallback a successful
-  /player otherwise never gives.
-- **Downloads run over SABR too** (`MediaStoreDownloadManager`, mirroring the RELAY branch): when SABR mode
-  is on, `sabrAudioMode` nulls `playbackData` and pulls
-  the whole file via `SabrStreamResolver.download` (runs a `SabrSession` to completion, writes the byte-exact
-  reassembled audio, returns null → the attempt retries on an INCOMPLETE drain so a capped/truncated stream
-  is never saved; resolves with `register=false` so a download NEVER touches the playback registry). Both
-  SABR drains run under `runInterruptible` (a cancelled download Job interrupts the in-flight OkHttp call
-  immediately) and report progress through the throttled `sabrProgressReporter` bridge - never a frozen,
-  uncancellable ring. The null-playbackData tail is shared with relay: container sniffed, duration from the
-  file, `isVideo` false. DIRECT/relay downloads untouched.
-- **innertube exposes the SABR inputs additively:** `StreamingData.serverAbrStreamingUrl` +
-  `PlayerConfig.mediaCommonConfig.mediaUstreamerRequestConfig.videoPlaybackUstreamerConfig` (defaulted null,
-  ignored where absent).
-- **Video over SABR (dual-track, quality-pinnable)** - one SABR stream carries video + audio interleaved,
-  and the exact video itag is PINNABLE via `preferredVideoFormatId` = field 17 (proven in
-  `tests/sabr-video.mjs`: request itag 133/134/135/136/137 -> server serves exactly that; the progressive
-  quality ladder maps onto SABR, so we pin avc1 720p over the server's av01 default). The reliable
-  video+audio roster is IDENTICAL to the audio roster (`tests/sabr-video-clients.mjs`). Engine:
-  `SabrMessages.abrRequestVideo` (bitfield 0, fields 16+17, per-track ranges; `MediaHeader.itag` routes
-  each MEDIA), `SabrVideoSession` (drains video+audio into two `SabrBuffer`s), `SabrVideoStream`/`Registry`/
-  `SabrVideoDataSource` (ONE shared session -> two DataSources for a `MergingMediaSource`; stream lifetime
-  is EXPLICIT - registry remove/replace only, hooked into VideoModeController.clearState - NEVER tied to
-  DataSource open/close, whose seek-triggered close->reopen gap otherwise kills the session mid-play),
-  `SabrVideoResolver` (dual-format resolve, field-17 pin, cipher n-transform; reuses the DIRECT
-  `VideoQualityLogic.rungs` ladder and returns it + the pinned rung). Wiring (all `StreamSabrKey`-gated,
-  RELAY priority, DIRECT untouched): a `sabrvideo://` URI in `createMediaSourceFactory` builds the merge
-  from the isolated SABR DataSources; `VideoModeController.enterVideoModeSabr` resolves async then swaps to
-  an item keyed `video:<id>:q<itag>` (exit/own-swap machinery + distinct-per-rung) with a `sabrvideo://<id>`
-  URI (merge routing). **The resolve returns a READY, UNREGISTERED stream; the controller installs it in
-  the registry only at the swap COMMIT on the main thread, after the stillOurs guard** - an IO-thread put
-  destroyed the currently-playing stream before the guard could veto, and the abandoned branch then parked
-  playback on dead buffers (destroy() marking the buffers is the second half of that fix). Position +
-  playWhenReady are captured AT COMMIT, never before the seconds-long resolve (stale values rewound
-  playback and force-resumed over a user pause). SABR pins an exact itag, so it HAS a live quality
-  switcher (unlike RELAY): the
-  resolver returns the ladder (minus progressive + undecodable rungs), the controller publishes it, and a
-  pick re-resolves the dual-track session at the new target (`setVideoQuality`/`downgradeForStall` share
-  `resolveAndSwapSabr`); AUTO caps at 720p. SABR video
-  DOWNLOADS are wired too (`MediaStoreDownloadManager` `sabrVideoMode`): the dual-track session drains to
-  two temp files and remuxes on-device (`VideoMuxer`), like a DIRECT adaptive download - with DIRECT's
-  download gates (`pickRung(downloadable=true)`: remux-capable rungs only - no av01, webm/vp9 only on
-  API 29+ - and a CONTAINER-MATCHED audio partner, mp4/avc→AAC / webm/vp9→Opus), so an explicit
-  high-quality pick can never drain hundreds of MB into a deterministic INCOMPATIBLE mux. The SABR
-  DataSources fire `transferEnded()` only after `transferStarted()` (a MergingMediaSource sibling teardown
-  mid-open otherwise NPEs media3's bandwidth meter -> "Source error"). Full detail: `docs/sabr/README.md` sec 9.
-- **Full DIRECT parity (not one feature missing).** SABR hits googlevideo like DIRECT, so every DIRECT
-  feature is wired: (1) STATS/VIEWS/WATCH TIME - the resolve seeds `watchTimeReporter.onTrackingResolved`
-  (no second /player) and every SABR media POST is stamped with the listen's watch-time cpn
-  (`MusicService.sabrCpnFor` -> `SabrConfig.cpn`/`SabrVideoConfig.cpn` in `prepared()`), DIRECT's stampCpn
-  CDN correlation, proven CDN-safe by the harness `CPN=` knob; `Tracker.onStreamResolved` attributes the
-  client + player hash; (2) AUDIO QUALITY - `SabrPlayerResolver.pickAudio` mirrors YTPlayerUtils
-  (AudioQuality weight + opus bonus, metered-aware AUTO), JVM-tested `SabrAudioPickTest`; (3) INSTANT
-  SWITCH + PREFETCH - one /player serves every rung via the `SabrVideoResolver` resolve cache, and
-  `prefetchVideoRendition` warms it under SABR; (4) METERED AUTO CAP - AUTO video capped at 720p + the
-  metered bitrate, explicit picks never capped; (5) a video error invalidates the SABR cache;
-  (6) LOUDNESS - the resolve carries `loudnessDb` into the FormatEntity (audio normalization);
-  (7) REPLAYS - the spool replay cache + the resolve cache (playerCache/songUrlCache parity);
-  (8) DATA USAGE - demand pacing follows consumption (a skip stops the spend, like ranged chunking);
-  (9) SEEKING - covered-spool serves + seek-restart at the estimated playerTimeMs (a resumed long
-  episode never drains its whole head first); (10) STATS ONLINE AND OFFLINE - live seeding, the
-  metadata-fetch fallback for replays, and the deferred offline queue all apply to SABR listens.
-  Never say SABR is a reduced/fixed mode - it is full parity.
-- **The harness is the proof + validator** (`tests/sabr-stream.mjs` whole-song drain, `tests/sabr-clients.mjs`
-  roster; `tests/sabr-video.mjs` + `tests/sabr-video-clients.mjs` for video; `tests/sabr-seek.mjs` for
-  the cold-start seek + demand-pacing idle gaps, and `START_S=` on sabr-video.mjs for the dual-track
-  seek; `tests/sabr-watchtime.mjs` for the stats session — a whole cpn-stamped SABR drain + the same
-  cpn's playback/watchtime/final beacons, every ping 204). SABR is the danger zone:
-  prove any change against the live CDN there first, then on-device.
-  Settings: Stream Sources -> Experimental (SABR toggle) + the "SABR clients" sub-list. Full detail (the
-  protocol, the field numbers, the findings, integration, how to test/extend): `docs/sabr/README.md`.
+- **Pure, JVM-tested engine** (`SabrProto`, `SabrUmp`, `SabrMessages`, `SabrSession`, `SabrSeekLogic`, `SabrProtection`, `SabrBuffer`, `SabrSpool`, the `SabrAudioStream`/`SabrStreamRegistry`/`SabrDataSource` trio in `SabrDataSource.kt`; tests `Sabr*Test`). The UMP varint is NOT the protobuf varint - `SabrMessages.mediaHeaderId` (the MEDIA part's header-id prefix) must use the UMP one (they agree only below 128).
+- **Reassembly is by ABSOLUTE byte offset, never sequential append** (append corrupted the container → garbage duration → a `getBufferedPercentage` crash). `SabrBuffer` is DISK-backed (never a heap array), serves any covered region, refuses an out-of-range contentLength, and `writeAt` CLAMPS an overshooting final segment to contentLength instead of dropping it.
+- **Honesty:** an INCOMPLETE drain marks the buffer ERRORED, never complete (serve every reassembled byte, then a real player error at the gap); every stream-destroy path marks its buffers so a parked reader is always woken. A PLAYBACK session is `restartable` and never marks the shared buffer on its own failure (the stream owns the terminal error).
+- **Seek-restart (`SabrSeekLogic`, `SabrSeekLogicTest`):** a session that landed AT OR BEFORE the target drains forward (never restarted); only one that landed PAST it widens the margin and re-aims; an unknown duration estimates 0 (never an endless restart-at-0); `SabrBuffer.resetDemandFrom` re-anchors demand pacing to the seek target on every restart (else the fresh session blocks before its first POST). A seeked session's range echo anchors at its own first segment.
+- **`CastAwarePlayer.getBufferedPercentage` is crash-safe for ANY source** (double math, clamped 0..100, guards TIME_UNSET/zero/NaN) - media3's default throws on a pathological value and the session polls it on restore, which would crash-loop launch.
+- **Roster = SABR-usable clients only** (`SabrPlayerResolver`): WEB_REMIX → VISIONOS → TVHTML5_SIMPLY, each toggleable (`StreamSabr{WebRemix,VisionOS,TVHTML5}Key`), first-working wins, validated by `tests/sabr-clients.mjs`. Don't add throttled/attestation-walled clients (ANDROID_VR/IOS/IPADOS/WEB_CREATOR/MWEB); `SabrProtection` bails a sustained `STREAM_PROTECTION_STATUS>=2` cap fast (`attestation-capped`) so the fallback moves on. Web clients n-transform the ciphered `serverAbrStreamingUrl` and append the videoId-bound `&pot=`; VISIONOS does neither; the streamerContext poToken is the session token for all; decode the pot tolerantly (standard OR url-safe base64). The audio pick mirrors DIRECT (`pickAudio`, `SabrAudioPickTest`; `opusAllowed=false` for a COMPATIBLE / pre-API-29 download). On playback `resolve` rethrows network-class failures (`classifyErrors=true`) so `MusicService` maps them to `NETWORK_CONNECTION_FAILED` and waits instead of skipping.
+- **The seam is `MusicService`** (RELAY pattern): `sabrDataSourceFactory` wraps the SABR source in `DefaultDataSource.Factory` so a downloaded `content://` file still plays from disk; `RoutingDataSource` routes a DIRECT `video:`/`videoaudio:` key to DIRECT even under SABR, and reads the flag from the `sabrModeNow` mirror. A fresh resolve persists a `FormatEntity` (streamClient `… (SABR)`, `loudnessDb`) and runs `recoverSong`.
+- **Stream lifetime is registry-owned, NEVER per DataSource open** (audio `SabrStreamRegistry`, video `SabrVideoRegistry`): a seek's close→reopen or a repeat-one replay reuses the live stream (no second /player, no re-drain, no duplicate FormatEntity/watch-time seed). Streams end only on registry replace / evict / remove / `MusicService.onDestroy` (both registries cleared). Replays ride the persistent `SabrSpool` replay cache and the 45-min resolve cache; a stalling client is recorded (`recordStall`) and deprioritized.
+- **Downloads over SABR** (`MediaStoreDownloadManager` `sabrAudioMode`/`sabrVideoMode`) resolve with `register=false` (never touch the playback registry), return null → retry on an INCOMPLETE drain, run under `runInterruptible` with the throttled `sabrProgressReporter`. Video downloads drain two tracks and remux via `VideoMuxer` with DIRECT's gates (`pickRung(downloadable=true)`: remux-capable rungs, container-matched audio).
+- **Video over SABR** pins the exact itag (`preferredVideoFormatId`, field 17) and has a live quality switcher (`setVideoQuality`/`downgradeForStall` share `resolveAndSwapSabr`; AUTO caps at 720p). **The resolve returns a READY, UNREGISTERED stream, installed in the registry only at the main-thread swap COMMIT after the `stillOurs` guard**, with position + playWhenReady captured AT COMMIT. The SABR DataSources call `transferEnded()` only after `transferStarted()`.
+- **Full DIRECT parity - never call SABR a reduced mode:** stats/views/watch time (resolve seeds `watchTimeReporter.onTrackingResolved`; every media POST is stamped with the listen's cpn via `MusicService.sabrCpnFor`), audio quality, instant switch + `prefetchVideoRendition`, metered AUTO cap, loudness, replay caches, demand-paced data usage, seeking, and online/offline stats (docs/sabr/README.md §7.1).
+- **The harness is the proof** (`tests/sabr-stream.mjs`, `sabr-clients.mjs`, `sabr-video.mjs`, `sabr-video-clients.mjs`, `sabr-seek.mjs`, `sabr-watchtime.mjs`): prove any change against the live CDN there first, then on-device. Settings: Stream Sources → Experimental (SABR toggle) + "SABR clients".
 
-### Watch-time reporting (the YouTube playback-stats session; DIRECT only)
+### Watch-time reporting (the YouTube playback-stats session; DIRECT and SABR, never RELAY/cast)
 
-Every DIRECT listen - music, video-songs and podcast episodes alike - emulates a genuine YouTube Music
-stats session: one `cpn`
-per listen, a `videostatsPlaybackUrl` ping when playback actually STARTS (`cmt=<start>`, `final=0`),
-`videostatsWatchtimeUrl` pings every ~30s of playback plus on pause/seek, and a `final=1` ping when the
-listen ends. This replaced the legacy single end-of-listen view ping (fresh random cpn, no watch time) - do NOT reintroduce an end-of-listen `registerPlayback` call, it would double-report the session. The
-rules that must not regress:
+Every listen (music, video-songs, episodes) emulates a genuine YouTube Music stats session: one `cpn` per listen, a `videostatsPlaybackUrl` ping when playback actually STARTS, `videostatsWatchtimeUrl` pings on the server-driven schedule plus pause/seek, and a `final=1` ping when the listen ends. **Do NOT reintroduce an end-of-listen `registerPlayback` call** - it would double-report the session. Full detail: `docs/watchtime/README.md`. Rules that must not regress:
 
-- **Honesty is the hard rule.** Reported ranges come only from real player positions via the pure,
-  JVM-tested `playback/WatchTimeSegments` (drains are DELTAS like the official client, seeks are never
-  watched time, a paused player accumulates nothing, sub-500ms jitter is dropped, a backwards position
-  without a seek closes rather than fabricates). Fabricated watch time is invalid traffic by YouTube's
-  definition and can flag a channel - never widen what gets reported beyond real playback.
-- **Confirmed working on a live channel**: a direct Zemer play credits both a real VIEW and real
-  WATCH TIME in YouTube Studio (14 views / 0.2 h). Views are durable; watch time from concentrated
-  single-account testing is retroactively stripped as invalid traffic - expected, not a bug (real
-  distributed users are the payoff; full detail + what to expect in `docs/watchtime/README.md`).
-- **CDN-cpn correlation** (`playback/PlaybackNonceRegistry`, `MusicService.stampCpn`): the DIRECT
-  googlevideo media request is stamped with the SAME cpn the beacon session uses (base.js
-  `cpn=${clientPlaybackNonce}`), keyed by `VideoRendition.baseVideoId` so audio/video/merge-audio
-  renditions of one listen share it; the reporter releases the id on finish (fresh cpn per play).
-  Applied at every DIRECT `withUri` googlevideo site, NEVER a local-file uri / cache hit / the RELAY
-  factory. Proven safe against the live CDN by `tests/watchtime-cpn-stream.mjs` (full-song drain, 206
-  throughout). The registry is a bounded access-ordered **LRU that never evicts the live listen's
-  cpn** (the reporter `pin`s the active id) - the earlier wholesale `clear()` past 64 entries could
-  wipe the currently-playing cpn mid-stream and silently break this correlation. `qoe` and the
-  traffic-source params are reproducible but deliberately not sent (a controlled A/B showed zero
-  watch-time-survival benefit) - see `docs/watchtime/README.md`.
-- **Ping cadence matches the official client, server-driven** (`playback/WatchTimeSchedule`, JVM-tested):
-  the `/player` response's `videostatsScheduledFlushWalltimeSeconds` + `videostatsDefaultFlushIntervalSeconds`
-  (live-verified `[10,20,30]` then `40`) drive the watchtime ping ticker at those wall-clock offsets, not a
-  fixed interval (a fixed interval is a timing fingerprint). Falls back to the base.js `klA` default
-  `[10,20,30]`/`40` when the response omits them. Pause/seek pings are extra state-change flushes and never
-  advance the scheduled count.
-- **`playback/WatchTimeReporter` owns the session** (the `EpisodePositionTracker` extraction pattern:
-  state confined to the service main scope; one ordered ping channel per session so the playback ping
-  always precedes its watchtime pings; beacons are fire-and-forget and must never affect playback).
-  `MusicService` only forwards events: `onIsPlayingChanged`, `onPositionDiscontinuity` (which captures
-  the departed item's REAL end position for the final ping - on ANY `AUTO_TRANSITION`, so a **repeat-one
-  loop** back to the same item, position wrapped to ~0, is not under-reported; a rendition-swap's
-  position-continuous seek, delta < 1s, fires no spurious ping), the real-transition hook placed AFTER
-  the video-mode own-swap early-return (an audio↔video swap keeps its session - same listen),
-  `STATE_ENDED`, `onDestroy`, and the stream resolver's `onTrackingResolved` seed (no second `/player`
-  round-trip; cached/local plays fall back to one metadata fetch, the legacy ping's own behavior). The
-  `session` ref is `@Volatile` (read from the resolver's background thread for schedule adoption).
-- **The reporter reads the player through the `PlaybackProbe` seam, so its state machine is
-  JVM-tested** (no Robolectric): the ~7 `Player` reads (position/isPlaying/playbackState/playWhenReady/
-  currentMediaId/hasCurrentMetadata/volume) are behind `playback/PlaybackProbe`, `MusicService` adapts
-  the real `Player`, and `onPositionDiscontinuity` takes primitive params instead of `Player.PositionInfo`.
-  `WatchTimeReporterTest` drives the whole machine with a pure fake probe (Unconfined scope) and asserts
-  via the observable offline-capture sink - played-range capture, seek exclusion, the sub-500ms jitter
-  floor, paused-at-start privacy, the teardown end-position, rebuffer-is-not-a-pause, and the relay exclusion.
-  The extraction is behavior-preserving; keep the probe returning exactly the `Player` values.
-- **Boundary-capture hardening (never fabricate, never orphan) - these must not regress:**
-  - On a track/queue CHANGE (a real transition, or `ensureSession` replacing a still-open session) the
-    end position falls back to the departed item's OWN last-known position
-    (`WatchTimeSegments.lastKnownPositionMs`), **never `player.currentPosition`** - after the change the
-    player position belongs to the NEW item, so using it would close the departed listen with a
-    fabricated range (a station join mid-listen was the worst case). But `onPlaybackEnded` AND
-    `onDestroy` pass `player.currentPosition` explicitly: they are the SAME item (end-of-item / teardown,
-    not a transition), and the last-known fallback lags the ticker cadence, dropping the tail on a
-    swipe-kill.
-  - The video-mode own-swap path calls `onOwnSwapTransition()`, which **neutralises** the captured
-    end position (else a repeat-one loop's capture is inherited by a LATER real transition and
-    fabricates) and **nulls `fmt`** (the single itag is no longer truthful once the rendition changed - omitting is honest, a stale wrong itag is not). `fmt` lives on the session, not the captured URLs.
-  - A watchtime/final ping is **never sent for a session whose playback (open) ping was suppressed**
-    (`PauseListenHistoryKey` on at start): that orphan half-session shape is one no real client
-    produces. The `opened` flag is set INSIDE the playback-ping send, so a tracking block that carries
-    only a watchtime URL (null playbackUrl) cannot orphan either.
-  - A preloaded tracking resolution older than `TRACKING_MAX_AGE_MS` (1 h) is **re-fetched fresh** - a
-    cache-served replay hours later would otherwise beacon a dead baseUrl and lose the credit.
-  - A mid-track **rebuffer is not a pause**: `STATE_BUFFERING` while `playWhenReady` fires no
-    state-change ping (a timing fingerprint the official client never emits) and drops no sub-500ms
-    segment; position does not advance while buffering, so the open segment stays honest.
-  - The scheduled-flush ticker **skips overdue offsets** after a long pause/rebuffer (rtMs is wall-clock
-    incl. paused time) instead of spinning through a burst of immediate no-op flushes - the pause
-    already flushed pending time, so it resumes at the next FUTURE offset.
-  - `resolvedTracking` (the tracking-URL cache), like the cpn registry, **preserves the live listen's
-    entry** when it clears past `MAX_CACHED_TRACKING`, so a resolution burst never wipes the playing
-    session's URLs out from under its consumer.
-  - The **deferred** open ping's `cmt` is the listen's REAL start position (`DeferredStatsRecord.openCmt`,
-    the first watched-range start), never 0 - a resumed/offline listen begins nonzero, and open-at-0 +
-    watchtime-at-60 is an inconsistency the live path never produces.
-- **Known limitation (accepted):** a **video-mode** repeat-one loop is an own-swap (one session/cpn
-  spans all loops), so it credits ONE view where the same track in audio mode credits N. This is the
-  SAFE direction (under-count, never fabrication); fixing it would risk the own-swap session-continuity,
-  so it is deliberately left. Do not "fix" it into a per-loop session without weighing that.
-- **Hard exclusions:** RELAY mode (the spec's rule - beacons must never ride the relay egress; gated
-  fail-safe as `relayModeNow != false`, so the unresolved cold-start window never beacons) and cast
-  sessions (the receiver plays). Both are gated at session creation inside the reporter. The
-  `PauseListenHistoryKey` privacy switch silences beacons too, re-checked PER PING so enabling it
-  mid-listen silences the rest of the in-flight session.
-- **Deferred offline recovery** (`playback/DeferredStatsQueue`, additive - the LIVE path is untouched):
-  a genuinely OFFLINE listen (no network → no tracking URLs) is captured in the reporter's existing
-  offline branch (relay/cast never reach it; an online cached play resolves fresh URLs and reports live)
-  and re-pushed on reconnect as a **deferred** stats session (fresh `/player` → fresh cpn → playback +
-  `final=1` watchtime, the STORED real ranges). Same honesty rule (`rt` ≤ played time; `PauseListenHistory`
-  suppresses capture with the SAME per-ping semantics as the live path - paused-at-start captures nothing,
-  and accumulation stops at the first paused ping), the honest ≥500ms segment floor (NO minimum-duration
-  gate - since YouTube counts a view from the first frame as of 2026-08-24, any genuinely-watched offline
-  play (>=500ms real time) mints a view on reconnect, like the live path above that floor - only the
-  sub-500ms jitter window differs), **never via the relay egress**. JSONL under
-  `filesDir` reusing `TrackingQueue` + `FlushSchedule` (no Room/migration); single-flight, connectivity-
-  triggered, and self-rescheduling whenever work remains (after a RETRY-backoff, and after a full batch
-  of `BATCH_SIZE`=20 with records still queued it waits a short `PACE_MS`) - so a backlog larger than one
-  batch fully drains on a stable connection AND a long-offline reconnect trickles the beacons out instead
-  of firing the whole backlog as one burst; staleness-capped (7 d, which bounds the backlog size). **The watchtime ping fires only after the playback ping is accepted** (no orphan;
-  a partial re-push under a fresh cpn would double-count); classification: playback 400→drop / playback
-  not-2xx→retry, then watchtime 2xx→remove / 400→drop / else→retry (400 read from the thrown
-  `ResponseException`, so DROP is reachable). The realistic win is the VIEW; details in `docs/watchtime/README.md`.
-- The beacon request shapes (`ver=2&c=WEB_REMIX&cpn&st&et&cmt&rt&final`, `s.youtube.com` →
-  `music.youtube.com` host swap, WEB_REMIX headers + SAPISIDHASH via the shared `ytClient`) are the
-  replica-verified against live YouTube (every beacon HTTP 204).
-- **Extra params match the official client, verified from live `base.js`, never guessed.** The web
-  `Y2` param builder was read from the deployed `player_es6…/base.js` and only params whose KEY AND
-  truthful VALUE are both derivable are sent: `fmt=<streamed itag>` (base.js `n.fmt=y.D.itag`; the
-  real resolved itag, omitted on cached/local plays where it is unknown) and `muted`/`mos` (base.js
-  `isMuted()?1:0`, `mos == muted`; our player has no mute separate from volume, so `player.volume<=0`
-  IS muted). Params requiring a value we could only recall from memory (`volume` scale, `state`
-  strings, `fs`/`playerheight`/`playerwidth`/`clipid`) are deliberately NOT sent - adding one later
-  requires re-reading base.js for its exact value semantics, not guessing. `muted` is captured on the
-  main thread at enqueue time (player access); `fmt` rides the resolver's `onTrackingResolved`.
+- **Honesty is the hard rule.** Reported ranges come only from real player positions via the pure, JVM-tested `playback/WatchTimeSegments` (deltas like the official client, seeks never count, paused accumulates nothing, sub-500ms jitter dropped, a backwards position without a seek closes rather than fabricates). Fabricated watch time is invalid traffic and can flag a channel - never widen what gets reported. (Watch time stripped from concentrated single-account testing is expected, not a bug.)
+- **CDN-cpn correlation** (`playback/PlaybackNonceRegistry`, `MusicService.stampCpn`): the DIRECT googlevideo request carries the SAME cpn as the beacons, keyed by `VideoRendition.baseVideoId` so all renditions of one listen share it; applied at every DIRECT googlevideo `withUri`, NEVER a local file / cache hit / RELAY. The registry is a bounded LRU that **never evicts the pinned live listen's cpn**. `qoe` and traffic-source params are deliberately not sent.
+- **Ping cadence is server-driven** (`playback/WatchTimeSchedule`, JVM-tested): the `/player` response's flush schedule, falling back to the base.js `klA` default `[10,20,30]`/`40`; never a fixed interval (a timing fingerprint). Pause/seek pings never advance the scheduled count, and the ticker **skips overdue offsets** after a long pause/rebuffer instead of bursting.
+- **`playback/WatchTimeReporter` owns the session** (state confined to the service main scope; one ordered ping channel per session; beacons fire-and-forget, never affecting playback; `session` is `@Volatile`). `MusicService` only forwards events: `onIsPlayingChanged`, `onPositionDiscontinuity` (captures the departed item's real end position on ANY `AUTO_TRANSITION`, incl. a repeat-one loop; a rendition swap's <1s jump fires no ping), the real-transition hook placed AFTER the video-mode own-swap early-return (an audio↔video swap keeps its session), `STATE_ENDED`, `onDestroy`, and the resolver's `onTrackingResolved` seed (no second `/player`; cached/local plays fall back to one metadata fetch). The reporter reads the player only through the `PlaybackProbe` seam so `WatchTimeReporterTest` drives it with a pure fake - keep the probe returning exactly the `Player` values.
+- **Boundary capture - never fabricate, never orphan:**
+  - On a track/queue CHANGE the end position falls back to the departed item's own `WatchTimeSegments.lastKnownPositionMs()`, **never the player's current position** (it belongs to the new item). `onPlaybackEnded` and `onDestroy` DO pass the probe's current position (same item; the last-known fallback would drop the tail on a swipe-kill).
+  - The own-swap path calls `onOwnSwapTransition()`, which neutralises the captured end position (else a later real transition inherits it) and nulls the session's `fmt` (a stale itag is dishonest).
+  - No watchtime/final ping for a session whose playback ping was suppressed (`PauseListenHistoryKey` on at start); `opened` is set INSIDE the playback-ping send.
+  - A preloaded tracking resolution older than `TRACKING_MAX_AGE_MS` (1 h) is re-fetched; the `resolvedTracking` cache preserves the live listen's entry when it clears past `MAX_CACHED_TRACKING`.
+  - A mid-track **rebuffer is not a pause** (`STATE_BUFFERING` while `playWhenReady` sends no state-change ping and drops no segment).
+- **Known limitation (accepted):** a video-mode repeat-one loop is an own-swap (one session spans all loops), so it reports ONE session where audio mode reports N - the safe under-count direction; don't "fix" it into per-loop sessions without weighing own-swap continuity.
+- **Hard exclusions**, gated at session creation in the reporter: RELAY (beacons must never ride the relay egress; fail-safe `relayModeNow != false`, so the unresolved cold-start window never beacons) and cast. `PauseListenHistoryKey` silences beacons too, re-checked PER PING.
+- **Deferred offline recovery** (`playback/DeferredStatsQueue` + `DeferredStatsPush`, additive - the live path is untouched): a genuinely OFFLINE listen is captured in the reporter's offline branch and re-pushed on reconnect as a fresh-cpn session (playback ping at the listen's real start, `DeferredStatsRecord.openCmt()`, never 0; then `final=1` watchtime with the STORED real ranges). Same honesty and `PauseListenHistory` semantics, the ≥500ms segment floor and no minimum-duration gate (any genuinely watched offline play is reported), never via relay. JSONL under `filesDir` (no Room); single-flight, connectivity-triggered, self-rescheduling after a RETRY backoff and after a full `BATCH_SIZE` batch (paced by `PACE_MS`, so a backlog trickles out rather than bursting); 7-day staleness cap. **Watchtime fires only after the playback ping is accepted**; classification: playback 400→drop / other non-2xx→retry, then watchtime 2xx→remove / 400→drop / else→retry.
+- **Beacon shapes and extra params come from live-verified base.js, never guessed:** `ver=2&c=WEB_REMIX&cpn&st&et&cmt&rt&final`, `s.youtube.com` → `music.youtube.com` host swap, WEB_REMIX headers + SAPISIDHASH via the shared client. Only `fmt=<streamed itag>` (omitted when unknown) and `muted`/`mos` (`player.volume<=0`, captured on the main thread) are sent; any other param requires re-reading base.js for its exact value semantics first.
 
 ### Queue persistence (`saveQueueToDisk` - crash-safe resume; issue #515)
 
-The queue + player-state snapshots persist to two files under `filesDir`. The rules that must not
-regress: the player is snapshotted on the caller (main) thread, but serialization + disk writes run
-on the single-threaded `queuePersistScope` - the TEARDOWN write also goes THROUGH that scope
-(joined), never inline beside it, so it queues FIFO behind any in-flight periodic write (inline
-writing raced it: concurrent truncating writes corrupt the file, and a stale async snapshot
-finishing last rolled the position back). Every write is ATOMIC (`AtomicFile` write-to-temp +
-rename; reads go through `AtomicFile.openRead` for the rollback) so an interrupted write leaves the
-previous good file. Restore failures are REPORTED (`reportException`; a fresh install's missing file
-stays quiet) - silent queue loss must never be invisible again. Write decisions are the pure,
-table-tested `QueuePersist` helpers against the last WRITTEN snapshot: the heavy queue file rewrites
-only on content change (`signature` - restore seeks from the small state file, not the queue file),
-the state file only when the state MOVED, so a paused idle service is fully write-silent; teardown
-always writes. The persisted classes pin `serialVersionUID` (see `models/PersistQueue.kt`) - an
-unpinned edit breaks every updating user's restore, guarded by `PersistQueueCompatTest`'s v37 blob.
-A Zemer Station broadcast is never persisted (see §Zemer Stations).
+The queue + player-state snapshots persist to two files under `filesDir`. The player is snapshotted on the main thread, but serialization + writes run on the single-threaded `queuePersistScope` - the TEARDOWN write also goes THROUGH that scope (joined), never inline, so it queues FIFO behind any in-flight write (inline raced it: concurrent truncating writes corrupt the file, a stale snapshot finishing last rolled the position back). Every write is ATOMIC (`AtomicFile`; reads via `AtomicFile.openRead` for the rollback). Restore failures are REPORTED (`reportException`; a missing file stays quiet) - silent queue loss must never be invisible. Write decisions are the pure, tested `QueuePersist` helpers against the last WRITTEN snapshot: the queue file rewrites only on content change (`signature`), the state file only when the state moved or the queue file rewrites (a paused idle service is write-silent); teardown always writes. The persisted classes pin `serialVersionUID` (`models/PersistQueue.kt`) - an unpinned edit breaks every updating user's restore, guarded by `PersistQueueCompatTest`'s v37 blob. A Zemer Station broadcast is never persisted (see §Zemer Stations).
 
 ### The media notification is gated on user intent (#109)
 
-media3 posts the media notification for ANY prepared player with a queue, playing or paused, and
-`MusicService.onCreate` restores the persisted queue and `prepare()`s it on every creation. After a
-reboot SystemUI's media-resumption scanner binds the exported browse service (creating intent
-`android.media.browse.MediaBrowserService`, reproduced on an API 30 emulator) with no user in the
-loop, so a phone nobody touched showed a "paused" notification plus a launcher badge. The rules:
-- `onUpdateNotification` is vetoed through the pure, tested `playback/NotificationGate` until there
-  is USER INTENT: the app's own UI bound (`onBind` handing out the in-app binder), an explicit start
-  command arrived (`onStartCommand`: widget tap, media button, the activity's own start), or
-  `playWhenReady` became true. media3 asking for the foreground is never vetoed.
-- A controller merely CONNECTING (`onGetSession`: the boot scanner, an auto-reconnecting headset,
-  Android Auto) is NOT intent - it must not surface a notification for a queue nobody asked for. Do
-  not reintroduce a caller-package allowlist as the gate; the veto is what holds for any creator.
-- The moment intent is seen with a queue loaded, the paused notification is posted (the pre-fix
-  behaviour on opening the app).
-- **"Stop music on task clear" raises the veto BEFORE it pauses** (`stoppingOnTaskClear`), then
-  removes the notification both ways media3 itself does (`stopForeground(STOP_FOREGROUND_REMOVE)`
-  AND `NotificationManagerCompat.cancel(NOTIFICATION_ID)`), then `stopSelf()`. media3 builds its
-  notification ASYNCHRONOUSLY, so the old order (pause, then remove, then stop) let the pause's
-  scheduled paused-notification post land on the dead service - the "doesn't go off until
-  force-stop" half of #109. Keep that order. The task-clear veto blocks only NON-foreground updates
-  and is dropped by any later user engagement (`markUserIntent`): `stopSelf()` does not destroy a
-  service another client (Android Auto, a headset app) still has bound, and that client's next play
-  must get its foreground start exactly as before. A foreground start is never vetoed by either rule.
-- **A post already in flight is invalidated, not raced.** media3 drops a pending notification
-  callback only inside its own removal path (it advances the notification sequence there), which
-  runs for a session that is no longer added to the service: `onDestroy` therefore calls
-  `removeSession(mediaSession)` + `super.onUpdateNotification(mediaSession, false)` BEFORE
-  `mediaSession.release()`. And because the service can outlive `stopSelf()` while a client stays
-  bound, `onTaskRemoved` schedules one bounded second `cancel(NOTIFICATION_ID)`
-  (`TASK_CLEAR_LATE_POST_WINDOW_MS`) guarded on `stoppingOnTaskClear` still being raised - any
-  bind, start command or play clears it first, so a notification the user asked for is never
-  touched. Re-engagement after such a lingering task clear also RE-POSTS the paused notification
-  the task clear removed (`markUserIntent`), exactly as a fresh service posts it on first
-  engagement.
+media3 posts the notification for ANY prepared player with a queue, and `onCreate` restores + prepares the persisted queue on every creation - including SystemUI's post-boot media-resumption bind, which showed a "paused" notification nobody asked for. Rules:
+- `onUpdateNotification` is vetoed through the pure, tested `playback/NotificationGate` until USER INTENT: the app's UI bound (`onBind` handing out the in-app binder), an explicit start command (`onStartCommand`), or `playWhenReady` true. A foreground start requested by media3 is never vetoed.
+- A controller merely CONNECTING (`onGetSession`: the boot scanner, a headset, Android Auto) is NOT intent. Don't reintroduce a caller-package allowlist; the veto holds for any creator.
+- Once intent is seen with a queue loaded, the paused notification is posted.
+- **"Stop music on task clear" raises the veto (`stoppingOnTaskClear`) BEFORE it pauses**, then removes the notification both ways media3 does (`stopForeground(STOP_FOREGROUND_REMOVE)` AND `NotificationManagerCompat.cancel(NOTIFICATION_ID)`), then `stopSelf()` - media3 posts asynchronously, so pausing first let a post land on the dead service. Keep that order. The veto blocks only non-foreground updates and is dropped by any later engagement (`markUserIntent`), since a still-bound client (Android Auto, a headset app) must get its foreground start as before.
+- **A post in flight is invalidated, not raced:** `onDestroy` calls `removeSession(mediaSession)` + `super.onUpdateNotification(mediaSession, false)` BEFORE `mediaSession.release()` (media3 drops pending callbacks only in that removal path). `onTaskRemoved` schedules one bounded second `cancel(NOTIFICATION_ID)` (`TASK_CLEAR_LATE_POST_WINDOW_MS`) guarded on `stoppingOnTaskClear` still being raised, so a notification the user asked for is never touched. Re-engagement after a lingering task clear re-posts the paused notification (`markUserIntent`).
 
 ### Cipher / player rotation (the most common future break)
 
-The `cipher` submodule (package `com.zemer.cipher`, repo `ZemerTeam/zemer-cipher`) deciphers YouTube's `player_ias` signatures in an Android WebView and mints poTokens. It's wired **two ways**: a git submodule *and* a Gradle composite build - `includeBuild("cipher")` in `settings.gradle.kts` substitutes `com.zemer:cipher` → the local `:library`, so the app always builds the working tree.
+The `cipher` submodule (package `com.zemer.cipher`, repo `ZemerTeam/zemer-cipher`) deciphers YouTube's `player_ias` signatures in an Android WebView and mints poTokens. It is wired as a git submodule *and* a Gradle composite build (`includeBuild("cipher")` in `settings.gradle.kts` substitutes `com.zemer:cipher` → the local `:library`), so the app always builds the working tree. Full detail: `docs/remote_cipher_config/`.
 
-YouTube rotates `player_ias` frequently. Player configs live in **one JSON file**: `cipher/library/src/main/assets/player_configs.json` - per player the sig call expression (e.g. `mP(4,155,INPUT)`), the n-transform URL class (e.g. `Yx`), the STS, and the md5-of-first-10000-bytes alias. That single file is (1) bundled in the APK as the offline default, (2) **fetched at runtime from raw zemer-cipher `master`** by `PlayerConfigStore` (6 h TTL + ETag, plus a forced refresh + one retry the moment an unknown hash breaks deciphering), and (3) read by the `tests/` harness - so **a config pushed to cipher `master` fixes deployed apps within minutes, no APK release**. Parsing/validation is `PlayerConfigParser` (strict regexes; the n-IIFE is built from a local template - remote data can never inject free-form JS into the WebView; invalid entries are skipped, invalid files - including any duplicate hash/alias key - are rejected wholesale and the previous table kept). The validation rules exist in TWO readers (the Kotlin parser and `tests/player-configs.mjs`); file-level accept/reject verdicts and the n-IIFE template are pinned byte-for-byte by shared fixtures in `cipher/library/src/test/resources/config-parity/` - a rule change must update both readers AND the fixtures, or one of the two test suites goes red. When adding a config:
-- **Validate empirically**: `node tests/validate-player-config.mjs <hash>` deciphers a real stream and checks the CDN returns **HTTP 206**. That 206 is ground truth, not regex extraction - multiple constant pairs can decipher correctly, only the live response confirms which the server accepts. It prints a paste-ready JSON entry (and re-validates the committed entry first if one exists).
-- Add the entry (with its MD5 alias) to `player_configs.json` only - there are no Kotlin/harness mirrors to sync anymore; unit tests in `cipher/library/src/test/` guard the file's shape. Then run `node tests/gen-player-dates.mjs` to refresh `player_dates.json` (a **separate, cosmetic** file mapping each hash to the commit date support was added, shown in the song-details sheet via `PlayerDatesStore`). It is deliberately decoupled: old apps never fetch it, and a malformed/missing dates file only blanks a UI label - deciphering is never affected.
-- **Push to cipher `master` is the deploy**: that is the URL devices fetch. Bump the submodule pointer in `zemer-app` afterwards so bundled defaults stay fresh (push order: `zemer-cipher` first, then the pointer - reverse breaks fresh clones / CI).
-- A cipher *scheme* change (new config shape, not just a new hash) still needs code + an APK; bump `schemaVersion` only on breaking shape changes - old apps reject newer schema files and keep their last-good table.
-- `.github/workflows/player-monitor.yml` checks hourly: it fetches the live raw `master` file once (the submodule copy is only a warned-about fallback) and **multi-samples** the live player surfaces via `tests/scan-live-players.mjs` (30× `iframe_api` + `music.youtube.com`) so a low-rate A/B **canary** - served ~1/6 of the time, which a single sample misses ~83% of the time - is caught the first hour it appears, not once it has already rotated in. "Known" is still decided by the harness loader (`parsePlayerConfigs`, the app's validation rules) against real keys + md5 aliases, so a pushed-but-invalid entry counts as UNKNOWN and still alerts. Opens one issue per unknown hash + a summary email, but does **not** auto-commit - the config is added by hand.
+Player configs live in **one JSON file**, `cipher/library/src/main/assets/player_configs.json` (per player: sig call expression, n-transform URL class, STS, md5-of-first-10000-bytes alias). It is (1) bundled in the APK as the offline default, (2) **fetched at runtime from raw zemer-cipher `master`** by `PlayerConfigStore` (6 h TTL + ETag, plus a forced refresh + one retry when an unknown hash breaks deciphering), and (3) read by the `tests/` harness - so **a config pushed to cipher `master` fixes deployed apps with no APK release**. `PlayerConfigParser` validates strictly (the n-IIFE is built from a local template - remote data can never inject free-form JS; invalid entries are skipped; an invalid file, including any duplicate hash/alias key, is rejected wholesale and the previous table kept). The rules exist in TWO readers (the Kotlin parser and `tests/player-configs.mjs`), pinned byte-for-byte by the shared fixtures in `cipher/library/src/test/resources/config-parity/` - a rule change must update both readers AND the fixtures. When adding a config:
+- **Validate empirically**: `node tests/validate-player-config.mjs <hash>` deciphers a real stream and requires **HTTP 206** from the CDN - several constant pairs can decipher, only the live response proves which the server accepts. It prints a paste-ready entry.
+- Add the entry (with its MD5 alias) to `player_configs.json` only (no mirrors to sync; `cipher/library/src/test/` guards the shape), then run `node tests/gen-player-dates.mjs` to refresh `player_dates.json` - a **separate, cosmetic** hash → support-date map (`PlayerDatesStore`, song-details sheet); a bad/missing dates file only blanks a label, never deciphering.
+- **Push to cipher `master` is the deploy.** Then bump the submodule pointer in `zemer-app` (order: `zemer-cipher` first, then the pointer - reverse breaks fresh clones / CI).
+- A cipher *scheme* change (new config shape) needs code + an APK; bump `schemaVersion` only on breaking shape changes (old apps reject newer schemas and keep their last-good table).
+- `.github/workflows/player-monitor.yml` (every 30 min) fetches the live `master` file and multi-samples the live player surfaces via `tests/scan-live-players.mjs` (iframe_api plus music/watch/embed) so a low-rate A/B canary is caught early; "known" is decided by the harness loader (`parsePlayerConfigs`, the app's rules), which rejects an invalid file outright, so a pushed-but-invalid entry fails the run (red). Each unknown hash without an open issue gets an issue + Telegram message, plus one summary email; it never auto-commits - configs are added by hand.
 
 ### The in-app updater (stable via `ghtrack.zemer.io`, nightlies via `nightly.zemer.io`)
 
-`utils/UpdateChecker.kt` (the network/UI flow) + `utils/updater/NightlyUpdates.kt` (pure, JVM-tested).
-Stable updates read `ghtrack.zemer.io` `/api` + `/changelog` + `/download` as before. The **nightly channel
-reads ONE document, the Zemer nightly mirror's `GET https://nightly.zemer.io/api`** (contract + the
-app<->server thread: `handoff-docs/zemer-nightly-updates-server-request.md`); the GitHub Actions API,
-`raw.githubusercontent.com` and nightly.link are gone from the app. The rules that must not regress (they
-close the 36 -> 34 Room-downgrade crash, #543: a third-party "latest artifact" URL served a three-week-old
-build and the app installed it because nothing tied the download to the build the check announced):
-- **Check and download are one object.** "Update available" = `/api.sha` differs from
-  `BuildConfig.COMMIT_HASH` AND `/api.runNumber` > `BuildConfig.RUN_NUMBER` (`GITHUB_RUN_NUMBER`, baked in by
-  CI; 0 outside CI keeps the SHA-only rule). Run numbers are monotonic per workflow, so a LOWER one can never
-  be an upgrade, whatever a mirror announces - the app's own guard, independent of the server's. The
-  download re-reads `/api`, **applies the same rule again** to what it finds (`requireUpdate`: a newer
-  build that landed since the check is still an upgrade and is accepted; anything else aborts the
-  download, so the guard cannot be lost between the dialog and the download), fetches its SHA-pinned
-  `downloadUrl`, and **verifies size + SHA-256 against that same document before the file is offered for
-  install** (`verifyDownload`: a mismatch is `CORRUPT_ARTIFACT`, the part file is dropped, `apkFile` is
-  never touched). Never download a "latest" URL. A cancelled check or notes fetch rethrows
-  `CancellationException` - it is never turned into an error result or a fallback.
-- A non-2xx on `/api` (a 503 before the mirror's first ingest) is "could not check", never "up to date".
-- There is no "release coming soon" hold any more: a version-bumped nightly is offered like any other.
-  The old rule (skip a nightly whose versionCode AND versionName exceed the installed build) parked
-  nightly users on their old build after every stable release, since every later nightly carries the
-  new version too. Don't reintroduce it.
-- Release notes = `/changelog?since=<installed sha>` (every build in the gap, newest first, capped at
-  `MAX_CHANGELOG_ENTRIES`, and entries at or below `BuildConfig.RUN_NUMBER` dropped client-side - when the
-  mirror does not hold the installed build it answers with its whole history, and an older build's message
-  must never read as "what's new"), falling back to `/api.commitMessage`; a notes failure never blocks the
-  update.
-- App<->mirror contract changes travel as handoff-doc edits, never as edits to the `zemer-nightly` repo.
+`utils/UpdateChecker.kt` (network/UI flow) + `utils/updater/NightlyUpdates.kt` (pure, JVM-tested). Stable reads `ghtrack.zemer.io` `/api` + `/changelog` + `/download`. The nightly channel reads ONE document, `GET https://nightly.zemer.io/api` (contract: `handoff-docs/zemer-nightly-updates-server-request.md`); no GitHub API / raw / nightly.link calls. Rules (they close #543, a Room-downgrade crash from installing a stale "latest artifact"):
+- **Check and download are one object.** Update available = `/api.sha` ≠ `BuildConfig.COMMIT_HASH` AND `/api.runNumber` > `BuildConfig.RUN_NUMBER` (`GITHUB_RUN_NUMBER` from CI; 0 outside CI = SHA-only). A lower run number is never an upgrade, whatever the mirror says. The download re-reads `/api`, re-applies the rule (`requireUpdate`: a newer build is accepted, anything else aborts), fetches its SHA-pinned `downloadUrl`, and **verifies size + SHA-256 before offering install** (`verifyDownload`: mismatch = `CORRUPT_ARTIFACT`, part file dropped, `apkFile` untouched). Never download a "latest" URL. A cancelled check/notes fetch rethrows `CancellationException`.
+- A non-2xx `/api` is "could not check", never "up to date".
+- No "release coming soon" hold: a version-bumped nightly is offered like any other (the old versionCode/versionName skip parked nightly users forever). Don't reintroduce it.
+- Release notes = `/changelog?since=<installed sha>` (newest first, capped at `MAX_CHANGELOG_ENTRIES`, entries ≤ `BuildConfig.RUN_NUMBER` dropped client-side since a mirror lacking the installed build returns its whole history), falling back to `/api.commitMessage`; a notes failure never blocks the update.
+- App↔mirror contract changes travel as handoff-doc edits, never as edits to the `zemer-nightly` repo.
 
 ### Accounts: personal vs anonymous (pooled) - `SAPISID` ≠ logged in
 
-There are two signed-in states and telling them apart is non-obvious. A **personal** Google login sets a **`dataSyncId`**. The **"anonymous"** login signs into a **shared, pooled** account: its cookie **does** carry `SAPISID`, but the flow deliberately clears `dataSyncId` (`App.kt` / `LoginGateScreen` - `onBehalfOfUser`/dataSyncId breaks the pooled player request). So `parseCookieString(cookie).containsKey("SAPISID")` / the cookie-based `Context.isUserLoggedInFlow()` are **true for anonymous** and must **never** gate remote *account* reads or writes - doing so leaks the pooled account's library/likes/subscriptions across every anonymous user. (The old blocking `Context.isUserLoggedIn()`/`isSyncEnabled()` helpers - `runBlocking` around a DataStore read plus, in the login case, a blocking DNS socket - were dead and were deleted; use the reactive `*Flow` variants.)
+A **personal** Google login sets **`dataSyncId`**. The **anonymous** login signs into a **shared, pooled** account whose cookie **does** carry `SAPISID` but whose `dataSyncId` is deliberately cleared (`App.kt` / `LoginGateScreen` - it breaks the pooled player request). So `parseCookieString(cookie).containsKey("SAPISID")` / `Context.isUserLoggedInFlow()` are **true for anonymous** and must **never** gate remote *account* reads/writes - that leaks the pooled account's library/likes/subscriptions to every anonymous user. Use the reactive `*Flow` helpers; don't reintroduce blocking `runBlocking` login checks.
 
-- The correct discriminator is **`com.jtech.zemer.extensions.AccountState`**: `isPersonalAccountSignedIn` (= non-empty `YouTube.dataSyncId`, usable from context-free entity code) and the reactive `Context.isPersonalAccountFlow()`. Gate remote account sync/writes on these - never on `SAPISID`.
-- Already gated: `SyncUtils` account syncs + `likeSong`, the entity `toggleLike` remote side-effects (`Song/Artist/Album/PlaylistEntity`), and the add/remove/create/rename/delete-playlist + library/history-feedback writes in the menus. **Local DB writes always run**, so anonymous keeps likes/subscribes/playlists locally; personal logins are unaffected (each gate is a no-op when the predicate is true). The **Firebase artist-whitelist sync (`syncArtistWhitelist`) is account-independent and stays on for anon** - it powers content filtering.
-- **UI account display is gated too** (#137): the Settings → Account "Signed in as" card (name/email/handle/avatar) and the **"More content"** + **"Auto sync with account"** switches render only when `isPersonalAccountSignedIn` (`AccountSettings.kt`) - never the SAPISID-based `isLoggedIn`, which would show the *pooled* account's identity and account-personalization controls to every anonymous user. The Anonymous-login button is hidden once signed in, so there is a single Logout control, not a duplicate.
-- **Synced playlists reconcile non-destructively and stay 100% whitelisted** (`SyncUtils.syncSavedPlaylists`/`syncPlaylist`, #130): keep a song only if a whitelisted artist is resolvable from the playlist renderer **or the local DB row** (`filterWhitelistedWithLocalArtists`). Do **not** restore the old `clearPlaylist()` + strict `filterWhitelisted` rebuild - it wiped user-added songs whose YTM renderer carried sparse/topic-channel artist ids while they stayed in YouTube Music. A failed/empty/partial remote read must never delete a playlist or its songs.
-- Still personalized-to-the-pool for anon (NOT yet gated): Android-Auto browse still reads pooled-cookie InnerTube surfaces. (`YouTube.home()` no longer feeds the app's Home tab - the home tab is InnerTube-free for content, see §The home tab - so the old "anon Home shows the pooled account's mixes" leak is gone with it.) Note the *Library* "My top 50" is a **local** most-played auto-playlist (`mostPlayedSongs`), not a leak.
+- The discriminator is **`com.jtech.zemer.extensions.AccountState`**: `isPersonalAccountSignedIn` (non-empty `YouTube.dataSyncId`, usable from entity code) and `Context.isPersonalAccountFlow()`.
+- Gated today: `SyncUtils` account syncs + `likeSong`, the entity `toggleLike` remote side-effects (`Song/Artist/Album/PlaylistEntity`), and the menus' playlist add/remove/create/rename/delete + library/history-feedback writes. **Local DB writes always run** (anon keeps likes/playlists locally). The artist-whitelist sync (`syncArtistWhitelist`) is account-independent and stays on for anon.
+- **UI account display is gated too** (#137): Settings → Account's "Signed in as" card and the "More content" / "Auto sync with account" switches render only for a personal login (`AccountSettings.kt`, non-blank `DataSyncIdKey`) - never the SAPISID-based `isLoggedIn`. The Anonymous-login button hides once signed in (one Logout control).
+- **Synced playlists reconcile non-destructively and stay whitelisted** (`SyncUtils.syncSavedPlaylists`/`syncPlaylist`, #130): keep a song if a whitelisted artist resolves from the renderer **or the local DB row** (`filterWhitelistedWithLocalArtists`). Don't restore a `clearPlaylist()` + strict `filterWhitelisted` rebuild (it wiped user-added songs with sparse/topic-channel artist ids). A failed/empty/partial remote read must never delete a playlist or its songs.
+- Not yet gated: Android Auto browse still reads pooled-cookie InnerTube surfaces. Library "My top 50" is local (`mostPlayedSongs`), not a leak.
 
 ### Content filtering (whitelist, conditional id overrides, filtered covers)
 
-The "Kosher" guarantee runs through one chokepoint - `utils/WhitelistFilter.kt` `filterWhitelisted`
-(applied on every YouTube/browse/playback surface) over the artist whitelist it reads. Two layers on top
-are non-obvious and regression-prone; full detail in `docs/whitelist/README.md`:
+The "Kosher" guarantee runs through one chokepoint - `utils/WhitelistFilter.kt` `filterWhitelisted` - over the artist whitelist. Full detail: `docs/whitelist/README.md`.
 
-- **Conditional id overrides** (`blockedContentIds` Firestore collection → `utils/BlockedIdsCache.kt`,
-  #161): a server-listed, read-only table of specific ids hidden *conditionally* by a **reason** - `female` hides only when `!allowFemaleSingers`, `global` (and any unknown reason) hides for everyone,
-  all inert when filtering is off. The surgical complement to the artist whitelist: a *mixed* channel
-  stays whitelisted while specific items from it are dropped by id. Applied centrally in
-  `filterWhitelisted`, in `search/ZemerResultMapper.dropBlocked()`, **and** in the offline read layer
-  (`offline/SubsetReadLayer.idDropped` + the shared `contentGatePasses` gate - see §Offline search
-  backup): a change to the filtering contract must now land in all THREE enforcement sites. The
-  artist-membership whitelist is deliberately never run over raw Zemer search results (it would clip
-  legitimate Hebrew/community hits), but a specific-id drop is safe there. Synced inside `syncArtistWhitelist` (no
-  user interaction), persisted to DataStore, loaded at startup; a failed sync keeps the previous table
-  (never unblocks). The `blockedContentIds` collection is managed by the separate **zemer-admin** app.
-- **The display-name split (`displayName`/`altName`, contract:
-  `handoff-docs/zemer-whitelist-display-names.md`):** ~50 whitelist docs carry a dual
-  "English - עברית" dash form as their legacy `name` (frozen forever - old installs and the wire
-  credits depend on it); `displayName` is the clean single-script name and is present ONLY on those
-  split docs, `altName` the other-script alias (~750 docs). The curated `displayName` is
-  AUTHORITATIVE for its artist row: one set-based, idempotent, self-terminating DAO UPDATE
-  (`applyWhitelistDisplayNames`) runs after every full whitelist fetch, and the >10-day stale
-  library-artist refresh prefers it over the YTM channel title (which IS the dash form) - never
-  reintroduce a one-shot legacy-name-guarded rename, it froze installs on stale names. `altName` is
-  matched by library artist search (SQL), the Artists/KidZone browse pills (via `WhitelistCache`),
-  and `artistByName` (see §Corpus-native artist/album opens). `DisplayNamesBackfilledKey` re-enables
-  the version-gated sync fast path only after a fetch that actually carried split names (pure
-  `whitelistCarriesDisplayNames`, tested).
-- **KidZone is a two-tab browse (Artists | Podcasts, the Home chip-selector pattern;
-  `ui/screens/KidZoneTab.kt`, pure + tested):** the Artists tab is the local whitelist slice
-  (`WHERE isKidZone = 1`), the Podcasts tab is the server's kid-flagged shows
-  (`/podcasts?kidZone=1`, live-only, fail-soft). `kidZone` is a NAVIGATION-context flag (like
-  `isPodcastChannel`) riding the show/channel routes, so every server call from a KidZone-opened
-  screen sends `kidZone=1` (drill-in discipline - the server 404s/filters non-kid content under it
-  as the second layer), with full OFFLINE parity: the subset's per-show `isKidZone` slot drives the
-  same semantics in the read layer (default-exclude on browse/search, only-kid under the flag,
-  detail-open carve-out), so the KidZone grid + drill-ins work from the snapshot too.
-  The Podcasts chip is REMOVED under Block Podcasts (the category gate), leaving the plain artist
-  browse. The chip row is the shared `ContentTabChipsRow` (`ui/component/ChipsRow.kt`) - ONE
-  geometry with Home's content selector - riding the scaffold's `topSections` slot (above the
-  search pill). The normal Podcasts browse filters wholly-kid channels out (`!isKidZone`, the podcast
-  mirror of the music browse's `WHERE isKidZone = 0`). Contract + the pending server ask
-  (default-exclude kid shows from normal surfaces): `handoff-docs/zemer-app-kidzone-redesign-request.md`.
-- **Playlist covers come from the filtered tracks, never the raw curator image.** A community/online
-  playlist's `playlist.thumbnail` is YouTube's curator art and bypasses the filter, so a mostly-female
-  playlist would otherwise show a female cover even when female is blocked.
-  `ui/screens/playlist/filteredPlaylistCover(songs)` derives both the opened-playlist header cover and
-  the saved-to-Library cover from the first *content-filtered* track (`songs` is already
-  `filterWhitelisted`-filtered), falling back to the neutral `queue_music` placeholder / null
-  `thumbnailUrl` - **never** `playlist.thumbnail`. Mirrors the local-playlist screens; don't revert
-  either site.
+- **Conditional id overrides** (`WhitelistFetcher.fetchBlockedIds`: `content.zemer.io` mirror-first, Firestore `blockedContentIds` fallback → `utils/BlockedIdsCache.kt`, #161): server-listed ids hidden by **reason** - `female` only when `!allowFemaleSingers`, `global` and any unknown reason for everyone; all inert when filtering is off. Lets a *mixed* channel stay whitelisted while specific items drop. Enforced in THREE sites that must move together: `filterWhitelisted`, `search/ZemerResultMapper.dropBlocked()`, and the offline read layer (`offline/SubsetReadLayer.idDropped` + the shared `contentGatePasses`). The artist whitelist is deliberately never run over raw Zemer search results (it clips legitimate Hebrew/community hits); an id drop is safe there. Synced inside `syncArtistWhitelist`, persisted to DataStore, loaded at startup; a failed sync keeps the previous table (never unblocks). Managed by the separate **zemer-admin** app.
+- **Display names** (`displayName`/`altName`, contract `handoff-docs/zemer-whitelist-display-names.md`): some docs keep a legacy dual "English - עברית" `name` (frozen - old installs and wire credits depend on it); `displayName` (only on those docs) is AUTHORITATIVE for the artist row, applied by the set-based, idempotent DAO UPDATE `applyWhitelistDisplayNames` after every full fetch, and preferred over the YTM channel title by the stale library-artist refresh. Never reintroduce a one-shot legacy-name-guarded rename (it froze installs on stale names). `altName` is matched by library artist search, the Artists/KidZone browse pills (`WhitelistCache`) and `artistByName`. `DisplayNamesBackfilledKey` re-enables the version-gated sync fast path only after a fetch that carried split names (`whitelistCarriesDisplayNames`, tested).
+- **KidZone is a two-tab browse (Artists | Podcasts; `ui/screens/KidZoneTab.kt`, pure + tested):** Artists = local whitelist slice (`WHERE isKidZone = 1`); Podcasts = `/podcasts?kidZone=1` (`ZemerSearchRepository.kidZonePodcasts`, server-first with offline fallback, fail-soft). `kidZone` is a NAVIGATION-context flag riding the show/channel routes, so every server call from a KidZone-opened screen sends `kidZone=1` (server filters as second layer), with offline parity via the subset's per-show `isKidZone`. The Podcasts chip is removed under Block Podcasts. The chip row is the shared `ContentTabChipsRow` (`ui/component/ChipsRow.kt`) in the scaffold's `topSections` slot. The normal Podcasts browse filters wholly-kid channels out (`!isKidZone`). Contract: `handoff-docs/zemer-app-kidzone-redesign-request.md`.
+- **Playlist covers come from the filtered tracks, never `playlist.thumbnail`** (YouTube curator art bypasses the filter). `filteredPlaylistCover(filteredSongs, thumbnailOf)` (`ui/screens/playlist/PlaylistHeaderCover.kt`) derives both the header cover and the saved-to-Library cover from the first content-filtered track, falling back to the `queue_music` placeholder / null `thumbnailUrl`. Don't revert either site.
 
 ### Zemer curated playlists (the Home "Zemer Playlists" shelf)
 
-Hand-curated playlists served ready-to-render by the search server's `/zemer-playlists` endpoint;
-full detail in `docs/zemer_playlists/README.md`. The rules that must not regress:
+Served by the search server's `/zemer-playlists`; detail: `docs/zemer_playlists/README.md`. Rules:
 
-- **Ids are server slugs (`"acapella"`), never YouTube playlist ids** - they get their own screens
-  (`zemer_playlist/{id}` detail, `zemer_playlists` see-all) and must never enter a YouTube-playlist
-  code path (`online_playlist/…`, save-to-library, playlist menus).
-- **All three content flags are sent explicitly on every request** (the server is default-OPEN;
-  `zemerCuratedPlaylistsParameters()` is the unit-tested contract), and the repository deliberately
-  does **not** cache - a plain re-fetch per screen-open is the endpoint's freshness contract and
-  guarantees a response fetched under one flag set is never shown under another. No client
-  re-filtering beyond the usual `dropBlocked`.
-- **Covers are server-generated SVGs at relative URLs** - resolved by `resolveZemerUrl()` and
-  decoded by the `SvgDecoder` registered in `App.newImageLoader` (that's why `coil-svg` exists).
-- Empty list = hidden section (normal state); detail 404 = back out + Home re-fetch. The Home shelf
-  is backed by its own `ZemerCuratedPlaylistsViewModel` (LatestReleases isolation pattern) so a feed
-  failure can never affect the rest of Home.
-- The detail screen's **All/Albums/Songs chips reuse `LatestReleaseFilter`** and split on the
-  server's `fromAlbum`/`albums` fields. The **chip row shows ONLY when the playlist has albums**
-  (`curatedChipsVisible(albumCount)`, unit-tested): a direct-picks playlist has no albums, so All ==
-  Songs and Albums is an empty dead end - those render the plain track list instead. `effectiveFilter`
-  pins the filter to ALL whenever the chips are hidden. Rows, Play and Shuffle all read the same
-  filtered list; rows never pass `albumIndex` (the shared row renders a number *instead of* artwork).
-- App↔server field changes travel as request docs in `handoff-docs/`, never as direct
-  edits to the zemer-search repo.
+- **Ids are server slugs (`"acapella"`), never YouTube playlist ids** - own screens (`zemer_playlist/{id}`, `zemer_playlists`); never enter a YouTube-playlist path (`online_playlist/…`, save-to-library, playlist menus).
+- **All three content flags on every request** (server is default-OPEN; `zemerCuratedPlaylistsParameters()`, unit-tested); the repository deliberately does **not** cache (re-fetch per screen-open, so a response is never shown under another flag set). No client re-filtering beyond `dropBlocked`.
+- **Covers are server SVGs at relative URLs** - `resolveZemerUrl()` + the `SvgDecoder` in `App.newImageLoader` (why `coil-svg` exists).
+- Empty list = hidden section; detail 404 = back out + Home re-fetch. The shelf has its own `ZemerCuratedPlaylistsViewModel` so a failure never affects the rest of Home.
+- Detail All/Albums/Songs chips reuse `LatestReleaseFilter`, split on `fromAlbum`/`albums`, and show ONLY when the playlist has albums (`curatedChipsVisible`, unit-tested); `effectiveFilter` pins ALL when hidden. Rows, Play and Shuffle read the same filtered list; rows never pass `albumIndex` (it replaces the artwork with a number).
+- App↔server field changes travel as `handoff-docs/` requests, never as zemer-search edits.
 
 ### Genres (the song-level genre layer: Home chips, catalog, detail, radio)
 
-Song-level genre browsing served by the search server's `/genres` family; full detail in
-`docs/genres/README.md`. Genre is
-a property of the SONG (via its release), independent of the artist flags - never conflate the two.
-The rules that must not regress:
+Served by the search server's `/genres` family; detail: `docs/genres/README.md`. Genre is a property of the SONG, independent of the artist flags - never conflate them. Rules:
 
-- **Key off the SLUG (`"nigunim"`), render the `title`** - `id` is the stable contract, `title` is a
-  display string the server changes freely. Routes carry the raw slug (`[\w-]`, URL-safe, no
-  encoding; `search/ZemerRoutes.kt` - `zemerGenresRoute`/`zemerGenreRoute`/`zemerGenreSectionRoute`,
-  unit-tested).
-- **`kind` grouping is fail-closed.** `musicGenres()` drops `non-music` AND any unknown/new kind
-  (`GenreKind.fromSlug` returns null → dropped), so spoken-word never renders beside songs.
-  `HIDDEN_GENRE_SLUGS` (lullaby/carlebach/workout/kids) are hidden from browse app-side (owner
-  decision, songs still reachable elsewhere); `acapella` is pinned LAST (`pinLast()`). All in
-  `search/ZemerGenresModels.kt`, JVM-tested in `ZemerGenresTest`.
-- **All three content flags on every call** (default-OPEN server; `zemerGenresParameters` /
-  `zemerGenreFacetParameters`, unit-tested). All genre endpoints are **live-only** (no offline
-  snapshot, like `/playlist`/`/radio`/`/stations`). The catalog has a 60 s flag-keyed TTL memo in
-  `ZemerSearchRepository.genres()` (collapses the Home→see-all→back nav burst); detail/facet are
-  uncached.
-- **The detail Play button is genre RADIO** (`ZemerRadioQueue.genre(slug)` → `/radio?kind=genre`),
-  NEVER the browse tracklist. It seeds no song, so its plays report `radio`; per-genre
-  `PlaySource.genre`/`TrackingSurface.genre` rides only the tracklist row taps (seed-first song
-  radio). **No Artists shelf** on a genre page - an artist card opens a full, mostly-unrelated
-  catalog (deliberately omitted).
-- **Tracklist paging + cross-list dedup** (`viewmodels/ZemerGenreViewModel`): near-edge prefetch
-  (the pure `shouldPrefetchNearEnd` in `ui/screens/GenreScreen.kt`, off-composition `snapshotFlow`), and a track the corpus returns in BOTH
-  the song and video arrays is de-duped across the two lists (page 0 AND `loadMore`) with disjoint
-  `song_`/`video_` `LazyColumn` keys.
-- **See-all uses the facet endpoint, not a `k` cap** (`viewmodels/ZemerGenreSectionViewModel`,
-  `GenreSectionScreen.kt`, route `genre_section/{genreId}?section=`): pages
-  `/genres?id=&facet=albums|singles` (limit 200) until `nextOffset` is null, so the FULL list is
-  browsable. Reuses the shared `YtItemGrid` + `BackTopAppBar`; the see-all arrow shows on any
-  non-empty shelf (always, like the artist page).
-- **Visuals are monochrome + one gold accent** (`docs/genres/README.md` §visual): per-genre motif
-  drawables (`ui/component/GenreIcons.kt` → `res/drawable/genre_*.xml`, incl. hand-drawn
-  menorah/alef/sukkah; NOT `material-icons-extended`); the drifting weave (`GenreWeaveLayer`)
-  rasterizes the vector motif ONCE into a tiny cached tile and per-frame only blits that tile across
-  the grid (never re-rasterize the vector per frame - that caused catalog jank; the earlier cached
-  `graphicsLayer` variant was replaced because evicted layers left cards blank, so the cheap-blit
-  self-healing design is load-bearing); the detail header album-art mosaic
-  (`ZemerResultMapper.headerCovers`) is the ONE color source, de-duped, min 3 unique covers
-  (songs reuse album art), neutral `ColorPainter` fallback (never a transparent gap), sized by the
-  mosaic-only `mosaicVariant` (isolated from the shared `thumbnailFor`). `HeaderFontFamily` (Heebo)
-  is used ONLY on genre titles/Play/card titles, never app-wide.
-- Home strip (`ui/screens/HomeGenresRow.kt`, own fail-soft `ZemerGenresViewModel`, isolated like
-  Stations) sits under Quick Picks, hidden/restored via a Settings → Appearance switch
-  (`ShowHomeGenresKey`). App↔server field changes travel as handoff docs, never as zemer-search edits.
+- **Key off the SLUG (`"nigunim"`), render the `title`** (display-only). Routes carry the raw slug (`search/ZemerRoutes.kt` `zemerGenresRoute`/`zemerGenreRoute`/`zemerGenreSectionRoute`, unit-tested).
+- **`kind` grouping is fail-closed**: `musicGenres()` drops `non-music` and any unknown kind (`GenreKind.fromSlug` → null). `HIDDEN_GENRE_SLUGS` (lullaby/carlebach/workout/kids) are hidden from browse (owner decision); `acapella` pinned last (`pinLast()`). All in `search/ZemerGenresModels.kt`, tested in `ZemerGenresTest`.
+- **All three content flags on every call** (`zemerGenresParameters` / `zemerGenreFacetParameters`, unit-tested). Genre endpoints are **live-only** (no offline snapshot; offline `/radio` excludes `kind=genre`). The catalog has a 60 s flag-keyed memo in `ZemerSearchRepository.genres()`; detail/facet are uncached.
+- **The detail Play button is genre RADIO** (`ZemerRadioQueue.genre(slug)` → `/radio?kind=genre`), never the tracklist; its plays report `radio`. `PlaySource.genre`/`TrackingSurface.genre` ride only tracklist row taps (seed-first song radio). **No Artists shelf** on a genre page (deliberate).
+- **Tracklist** (`viewmodels/ZemerGenreViewModel`): near-edge prefetch (pure `shouldPrefetchNearEnd` in `ui/screens/GenreScreen.kt`, off-composition `snapshotFlow`); a track in BOTH the song and video arrays is de-duped across lists (page 0 AND `loadMore`) with disjoint `song_`/`video_` keys.
+- **See-all uses the facet endpoint** (`viewmodels/ZemerGenreSectionViewModel`, `GenreSectionScreen.kt`, route `genre_section/{genreId}?section=`): pages `/genres?id=&facet=albums|singles` (limit 200) until `nextOffset` is null. Reuses `YtItemGrid` + `BackTopAppBar`; the arrow shows on any non-empty shelf.
+- **Visuals** (`docs/genres/README.md` §visual): monochrome + the one theme accent; motif drawables via `ui/component/GenreIcons.kt` → `res/drawable/genre_*.xml` (NOT `material-icons-extended`). `GenreWeaveLayer` rasterizes the motif ONCE into a cached tile and per frame only blits it - never re-rasterize per frame (jank) and don't go back to a cached `graphicsLayer` (evicted layers left cards blank). The header mosaic (`ZemerResultMapper.headerCovers`) is the one color source (de-duped, min 3 covers, neutral `ColorPainter` fallback, sized by `mosaicVariant`, isolated from `thumbnailFor`). `HeaderFontFamily` (Heebo) is only for genre titles/Play/card titles and the Music Status surfaces, never app-wide.
+- The Home strip (`ui/screens/HomeGenresRow.kt`, own fail-soft `ZemerGenresViewModel`) sits at the top of the Music tab above Quick Picks, toggled by `ShowHomeGenresKey` (Appearance). App↔server changes travel as handoff docs.
 
 ### Lyrics (the provider chain, the Zemer resolver, sync) — `docs/lyrics/README.md`
 
-**Layout (`lyrics/`, reorganised 2026-09-24):** the package root holds the chain core only - `LyricsProvider`
-(the interface), `LyricsHelper`, `LyricsChainWalk`, `SyncedFirstPicker`, `LyricsProviderRegistry`/`Ordering`,
-`LyricsStore`/`LyricsEntry`, `LyricsUtils`, `LineExtras`/`LineExtrasStore`, `LyricsUnavailableException`, and
-`LyricsHttp` - and every source lives in ONE package with its client, its models and its `LyricsProvider`
-wrapper together: `lrclib/`, `simpmusic/`, `youtube/` (the two YouTube providers) and `zemer/`
-(the resolver client + provider + the parsers it drives). All three network sources share the single Ktor client
-`LyricsHttp` (lenient JSON, 15/10/15 s timeouts, never throws on status - each caller judges its own reply); do
-not re-add a per-source `HttpClient`. `lrclib/LrcLibTrack` is the ONE LRCLIB record model for both the search
-hit and the by-id row the resolver vouches for.
+Detail (resolver source types and rank table, `lineTimes`/`lineExtras` semantics, parser ports, cache policy) lives in `docs/lyrics/README.md`. Rules an agent must hold:
 
-`lyrics/LyricsHelper.kt` runs the providers in order: **Zemer resolver first** (`lyrics/zemer/`; the search
-server's `/lyrics/resolve` returns source POINTERS, the app fetches Jyrics/Shironet/jkaraoke/tab4u/zemirotdb
-itself through golden-pinned parser ports of the server's parsers — `JyricsParser`, `ShironetParser`,
-`JkaraokeLrc` (plus the resolver's `offsetSec` on every jkaraoke line, the song's own measured lead OR the fleet
-default alike: on 67 per-line-measured recordings the default cut the mean cue error 0.70 s → 0.53 s and helped four
-songs for every one it hurt, so `offsetFrom` no longer gates it), `Tab4uParser`, `ZemirotDbParser` — the YouTube lyrics tab by the server-vouched `browseId`
-(trusted at rank 2 INSIDE the resolver, a deliberate policy: the server verified the tab for that exact
-videoId), and an audio-verified LRCLIB record by id, `ZemerLyricsClient.lrclibBody`, which the server hands out
-only for rows its audio check confirmed, an Apple Music row by `catalogId` (`AppleTtmlLrc`: a synced reply's ready
-`lrc`, else its TTML `<p begin>` onsets → LRC, Apple's own line times; an UNSYNCED reply (`type: "None"`, no
-`begin`s) serves its `plain` text with the `[Verse]` labels dropped — never nothing for a vouched row; golden-pinned
-both ways), a SimpMusic row by `entryId`
-(`SimpMusicLyrics.getLyricsByEntry`: the catalog the pointer's additive `videoId` names - else the track's own - fetched and
-the exact audio-verified entry picked, there is no per-entry endpoint, with the server's `synced` flag deciding whether its timings are served, `entryBody` - a synced pointer whose entry lost its timings upstream yields nothing, never plain text in the synced slot;
-the server never inlines simpmusic text, and a missing entry yields nothing so the walk continues). Walk order (`ZemerLyricsProvider.order`): SYNCED
-sources first (`synced`, an inline `syncedLrc`/`richSync`, or the one pointer `lineTimes` covers), then rank
-(`ZemerLyricsProvider.rank`): `zemer` 0 (Zemer's own certified text, `richSync` word tags > `syncedLrc` > `plain`,
-labelled just "Zemer") > jkaraoke/apple 1 > lrclib/kugou/simpmusic/zingmusic/youtube 2 > the text pages 3 >
-booklet/manual/canonical/community 4 (the inline bodies stay BEHIND the pointers: a pointer is the fresher copy,
-the inline text the outage fallback); the server's order breaks ties; an unknown type is skipped, never guessed;
-one source's fetch/parse failure skips that source, never the walk. A `manual` row's label names its `origin`
-(`Zemer · Telegram`, `verified`, `Apple Music`, `YouTube`, `forum`, …); the extra facts a source may carry
-(`publicDomain`, `borrowedFrom`, `syncedTruncated`, `wordSyncPartial`, `provenance`, `admittedBy`, the
-`lineTimes.offsetSec` already folded into `times`) are parsed and informational only. **`lineTimes`** (the
-resolver's measured line START times for a pointer's own text) are applied by the pure `LineTimesLrc`: lines
-pair by a TEXT-FREE key (`lineKey` = NFC → strip U+0591..U+05C7 → lowercase → letters+digits only → SHA-1[0:8],
-pinned to the server by vectors), monotone so a repeated chorus takes successive times, ONLY to the source
-`lineTimes.type` names, and only when ≥ 85 % of the body's own lines found a time (the server's rule; below it the
-server sends `syncTruncated` instead of `lineTimes`; a timed line absent from a drifted-shorter body costs nothing) — else
-plain. An unmatched line rides the preceding matched tag (the equal-time continuation the server's own synced
-bodies use) so no text is lost to sync; no line is ever given an estimated time. **`lineExtras`** (the resolver's per-line
-translation / romanization, `lyrics/LineExtras.kt`): paired to the app's own parsed lines by the SAME `lineKey`, never by
-index; rendered by the shared `LyricsLineExtra` under the sung line, ONE language at a time from `LyricsLineExtrasKey`
-(`LineExtrasLanguage`, **default OFF** - nothing changes until the user picks one, Appearance → lyrics or the lyrics menu);
-`source: "machine"` labels the source header ONCE per song, never per line; stored as one JSON file per videoId
-(`LineExtrasStore`, no lyrics-table migration) that never outlives its row (re-recorded on every chain answer, dropped on
-refetch); the pane also asks `POST /lyrics/extras` with the lines EXACTLY as displayed (any provider's body) once per
-song + language + body (`LyricsStore.ensureExtras`; transliteration rides the `en` request and reads `roman`; the
-store's flow prefers that aligned reply over the resolve-time field), only once a language is picked; every ask and a
-refetch's delete → record share one per-videoId lock in `LyricsStore`, so a song resolves once and no stale record lands.
-`LyricsEntity.CHAIN_GENERATION`
-+ `LyricsChainGenerationKey`: bump the constant when the chain gains sources/sync and every install drops its
-refreshable rows once (`DatabaseDao.purgeRefreshableLyrics`: not-found + auto-cached plain; synced, `manual`
-and `legacy` rows kept) - the replacement for one-off purge booleans), then
-SimpMusic (videoId-keyed; a track is this recording only when its duration is KNOWN and within 5 s of ours,
-`sameRecording`, else a miss — an unverifiable entry is never "probably right"; synced bodies only within 1 s. The
-catalog is community-filled, so a WRONG-TEXT upload that matches title, artist and duration - Apiryoin
-`Xc-75pW8N0Y` carried another Yiddish song, synced - passes every client gate; only Report / the server's own
-text can close that), LrcLib (identity-gated: title AND artist must agree; a
-duration-only match once served a Japanese song) (the Content settings provider-selection rows are the shared `SwitchPreference` and the priority dialog the shared `ReorderableList` over the pure `LyricsProviderOrdering`), YouTube subtitles,
-YouTube lyrics tab. The pick rule is the pure, tested `lyrics/SyncedFirstPicker`: among TRUSTED providers a SYNCED
-body beats a higher provider's plain one, but the YouTube providers are `lowTrust` (an auto-caption transcript is
-timestamped but not identity-gated) and are served ONLY when no trusted provider answered — never over a curated
-Zemer plain body. The SCHEDULE is the pure, tested `lyrics/LyricsChainWalk` (never changes the answer, only the
-wait): the primary trusted provider alone (a synced answer ends the walk with no other request), then the other
-trusted providers CONCURRENTLY offered in priority order, then the low-trust ones only when nothing trusted
-answered — so they are deferred even when the user order lists them first. Lyrics are PREFETCHED on every track
-start (`LyricsStore.prefetch`: current song then the next queue item, 3 s deferred, skipped offline) so opening
-the pane is a Room read; never regress the pane-open path to a live chain walk. `LrcLib.identityMatches` accepts ANY credited artist of a joined credit (`creditedArtists`), not
-just the first. The chain reads ONE DataStore snapshot per walk (`LyricsHelper.enabledProviders(prefs)`: order +
-every `LyricsProvider.enabledKey`), never a blocking read per provider. **The walk runs STRUCTURED under its caller**
-(`LyricsHelper.getLyrics` calls `LyricsChainWalk.run` directly; `run` is a `coroutineScope`): it used to
-run on a parentless `SupervisorJob` scope whose `cancel()` sat after the `await`, so a cancelled caller (the
-track-start prefetch skipping to the next song) left every in-flight provider fetch running to completion
-with its body - steady heap churn during background playback on low-RAM phones. Cancelling the caller now
-cancels the fetches (`LyricsChainWalkTest`), and the fetch lambda rethrows `CancellationException` before
-its catch-all so a skipped track is never reported as a provider failure. There is no in-memory lyrics
-cache in the helper (the one it had was never written to); Room via `LyricsStore` is the cache. `LyricsUtils.cleanLrc` formats with
-`Locale.US` (a comma-decimal locale produced LRC nothing could parse). Users contribute through the lyrics menu:
-a saved edit is also POSTed to the server's submission queue and "Report" POSTs a report after the shared
-`ConfirmDialog` (`ui/component/MenuDialogs.kt`, the ONE Cancel/OK confirmation - the remove-download confirm rides
-it too) is accepted, both via
-`LyricsMenuViewModel.feedback` (`lyrics/zemer/LyricsFeedback` on `viewModelScope` — the sheet's own scope is
-cancelled the frame it is dismissed, which silently dropped every report; `ZemerLyricsClient.submitLyrics/reportLyrics`,
-device id from `RelayDeviceId`); the server admits a submission only when a second device agrees or the recording
-confirms it, and hides a row after two reports.
-coverage; provider label persisted in `LyricsEntity.provider` and shown as "Lyrics from …"; NO estimated
-timings (word sync renders only measured `<mm:ss.xx>` tags); lyrics start at the top, active synced line held at
-30%; `LyricsSyncOffsetKey` user offset. The lyrics view (`ui/player/LyricsScreen.kt`, hosted by `Player.kt`, toggled by the
-`ShowLyricsKey`/`showLyrics` preference) reuses the player's own transport, slider and identity row via the shared
-components in `ui/component/lyrics/LyricsComponents.kt`; never re-roll them. Cache policy lives in `LyricsEntity`
-(`needsFetch`/`resolved`), applied by the ONE fetch-and-persist path `lyrics/LyricsStore` (`ensure` for
-`LyricsScreen`'s open-time fetch, `prefetch(current, next, connected)` for the service's track-start warm-up - every
-track start, pane open or not, 3 s deferred, current song then the next queue item, skipped offline - so opening
-the pane is a Room read, `refetch` for the menu's explicit
-delete-then-refresh - the delete lands FIRST so the pane visibly reloads even when the chain answers the same
-body, and fetches are single-flight per videoId so the screen's re-fetch joins the refetch's walk; JVM-tested with
-injected storage - never re-roll the decision per call site): a not-found row is
-a negative cache; a pre-provider row with a body is re-resolved once — a PLAIN legacy body is always kept
-(stamped `legacy`; it may be a manual entry, Refetch is the explicit way out), a SYNCED legacy body is replaced
-when the chain answers (nobody types timestamps: it is an old ungated LrcLib match). Cache refresh is by chain generation (`LyricsEntity.CHAIN_GENERATION` vs `LyricsChainGenerationKey`): each
-generation step runs `DatabaseDao.purgeRefreshableLyrics` once, dropping not-found rows and auto-cached PLAIN rows
-while retaining synced, `manual` and `legacy` rows. Do not add DB migrations for lyrics (the 35→36 `provider` column is the one that exists).
+- **Layout:** `lyrics/` root = the chain core only (`LyricsProvider`, `LyricsHelper`, `LyricsChainWalk`, `SyncedFirstPicker`, `LyricsProviderRegistry`/`Ordering`, `LyricsStore`/`LyricsEntry`, `LyricsUtils`, `LineExtras`/`LineExtrasStore`, `LyricsUnavailableException`, `LyricsHttp`); each source lives in one package with its client, models and provider (`lrclib/`, `simpmusic/`, `youtube/`, `zemer/`). All network sources share the ONE Ktor client `LyricsHttp` (lenient JSON, 15/10/15 s timeouts, never throws on status) - don't add a per-source `HttpClient`. `lrclib/LrcLibTrack` is the one LRCLIB record model.
+- **Chain order:** Zemer resolver first (`lyrics/zemer/`: `/lyrics/resolve` returns source POINTERS; the app fetches and parses them itself through golden-pinned ports of the server parsers), then SimpMusic, LrcLib, YouTube subtitles, YouTube lyrics tab. Inside the resolver, `ZemerLyricsProvider.order` puts synced sources first, then `rank` (server order breaks ties); an unknown source type is skipped, never guessed; one source's failure skips that source, never the walk. The operator-hosted inline bodies (`booklet`/`manual`/`canonical`/`community`) rank behind the pointers (inline is the outage fallback).
+- **Identity gates, never "probably right":** SimpMusic matches only a KNOWN duration within 5 s (`sameRecording`; synced within 1 s); LrcLib requires title AND artist agreement (`identityMatches`, any credited artist of a joined credit via `creditedArtists`). A server-vouched SimpMusic `entryId` whose timings vanished yields nothing (`entryBody`), never plain text in the synced slot; a vouched Apple row with no timings serves its plain text.
+- **Sync honesty:** `lineTimes` apply only via `LineTimesLrc` (text-free `lineKey` pairing pinned to the server by vectors, monotone, only to the named source, only when ≥ `MIN_MATCHED_SHARE` (85 %) of lines match, else plain); unmatched lines ride the preceding tag; NO estimated timings anywhere (word sync renders only measured tags). `lineExtras` pair by the same `lineKey`, never by index; one language at a time from `LyricsLineExtrasKey` (**default OFF**); stored per videoId in `LineExtrasStore` (no lyrics-table migration), never outliving its row; `LyricsStore.ensureExtras` asks `POST /lyrics/extras` only once a language is picked; every ask and a refetch share one per-videoId lock.
+- **Pick + schedule:** `SyncedFirstPicker` - among TRUSTED providers a synced body beats a higher provider's plain one; the YouTube providers are `lowTrust` and served ONLY when no trusted provider answered. `LyricsChainWalk` changes only the wait: primary trusted provider alone (synced ends the walk), then the other trusted ones concurrently, then low-trust. The walk runs STRUCTURED under its caller (`LyricsHelper.getLyrics` → `LyricsChainWalk.run`), so cancelling the caller cancels the fetches (`LyricsChainWalkTest`); the fetch lambda rethrows `CancellationException` before its catch-all. The chain reads ONE DataStore snapshot per walk (`LyricsHelper.enabledProviders(prefs)`), never a blocking read per provider.
+- **Cache:** Room via `LyricsStore` is the only cache (no in-memory cache in the helper). `LyricsStore` is the ONE fetch-and-persist path (`ensure` on pane open, `prefetch(current, next, connected)` on every track start - `MusicService.LYRICS_PREFETCH_DELAY_MS` deferred, skipped offline - so pane open is a Room read; never regress it to a live walk; `refetch` deletes FIRST, fetches are single-flight per videoId). Policy lives in `LyricsEntity` (`needsFetch`/`resolved`): not-found is a negative cache; a PLAIN legacy body is kept (stamped `legacy`), a SYNCED legacy body is replaced when the chain answers. When the chain gains sources/sync, bump `LyricsEntity.CHAIN_GENERATION` (vs `LyricsChainGenerationKey`): each step runs `DatabaseDao.purgeRefreshableLyrics` once (drops not-found + auto-cached plain; keeps synced, `manual`, `legacy`). Do not add DB migrations for lyrics (the 35→36 `provider` column is the only one).
+- **Misc:** `LyricsUtils.cleanLrc` formats with `Locale.US` (comma-decimal locales broke LRC). The provider label persists in `LyricsEntity.provider` ("Lyrics from …"). Edits POST to the server's submission queue and Report POSTs after the shared `ConfirmDialog` (`ui/component/MenuDialogs.kt`), both via `LyricsMenuViewModel.feedback` (`lyrics/zemer/LyricsFeedback` on `viewModelScope` - the sheet's own scope dies on dismiss and dropped reports). The lyrics view (`ui/player/LyricsScreen.kt`, in `Player.kt`'s lyrics bottom sheet) reuses the full player's `PlayerSeekBar`/`PlayerTransportRow` (`ui/player/PlayerTransport.kt`) plus `LyricsNowPlayingBar`/`LyricsSourceHeader` (`ui/component/lyrics/LyricsComponents.kt`) - never re-roll them. Settings provider rows are the shared `SwitchPreference`; the priority dialog is `ReorderableList` over the pure `LyricsProviderOrdering`.
 
 ### Shared UI components (componentized - import, don't re-roll)
 
-- `ui/component/Preference.kt`: `PreferenceEntry`/`SwitchPreference` take a `contentPadding` (`PreferenceEntryDefaults.contentPadding` for settings screens, `compactContentPadding` for rows inside a dialog list) - tighten a row through it, never by forking the row. A dialog list scrolls inside the dialog's height cap by giving its column `weight(1f, fill = false)` (the lyrics provider dialogs), so the buttons stay on a small screen.
-- `ui/component/ReorderableList.kt`: `ReorderableList` (drag-to-reorder named entries, every row the shared `PreferenceEntry` so it is D-pad focusable; the lyrics provider priority dialog) + `ReorderDragHandle` (the ONE drag-handle glyph; Android Auto's section rows pass their `longPressDraggableHandle`). Never hand-roll a `drag_handle` icon or a reorder row again.
-- `ui/component/lyrics/LyricsComponents.kt`: `LyricsSourceHeader` ("Lyrics from X · synced"; a `legacy` stamp shows as unknown) + `LyricsNowPlayingBar`, used by `ui/player/LyricsScreen.kt`, which reuses the Player's transport and slider.
+Every entry is the ONE implementation; files are under `ui/component/` unless stated. New screens use these; a hand-rolled duplicate is a review miss.
 
-A componentization pass extracted the app's repeated composables into `ui/component/`; reuse them
-instead of hand-rolling: `BackNavigationIcon` / `BackTopAppBar` (top-bar back button), `MoreVertMenuButton`
-(row 3-dot menu), `TopAppBarActionButton` (plain `TopAppBar` action icon - history/search/now-playing/
-refresh), `AppBarTitle` (the shared bold screen title - `titleLarge`+Bold, single-line+ellipsis; put
-EVERY screen-level `TopAppBar`/`BackTopAppBar` title through it so weights don't drift), `zemerTopAppBarColors()`
-(the one top-bar container color - pure black under AMOLED / `surfaceContainer` otherwise, container ==
-scrolled so bars never grey-out on scroll; baked into `BackTopAppBar`, and every hand-rolled screen
-`TopAppBar` passes `colors = zemerTopAppBarColors()` - except the full-bleed login/onboarding bars and
-ArtistScreen's over-header transparent state; the in-player fullscreen video overlay
-(`PlayerVideoFullscreen`) has no `TopAppBar` at all, just an exit icon over the scrim),
-`PlaylistPlayShuffleButtons` + `PlaylistHeaderShimmer` (playlist headers/skeletons),
-`shimmer/BoxPlaceholder` (the base shimmer slab under `ButtonPlaceholder`/`GridItemPlaceHolder`),
-`SettingsCardGroup` (the settings grouped-card stack - every settings row run renders through it:
-position-shaped per-row cards via the unit-tested `settingsCardCorners`, one geometry shared with
-`Material3SettingsGroup`; screens whose column already pads pass `horizontalPadding = 0.dp`),
-`ArtistBrowseComponents` (KidZone/whitelist browse header; also `ArtistSearchField` + `SearchHandoffPill` - the browse search pill and its tappable hand-off sibling, one shared geometry so the pair can't drift),
-`BrowseScreenScaffold` (the ONE whitelist-browse scaffold - the Artists / Kid Zone / Podcasts browse
-screens are each just a VM + item composables handed to it; it owns the search pill, count header
-with the expressive compact LIST|GRID `TonalToggleButton` pair, optional header-sections slot, sticky letter section headers (LIST), the
-loading shimmer vs empty-state split (a null browse flow = "not yet emitted" -> shimmer), expressive
-pull-to-refresh via the shared `PullRefreshLoadingIndicator` (one implementation with Home, living in
-the R26-exempt `MediaLoadingSpinner.kt`; a running whitelist sync shows as this spinner - there is NO
-full-screen sync overlay), back-to-top button,
-letter fast scroller, with the scroll/bucket math pure + JVM-tested in
-`BrowseScreenScaffoldTest` - a browse-screen change lands there once, never per screen),
-`IconCategoryCard` (the square category
-tile - centered gold icon + bold title + count subtitle on one neutral `surfaceContainerHigh` box, with
-the D-pad focus treatment; the Downloaded library's Music/Videos/Status tiles all render through it),
-`GenreCardGrid` (one genre-catalog section - optional bold title over the two-column `GenreCard` grid
-with the odd-card spacer; BOTH the music and podcast genre catalogs render through it, with the shared
-`GenreCatalogTopSpacing`/`GenreSectionGap` constants owning the catalog spacing). The
-**status viewers** share a family so the live (`StoryScreen`) and saved (`SavedStatusScreen`) viewers
-can't drift: `StatusStoryTopOverlay` (segment bars + avatar/name/date), `ExpandableStatusCaption` (the
-WhatsApp Read-more caption with clickable links + inline copy), `StatusCopyButton` (icon-only themed copy
-circle), `StatusVideoSurface` (the full-bleed ZOOM `PlayerView`, controls/buffering disabled),
-`StatusLoadingIndicator` (avatar + M3 progress ring loading state, spinner fallback), plus the
-`ui/utils/cubeFace` modifier (the cube swipe transform). `VideoModePill` (the in-player Song/Video
-toggle - a sliding-thumb segmented control overlaid on the art slot, see §Video mode) is the one
-source for that control; a screen wanting the same audio/video choice imports it, never a hand-rolled
-switch. The **onboarding flow** is fully componentized under `ui/component/`: `OnboardingStepHeader`
-(centered title + supporting text), `OnboardingStepTitle` / `AppNameTitle` (neutral step title / brand
-title, both `onSurface` - never the accent), the `OnboardingActionButton` / `OnboardingPrimaryButton` /
-`OnboardingTextButton` button family (one M3 shape, no per-screen shape overrides), `OnboardingChoiceCard`
-(radio-select), `OnboardingInfoCard` (title + description + optional leading icon + trailing control +
-optional action button - the one shell behind the content-filter toggles, the permission cards and the
-sign-in card), `OnboardingStatusPill` (the Done/Needed · Active/Optional chip), and `onboardingCardColors`
-(the shared card fill: `secondaryContainer` when active/selected, `surfaceContainer` otherwise - a tone
-below `OnboardingActionButton`'s `surfaceContainerHighest` so an in-card pill never blends into its card).
-The **loading + carousel-hero family** lives here too: `ZemerLoadingIndicator` (the CONTAINED M3 Expressive
-content/section spinner - Home pull-to-refresh look, video buffering, section loads; ratcheted by
-**R25**), its inline convenience `ZemerLoadingSection` (that spinner centered in a full-width box with
-vertical padding - the drop-in "this section is loading" block inside a scrolling column, used by the
-song-details sheet + the lyrics list; a fixed-footprint slot like the recognition mic button centers the
-raw indicator itself) and `MediaLoadingSpinner` (the BARE, neutral over-media spinner for a card cover's
-tap-to-play state; ratcheted by **R26**); `PreparingOverlay` (the scrim + `MediaLoadingSpinner` shown while a tapped
-item resolves, shared by `ItemThumbnail` and the video hero); `HeroTitleOverlay` (the bottom gradient
-title/subtitle + optional badges slot) and `CarouselHeroFrame` (the ENTIRE full-bleed carousel-hero
-frame - `maskClip`/`maskBorder` D-pad focus ring, cover-crop artwork, now-playing scrim) shared by the
-Latest Releases and Featured Videos heroes. The **title marquee** is `gentleMarquee(focused)`
-(`ui/component/Marquee.kt`): the calm one-shot glide for an overflowing title (settle ~3s, glide once,
-stop), shared by the now-playing/mini-player titles and every podcast row/card title. Pass the owning
-row/card's D-pad focus state so a focus GAIN re-arms the glide promptly; the param spec is the
-JVM-tested `gentleMarqueeParams`, whose focus-LOSS state must stay `iterations = 0` (the marquee node
-restarts on any param change, so falling back to the resting params would replay the glide behind the
-D-pad cursor on every row the user leaves). `ListItem`/`GridItem` expose it as `titleMarquee` -
-GridItem applies it AROUND the opaque title slot, so slot content must not add its own marquee.
-`GridItem` also takes an opt-in `centerContent` (column-centered, centered title covering both the
-plain and marquee paths) used by the whitelist-browse tiles so the name sits under the artwork; every
-other grid keeps its default left alignment. The **list-detail selection family**:
-`SearchableSelectableTopAppBar` (the ONE search + multi-select top bar shared by the seven
-playlist/history screens - idle title / transparent in-bar search field / selection-count title, with
-the fixed back-precedence; its `selectionCount` is a LAMBDA invoked only inside the bar's slots, so
-the per-tap `count { it.isSelected }` snapshot read invalidates the bar, never the calling screen's
-whole body - do not regress it to an inline Int), `SelectionTopActions` (the full title-row
-select-mode cluster) and `SelectionActions` (the select-all + overflow pair for a `TopAppBar`
-`actions` slot), all over the shared `ItemWrapper`. Also shared: `PlaylistDetailHeader` (the playlist
-detail screens' header block), `ErrorRetryState` (the "something went wrong" + Retry block, with an
-optional `detail` line for the caught message), `GenreCatalogShimmer` (the genre-catalog loading
-shimmer) and `RemoveDownloadConfirmDialog` (the remove-download confirm). The **update dialog family**
-(`UpdateDownloadDialog.kt`) contributed three general pieces: `MarkdownText` (renders the pure
-`utils/markdown/LiteMarkdown` subset - headings, bullet/numbered lists, bold/italic/code, tappable
-links - for release notes and any other server-authored prose; a nightly's commit message is formatted
-into it by `NightlyUpdates.commitMessageMarkdown`), `LabeledWavyProgress` (the ONE label + percent +
-expressive wavy bar + detail-caption stack for any in-progress row) and `InlineMessagePanel` /
-`InlineErrorPanel` (icon + text on a tonal container - an error the user must read and act on renders
-here, never as a bare red `Text`).
-New screens use these; a hand-rolled duplicate is a
-review miss.
+- **Rows/dialogs:** `Preference.kt` - `PreferenceEntry`/`SwitchPreference` take `contentPadding` (`PreferenceEntryDefaults.contentPadding` in settings, `compactContentPadding` in a dialog list; never fork the row); a dialog list scrolls inside the dialog cap via `weight(1f, fill = false)`. `ReorderableList.kt` - `ReorderableList` (drag-to-reorder, rows are `PreferenceEntry` so D-pad focusable) + `ReorderDragHandle` (the one drag-handle glyph; Android Auto rows pass `longPressDraggableHandle`) - never hand-roll a `drag_handle` icon or reorder row. `MenuDialogs.kt` - `ConfirmDialog` (the one Cancel/OK confirmation) + `RemoveDownloadConfirmDialog`.
+- **Lyrics:** `lyrics/LyricsComponents.kt` - `LyricsSourceHeader` ("Lyrics from X · synced"; `legacy` shows as unknown), `LyricsNowPlayingBar`, `LyricsLineExtra`.
+- **Top bars:** `IconButton.kt` - `BackNavigationIcon`, `MoreVertMenuButton` (row 3-dot), `TopAppBarActionButton` (plain action icon); `BackTopAppBar.kt` - `BackTopAppBar` + `zemerTopAppBarColors()` (the one container color; container == scrolled so bars never grey on scroll; every screen `TopAppBar` passes it except ArtistScreen's transparent over-header state); `AppBarTitle.kt` - `AppBarTitle` (EVERY screen-level bar title goes through it).
+- **Playlists:** `ui/screens/playlist/PlaylistDetailShared.kt` (not `ui/component/`) - `PlaylistDetailHeader`, `PlaylistPlayShuffleButtons`, `PlaylistHeaderShimmer`. `shimmer/BoxPlaceholder` is the base slab under `ButtonPlaceholder`/`GridItemPlaceHolder`.
+- **Settings:** `SettingsCardGroup` (every settings row run renders through it; per-row corners via unit-tested `settingsCardCorners`, geometry shared with `Material3SettingsGroup`; pre-padded columns pass `horizontalPadding = 0.dp`).
+- **Browse:** `ArtistBrowseComponents.kt` - browse header + `ArtistSearchField` + `SearchHandoffPill` (one geometry). `BrowseScreenScaffold` - the ONE whitelist-browse scaffold (Artists / Kid Zone / Podcasts are each a VM + item composables): search pill, count header with the LIST|GRID `TonalToggleButton` pair, `topSections` slot, sticky letter headers, shimmer-vs-empty split (null flow = shimmer), pull-to-refresh via `PullRefreshLoadingIndicator` (in `MediaLoadingSpinner.kt`, shared with Home; a whitelist sync shows as this spinner - no full-screen overlay), back-to-top, fast scroller; math pure + tested in `BrowseScreenScaffoldTest` - browse changes land here once. `IconCategoryCard` (square category tile; Downloaded library's Music/Videos/Podcasts/Status tiles). `GenreCardGrid` (one genre-catalog section; music AND podcast catalogs, spacing via `GenreCatalogTopSpacing`/`GenreSectionGap`), `GenreCatalogShimmer`.
+- **Status viewers** (live `StoryScreen` and saved `SavedStatusScreen` must not drift): `StatusStoryTopOverlay`, `ExpandableStatusCaption`, `StatusCopyButton`, `StatusVideoSurface`, `StatusLoadingIndicator`, plus `ui/utils/CubeFace.kt` `cubeFace`.
+- **Player:** `ui/player/VideoModePill.kt` `VideoModePill` - the one Song/Video toggle (see §Video mode).
+- **Onboarding:** `OnboardingStepHeader`, `OnboardingStepTitle` / `AppNameTitle` (both `onSurface`, never the accent), `OnboardingActionButton.kt` (`OnboardingActionButton` / `OnboardingPrimaryButton` / `OnboardingTextButton`, one shape, no per-screen overrides), `OnboardingChoiceCard.kt` (`OnboardingChoiceCard` + `onboardingCardColors`: `secondaryContainer` active / `surfaceContainer` otherwise, two tones below the button's `surfaceContainerHighest`), `OnboardingInfoCard` (the one shell for filter toggles, permission and sign-in cards), `OnboardingStatusPill`.
+- **Loading + heroes:** `ZemerLoadingIndicator.kt` - `ZemerLoadingIndicator` (CONTAINED expressive content spinner; **R25**) + `ZemerLoadingSection` (centered full-width loading block); `MediaLoadingSpinner.kt` - `MediaLoadingSpinner` (BARE neutral over-media spinner; **R26**) + `PreparingOverlay` (scrim + spinner while a tapped item resolves); `HeroTitleOverlay`; `CarouselHeroFrame` (whole carousel-hero frame, shared by Latest Releases and Featured Videos).
+- **Marquee:** `Marquee.kt` `gentleMarquee(focused)` - pass the row's D-pad focus state; its spec `gentleMarqueeParams` (JVM-tested) must keep focus-LOSS at `iterations = 0` (else the glide replays on every row the cursor leaves). `ListItem`/`GridItem` (`Items.kt`) expose it as `titleMarquee` (GridItem wraps the title slot - slot content must not add its own); `GridItem` `centerContent` is opt-in (browse tiles only).
+- **Selection:** `SearchableSelectableTopAppBar` (the one search + multi-select bar of the seven playlist/history screens; `selectionCount` is a LAMBDA read only inside the bar - never regress it to an inline Int, which recomposes the whole screen per tap), `SelectionTopActions.kt` (`SelectionTopActions` + `SelectionActions`), over `ui/utils/ItemWrapper.kt`.
+- **Messaging/progress:** `ErrorRetryState` (error + Retry, optional `detail`), `MarkdownText` (renders `utils/markdown/LiteMarkdown` for server-authored prose; nightly messages via `NightlyUpdates.commitMessageMarkdown`), `LabeledWavyProgress` (the one label + percent + wavy bar row), `InlineMessagePanel.kt` (`InlineMessagePanel` / `InlineErrorPanel` - an actionable error renders here, never as a bare red `Text`).
 
-**Componentize on every touch (non-negotiable).** Whenever you touch anything in the app, first check
-whether a shared component already covers it - if one exists, use it. If you find yourself writing (or
-editing) a second near-copy of a widget that already appears elsewhere, STOP and extract it into
-`ui/component/` (or reuse the existing one), then point every site at it in the same pass - never leave
-two hand-rolled copies to drift. Extracting the shared piece is part of the change, not a follow-up: the
-staff-engineer review bar rejects copy-pasted near-duplicates. When you add a new shared component, list
-it in the paragraph above so the next contributor finds it.
+**Componentize on every touch (non-negotiable).** Before writing a widget, check for a shared one and use it. If you would write (or are editing) a second near-copy, extract it into `ui/component/` and point every site at it in the same pass - never leave two copies to drift. List any new shared component above.
 
-**Shared non-visual helpers (de-dup logic too, not just composables).** The same "reuse, don't re-roll"
-rule covers repeated *logic*. The current shared helpers - reach for these before hand-writing the pattern:
-- **Id-bearing navigation:** `navigateToArtist(id)` / `navigateToAlbum(id)` (`ui/utils/AppNavigation.kt`)
-  over `navController.navigate("artist/$id")`. A blank id builds `"artist/"`, matches no destination and
-  **crashes** - the helper makes a blank id a no-op; the pure `artistRoute`/`albumRoute` builders are
-  unit-tested (`AppNavigationTest`). Query-param routes keep their own builders (`ZemerRoutes.kt`).
-  Ratcheted by `R16-navroute` (baseline 0).
-- **The row 3-dot menu body:** `ytItemMenu(item, navController, coroutineScope, onDismiss, isVideo)`
-  (`ui/menu/YouTubeItemMenu.kt`) returns the `@Composable ColumnScope.() -> Unit` for `menuState.show`,
-  dispatching `SongItem`/`AlbumItem`/`ArtistItem`/`PlaylistItem` to the right `YouTube*Menu` - never
-  re-write that `when` per screen.
-- **The Zemer repository from a leaf composable/queue:** `context.zemerSearchRepository()`
-  (`di/ZemerSearchRepositoryEntryPoint.kt`) over a hand-written `EntryPointAccessors.fromApplication(...)`.
-  Ratcheted by `R17-entrypoint` (UI-scoped, baseline 0).
-- **Sharing a URL/deep link:** `context.shareText(url)` (`extensions/ContextExt.kt`) over a hand-rolled
-  `Intent(ACTION_SEND)` + `createChooser`. `Tracker.action(SHARE, …)` and `onDismiss()` stay at the call
-  site. File/stream shares (log export, lyric image) keep their own builder. Ratcheted by `R19-share`
-  (baseline 0; `component/Lyrics.kt`'s lyric-image `EXTRA_STREAM` share is excluded, not a text share).
-- **Copying to the clipboard:** `context.copyToClipboard(label, text, confirmationRes = R.string.copied)`
-  (`extensions/ContextExt.kt`) over a hand-rolled `ClipboardManager.setPrimaryClip(...)` - it also shows
-  the confirmation toast (`link_copied` for link copies). `text` is a `CharSequence` so an
-  `AnnotatedString` copies verbatim. Ratcheted by `R20-clipboard` (baseline 0).
-- **Showing a toast:** `context.toast(resId | text, long = false)` (`extensions/ContextExt.kt`) over a
-  hand-rolled `Toast.makeText(...).show()` - two overloads mirror the framework (string-resource id /
-  `CharSequence`); `long = true` is `LENGTH_LONG`. Ratcheted by `R21-toast` (UI-scoped, baseline 0). Works
-  from any `Context` (Activity, Service, Application, `this@MusicService`).
-- **Focus visuals and initial D-pad focus:** every focus ring/border/fill conditions on
-  `focusVisualsEnabled()` and every screen-open focus grab goes through
-  `RequestInitialDpadFocus(requester, enabled, keys)` (both `ui/component/FocusBorder.kt`) - touch
-  sessions see no rings and skip the grabs; the grab re-arms when the input mode flips to keys.
-  Ratcheted by `R23-focusgate` and `R24-initialfocus` (baseline 0); functional focus (text fields,
-  key-event moves, the cast volume-key seed) is never gated. A focusable row inside a scrollable
-  container scrolls itself on-screen via `Modifier.bringIntoViewOnFocus()` (same file - one
-  remembered requester per site; extracted from the nav drawer's four hand-rolled copies), never a
-  hand-rolled `bringIntoViewRequester` + `onFocusEvent` chain. Full rules: `docs/ui/standards.md` §11.
-- **The "See all" gate:** `seeAllOnClick(count, action)` / `SEE_ALL_MIN_ITEMS` (`ui/utils/SeeAll.kt`,
-  unit-tested `SeeAllTest`) hides a section header's see-all arrow below the shared min-items threshold.
-  Gate on the **total the arrow opens, not a truncated preview count**: a full-list row passes its real
-  size, but a PREVIEW row (artist-page local sections that open a full online search, search-summary
-  sections that switch to the full filter, genre album/singles shelves that open the facet list) shows
-  the arrow whenever a fuller view exists - gating those on the preview size wrongly hides a path to more.
-- **Playing a single tapped episode:** `ListQueue.episode(item, playSource)` (`playback/queues/ListQueue.kt`)
- - the ONE way an episode tap builds its queue: a plain one-item ListQueue with the surface's declared
-  source, never `ZemerRadioQueue.song` (an episode must not seed music radio around its videoId; two call
-  sites drifted exactly that way once).
-- **Player navigation-id fill:** `MediaMetadata.withResolvedNavIds(currentSong)`
-  (`models/MediaMetadata.kt`, unit-tested `MediaMetadataNavResolutionTest`) - the full player and the
-  queue bar apply it once where they collect `mediaMetadata`, filling a name-only queue item's artist
-  id / album ref from the played song's DB row (only from a name-matched row with a REAL channel id -
-  a generated local id would open a dead artist page), so the title/artist taps and the player menu's
-  view rows work on every surface (#519). Never overwrite a wire-provided id.
-- **Sort-type labels:** `songSortTypeLabel(sortType)` (`ui/component/SortHeader.kt`) over a
-  per-screen `when` mapping `SongSortType` to its display string.
-- **Library grid scroll-to-top:** `LibraryScrollToTopEffect` (`ui/utils/ScrollUtils.kt`) - the shared
-  filter-change scroll-reset effect the library grid screens each hand-rolled.
-- **Channel deep links:** `channelDeepLinkRoute(channelId, artistWhitelisted, podcastWhitelisted)`
-  (`ui/utils/AppNavigation.kt`, unit-tested) - a `channel/UC…` link opens the music artist page when
-  artist-whitelisted, the podcast channel page when podcast-whitelisted, else silently no-ops. Share
-  links build via `VideoLinkBuilder.channelLink` so the link-out format and this parser live together.
-- **Onboarding step flow:** `OnboardingNavigation` (`ui/screens/onboarding/`, pure + unit-tested
-  `OnboardingNavigationTest`) holds the skip-when-already-configured transitions
-  (`afterWelcome`/`afterDensity`/`backFromContentFilters`/`backFromPermissions`) - lifted out of the flow
-  composable so Back never lands on a step skipped as already-set. `rememberOnboardingConnectivity()` is
-  the single shared internet-reachability poll the network-gated steps use (one socket-probe loop, not a
-  per-screen copy).
+**Shared non-visual helpers - reach for these before hand-writing the pattern:**
+- **Id navigation:** `NavController.navigateToArtist(id)` / `navigateToAlbum(id)` (`ui/utils/AppNavigation.kt`) - a blank id would build `"artist/"` and **crash**; the helper no-ops. Pure `artistRoute`/`albumRoute` tested in `AppNavigationTest`; query-param routes keep their builders (`ZemerRoutes.kt`). Ratchet `R16-navroute`.
+- **Row 3-dot menu body:** `ytItemMenu(item, navController, coroutineScope, onDismiss, isVideo, kidZone)` (`ui/menu/YouTubeItemMenu.kt`) - never re-write the `YTItem` → `YouTube*Menu` `when` per screen.
+- **Zemer repository in a leaf composable/queue:** `context.zemerSearchRepository()` (`di/ZemerSearchRepositoryEntryPoint.kt`). Ratchet `R17-entrypoint`.
+- **Text share:** `context.shareText(url)` (`extensions/ContextExt.kt`); `Tracker.action(SHARE, …)` + `onDismiss()` stay at the call site; file/stream shares keep their own builder. Ratchet `R19-share` (lyric-image share in `component/Lyrics.kt` excluded).
+- **Clipboard:** `context.copyToClipboard(label, text, confirmationRes = R.string.copied)` (also toasts; `text` is a `CharSequence`). Ratchet `R20-clipboard`.
+- **Toast:** `context.toast(resId | text, long = false)` from any `Context`. Ratchet `R21-toast`.
+- **Focus:** every focus visual conditions on `focusVisualsEnabled()` and every screen-open grab uses `RequestInitialDpadFocus(requester, enabled, keys)`; a focusable row in a scroller uses `Modifier.bringIntoViewOnFocus()` (all `ui/component/FocusBorder.kt`). Functional focus (text fields, key-event moves, cast volume keys) is never gated. Ratchets `R23-focusgate`, `R24-initialfocus`. Full rules: `docs/ui/standards.md` §11.
+- **See-all gate:** `seeAllOnClick(count, action)` / `SEE_ALL_MIN_ITEMS` (`ui/utils/SeeAll.kt`, `SeeAllTest`). Gate on the total the arrow OPENS, not a truncated preview: a preview row (artist-page local sections, search-summary sections, genre album/singles shelves) shows the arrow whenever a fuller view exists.
+- **Single episode tap:** `ListQueue.episode(item, playSource)` - never `ZemerRadioQueue.song` (an episode must not seed music radio).
+- **Player nav ids:** `MediaMetadata.withResolvedNavIds(currentSong)` (`models/MediaMetadata.kt`, `MediaMetadataNavResolutionTest`), applied once by the full player and queue bar: fills a name-only item's artist id / album ref only from a name-matched DB row with a REAL channel id (#519); never overwrites a wire-provided id.
+- **Sort labels:** `songSortTypeLabel(sortType)` (`ui/component/SortHeader.kt`). **Library grid scroll reset:** `LibraryScrollToTopEffect` (`ui/utils/ScrollUtils.kt`).
+- **Channel deep links:** `channelDeepLinkRoute(channelId, artistWhitelisted, podcastWhitelisted)` (`ui/utils/AppNavigation.kt`, tested) - artist page, else podcast channel, else no-op; share links via `VideoLinkBuilder.channelLink`.
+- **Onboarding flow:** `OnboardingNavigation` (`ui/screens/onboarding/`, `OnboardingNavigationTest`) owns the skip-when-configured transitions (`afterWelcome`/`afterDensity`/`backFromContentFilters`/`backFromPermissions`) so Back never lands on a skipped step; `rememberOnboardingConnectivity()` is the one reachability poll.
 
-**Never `runBlocking` on a UI path.** A composable/UI file that blocks the main thread ANRs. Collect the
-value with a suspend function + `LaunchedEffect`/`rememberCoroutineScope`, or a `Flow` (`collectAsState`);
-the DataStore sync accessors (`dataStore[Key]`, `dataStore.get(Key, default)`) are the documented
-exception and must run OFF the main thread. Ratcheted by `R18-runblocking` (UI-scoped, baseline 0). The
-legitimate blocking sites live outside `ui/` and are deliberate - ExoPlayer's `createDataSourceFactory`
-(a Media3 contract that must return synchronously), the download thread, the DataStore primitives.
+**Never `runBlocking` on a UI path** (ANR). Use a suspend function + `LaunchedEffect`/`rememberCoroutineScope`, or a `Flow` (`collectAsState`); the DataStore sync accessors (`dataStore[Key]`, `dataStore.get(Key, default)`) must run OFF the main thread. Ratchet `R18-runblocking`. The deliberate blocking sites live outside `ui/` (ExoPlayer's synchronous `createDataSourceFactory`, the download thread, the DataStore primitives).
 
-**Loading skeletons must match the real content that replaces them, and a per-tab skeleton must never
-render on another tab.** The Home content-type tabs share one `LazyColumn`, so a skeleton placed at the
-top level shows on every tab: the Home loading shimmer is shaped like the MUSIC home (title + card row)
-and is driven entirely by music-VM state (`isLoading` + the `has*HomeContent` flags), so `shouldShowShimmer`
-**must** stay gated on `homeTab == HomeContentTab.MUSIC` (kept on one line) - otherwise it paints a
-music-shaped skeleton on Radio/Podcasts/Videos that never resolves. Ratcheted by `R22-home-shimmer`
-(`scripts/ui-audit.sh`, a positive assertion, not a shrink-count).
+**Loading skeletons must match the content that replaces them, and never render on another tab.** The Home content tabs share one `LazyColumn`, and the Home shimmer is music-shaped and driven by music-VM state, so `shouldShowShimmer` **must** stay gated on `homeTab == HomeContentTab.MUSIC` (kept on one line) - else a never-resolving skeleton paints on Radio/Podcasts/Videos. Ratchet `R22-home-shimmer` (a positive assertion).
 
-Enforcement lives in `scripts/ui-audit.sh` (see the rule list at the top of that file) + `docs/ui/standards.md`;
+Enforcement lives in `scripts/ui-audit.sh` (see the rule list at the top of that file; R13 and R23-R26 are described inline beside their greps) + `docs/ui/standards.md`;
 when you add a new shared helper with a greppable anti-pattern, add a ratchet rule there in the same pass.
 
 ### The home tab (telemetry-ranked rows; zero-InnerTube for content)
 
-`HomeViewModel` + `HomeScreen`. The home tab is **InnerTube-free for content** - every row is served
-from the Zemer `/home-rows` endpoint, local Room, or the flipphoneguy Latest-Releases feed. The **only**
-`YouTube.*` call left in `HomeViewModel` is the account-card identity lookup (`accountInfo()` for a
-signed-in user's name/avatar); do not add others. Full detail in `docs/home_rows/README.md`.
+`HomeViewModel` + `HomeScreen`. Every content row comes from Zemer (`/home-rows`, `/zemer-playlists`,
+`/stations`, …), local Room, the flipphoneguy Latest-Releases feed, or the third-party Music Status
+sources. The **only** `YouTube.*` call in
+`HomeViewModel` is `accountInfo()` (the signed-in account card); do not add others. Details:
+`docs/home_rows/README.md`.
 
-**The content-type selector (Music / Radio / Podcasts / Video)** is driven by the pure, unit-tested
+**The content-type selector (Music / Radio / Podcasts / Video)** is the pure, tested
 `visibleHomeTabs`/`effectiveHomeTab` (`ui/screens/HomeContentTab.kt`): Block Podcasts is the ONE filter
 that removes a tab (a persisted PODCASTS selection falls back to MUSIC); VIDEO is ALWAYS shown, relabeled
 "Video songs" for blocked-video users (a visibility gate is a regression). The selected tab is seeded
-from ONE async DataStore snapshot reading the tab AND Block Podcasts together (null until it lands, one
-frame of background) - never a main-thread `dataStore[key]` read in composition, never a flash of Music
-or of a blocked Podcasts tab. R22 (the MUSIC-gated shimmer) rides this selector - see §Loading skeletons.
-The **Videos tab's ranked rows** (`/video-home-rows` → Trending Videos / New Videos / Top Video Artists;
-handoff `zemer-app-video-home-rows-request.md`) ride the isolated fail-soft `VideoHomeRowsViewModel`
-(PodcastHomeRows pattern, see-all via `VideoHomeSeeAllStore`): an absent endpoint leaves the tab on its
-`topVideos` lead row. Direct plays declare `PlaySource.HOME_VIDEO_TRENDING`/`HOME_VIDEO_NEW` and the rows
-emit impressions on the matching `home:video-*` surfaces (append-only tracking contract:
-`zemer-app-video-home-rows-tracking-request.md`); the artists row needs neither (its plays attribute
-`artist:UC…` from the artist page). Blocked-video users get both video rows relabeled + audio-gated,
-never hidden, like every video shelf. **Featured Videos LEADS the tab as a full 16:9 hero carousel**
-(`ui/screens/VideoHeroCarousel.kt` - the video sibling of the Latest Releases hero, cover-fill 16:9 + the
-shared `HeroTitleOverlay`), at the top of the tab. It keeps the SAME `home:featured-videos` surface: since
-the M3 carousel is not a `LazyList`, each hero reports its OWN impression when it is the fully-revealed,
-SETTLED item ~300ms (via `CarouselItemScope.carouselItemDrawInfo`; `Tracker.impression` dedups per
-surface+videoId), so the exposure-dampener signal survives the row→carousel move. Trending / New Videos
-stay as the small-square `videoSongsRow` shelves below.
+from ONE async DataStore snapshot reading the tab AND Block Podcasts together (null until it lands) -
+never a main-thread `dataStore[key]` read in composition, never a flash of Music or of a blocked
+Podcasts tab. R22 (the MUSIC-gated shimmer) rides this selector - see §Loading skeletons.
+The **Video tab**: **Featured Videos LEADS it as a full 16:9 hero carousel** (`ui/screens/VideoHeroCarousel.kt`,
+shared `HeroTitleOverlay`) on the SAME `home:featured-videos` surface - the M3 carousel is not a
+`LazyList`, so each hero reports its OWN impression once it is the fully-revealed, SETTLED item ~300ms
+(`carouselItemDrawInfo`; `Tracker.impression` dedups per surface+videoId), keeping the exposure-dampener
+signal. Below it, `/video-home-rows` (Trending Videos / New Videos / Top Video Artists) ride the isolated
+fail-soft `VideoHomeRowsViewModel` (see-all via `VideoHomeSeeAllStore`; an absent endpoint leaves just the
+hero). Trending/New plays declare `PlaySource.HOME_VIDEO_TRENDING`/`HOME_VIDEO_NEW` with impressions on
+the matching `home:video-*` surfaces; the artists row needs neither (plays attribute `artist:UC…`).
+Blocked-video users get these rows relabeled + audio-gated, never hidden.
 
-**Project direction (a real, ongoing goal):** progressively **replace as much InnerTube as we can across
-the app** with Zemer-served, whitelist-pure data. The home tab migrated first; since then **artist opens
-(`/artist`), album opens (`/album`), ALL radio (`/radio` - see §Zemer Radio), every single-song tap
-(seed-first song radio), and search-with-offline-fallback** have followed - each with its InnerTube path
-deleted, not kept as fallback. When you touch any surface that reaches YouTube for *discovery* content
-(explore feeds, charts, recommendations, related, browse shelves, search-adjacent rows), prefer a Zemer
-endpoint - or a handoff request for one (`handoff-docs/`) - over deepening the InnerTube
-dependency, and delete the InnerTube path once the Zemer source lands. **Streaming/playback itself still
-needs InnerTube + the cipher** (see §The streaming pipeline - that's the irreducible core) and is out of
-scope; this goal is about *content discovery*, where YouTube's global feeds carry almost no kosher
-content anyway. (The YouTube search *engine* is REMOVED - Zemer is the app's only search engine; the
-greenlight and evidence live in `handoff-docs/zemer-app-artist-album-innertube-swap.md`.)
-
-**Remaining InnerTube candidates (the punch list to complete the migration)** - everything still
-reaching YouTube for content, in rough priority order. Pick from here before inventing new scope:
-
-- **Whole-screen discovery surfaces:** none remain. (`NewReleaseScreen` + `NewReleaseViewModel` +
-  the `new_release` route + `YouTube.newReleaseAlbums()`/`NewReleaseAlbumPage` were DELETED as
-  unreachable dead code - nothing navigated to the route; the Latest Releases home shelf is the
-  new-releases surface. `ChartsScreen` + `ChartsViewModel` + `YouTube.getChartsPage()` were DELETED -
-  the `charts_screen` route was registered but nothing navigated to it since the Trending row's
-  removal, so the whole cluster was unreachable. `MoodAndGenresScreen`, `YouTubeBrowseScreen`, `BrowseScreen` and their
-  `YouTube.moodAndGenres`/`explore`/`ExplorePage` InnerTube paths were DELETED with the Genres
-  feature - the Zemer catalog is the replacement moods/genres surface. The legacy `ArtistItemsScreen`
-  + its ViewModel + the `artist/{id}/items` route were DELETED - the Zemer per-section see-all had
-  already replaced it and nothing navigated to the old route anymore.)
-- **Non-engine InnerTube *search* users** (survived the engine removal deliberately - each needs its
-  own design, not a blind swap): `RecognitionResolver` (fingerprint match → `YouTube.search` →
-  whitelist check; a corpus-side match would need server support), the Android Auto **voice search**
-  (`MediaLibrarySessionCallback`), and the **add-to-playlist online search** dialog
+**Project direction:** progressively **replace InnerTube for content discovery** with Zemer-served,
+whitelist-pure data, deleting each InnerTube path once its Zemer source lands (not keeping it as a
+fallback). Done so far: the home tab, artist/album opens, all radio, every single-song tap, search (Zemer
+is the ONLY search engine). When you touch a surface that reaches YouTube for discovery, prefer a Zemer
+endpoint (or a `handoff-docs/` request for one). **Streaming/playback stays InnerTube + the cipher**
+(§The streaming pipeline) - out of scope. **Remaining InnerTube candidates** (pick from here before
+inventing scope):
+- **Non-engine InnerTube search users** (each needs its own design): `RecognitionResolver`, the Android
+  Auto voice search (`MediaLibrarySessionCallback`), the add-to-playlist online search
   (`AddToPlaylistDialogOnline`).
-- **Android Auto browse** still reads pooled-cookie InnerTube surfaces (see §Accounts) - the last
-  place anon can meet pooled-account personalization.
-- **Account-tied InnerTube** (`SyncUtils` library/likes sync, `accountInfo()` for the account card)
-  is inherent to the personal-login feature, not discovery - out of this punch list unless the
-  feature itself changes.
+- **`YouTube.next` selection:** `YouTubeQueue` (the playlist menu's Play/Shuffle, the artist menu and artist-page shuffle,
+  playlist deep links, the Home easter egg) and `MusicService`'s related-songs pipeline
+  (`YouTube.next` + `YouTube.related`).
+- **Other content fetches:** the `AlbumPlayButton` pre-play fetch (`Items.kt`) + `AlbumMenu` Refetch (`YouTube.album`),
+  the non-Zemer `OnlinePlaylistViewModel` + the `YouTubePlaylistMenu` song fetch (`YouTube.playlist`), `ArtistThumbResolver` + the library-artist refresh (`YouTube.artist`).
+- **Android Auto browse** reads pooled-cookie InnerTube surfaces (`YouTube.home`; see §Accounts).
+- Account-tied InnerTube (`SyncUtils` library sync, `accountInfo()`) is inherent to personal login - not
+  on this list.
+Deleted and not to be reintroduced: the charts, new-release, mood/genres/browse/explore screens and
+`ArtistItemsScreen` (Genres and the Latest Releases shelf replace them).
 
 Rules that must not regress:
 
 - **Featured Albums / Videos / Artists / Playlists come solely from `ZemerSearchRepository.homeRows()`**
-  (`GET /home-rows`, mapped by `ZemerResultMapper.homeRows()` → `HomeRows`). Ranked by real
-  distinct-device listening (albums/videos/artists) and YouTube view count (community playlists =
-  Featured Playlists row), 30-day live window, whitelist-pure + content-filtered server-side. There is
-  **no InnerTube scrape fallback** - an empty pool (only if search.zemer.io is unreachable) just hides
-  the row. `loadHomeRows()` returning null hides all four featured rows; it never breaks Home.
-- **The ranked content gate is female/israeli/blocked-ids ONLY - NOT the famous/american quality
-  proxy** (`isAllowedRanked`, distinct from `isBlockedArtist`). Real listening reach supersedes the
-  proxy that gates the (now-removed) scrape; applying famous/american here cut the rows to near-empty.
-  Cards carry the artist channel id (`ZemerAlbum/Track.artistId`, `ZemerArtist.id`) so the one-per-artist
-  `rotateByArtist` dedup and the female/israeli check work; without it both no-op.
-- **Featured Videos stays visible when videos are blocked** - retitled "Featured video songs"
-  (`R.string.featured_video_songs`) on both the Home row and its see-all page. Every row plays
-  audio-first (see §Video mode), so hiding the shelf for blocked users would just hide music; the
-  long-press menu is gated to audio-only (`isVideo = item.isVideo && !blockVideos`) on both surfaces
-  so a blocked user never gets a video download/share affordance. The artist page's own Videos
-  section and the search Videos chip follow the identical pattern - a video section/row is never
-  hidden, only relabeled + audio-gated. Don't reintroduce a `!blockVideos` visibility gate here.
-- **Zemer-sourced albums/playlists open via the server route** (`onlineAlbumRoute` / `onlinePlaylistRoute`,
-  `?zemer=true`), gated on `featuredAlbumsAreZemer` / `featuredPlaylistsAreZemer`, so the opened screen
-  is whitelist-scoped and immune to on-device InnerTube bot-gating. The Home shuffle button is **"Radio
-  mode"**: `HomeViewModel.shuffleRadioQueue()` → `ZemerRadioQueue(kind = "shuffle", seed = null)`, a
-  whole-catalog, whitelist-pure Zemer station (the old lucky-item InnerTube radio and its
-  `radioEndpoint != null` pool are GONE - don't reintroduce a per-item radio-endpoint filter here).
-- **A brand-new user's empty Quick Picks seeds from Zemer**, not YouTube: `seedQuickPicksFromZemer`
-  pulls the `auto-top-50` curated playlist. Returning users seed from local history; the seed is a no-op
-  when Quick Picks is non-empty and never breaks Home on failure.
+  (`GET /home-rows` → `ZemerResultMapper.homeRows()` → `HomeRows`). There is **no InnerTube scrape
+  fallback**: `loadHomeRows()` returning null hides the four featured rows, never breaks Home.
+- **The ranked content gate is female/Israeli/kids-only (+ blocked-ids in the mapper) ONLY - NOT the
+  famous/american quality proxy** (the shared `RankedContentGate`, also applied by `VideoHomeRowsViewModel`; distinct from `isBlockedArtist`); applying the proxy
+  cut the rows to near-empty. Cards carry the artist channel id (`ZemerAlbum/Track.artistId`,
+  `ZemerArtist.id`) - without it the one-per-artist `rotateByArtist` dedup and the female/israeli check
+  both no-op.
+- **Featured Videos stays visible when videos are blocked** - retitled `R.string.featured_video_songs`
+  on the Home row and its see-all; the long-press menu is audio-only (`isVideo = item.isVideo &&
+  !blockVideos`). The artist Videos section and the search Videos chip follow the same pattern. Never a
+  `!blockVideos` visibility gate here.
+- **Zemer-sourced albums/playlists open via the server route** (`zemerAlbumRoute` / `zemerPlaylistRoute`
+  in `search/ZemerRoutes.kt`, `?zemer=true`), gated on `featuredAlbumsAreZemer` /
+  `featuredPlaylistsAreZemer`, so the opened screen is whitelist-scoped and immune to InnerTube
+  bot-gating. The Home shuffle button is **"Radio mode"**: `HomeViewModel.shuffleRadioQueue()` →
+  `ZemerRadioQueue(kind = "shuffle", seed = null)` - don't reintroduce the old InnerTube lucky-item radio
+  or a per-item `radioEndpoint` filter.
+- **A brand-new user's empty Quick Picks seeds from Zemer** (`seedQuickPicksFromZemer`, the `auto-top-50`
+  curated playlist), not YouTube; a no-op when Quick Picks is non-empty, never breaks Home.
 - **Quick Picks must not churn on a pull-to-refresh** (pure, tested `viewmodels/QuickPicksPresentation`):
-  a refresh over rows already on screen skips the intermediate "local data first" publish and keeps the
-  rows until the FINAL list lands (`showLocalRowsFirst` - two publishes meant two shuffles per pull);
-  items that survive the reload keep their position and newcomers append (`keepDisplayedOrder`, applied to
-  the once-shuffled final list so the See-all contract still holds); and a pool under
-  `MIN_POOL_FOR_ROTATION` (8) allowed songs is shown WHOLE - the recent-artist avoidance + one-per-artist
-  rotation otherwise flips a small library's row between two subsets (3 -> 4 -> 3, "songs jump in").
-  Real libraries still rotate exactly as before.
+  a refresh over displayed rows skips the intermediate local-first publish (`showLocalRowsFirst` - two
+  publishes meant two shuffles); surviving items keep their position, newcomers append
+  (`keepDisplayedOrder`, applied to the once-shuffled final list so See-all still holds); a pool under
+  `MIN_POOL_FOR_ROTATION` (8) is shown WHOLE (rotation flipped a small library between subsets).
 - **Home song rows read the live Room row through `ui/utils/rememberLiveSong`** (Quick Picks, Forgotten
-  Favorites, their See-all) - never `database.song(id)` + `!!`. The row CAN vanish under the composable
-  (the whitelist sync deletes a de-whitelisted artist's songs while Home still lists them), and the
-  unwrap was a Home crash; the helper falls back to the snapshot.
-- The **"Zemer Radio" row** (under Zemer Playlists) is the synchronized-broadcast stations shelf - see §Zemer Stations below and `docs/stations/README.md`; its now-playing cards tick every 60s
-  while ON SCREEN only (`repeatOnLifecycle(RESUMED)`).
-- **Easter egg:** five quick taps on the Home top-bar title (1.5s idle resets) play a fixed song via
-  the deep-link path, whitelist-filtered (`ui/utils/HomeTitleEasterEgg.kt`, tap rule unit-tested).
-  Deliberate and owner-requested - do not "clean it up".
-- **Every content row has a "See all" arrow** → `home_see_all/{row}` (`HomeSeeAllRow`). The pages read a
-  process-wide `HomeSeeAllStore` snapshot that `HomeViewModel` publishes each load (the FULL, un-rotated
-  filtered pool), so See-all can never disagree with the row it opened from - no re-fetch, no re-filter.
-  Featured grids are 2-column (long Hebrew+English titles truncate at 3). Latest Releases / Zemer
-  Playlists keep their own see-all screens + ViewModels.
-- **The mainstream Trending row is gone** - the old `YouTube.getChartsPage()` charts carried ~no
-  whitelisted artists (it filtered to empty and never displayed; the whole charts screen/API cluster has
-  since been deleted as unreachable); the `auto-trending` / `auto-top-50` Zemer playlists
-  in the Zemer-Playlists shelf are the real trending/top surface. Don't reintroduce a charts-scraped row.
-- The `/home-rows` contract and every design decision are recorded in
-  `handoff-docs/zemer-app-home-rows-request.md` (the app↔server thread) and
-  `home-rows-plan.md`. App↔server field changes travel there, never as edits to the zemer-search repo.
+  Favorites, their See-all) - never `database.song(id)` + `!!`: the whitelist sync can delete the row
+  under the composable; the helper falls back to the snapshot.
+- The **Radio tab** is the Zemer Stations grid (see §Zemer Stations, `docs/stations/README.md`); its
+  now-playing cards tick every 60s only while Home is RESUMED (`repeatOnLifecycle(RESUMED)`).
+- **Easter egg:** five quick taps on the Home top-bar title (1.5s idle resets) play a fixed song,
+  whitelist-filtered (`ui/utils/HomeTitleEasterEgg.kt`, tap rule tested). Owner-requested - keep it.
+- **Every music/video discovery row has a "See all" arrow** (the Radio-tab stations grid and the
+  Podcasts-tab Continue Listening / New Episodes rows deliberately have none) → `home_see_all/{row}` (`HomeSeeAllRow`), reading the
+  process-wide `HomeSeeAllStore` snapshot `HomeViewModel` publishes each load (the FULL, un-rotated
+  filtered pool; the Video-tab rows read `VideoHomeSeeAllStore`) - no re-fetch, no re-filter, so it can
+  never disagree with its row. Latest Releases / Zemer Playlists / Genres / Music Status open their own screens.
+- **No mainstream Trending/charts row** (charts carry ~no whitelisted artists); the `auto-trending` /
+  `auto-top-50` Zemer playlists are the trending/top surface.
+- The `/home-rows` contract lives in `handoff-docs/zemer-app-home-rows-request.md`; app↔server field
+  changes travel there, never as zemer-search edits.
 
 ### Zemer Radio (`/radio` - every radio surface; SELECTION only)
 
-All radio runs on the Zemer server's `/radio` endpoint (whitelist-pure, blocked-ids filtered
-server-side + the client `dropBlocked` pass) via **`playback/queues/ZemerRadioQueue`** - artist /
-album / song / playlist seeds and `kind=shuffle` (Home "Radio mode"). `YouTube.next()` is gone from
-every radio path. **The audio stream is still InnerTube + the cipher** - this replaced selection
-only. Rules that must not regress:
+All radio runs on the Zemer `/radio` endpoint (whitelist-pure, blocked-ids filtered server-side + the
+client `dropBlocked` pass) via **`playback/queues/ZemerRadioQueue`** - artist / album / song / playlist /
+genre seeds and `kind=shuffle`. No user-started radio path uses `YouTube.next()` (the `YouTubeQueue` next()-fill is on the §The home tab punch list); the audio stream is still
+InnerTube + the cipher. Rules:
 
-- **The continuation token is opaque** (it encodes seed + flags + position): the queue keeps no
-  cursor state; `nextPage()` just echoes the last token back. Continuation pages are PURE fresh
-  tracks - never re-apply the old YouTube-style `drop(1)`; `MusicService`'s auto-load dedupes
-  against the ids already in the player (`continuationItemsToAppend`) instead.
-- **Single-song taps are seed-first** (`ZemerRadioQueue.song()`): the tapped song is the
-  `preloadItem` (plays instantly) AND heads the queue at index 0, with the `/radio?kind=song` fill
-  deduped around it. Every converted tap site (Home, History, artist page, genre, search,
-  menus' Start radio, recognition history, latest releases) uses this factory - a bare
-  `ZemerRadioQueue("song", …)` without the seed is a station, not a tap.
-- **A failed fetch is never silent**: `playQueue()` surfaces it (toast + session error). With no
-  preload it also restores the previous queue (only the pointer was swapped); with a preload the
-  song keeps playing and the queue's `initialFailed` flag lets `nextPage()` retry the seed page on a
-  later transition - the flag is set only AFTER the initial fetch completes, so a retry can never
-  run concurrently with it and double-append the fill.
-- `LocalAlbumRadio` plays the local album then continues on `/radio?kind=album`; its
-  `firstTimeLoaded` flips only after a successful fetch (a transient failure must stay retryable).
-- Both queues hold only the **application context** - `MusicService.currentQueue` retains the queue
-  for the whole session, so a captured Activity is a leak.
-- Tracking: radio fill reports as `radio` (`initialItemsAreContext = false`,
-  `continuationIsContext = false`); the preloaded seed is the one user-chosen context item.
+- **The continuation token is opaque**: the queue keeps no cursor, `nextPage()` echoes the last token.
+  Continuation pages are PURE fresh tracks - never re-apply a YouTube-style `drop(1)`; `MusicService`'s
+  auto-load dedupes against the player's ids (`continuationItemsToAppend`).
+- **Single-song taps are seed-first** (`ZemerRadioQueue.song()`): the tapped song is the `preloadItem`
+  (plays instantly) AND index 0, with the `/radio?kind=song` fill deduped around it. Every tap site uses
+  this factory - a bare `ZemerRadioQueue("song", …)` is a station, not a tap.
+- **A failed fetch is never silent**: `playQueue()` reports it and calls `onStartRadioFailed()`. With no
+  preload it restores the previous queue (only the pointer was swapped); with a preload the song keeps
+  playing and `initialFailed` lets `nextPage()` retry the seed page later - set only AFTER the initial
+  fetch completes, so a retry never runs concurrently and double-appends.
+- `LocalAlbumRadio` plays the local album then continues on `/radio?kind=album`; `firstTimeLoaded` flips
+  only after a successful fetch (a transient failure stays retryable).
+- Both queues hold only the **application context** (`MusicService.currentQueue` retains the queue for
+  the session; a captured Activity leaks).
+- Tracking: fill reports as `radio` (`initialItemsAreContext = false`, `continuationIsContext = false`);
+  the preloaded seed is the one user-chosen context item.
 
-**Zemer Stations** (`playback/queues/StationQueue`, the "Zemer Radio" home row) are the OTHER radio
-product: one shared, server-programmed wall-clock schedule per station - every listener hears the
-same track at the same moment (contract: `handoff-docs/zemer-app-stations.md`). Rules
-that must not regress: ALL drift funnels through the BIDIRECTIONAL `resyncStationPlayback` (seek
-forward when behind, WAIT - pause until startMs - when ahead, full re-tune when nothing queued is
-on-air; never a mid-track jump, never a backward seek into a played/unplayable slot), invoked from
-boundaries, pause-resume, error skips and STATE_ENDED; **pause = stop, resume = rejoin live**; a
-broadcast is NEVER persisted (`saveQueueToDisk` guard) and a queue MUTATION (Play next / Add to
-queue) EXITS broadcast mode (`exitStationOnQueueMutation` - without it station state latches and
-queue persistence dies for the process); the session player masks all skip/seek/repeat/shuffle
-commands AND no-ops them against stale controllers, notifying command changes on every mask flip
-(`CastAwarePlayer.maskTransportForStation`/`notifyStationMaskChanged`); every raw-player transport
-surface (mini-player swipes, the full player's thumbnail swipe, queue-sheet taps, lyrics buttons,
-the widget's onStartCommand skips, repeat/shuffle toggles, and the Start-radio affordances - player
-menu row hidden, notification button disabled, `startRadioSeamlessly` chokepoint guard) is gated on
-`isStationBroadcast`, and `PlayerConnection.seekTo/Next/
-Previous` early-return during a broadcast; the station runway top-up ignores the Auto-load-more
-preference and repeat is forced OFF at station start; station items map through
-`ZemerResultMapper.toSongItem` (coverless slots get the derived artwork fallback); the row's
-now-playing ticker is LIFECYCLE-scoped (`repeatOnLifecycle(RESUMED)` - nothing polls while
-backgrounded); no content flags are sent (pools pre-filtered server-side; blocked-ids still run
-client-side as the third layer); a failed slot is marked unplayable and produces no play event
-(zero-play-time guard); every station play tags `PlaySource.station(id)`.
+**Zemer Stations** (`playback/queues/StationQueue`, the Home Radio tab) are the OTHER radio product: one
+shared, server-programmed wall-clock schedule per station - every listener hears the same track at the
+same moment. Map + design: `docs/stations/README.md`. Rules that must not regress:
+- ALL drift funnels through the BIDIRECTIONAL `resyncStationPlayback` (seek to the on-air slot's live
+  offset when drifted, WAIT - pause until startMs - when the slot hasn't started, full re-tune when nothing
+  queued is on-air; never a mid-track jump,
+  never a backward seek into a played/unplayable slot), invoked from boundaries, pause-resume, error
+  skips and STATE_ENDED. **Pause = stop, resume = rejoin live.**
+- A broadcast is NEVER persisted (`saveQueueToDisk` guard), and a queue MUTATION (Play next / Add to
+  queue) EXITS broadcast mode (`exitStationOnQueueMutation` - else station state latches and queue
+  persistence dies for the process).
+- The session player masks all skip/seek/repeat/shuffle commands AND no-ops `seekTo`/next/previous/
+  repeat/shuffle against stale controllers, notifying command changes on every mask flip (`CastAwarePlayer.maskTransportForStation` /
+  `notifyStationMaskChanged`, set from the `currentQueue` setter). Every raw-player transport surface is
+  gated on `isStationBroadcast` (mini-player swipes, the full player's thumbnail swipe, queue-sheet taps,
+  lyrics buttons, the widget's `onStartCommand` skips, repeat/shuffle toggles, the Start-radio
+  affordances: player-menu row hidden, notification button disabled, `startRadioSeamlessly` guard), and
+  `PlayerConnection.seekTo/Next/Previous` early-return during a broadcast.
+- The runway top-up ignores the Auto-load-more preference; repeat is forced OFF at station start.
+- Station items map through `ZemerResultMapper.toSongItem` (coverless slots get the derived artwork).
+- No content flags are sent (pools pre-filtered server-side); blocked-ids still run client-side.
+- A failed slot is marked unplayable and produces no play event (zero-play-time guard); every station
+  play tags `PlaySource.station(id)`.
 
 ### Corpus-native artist/album opens (no InnerTube fallback)
 
 Artist (`/artist`) and album (`/album`) screens load purely from the Zemer server
-(`ZemerSearchRepository.artist/album` → `ZemerResultMapper.toArtistPage/toAlbumPage`), with the
-offline snapshot as outage fallback - there is deliberately **no InnerTube fallback** (a non-corpus
-item is non-whitelisted and shouldn't open). A 404 renders the neutral "not available" state. Two
-non-obvious rules:
+(`ZemerSearchRepository.artist/album` → `ZemerResultMapper.toArtistPage/toAlbumPage`), with the offline
+snapshot as outage fallback and deliberately **no InnerTube fallback** (a non-corpus item is
+non-whitelisted and shouldn't open). A 404 renders the neutral "not available" state. Rules:
 
-- **The stale-row delete is flag-aware** (`AlbumViewModel`, `staleAlbumGoneForEveryone`): the server
-  404s an album that is merely FULLY BLOCKED under the user's content flags, so a 404 under
-  restrictive flags is re-probed with open flags before the local `AlbumEntity` row is deleted - a
-  flag-hidden album must never be destroyed by its own filter, and a failed probe keeps the row.
-- **An opener-threaded playlistId equal to the browseId never wins** (`toAlbumPage`): cards fall
-  their playlistId back to the browseId, and persisting that MPRE as `AlbumEntity.playlistId`
-  dead-presses album radio and mis-ids share links; the server's real OLAK id (or the browseId
-  fallback, now consumer-less since the automix feature's removal) is used instead.
-- **Artist credits resolve by ID, and name resolution prefers a whitelisted row** (the stuck-skeleton
-  fix, handoff `zemer-app-album-open-stuck-skeleton.md`): `/album`, `/artist` cards and `/search`
-  album rows carry `artistId` (live 2026-08-11) and `toAlbumPage` threads it into the album + matching
-  track credits, so Zemer inserts never hit the name lookup. For id-less credits (account-sync paths,
-  the name-only wire surfaces), `artistByName` deterministically prefers a whitelisted row over a
-  generated local one - devices held BOTH under one name, and resolving to the generated row starved
-  every whitelist-JOINed query (the infinite album skeleton, the doubled artist credit) - AND matches
-  the whitelist doc's `artistName`/`displayName`/`altName`, not just the row name: since the
-  display-name split renames rows to the clean `displayName`, a wire credit still carrying the legacy
-  dual "English - עברית" name must keep landing on the whitelisted row (see §Content filtering). `insert(AlbumPage)` deliberately does NOT
-  early-return on an existing row: every caller reaches it only when the whitelist-visible album read
-  was null (absent OR poisoned), so it recreates the artist maps - the self-heal for poisoned rows.
-  Diagnostic "AlbumOpen" Timber breadcrumbs stay in (client + ViewModel + post-insert map dump) for
-  the in-app Log viewer workflow that confirmed this.
+- **The stale-row delete is flag-aware** (`AlbumViewModel`, `staleAlbumGoneForEveryone`): the server 404s
+  an album that is merely FULLY BLOCKED under the user's flags, so a 404 under restrictive flags is
+  re-probed with open flags before the local `AlbumEntity` is deleted; a failed probe keeps the row.
+- **An opener-threaded playlistId equal to the browseId never wins** (`toAlbumPage`): cards fall their
+  playlistId back to the browseId, and persisting that MPRE as `AlbumEntity.playlistId` breaks album
+  radio and share links; the server's OLAK id (else the browseId) is used.
+- **Artist credits resolve by ID; name resolution prefers a whitelisted row.** `/album`, `/artist` and
+  `/search` album rows carry `artistId`, threaded by `toAlbumPage` into the album + matching track
+  credits. For id-less credits, `DatabaseDao.artistByName` prefers a whitelisted row over a generated
+  local one (resolving to the generated row starved every whitelist-JOINed query - the infinite album
+  skeleton, the doubled credit) AND matches the whitelist doc's `artistName`/`displayName`/`altName`, so a
+  legacy dual "English - עברית" wire credit still lands on the renamed row (§Content filtering).
+- `insert(AlbumPage)` deliberately does NOT early-return on an existing row: callers reach it only when
+  the whitelist-visible album read was null (absent OR poisoned), so re-mapping the artists is the
+  self-heal. The "AlbumOpen" Timber breadcrumbs (`ZemerSearchClient`, `AlbumViewModel`) stay in for the
+  in-app Log viewer.
 
 ### Music Status (the Home "Music Status" row + story viewer; third-party sourced)
 
-A WhatsApp/Stories-style feature: a Home row of creator "status" circles under Quick Picks, a
-full-screen story viewer, and a See-all grid. Content comes from TWO third-party services the app
-can't guarantee are up, so the whole feature is **fail-soft and isolated** the way Stations/Latest
-Releases are. Feature package `statuses/`; UI under `ui/screens/statuses/`; full detail in
-`docs/status/` (README + one API reference per platform). The rules that must not regress:
+A Stories-style Home row of creator "status" circles (under Quick Picks), a full-screen story viewer,
+and a See-all grid. Package `statuses/`, UI `ui/screens/statuses/`; the platform APIs and the source
+config are in `docs/status/`. The feature is **fail-soft and isolated**; the rules:
 
-- **Two sources, merged + deduped, music-only.** JewishStatus (`StatusesApi.kt`, Supabase PostgREST
-  + R2 CDN) and YidStatus (`YidStatusApi.kt`). **YidStatus MUST go through OkHttp**: its edge function
-  requires an `Origin: https://yidstatus.com` header that `HttpURLConnection` silently drops (restricted
-  header) -> 403. YidStatus is filtered to music categories (no comedy). `mergeStatusCreators` drops
-  cross-platform duplicates by a normalized name (`statusNameKey`); the Home row is uniform over the
-  merge, the See-all groups by `source`. Creators with empty `recentPostIds` are dropped (no ring).
-- **The source filter is server-driven, SERVER-ONLY** (`statuses/StatusSourcesConfig.kt`, contract
-  `handoff-docs/zemer-status-sources-config-request.md`): which JewishStatus category UUIDs + YidStatus
-  keywords count as "music" sync (version-gated) from `content.zemer.io/status-sources`, so they retune
-  without an APK. Typed descriptors with **one handler per `type`** (`supabase-category` / `keyword-feed`);
-  the two clients take `baseUrl`/`apiKey`/filter as params, but each `type`'s PROTOCOL details (the R2 CDN
-  host, the YidStatus feed path + `Origin` header) stay baked into its handler, never in a descriptor.
-  **There is NO baked-in fallback config** - the mirror is the single source of truth; the app persists the
-  last-good config (reloaded at startup) and is simply hidden until the first successful sync (fail-soft,
-  never wrong content). Fail-soft parse: null ONLY when a valid config can't be obtained (unreachable /
-  `503` / non-JSON / no `providers` array) -> caller keeps its last-good (or stays hidden); a VALID config
-  is honored as-is even when its usable set is empty (all `enabled:false` / unknown-type / empty-filter = an
-  intentional dark, row hidden); unknown `type` / disabled / empty-filter providers are skipped non-fatally.
-  Config synced by `StatusesRepository.syncStatusSources()` on the refresh path - AWAITED only for the
-  first-ever sync (so a fresh install's first load runs with a real config), non-blocking after; throttled
-  to one poll per `STALE_MS` window and QUIET on network failure (no `reportException` - matches the other
-  mirror syncs); the installed version is endpoint-capped (`minOf(body, endpoint)`) so a stale CDN body
-  can't suppress future syncs; family caches are version-stamped so a config change invalidates them
-  immediately; per-provider fail-soft keeps a failed provider's previous creators while siblings refresh;
-  persisted (`StatusSourcesConfigKey`/`StatusSourcesVersionKey`) + reloaded at startup, and
-  `StatusSourcesCache.update()` never rolls back to an older version (restore/sync race safe). Adding a
-  provider of an existing type is config-only; a new `type` is the one thing that needs an app change.
-- **Fail-soft + isolated.** `ZemerStatusesViewModel` (Stations pattern): a fetch failure keeps the row
-  empty and `HomeScreen` hides it; nothing about Home depends on it. Gated by `ShowHomeStatusesKey`.
-  If only one source fails the other still populates the row (progressive `republish`).
-- **Video-first, so hidden when videos are blocked.** Statuses are predominantly video, so both the Home
-  row AND the whole Music Status section in Appearance settings are hidden when `BlockVideosKey` is on
-  (gate both sites together - hiding only one would leave a row the user can't turn off, or an orphan
+- **Two sources, merged + deduped, music-only.** JewishStatus (`StatusesApi.kt`, Supabase PostgREST + R2
+  CDN) and YidStatus (`YidStatusApi.kt`). **YidStatus MUST use OkHttp**: its feed needs an
+  `Origin: https://yidstatus.com` header that `HttpURLConnection` silently drops → 403.
+  `mergeStatusCreators` drops cross-platform duplicates by normalized name (`statusNameKey`); the Home row
+  is uniform, the See-all groups by `source`. Creators with empty `recentPostIds` are dropped.
+- **The source filter is server-driven, SERVER-ONLY** (`statuses/StatusSourcesConfig.kt`, synced
+  version-gated from `content.zemer.io/status-sources`; full rules in `docs/status/README.md`
+  §Server-driven source config): one handler per `type` (`supabase-category` / `keyword-feed`) with
+  protocol details (R2 host, feed path + `Origin`) baked into the handler, never a descriptor; **NO
+  baked-in fallback config** - the last-good config is persisted and the row stays hidden until the first
+  successful sync; `parseStatusSourcesConfig` returns null only when no valid config can be obtained
+  (caller keeps last-good), while a VALID config with an empty usable set is an intentional dark; unknown
+  / disabled / empty-filter providers are skipped non-fatally. `StatusesRepository.syncStatusSources()`
+  is AWAITED only for the first-ever sync, throttled to one poll per `STALE_MS`, quiet on network failure
+  (no `reportException`); installed version endpoint-capped (`minOf(body, endpoint)`); family caches
+  version-stamped; per-provider fail-soft; `StatusSourcesCache.update()` never rolls back. A new provider
+  of an existing type is config-only; a new `type` needs an app change.
+- **Fail-soft + isolated.** `ZemerStatusesViewModel` (Stations pattern): a failure leaves the row empty
+  and hidden; one failed source still lets the other populate (progressive `republish`). Gated by
+  `ShowHomeStatusesKey`.
+- **Hidden when videos are blocked** (statuses are video-first): gate BOTH the Home row AND the Music
+  Status group in Appearance settings on `BlockVideosKey` together (else an un-hideable row or an orphan
   settings group).
-- **One source of truth.** `StatusesRepository` (per-source caches + mutexes, the merged/deduped
-  publish, the persisted seen set in `StatusSeenStore`). Live-refresh is three-layer: a staleness
-  window (`STALE_MS`), pull-to-refresh (`refresh(force = true)`), and a per-creator re-fetch the moment
-  a creator is opened (`refreshPosts`, appends newer statuses in place without disturbing playback).
-- **Pure timeline math is extracted and JVM-tested - keep it that way.** `StatusTimeline.kt`
-  (`resumePos`, `statusDateGroups`, `formatPostedAt`, `statusLocalDate`; zone-injectable so the tests
-  are deterministic) holds the non-obvious WhatsApp logic. Do NOT inline it back into `StoryScreen`
-  (that is exactly the untestable-logic-in-UI split the extraction fixed). `StatusTimelineTest` +
-  `StatusesApiTest` (parse/merge/`caughtUpOnLatest`/`applyStatusFilter`) + `StatusNavigationTest` are
-  the regression gate.
-- **WhatsApp read/resume semantics.** Open on TODAY's date window (or the newest date if none today)
-  at the first UNSEEN status; caught-up (NEWEST status seen) sinks the creator to the end
-  (`sortedByUnseenFirst` / `caughtUpOnLatest`). Finishing a date rolls FORWARD into the same creator's
-  next date; only the creator's newest status advances to the next creator; back is floored at the
-  entry date (jump-to-date sheet goes earlier). The per-segment ring in `StatusCreatorCircle` colors
-  seen vs unseen (accent unseen / `outlineVariant` seen).
-- **The ring respects the content filter.** `StatusCreator.recentPostKinds` carries the kind of each
-  recent status (YidStatus from the feed; JewishStatus via a batched `public_posts?id=in.(...)&select=
-  id,kind` fetch in `fetchStatusCreators`), so `visibleRecentIds(filter)` drops hidden-kind statuses.
-  The ring, `caughtUpOnLatest` and `sortedByUnseenFirst` all key off the VISIBLE ids, and a creator with
-  nothing viewable drops from the row/see-all. Unknown kinds (fetch failed / size mismatch) show all -
-  never hide more than we can prove.
-- **The viewer's no-flash invariants** (`StoryScreen`, all hard-won): creators live in a cube
-  `HorizontalPager`; the active face renders only when `postsCreatorIdx == creatorIdx` (else the stale
-  previous-creator content flashes on settle); both neighbors are prefetched (posts AND the thumbnail
-  bytes); the resume position is resolved EXACTLY ONCE against the AWAITED `seenSnapshot()` (never the
-  `seenPostIds` StateFlow, which is `emptySet` for the first frames of a fresh viewer -> "always starts
-  at the first status"); the play effect keys on the CURRENT status id (not the whole list) so a
-  background refresh that appends statuses doesn't restart the video; progress is driven on the display
-  frame clock (`withFrameNanos`, dt-capped). A video FILLS the screen (`RESIZE_MODE_ZOOM` in the shared
-  `StatusVideoSurface`, whose PlayerView controller auto-show + buffering spinner are disabled BEFORE the
-  player binds, so no transport controls flash on prepare); until its first frame draws the shared
-  `StatusLoadingIndicator` (the creator's avatar + an M3 progress ring) covers the surface - videos never
-  show a low-res/blurry poster. Its own short-lived ExoPlayer; the music player pauses on open, resumes on
-  close, and the video pauses when the app is backgrounded (`ON_STOP`).
-- **The caption + text are interactive** (shared with the saved viewer). The bottom caption is
-  `ExpandableStatusCaption`: it collapses to 3 lines with a Read more/less toggle (expanding freezes
-  auto-advance and darkens the panel), links are clickable via `linkifyStatusText`, and an inline
-  `StatusCopyButton` copies it; a text status gets its own copy pill (its body has no caption band). Links
-  open in the EXTERNAL browser via `Context.openStatusLink` UNLESS the URL matches one of the app's OWN
-  registered deep links (YouTube / music·video.zemer.io) - a status link must never open in an in-app
-  webview (the browser intent is pinned to the default browser). The save FAB shows a DETERMINATE download
-  progress ring (real byte progress from `StatusDownloadManager`, streamed) tracing the FAB's own
-  rounded-square outline while saving.
-- **Content filter (`HideTextStatusKey` ON by default / `HideImageStatusKey` off, Appearance).**
-  Applied at the `StoryViewModel` chokepoints (`applyStatusFilter` on `loadPosts`/`refreshPosts`/
-  `cachedPosts`) so the driver, cube preview and resume math all see the SAME visible list; a
-  fully-filtered creator ends up with no posts and is auto-skipped. `StoryViewModel.contentFilter` starts
-  **null** ("not read yet"), NOT a provisional default, and the driver waits for the first real DataStore
-  value before loading - seeding a guessed default let DataStore flip it a few ms after open and re-run
-  the driver, restarting playback (visible only when the real setting differed from the guess, i.e.
-  hide-image ON). The See-all screen's gear opens
-  Appearance scrolled to the Music Status group (`settings/appearance?scrollTo=status` +
-  `BringIntoViewRequester`), not the top.
-- **Media URLs are source-agnostic** (`statusMediaUrl`/`statusAvatarUrl`): a full `https` path passes
-  through unchanged (YidStatus), a relative path gets the R2 prefix (JewishStatus).
-- **Third-party platforms have no handoff doc** (they are not Zemer services): API shape, the
-  OkHttp/Origin gotcha, and the feed cost caps are recorded in `docs/status/` instead. The ONE Zemer-side
-  piece - the server-driven source config on the content mirror - IS covered by a handoff contract
-  (`handoff-docs/zemer-status-sources-config-request.md`, see the server-driven bullet above).
+- **One source of truth.** `StatusesRepository` (per-source caches + mutexes, merged publish, seen set in
+  `StatusSeenStore`). Refresh is three-layer: `STALE_MS` staleness, pull-to-refresh
+  (`refresh(force = true)`), and `refreshPosts` on creator open (appends newer statuses in place).
+- **Pure timeline math stays extracted + JVM-tested** in `StatusTimeline.kt` (`resumePos`,
+  `statusDateGroups`, `formatPostedAt`, `statusLocalDate`; zone-injectable) - never inline it back into
+  `StoryScreen`. Gate: `StatusTimelineTest`, `StatusesApiTest`, `StatusNavigationTest`.
+- **WhatsApp read/resume semantics.** Open on TODAY's date window (else the newest date) at the first
+  UNSEEN status; caught-up (NEWEST seen) sinks the creator to the end (`sortedByUnseenFirst` /
+  `caughtUpOnLatest`). Finishing a date rolls FORWARD into the creator's next date; only the newest status
+  advances to the next creator; back is floored at the entry date (the jump-to-date sheet goes earlier).
+  `StatusCreatorCircle`'s per-segment ring colors seen (`outlineVariant`) vs unseen (accent).
+- **The ring respects the content filter.** `StatusCreator.recentPostKinds` (YidStatus from the feed;
+  JewishStatus via a batched `public_posts?id=in.(...)&select=id,kind`) feeds `visibleRecentIds(filter)`;
+  the ring, `caughtUpOnLatest` and `sortedByUnseenFirst` key off the VISIBLE ids; a creator with
+  nothing viewable stays, drawn with a single muted arc. Unknown kinds show all - never hide more than we
+  can prove.
+- **Viewer no-flash invariants** (`StoryScreen`): creators live in a cube `HorizontalPager`; the active
+  face renders only when `postsCreatorIdx == creatorIdx`; both neighbors are prefetched (posts AND
+  thumbnail bytes); the resume position is resolved EXACTLY ONCE against the AWAITED `seenSnapshot()`
+  (never the `seenPostIds` StateFlow, empty for the first frames); the play effect keys on the CURRENT
+  status id so an appending refresh doesn't restart the video; progress runs on `withFrameNanos`
+  (dt-capped). Video fills the screen (`RESIZE_MODE_ZOOM` in `StatusVideoSurface`, controller auto-show +
+  buffering spinner disabled BEFORE the player binds); until the first frame it is a black cover, with
+  `StatusLoadingIndicator` only if still loading after ~0.75 s - never a low-res poster. Its own short-lived ExoPlayer: the music player pauses on open and
+  resumes on close; the video pauses on `ON_STOP`.
+- **Caption + text are interactive** (shared with the saved viewer): `ExpandableStatusCaption` (3-line
+  collapse with Read more/less - expanding freezes auto-advance; links via `linkifyStatusText`; inline
+  `StatusCopyButton`); a text status gets its own copy pill. Links open in the EXTERNAL default browser
+  via `Context.openStatusLink` UNLESS they match one of the app's own deep links (YouTube /
+  music·video.zemer.io) - never an in-app webview. The save FAB shows a DETERMINATE byte-progress ring
+  (from `StatusDownloadManager`) tracing its rounded-square outline.
+- **Content filter** (`HideTextStatusKey` default ON / `HideImageStatusKey` default off, Appearance) is
+  applied at the `StoryViewModel` chokepoints (`applyStatusFilter` on `loadPosts`/`refreshPosts`/
+  `cachedPosts`) so driver, cube preview and resume math see ONE list; a fully-filtered creator is
+  auto-skipped. `StoryViewModel.contentFilter` starts **null** and the driver waits for the real
+  DataStore value - a guessed default re-ran the driver and restarted playback. The See-all gear opens
+  `settings/appearance?scrollTo=status`.
+- **Media URLs are source-agnostic** (`statusMediaUrl`/`statusAvatarUrl`): a full `http(s)` URL passes
+  through (YidStatus), a relative path gets the R2 prefix (JewishStatus).
+- Third-party platforms get no handoff doc (`docs/status/` instead); only the Zemer-side source config
+  has one (`handoff-docs/zemer-status-sources-config-request.md`).
 
-**Status downloads (save a status to the device gallery).** A save FAB in the story viewer writes the
-current status to the gallery, and a "Status" card in Library -> Downloaded opens a browser of saved
-statuses. Rules that must not regress:
-
-- **A gallery-media concern, SEPARATE from the song download system.** Saves go through `StatusGallery`
-  (MediaStore `Images`/`Video` insert under `Pictures|Movies / Zemer / Status / <creator>`; delete reuses
-  `MediaStoreHelper.deleteFromMediaStore`), NOT `MediaStoreDownloadManager`. The FAB uses a
-  drawable-painter icon, never the Material download icon, so the download-unification ratchets stay green
-  (that system is song-only). `StatusDownloadManager` orchestrates fetch -> save -> index off the main
-  thread, fail-soft.
-- **No Room migration.** The saved-status INDEX is `StatusDownloadsStore` - a JSON array in DataStore
-  (the `StatusSeenStore` pattern), each record `{id, kind, creatorId, creatorName, creatorAvatar,
-  postedAt, caption, textBody, mediaUri, savedAt}`. The gallery holds the files; this is just the index
-  that lets the library list/group/filter/re-open them offline. Pure filename/index/view logic
-  (`StatusDownloadNaming`, `StatusDownload` JSON, `StatusDownloadsView`) is JVM-tested.
-- **Filename = posted time, creator = folder.** `Zemer/Status/<creator>/<yyyy-MM-dd HH-mm-ss>.<ext>`
-  (posted time, device zone; colons are illegal so hyphens). Text statuses render to a PNG
-  (`StatusTextImage`, color-agnostic - the composable passes theme colors in). Kept as `kind == "text"`
-  so the chip filter still classifies it.
-- **Gated on `BlockVideosKey`** everywhere (the FAB, the Downloaded card, the library screen) - statuses
-  are video-first, same gate as the row/preferences.
-- **The saved viewer is at FULL PARITY with the live one** (`SavedStatusScreen`): creators are
-  cube-pager pages you swipe between (`SavedStatusViewModel` groups all saved statuses by creator), with
-  the same segment bars/header (`StatusStoryTopOverlay`), auto-advance, tap-left/right, press-hold pause,
-  background-pause, the `ExpandableStatusCaption` (Read more / clickable links / inline copy) for a
-  captioned image/video and a copy pill for a text status, and the shared `StatusLoadingIndicator`
-  (avatar + ring) while a video prepares - only the media comes from the DOWNLOADED files. It reuses the
-  same shared components + the `cubeFace` transform as `StoryScreen`; the `faceCreator` gate + poster
-  cache (`rememberVideoThumbnail`, byte-bounded LruCache) keep the swipe flash-free.
-- **The library is a flat grid with filters + multi-select** (no grouped/shelf view - that was removed):
-  kind chips (All/Video/Image/Text), a Recently-saved/Recently-posted sort, and - when more than one
-  creator is saved - a creator-avatar filter row (tap to filter to one creator, tap again to clear). A
-  long-press opens the standard bottom-sheet menu (`SavedStatusMenu`: avatar/name/date header +
-  `Material3MenuGroup` Select / Remove). **Select** enters multi-select (the shared `SelectionTopActions`:
-  count / select-all / a bulk-remove menu via `ItemWrapper` + `removeAll`); the tile shows an accent
-  border + check badge when selected. Grid tiles decode a video poster frame via the cached
-  `rememberVideoThumbnail`; text tiles render natively (never cropped).
+**Status downloads (save to the device gallery).** Rules:
+- **A gallery-media concern, SEPARATE from song downloads**: `StatusGallery` (MediaStore
+  `Images`/`Video` under `Pictures|Movies/Zemer/Status/<creator>`; delete reuses
+  `MediaStoreHelper.deleteFromMediaStore`), never `MediaStoreDownloadManager`. The FAB uses a
+  drawable-painter icon, never the Material download icon (keeps the download-unification ratchets
+  green). `StatusDownloadManager` runs fetch → save → index off the main thread, fail-soft.
+- **No Room migration**: the index is `StatusDownloadsStore`, a JSON array in DataStore (records
+  `{id, kind, creatorId, creatorName, creatorAvatar, postedAt, caption, textBody, mediaUri, savedAt}`).
+  Pure naming/index/view logic (`StatusDownloadNaming`, `StatusDownload`, `StatusDownloadsView`) is
+  JVM-tested.
+- **Filename = posted time (device zone, `yyyy-MM-dd HH-mm-ss`), creator = folder.** Text statuses render
+  to a PNG (`StatusTextImage`, colors passed in) and stay `kind == "text"` for the chip filter.
+- **Gated on `BlockVideosKey`** everywhere (FAB, the Downloaded card, the library screen).
+- **The saved viewer is at FULL PARITY with the live one** (`SavedStatusScreen` +
+  `SavedStatusViewModel` grouping by creator): cube-pager creators, `StatusStoryTopOverlay`,
+  auto-advance, tap/press-hold, background-pause, `ExpandableStatusCaption` / copy pill,
+  `StatusLoadingIndicator`, the `cubeFace` transform; only the media comes from the files. The
+  `faceCreator` gate keeps swipes flash-free (a video preview face stays black, never a poster).
+- **The library is a flat grid** (no grouped view): kind chips (All/Video/Image/Text), a
+  Recently-saved/Recently-posted sort, a creator-avatar filter row when >1 creator; long-press opens
+  `SavedStatusMenu` (`Material3MenuGroup` Select / Remove); Select enters multi-select via the shared
+  `SelectionTopActions` + `ItemWrapper`. Text tiles render natively, video tiles via the byte-bounded
+  `rememberVideoThumbnail` poster cache.
 
 ### Podcasts (browse → show → episodes → play; a "Kosher" podcast client on top)
 
-A full podcast feature ported from Metrolist onto Zemer main. **DISCOVERY is now the whitelist-pure Zemer
-server** (`search.zemer.io`), exactly like artist/album/home-rows/radio - the app carries **no InnerTube
-podcast-discovery path and no direct-first Firestore whitelist read**. The endpoints
-(`handoff-docs/zemer-app-podcasts-request.md`, both sides SETTLED 2026-08-01) are `GET /podcast?id=MPSP…&offset=`
-(show + episode page), `GET /podcast-channel?id=UC…` (host channel → an `ArtistPage`), `GET
-/podcasts/new-episodes` (Library New Episodes), and podcast/episode groups folded into `/search`. The
-**whitelist allow-set + version gate + browse-grid data (art + channelId)** all come from the **content
-mirror** - the CHANNEL-level `content.zemer.io/podcastChannelsWhitelist` + `/podcastChannelsWhitelist/version`,
-mirror-first with a Firestore `podcastChannelsWhitelist` fallback - exactly like the artist whitelist
-(`ZemerContentClient` / `WhitelistFetcher`): each mirror doc carries `thumbnailUrl` + `channelId`, so the
-grid renders straight from the mirror (the app does NOT call `zemer-search /podcasts`). All are wired in
-`ZemerSearchClient`/`ZemerResultMapper`/`ZemerSearchRepository`, server-first with the offline-snapshot
-fallback (`OfflineReadProvider` podcast reads; only `/podcast-home-rows` is live-only). The endpoints are
-**LIVE on `search.zemer.io`** (deployed + device-verified 2026-08-11); `syncPodcastWhitelist` still
-preserves the last-good table on any fetch failure (never unblocks). **Podcast genre catalog sections
-are SERVER-OWNED** (`zemer-app-podcast-genre-kinds-request.md`, live 2026-08-11): `/podcast-genres`
-carries a per-row `kind` slug plus an ordered `kinds: [{id,title}]` catalog, grouped by the pure
-`podcastGenreSections` (unit-tested) and rendered through the shared `GenreCardGrid`. Unlike music's
-fail-closed kind drop, an unknown/blank podcast kind falls to a trailing headerless section (everything
-here is already whitelisted podcast content); no `kinds` (older server / offline snapshot) = flat grid.
-Per-genre icons are an owner-reviewed set in `podcastGenreIcon` (bespoke motifs + Material Symbols +
-two owner-supplied traced figures for tefilla/comedy).
-**Two things stay InnerTube:** (1) **PLAYBACK NEVER MOVES** - an episode is a YouTube video with a real
-`videoId`, played through the existing InnerTube + cipher pipeline exactly like a song/video (the
-irreducible core); (2) **ACCOUNT SYNC** - subscriptions + episodes-for-later sync bidirectionally to the
-YouTube account (`SyncUtils.syncPodcastSubscriptions`/`syncEpisodesForLater`, gated on
-`isPersonalAccountSignedIn`), the music-library model, never the server. The rules that must not regress
-(full detail in the handoff doc + `docs/` if generated):
+**Discovery is the whitelist-pure Zemer server** (`/podcast`, `/podcast-channel`, `/podcasts/new-episodes`,
+`/podcast-genres`, `/podcast-home-rows`, podcast groups in `/search`; server-first with the offline
+fallback except the live-only `/podcast-home-rows` and `/podcast-channel` offset paging) - there is no
+InnerTube podcast-discovery path. The **allow-set** is the content mirror. **Two things stay InnerTube:
+playback** (an episode is a YouTube video played through the normal pipeline) and **account sync**
+(`SyncUtils.syncPodcastSubscriptions`/`syncEpisodesForLater`, gated on `isPersonalAccountSignedIn`).
+App map: `docs/podcasts/README.md`. Rules that must not regress:
 
-- **An episode IS a `SongEntity` with `isEpisode = 1`.** Its "saved for later" state is `inLibrary != null`
-  (NOT `liked`); it plays by `videoId`; `EpisodeItem.asSongItem()`/`toMediaMetadata()`/`toMediaItem()`
-  carry `isEpisode = true` through the whole pipeline. Regular downloaded-songs queries EXCLUDE
-  `isEpisode = 1` - downloaded episodes surface only in Library → Podcasts → Downloaded.
-- **Show vs. host channel are different things** (the #1 gotcha): a **show** is `MPSP…` (a series of
-  episodes, what the whitelist lists, opened via `OnlinePodcastScreen`/`online_podcast/{id}`); a **host
-  channel** is `UC…` (publishes several shows, opened via `artist/{id}?isPodcastChannel=true`). The
-  browse grid, Search, and the show screen operate on shows; "View channel" and the Library → Channels
-  tab operate on host channels. `whitelistedPodcastRoute(podcastId, channelId)` (unit-tested) routes a
-  browsed podcast to the channel when a channelId is known, else the show.
-- **The host-channel page reuses `ArtistScreen`, loaded from the Zemer server** (`isPodcastChannel` nav
-  arg → `ArtistViewModel` calls `zemerRepository.podcastChannel(id)` → `GET /podcast-channel`, mapped to
-  an `ArtistPage`: the channel's shows become a "Podcasts" section (PodcastItem), latest episodes an
-  "Episodes" section). NOT InnerTube `YouTube.artist` anymore (that path was deleted). A 404/null →
-  the not-available state. Radio is HIDDEN for `isPodcastChannel` (no corpus radio for a host).
-- **The podcast whitelist source is the content mirror, not Firestore** (`SyncUtils.syncPodcastWhitelist`
-  → `WhitelistFetcher.fetchPodcastWhitelist`/`fetchPodcastVersion`, mirror-first from the channel-level
-  `content.zemer.io/podcastChannelsWhitelist` with a Firestore `podcastChannelsWhitelist` fallback,
-  exactly like the artist whitelist). Each
-  mirror doc carries `thumbnailUrl` + `channelId` (`ContentPodcastDoc`), so the browse grid renders cover
-  art + routes to the host channel straight from the allow-set - no per-row fetch. The old per-row
-  `requestPodcastThumbnail` (InnerTube) fetch AND the interim `zemer-search /podcasts` art overlay are both
-  **gone** (the mirror carries art now, matching the artist path). An empty/failed fetch never wipes the
-  local table (never unblocks). **New Episodes** is the global `GET /podcasts/new-episodes` feed scoped
-  CLIENT-SIDE to locally-subscribed shows (`PodcastLibrarySources.whitelistedNewEpisodes`), so it works
-  for anonymous sessions too (no account gate - it is discovery, not account state). **Search** folds
-  podcast/episode groups into `/search` (rendered by `YouTubeListItem`; a show row opens the
-  channel/show via `whitelistedPodcastRoute`, an episode row plays by videoId). The episode-aware
-  `filterWhitelisted` branch gates an `isEpisode` `SongItem` on the podcast whitelist (never the artist one).
-- **Subscribe (channel) vs. save-to-library (show) are distinct.** Channel Subscribe writes a bookmarked
-  `ArtistEntity` with `isPodcastChannel = 1` (→ the Channels tab via `bookmarkedPodcastChannels()`), and
-  hits `YouTube.subscribeChannel` which **must send `params="EgIIAhgA"`** or the server no-ops it. The
-  subscribe button reads the bare `artistEntity(id)` query (NOT `artist(id)`, which whitelist-INNER-JOINs
-  and always returns null for a non-whitelisted host). Save-a-show writes a `PodcastEntity` bookmark.
-- **Account-leak gate:** every podcast ACCOUNT read/write (new-episodes, library channels, save/subscribe,
-  episode save-for-later) gates on `isPersonalAccountSignedIn` - NEVER SAPISID/`isUserLoggedIn`, and there
-  is no `YouTube.isAnonLogin` (that flag was dead; deleted). Anon = local-only (pooled-account leak rule).
-  Save/subscribe toggles are OPTIMISTIC (flip local first, revert + toast on server failure).
-- **Episode resume** (podcasts are long): `MusicService` saves `song.lastPositionMs` from every exit path
-  (periodic 15s - episode-gated, never a music wakeup; on-pause; on track-SWITCH via
-  `previousEpisodeId`/`previousEpisodePosition`; on-destroy) and seeks on load. The pure decision is
-  `EpisodeResume` (unit-tested): don't resume within `RESUME_EDGE_MS` of the start, and a FINISHED episode
-  (within `COMPLETION_EDGE_MS` of the end) restarts from 0. **NEVER read `player.*` inside `database.query{}`**
-  (background executor → "Player accessed on the wrong thread"); capture on the main/caller thread first.
-  Episode rows show a **"N left"** hint (`episodeResumePositions()` Map query, gated by `EpisodeResume`);
-  the song menu has a local **mark-played/unplayed** row (sets `lastPositionMs` to end/0).
-- **EPISODE-ONLY player controls** (`Player.kt` `EpisodePlaybackControls`, shown only when
-  `mediaMetadata.isEpisode`): a speed pill (1×→1.25×→1.5×→1.75×→2×) + ±30s skip (fast-rewind/fast-forward
-  icons). MusicService **resets `playbackSpeed` to 1× on any non-episode** so episode speed never leaks
-  into music.
-- **Home "Continue Listening" row** (`HomeContinueListeningRow` + isolated fail-soft
-  `ContinueListeningViewModel`, placed BELOW the Podcasts row): in-progress episodes, most-recent first
-  via `continueListeningEpisodes()` - recency comes from the play `event` table, so **no new column**.
-- **Episodes NEVER appear in the MUSIC discovery rows.** An episode is a `SongEntity` in the `event`
-  table, so Keep-Listening / Quick-Picks fallbacks / Forgotten-favorites all filter `!isEpisode`
-  (`HomeViewModel`); regular `downloadedSongs*` queries exclude `isEpisode` too. Episodes live ONLY on
-  the podcast surfaces.
-- **Library → Podcasts = three sub-filter tabs** (`PodcastFilter` EPISODES/CHANNELS/DOWNLOADED, own
-  `PodcastSortTypeKey`/`PodcastSortDescendingKey` - must NOT reuse the Songs sort keys). New Episodes
-  is an `AutoPlaylistCard` that PLAYS the whitelist-pure `/podcasts/new-episodes` feed (never the raw
-  InnerTube `RDPN` playlist - unfiltered, a kosher leak); Episodes-for-Later is ALWAYS the local
-  saved-episodes list rendered inline (never the online `SE` playlist). Both behave identically for
-  personal and anon sessions. The shared podcast data sources (whitelist filter + leak gate) live in ONE place,
-  `utils/PodcastLibrarySources`, so the two podcast VMs can't drift.
-- **Whitelist:** podcasts have their OWN channel-level whitelist (`podcastChannelsWhitelist` → `PodcastWhitelistCache`),
-  separate from the artist whitelist. `filterWhitelisted` gates `PodcastItem`/`EpisodeItem` against it too
-  (respecting filters-off) as defense-in-depth. Play source/surface: episode plays tag
-  `PlaySource.podcast(id)` / `TrackingSurface.podcast|channel` (append-only slugs).
-- **Block Podcasts is a CATEGORY gate enforced like the female block** (the v37 leak fix, v38). One
-  shared decision - `PodcastSyncLogic.podcastCategoryAllowed` - backs every enforcement layer, all
-  keyed off the live `BlockPodcastsKey`/`ContentFilterState` so existing users are enforced the moment
-  they update: (1) `filterWhitelisted`'s `podcastPasses` drops ALL podcast/episode items when blocked
-  (whitelist membership is irrelevant for a blocked category); (2) BOTH nav surfaces hide the Podcasts
-  entry - the drawer's `navigationItems` and the bottom bar filter off the same preference (the drawer
-  previously read the static `Screens.MainScreens`, which was the leak); (3) every podcast nav
-  destination (`podcasts` browse, `online_podcast`, `podcast_genres`, `podcast_genre`, and
-  `artist`/`artist_section` with `isPodcastChannel=true`) carries a `podcastsBlockedRedirect` guard that
-  bounces a restored back stack/deep link to Home; (4) PLAYBACK itself is gated in `MusicService` - `podcastsBlocked()` + `filterBlockedEpisodes`/`Status.filterBlockedPodcasts`
-  (in `playback/queues/Queue.kt`) drop episodes at `playQueue` (preload + initial items, start
-  index re-clamped via the unit-tested `clampStartIndex`), `playNext`, `addToQueue` and the
-  auto-load-more append, so an episode can't play even from a persisted queue. Every
-  layer is a strict no-op while the flag is off. Regression tests: `PodcastSyncLogicTest`
-  (category-gate truth table) + `BlockedPodcastsQueueTest` (identity + index clamp).
+- **An episode IS a `SongEntity` with `isEpisode = 1`**: "saved for later" is `inLibrary != null` (NOT
+  `liked`), it plays by `videoId`, and `EpisodeItem.asSongItem()`/`toMediaMetadata()`/`toMediaItem()`
+  carry `isEpisode = true` end to end. Regular downloaded-songs queries EXCLUDE episodes (they surface
+  only in Library → Podcasts → Downloaded), and Keep Listening / Quick Picks fallbacks / Forgotten
+  Favorites filter `!isEpisode` - episodes never enter the MUSIC discovery rows.
+- **Show vs. host channel** (the #1 gotcha): a **show** is `MPSP…` (`OnlinePodcastScreen`,
+  `online_podcast/{id}`); a **host channel** is `UC…` (`artist/{id}?isPodcastChannel=true`). Browse,
+  Search and the show screen operate on shows; "View channel" and Library → Channels on host channels.
+  `whitelistedPodcastRoute(podcastId, channelId)` (tested) routes to the channel when known, else the show.
+- **The host-channel page reuses `ArtistScreen`**, loaded via `zemerRepository.podcastChannel(id)` →
+  `GET /podcast-channel` → `ArtistPage` (shows as a "Podcasts" section, latest episodes as "Episodes") -
+  never `YouTube.artist`. 404/null → not-available. Radio is HIDDEN for `isPodcastChannel`.
+- **The podcast whitelist is channel-level, from the content mirror** (`SyncUtils.syncPodcastWhitelist` →
+  `WhitelistFetcher.fetchPodcastWhitelist`/`fetchPodcastVersion`, mirror-first
+  `content.zemer.io/podcastChannelsWhitelist` with a Firestore fallback → `PodcastWhitelistCache`,
+  separate from the artist whitelist). Mirror docs carry `thumbnailUrl` + the `UC…` channel id
+  (`ContentPodcastDoc.id`), so the normal browse grid renders straight from the allow-set - no per-row
+  InnerTube art fetch, no `/podcasts` call (only the KidZone Podcasts tab uses `/podcasts?kidZone=1`). An
+  empty/failed fetch never wipes the local table (never unblocks). `filterWhitelisted` gates
+  `PodcastItem`/`EpisodeItem` and an `isEpisode` `SongItem` on the podcast whitelist (never the artist
+  one), respecting filters-off.
+- **New Episodes** is the global `/podcasts/new-episodes` feed scoped CLIENT-side to locally-subscribed
+  shows (`PodcastLibrarySources.whitelistedNewEpisodes`) - works for anonymous sessions (discovery, not
+  account state).
+- **Podcast genre sections are SERVER-OWNED**: `/podcast-genres` rows carry a `kind` slug plus an ordered
+  `kinds` catalog, grouped by the pure, tested `podcastGenreSections` and rendered through `GenreCardGrid`.
+  Unlike music's fail-closed kind drop, an unknown/blank podcast kind falls to a trailing headerless
+  section; no `kinds` (older server / no `genrecatalog` shard) = flat grid. Icons: the owner-reviewed `podcastGenreIcon`.
+- **Subscribe (channel) vs. save (show) are distinct.** Channel Subscribe writes a bookmarked
+  `ArtistEntity` with `isPodcastChannel = 1` (→ `bookmarkedPodcastChannels()`) and calls
+  `YouTube.subscribeChannel`, which **must send `params="EgIIAhgA"`** or the server no-ops. The button
+  reads the bare `artistEntity(id)` (NOT `artist(id)`, whose whitelist INNER JOIN is always null for a
+  host). Save-a-show writes a `PodcastEntity` bookmark.
+- **Account-leak gate:** every podcast ACCOUNT read/write (library channels, save/subscribe, episode
+  save-for-later sync) gates on `isPersonalAccountSignedIn` - never SAPISID. Anon = local-only.
+  Show-save (`OnlinePodcastViewModel.toggleSubscription`) and episode save-for-later
+  (`SyncUtils.toggleSaveEpisode`) are OPTIMISTIC (flip local first, revert + toast on server failure);
+  channel Subscribe (`ArtistEntity.toggleLike`) flips locally with no revert.
+- **Episode resume** (`playback/EpisodePositionTracker`, driven by `MusicService`): saves
+  `song.lastPositionMs` on every exit path (periodic 15s - episode-only, never a music wakeup; pause;
+  track SWITCH via `previousEpisodeId`/`previousEpisodePosition`; destroy) and seeks on load. The pure,
+  tested `EpisodeResume` decides: no resume within `RESUME_EDGE_MS` of the start, a FINISHED episode
+  (within `COMPLETION_EDGE_MS` of the end) restarts at 0. **NEVER read `player.*` inside
+  `database.query{}`** (background executor → "Player accessed on the wrong thread"). Rows show an "N
+  left" hint (`episodeResumePositions()`); the song menu has local mark-played/unplayed.
+- **Episode-only player controls** (`EpisodePlaybackControls`, only when `mediaMetadata.isEpisode`): a
+  speed pill (`EPISODE_SPEEDS` 1×–2×) + ±30s skips. `MusicService` resets `playbackSpeed` to 1× when an
+  episode gives way to a non-episode (never on every transition - a music Tempo & Pitch persists).
+- **"Continue Listening"** (`HomeContinueListeningRow` + isolated fail-soft `ContinueListeningViewModel`,
+  on the Podcasts tab under the genre strip): in-progress episodes, recency from the play `event` table
+  (`continueListeningEpisodes()`) - **no new column**.
+- **Library → Podcasts** = EPISODES/CHANNELS/DOWNLOADED (`PodcastFilter`) with their own
+  `PodcastSortTypeKey`/`PodcastSortDescendingKey` (never the Songs keys). New Episodes is an
+  `AutoPlaylistCard` playing the `/podcasts/new-episodes` feed (never InnerTube `RDPN` - unfiltered, a
+  kosher leak); Episodes-for-Later is ALWAYS the local saved list (never the online `SE` playlist). Same
+  for personal and anon. The shared data sources (subscription scope + whitelist filter) live ONLY in
+  `utils/PodcastLibrarySources`.
+- Episode plays tag `PlaySource.podcast(id)` / `TrackingSurface.podcast|channel` (append-only slugs); a
+  tapped episode plays via `ListQueue.episode` (see §Shared non-visual helpers).
+- **Block Podcasts is a CATEGORY gate enforced like the female block.** One decision -
+  `PodcastSyncLogic.podcastCategoryAllowed` - backs every layer, keyed off the live
+  `BlockPodcastsKey`/`ContentFilterState`: (1) `filterWhitelisted`'s `podcastPasses` drops ALL
+  podcast/episode items (whitelist membership irrelevant); (2) BOTH nav surfaces hide Podcasts - the
+  drawer's `navigationItems` and the bottom bar read the same preference (a static `Screens.MainScreens`
+  drawer list was the leak); (3) every podcast destination (`podcasts`, `online_podcast`,
+  `podcast_genres`, `podcast_genre`, and `artist`/`artist_section` with `isPodcastChannel=true`) runs
+  `podcastsBlockedRedirect` to bounce a restored back stack/deep link to Home; (4) PLAYBACK is gated in
+  `MusicService` - `podcastsBlocked()` + `filterBlockedEpisodes`/`Status.filterBlockedPodcasts`
+  (`playback/queues/Queue.kt`) drop episodes at `playQueue` (preload + initial items, start index
+  re-clamped by the tested `clampStartIndex`), `playNext`, `addToQueue` and the auto-load-more append,
+  so even a persisted queue can't play one. Every layer is a no-op while the flag is off. Tests:
+  `PodcastSyncLogicTest`, `BlockedPodcastsQueueTest`.
 
 ### Offline search backup (`offline/` - the outage fallback)
 
-A downloaded, incrementally-synced snapshot of the corpus serves `/search`, `/artist`, `/album`,
-`/home-rows` and `/zemer-playlists` when `search.zemer.io` is unreachable - a faithful Kotlin port of
-the zemer-search read layer returning the SAME wire models, so a fallback response is consumed
-identically to a live one. Full detail in `docs/offline/README.md`. The invariants:
+A downloaded, incrementally-synced corpus snapshot serves `/search`, `/artist`, `/album`, `/home-rows`,
+`/zemer-playlists`, the podcast reads and `/podcast-genres` (and PARTIAL `/radio`) when `search.zemer.io`
+is unreachable - a faithful Kotlin port of the zemer-search read layer returning the SAME wire models.
+Full detail (shards, layers, tests): `docs/offline/README.md`. Invariants:
 
-- **Server-first, always.** `serverOrOffline` falls back only on `isZemerServerUnreachable()` - `IOException` **or** `UnresolvedAddressException` (Ktor CIO signals no-network/DNS that way; it is
-  NOT an IOException). A 404-null is returned as-is and never triggers the fallback; a non-network
-  exception is never masked. Only SERVER responses enter the search LRU (a cached offline result
-  would outlive the outage). `/playlist` stays entirely live-only. `/radio` is now PARTIAL
-  (2026-09-11, `SubsetRadio.kt`): `song`/`artist`/`album`/`playlist`/`shuffle` run a scoped, faithful
-  port of the server's ranking blend over the shipped popularity + co-occurrence shards, but
-  `kind == "genre"` and a few JS tiers the shards don't carry (related-artist, skip-dock, acapella
-  exclusion) stay live-only, disclosed rather than faked - never claim offline radio is full parity.
-  An offline radio page's continuation token is self-describing (`OfflineRadioToken`) and its whole
-  paging chain stays offline; it never hands off to a live session mid-station.
-- **Additive shards, 2026-09-11** (all optional, an older app ignores them, an older snapshot just
-  serves less): `synonyms` (the query-expansion table now tracks the server's file instead of a
-  hand-copied one), `genrecatalog` (real podcast-genre titles/sections instead of a slug guess; the
-  music side is decoded but has no offline consumer yet - `/genres` stays live-only), `lyricsflags`
-  (an affordance hint driving a fire-and-forget lyrics prefetch on download completion,
-  `MediaStoreDownloadManager.prefetchLyricsIfLikely` - never gates the other lyrics providers), and
-  `realvideos` (the offline Featured Videos hero now shows only real filmed videos, matching the
-  live `realVideo` field).
-- **Kosher defenses:** a 14-day staleness cap (`subsetSnapshotIsFresh`), the live Firestore-synced
-  whitelist overlaid at corpus load (`SubsetCorpus.withLiveWhitelist` - de-whitelisted artists drop
-  the moment the app's whitelist sync lands, `isFemale` comes from the live flag), and ONE shared
-  content gate (`contentGatePasses`) + `idDropped` across every offline surface - never hand-inline
-  the female/KidZone/video predicate per site.
-- **Sync is staged and crash-safe:** shards are content-hash diffed, downloaded to `.staged` files,
-  verified, promoted only when ALL verified, and the manifest commits last; `loadCorpus` re-verifies
-  shard hashes at read time, and an unknown manifest `schema` generation is rejected wholesale
-  (cipher precedent). Enabled = **daily auto-update on ANY connection** (no metered gate - a product
-  decision), running on the syncer's OWN scope so leaving a screen never cancels a download.
-- **Parity is the correctness bar:** the port is verified against captured live responses (id-set +
-  order) and thumbnails deliberately match the server's `mqdefault` variant - do not "fix" them to
-  `thumbnailFor`'s `hqdefault`, that breaks the parity diff. See the offline unit tests + the
-  handoff doc `zemer-app-ondevice-fallback-subset.md`.
-- **Discovery:** an onboarding step (`OnboardingSearchBackupScreen`) for new users and a one-time
-  promo (`OfflineBackupPromoCard`) above Zemer search results for existing installs; declining the
-  onboarding offer also silences the promo.
+- **Server-first, always.** `serverOrOffline` falls back only on `isZemerServerUnreachable()` -
+  `IOException` **or** `UnresolvedAddressException` (Ktor CIO's no-network/DNS signal, NOT an
+  IOException). A 404-null is returned as-is; a non-network exception is never masked. Only SERVER
+  responses enter the search LRU (a cached offline result would outlive the outage). Live-only:
+  `/playlist`, `/genres`, `/stations`, `/podcast-home-rows`, `/video-home-rows`, `/podcast-channel` paging.
+- **Offline `/radio` is PARTIAL** (`SubsetRadio.kt`): `song`/`artist`/`album`/`playlist`/`shuffle` run a
+  scoped port of the server's ranking; `kind == "genre"` and the tiers the shards don't carry
+  (related-artist, skip-dock, acapella exclusion) stay live-only - disclosed, never faked; never claim
+  full parity. An offline continuation token is self-describing (`OfflineRadioToken`) and its whole
+  paging chain stays offline - never a live hand-off mid-station.
+- **Shards are additive/optional**: an older app ignores unknown shards, an older snapshot just serves
+  less. The `lyricsflags` hint only drives a fire-and-forget lyrics prefetch on download completion
+  (`MediaStoreDownloadManager.prefetchLyricsIfLikely`) and never gates the other lyrics providers.
+- **Kosher defenses:** a 14-day staleness cap (`subsetSnapshotIsFresh`), the live synced whitelist
+  overlaid at corpus load (`SubsetCorpus.withLiveWhitelist` - de-whitelisted artists drop at once,
+  `isFemale` from the live flag), and ONE shared content gate (`contentGatePasses`) + `idDropped` across
+  every offline surface - never hand-inline the female/KidZone/video predicate per site.
+- **Sync is staged and crash-safe:** content-hash diffed shards download to `.staged` files, are
+  verified, and promote only when ALL verified; the manifest commits last; `loadCorpus` re-verifies
+  hashes at read time; an unknown manifest `schema` is rejected wholesale. Enabled = **daily auto-update
+  on ANY connection** (no metered gate - a product decision), on the syncer's OWN scope so leaving a
+  screen never cancels a download.
+- **Parity with the live server is the correctness bar** (id-set + order); thumbnails deliberately use
+  the server's `mqdefault` variant - do not "fix" them to `thumbnailFor`'s `hqdefault`.
+- **Discovery:** an onboarding step (`OnboardingSearchBackupScreen`) and a one-time promo
+  (`OfflineBackupPromoCard`) above Zemer search results; declining in onboarding also silences the promo.
 
 ### Tracking (anonymous usage telemetry)
 
-Six events (`open`/`search`/`play`/`click`/`action`/`impression`) POSTed to `tracking.zemer.io`;
-full detail in `docs/tracking/README.md`. The rules that must not regress:
+Six events (`open`/`search`/`play`/`click`/`action`/`impression`) POSTed to `tracking.zemer.io`; full
+detail in `docs/tracking/README.md`. Rules that must not regress:
 
-- **Telemetry may never break the app**: every `Tracker` entry point is a fire-and-forget
-  `scope.launch`; failures are silent; the on-disk queue caps at 500 dropping oldest; a 400 drops
-  the batch. It's a JSONL file under `filesDir` - deliberately NOT a Room table.
-- **Identity is one random UUID** (`TrackingDeviceIdKey`) and nothing else - the server 400s
-  non-canonical ids, so only `UUID.randomUUID()` output is ever sent. Never add account/device/
-  location identifiers to an event.
-- **Debug builds send `debug: true` in the batch envelope and the SERVER discards them** - the
-  client path is identical in debug and release; never gate the tracker on `BuildConfig.DEBUG`.
-- **`play` fires for EVERY listen, however short** (`MusicService.onPlaybackStatsReady`), one per
-  listen when it ends; `source` comes from `Queue.playSource` + `Tracker.playSources`
-  (context vs radio-fill vs other) - new queue types/surfaces must declare their source, and radio
-  continuation must keep registering as `radio`. `ZemerRadioQueue` hardcodes the answer (fill =
-  `radio`, the preloaded seed = the queue's declared source; the menus' Start radio declares
-  `PlaySource.RADIO`); since every single-song tap now runs a seed-first radio queue, the `radio`
-  share of `play` events shifted UP by design - a dashboard reader should expect it.
-- **`action` hooks live at chokepoints** (entity `toggleLike()`s, `DownloadUtil` download entry
-  with `fromUser=false` for machine enqueues, `DatabaseDao.addSongToPlaylist`, share buttons) - don't add per-surface duplicates, and keep machine-initiated work out of the user-intent signal.
-- **`impression` counts what was SHOWN, and OVER-counting silently penalises a song** - the server's
-  exposure dampener docks a song for being widely shown, so the definition is deliberately strict:
-  inside the viewport AND settled there ~300ms, deduped per `(surface, videoId)`. Never count a
-  composed-but-offscreen row (Compose composes ahead of the viewport), never count a row a fling
-  passed through, and a row nested in a lazy parent must check the PARENT's viewport too - its own
-  says nothing about whether it is on screen. When in doubt, do not report.
-- **Impressions are the only event type that may be DROPPED rather than queued** - they outnumber
-  plays by an order of magnitude and share the one 500-event drop-oldest queue, so they are
-  discarded while the upload backoff window is open and past half the queue cap. Both drops are
-  song-independent, which is what makes them free; the per-POST row cap exists because the server's
-  truncation would NOT be.
-- **Surface slugs are the server's coverage-gate vocabulary** (`TrackingSurface`) - renaming one
-  reads as a surface disappearing and re-closes the gate. Treat them as append-only, and send the
-  tracking maintainer an updated declared list whenever a release instruments a new surface.
-- One `search` event per executed query (the per-query ViewModel guard) - never per keystroke or
-  per chip switch. Everything is tracked (KidZone included), no opt-out - a product decision,
-  2026-07-05. Each event carries `provider` (a Zemer extension per
-  `handoff-docs/zemer-tracking-search-provider-request.md`); the server contract accepts
-  `"zemer"`/`"youtube"` and stores anything else NULL, and since the YouTube engine's removal the
-  app is single-engine so the value is the pinned constant `SEARCH_TRACKED_PROVIDER = "zemer"`
-  (unit-tested) - keep sending the field, the dashboard splits on it.
-- The one-shot **history backfill** (`PlayHistoryBackfill`) uploads the local listen history as
-  `play_backfill` events through `Tracker.uploadBackfill` - NEVER through the live queue (its 500
-  cap must not be flooded) but sharing the single-in-flight + backoff discipline; row-ID cursor
-  (loss-free resume), a persisted max-id bound so live-tracked rows never double-upload, device-zone
-  timestamp conversion (wall-clock-as-UTC drops east-of-UTC users' freshest history), permanently
-  off once its done-flag is set, paced under the server's per-device batch limit.
-- The one-shot **library-action backfill** (`LibraryActionBackfill`) uploads the currently-liked /
-  currently-downloaded song **snapshot** as `action_backfill` events (`favorite`|`download` only)
-  through the same `Tracker.uploadBackfill` path and pacing. Differences from plays that must not
-  regress: **10-year** acceptance window, not 3 (an old `likedDate` on a still-liked song is a
-  long-standing favorite - don't "fix" the constant back); resume is by persisted **acked-line
-  count**, not a row cursor - snapshot timestamps are NOT stable across attempts (zone changes
-  shift every `t`; `SyncUtils.likedSongs` rewrites `likedDate` to sync time), so server dedup
-  cannot absorb a full replay and the prefix skip is what bounds it; favorites upload before
-  downloads (stable order the prefix skip depends on); pacing sleeps only BETWEEN batches (the
-  done-flag lands immediately after the last ack); downloads include machine enqueues (snapshot
-  can't see `fromUser`) so the server weights them as weak corroboration. Same device-zone
-  timestamp conversion; 90 s start delay (load spreading, NOT an ordering guarantee). Full
-  contract: `handoff-docs/zemer-tracking-action-backfill-request.md` (SETTLED).
+- **Telemetry may never break the app**: every `Tracker` entry point is a fire-and-forget `scope.launch`;
+  failures are silent; the on-disk JSONL queue under `filesDir` (deliberately NOT a Room table) caps at
+  500 dropping oldest; a 400 drops the batch.
+- **Identity is one random UUID** (`TrackingDeviceIdKey`, only `UUID.randomUUID()` output - the server
+  400s non-canonical ids). Never add account/device/location identifiers.
+- **Debug builds send `debug: true` in the batch envelope and the SERVER discards them** - never gate the
+  tracker on `BuildConfig.DEBUG`.
+- **`play` fires for EVERY listen, however short** (`MusicService.onPlaybackStatsReady`), once when it
+  ends; `source` comes from `Queue.playSource` + `Tracker.playSources` - new queue types/surfaces must
+  declare their source, and radio continuation must keep reporting `radio` (`ZemerRadioQueue`: fill =
+  `radio`, the seed = the queue's declared source; the song/playlist menus' Start radio declares
+  `PlaySource.RADIO`). Seed-first
+  taps mean `radio` is a large share of plays by design.
+- **`action` hooks live at chokepoints** (entity `toggleLike()`s, `MediaStoreDownloadManager`'s download
+  entry - `fromUser=false` machine enqueues never report, `DatabaseDao.addSongToPlaylist`, share buttons) -
+  no per-surface duplicates, no machine-initiated work in the user-intent signal.
+- **`impression` counts what was SHOWN, and over-counting penalises a song** (the server's exposure
+  dampener): inside the viewport AND settled ~300ms, deduped per `(surface, videoId)`. Never count a
+  composed-but-offscreen row or one a fling passed through; a row nested in a lazy parent must check the
+  PARENT's viewport too. When in doubt, do not report.
+- **Impressions are the only droppable event type**: discarded while the upload backoff window is open,
+  or once the queue is at half its cap (`IMPRESSION_QUEUE_CEILING`) - both drops are song-independent; the
+  per-POST row cap (`MAX_IMPRESSION_ROWS_PER_POST`) exists because server truncation would not be.
+- **Surface slugs (`TrackingSurface`) are the server's coverage-gate vocabulary** - append-only; send the
+  tracking maintainer the updated declared list whenever a release instruments a new surface.
+- One `search` event per executed query (per-query ViewModel guard), never per keystroke or chip switch.
+  Everything is tracked (KidZone included), no opt-out (product decision). The `search` event carries
+  `provider` = the pinned `SEARCH_TRACKED_PROVIDER = "zemer"` (tested) - keep sending it.
+- **Backfills** (`PlayHistoryBackfill` → `play_backfill`, `LibraryActionBackfill` → `action_backfill`,
+  `favorite`|`download` only) upload through `Tracker.uploadBackfill` - NEVER the live queue - sharing its
+  single-in-flight + backoff discipline, converting timestamps in the DEVICE zone, and permanently off
+  once their done-flag is set. Plays: row-ID cursor + a persisted max-id bound (live-tracked rows never
+  double-upload), 3-year window. Actions (a snapshot): resume by persisted **acked-line count** (snapshot
+  `t`s are unstable - zone changes, `SyncUtils.syncLikedSongs` rewriting `likedDate` - so server dedup can't
+  absorb a replay), favorites before downloads, a **10-year** window (don't shrink it), pacing sleeps only
+  BETWEEN batches, 90 s start delay (load spreading, not ordering), machine downloads included (weak
+  signal server-side). Detail + rationale: `docs/tracking/README.md`.
 
 ### The player background system (one effective style, one extractor)
 
-The full player (`ui/player/Player.kt`) and the mini player (`ui/player/MiniPlayer.kt`) share a
-single source of truth in **`ui/player/PlayerBackground.kt`** - never re-derive any of this per
-surface (the two drifting out of sync is exactly what bit a past change):
+The full player (`ui/player/Player.kt`), the mini player (`ui/player/MiniPlayer.kt`) and the lyrics
+screen (`ui/player/LyricsScreen.kt`) share ONE source of truth, **`ui/player/PlayerBackground.kt`** -
+never re-derive any of this per surface:
 
-- **`PlayerBackgroundStyle.effective()`** downgrades **BLUR → DEFAULT below Android 12**. The blur is
-  a `RenderEffect`, a no-op before API 31, so a raw BLUR there renders the bright artwork under the
-  light-on-dark transport - illegible. Every *render* decision (background, text/icon colors, status
-  bar, gradient enable) must read the **effective** style. `Player.kt` shadows the preference
-  (`val playerBackground = playerBackgroundPref.effective()`) so all downstream sites are covered for
-  free; the settings list hides BLUR when **`isBlurSupported`** is false. `effective(blurSupported)`
-  takes the flag explicitly so the rule is unit-tested without an Android runtime
-  (`app/src/test/.../ui/player/PlayerBackgroundTest.kt`).
-- **`rememberPlayerGradient(mediaId, thumbnailUrl, enabled, fallbackColor)`** is the *only* gradient
-  extractor: one bitmap-decode + Palette pass per track, memoised in a shared bounded `LruCache`, so
-  the two surfaces never decode the same artwork twice and the cache can't grow unbounded. The
-  previous palette is held while a new one extracts (and on a decode failure) to avoid a flash.
-- **`playerGradientStops(colors)`** is the *only* place the gradient color stops are built (3-stop
-  for ≥3 swatches, else a single-hue fade to black) - both surfaces call it so the gradient shape
-  can never drift between them.
-- **Light (white) content only when a dark backdrop is actually painted.** A blur layer needs a
-  `thumbnailUrl`; a gradient layer needs non-empty `gradientColors`. Until then the surface stays on
-  the solid `surfaceContainer` with theme-colored text - flipping to white before the backdrop
-  exists puts white text over the light Home screen showing through the (transparent) mini bar.
-- Status-bar legibility is a `DisposableEffect` in `Player.kt` keyed on **(background, theme,
-  `state.isExpanded`)**: it forces light icons only while the sheet is **expanded** (the dark
-  background actually covers the screen); collapsed/dragging follows the theme. It hands the bar back
-  to the theme-correct appearance - matching `MainActivity.setSystemBarAppearance`
-  (`isAppearanceLightStatusBars = !isDark`) - on dispose, never a stale captured snapshot.
-- The new-design transport cluster caps the labelled play button via `BoxWithConstraints` (to the
-  width left after the two skip buttons + gaps) so it shrinks to fit narrow widths instead of
-  overflowing; `TransportSkipButton` cancels its long-press repeat the moment the press is released.
+- **`PlayerBackgroundStyle.effective()`** downgrades **BLUR → DEFAULT below Android 12** (the blur is a
+  `RenderEffect`, a no-op before API 31, so raw BLUR there puts bright artwork under the light-on-dark
+  transport). Every *render* decision (background, text/icon colors, status bar, gradient enable) reads
+  the **effective** style - each surface reads `….effective()` (the full player and lyrics screen shadow
+  `playerBackgroundPref`); the settings list hides BLUR when `isBlurSupported` is false.
+  `effective(blurSupported)` takes the flag explicitly so it is JVM-tested (`PlayerBackgroundTest`).
+- **`rememberPlayerGradient(mediaId, thumbnailUrl, enabled, fallbackColor)`** is the ONLY gradient
+  extractor: one decode + Palette pass per track, memoised in a shared bounded `LruCache`; the previous
+  palette is held while a new one extracts (and on decode failure) to avoid a flash.
+- **`playerGradientStops(colors)`** is the ONLY place gradient stops are built, so the shape can't drift.
+- **Light (white) content only once a dark backdrop is actually painted** (blur needs a `thumbnailUrl`,
+  gradient needs non-empty `gradientColors`); until then stay on `surfaceContainer` with theme-colored
+  text - else white text lands over the light Home screen showing through the transparent mini bar.
+- Status-bar icons: a `DisposableEffect` in `Player.kt` keyed on (background, theme, `state.isExpanded`)
+  forces light icons only while the sheet is **expanded**, and on dispose restores the theme-correct
+  appearance (as `MainActivity.setSystemBarAppearance` does), never a stale captured snapshot.
+- The transport cluster (`PlayerTransport.kt`) caps the labelled play button via `BoxWithConstraints` so
+  it shrinks on narrow widths; `TransportSkipButton` cancels its long-press repeat on release. New
+  transport buttons reuse `TransportSkipButton` + the accent focus border; new D-pad rows reuse
+  `Modifier.focusBorder()`. ui-audit **R12** ratchets raw `Modifier.blur(` in `ui/` (the three player
+  surfaces are baselined) - route player blur through the effective style.
 
-**Prefer Material 3 Expressive when a fitting component exists.** Adding or replacing a UI element for
-which a Material 3 Expressive equivalent fits? Reach for it - behind the per-site
-`@OptIn(ExperimentalMaterial3ExpressiveApi::class)` and through a SHARED wrapper (`ZemerLoadingIndicator`,
-`MediaLoadingSpinner`, `CarouselHeroFrame`, the filter-chip `TonalToggleButton`, `MaterialShapes`, the
-pop helpers), never a global theme swap, and honoring the exclusions below (tiny in-button +
-determinate spinners stay standard `CircularProgressIndicator`; springiness is added per-interaction).
-`scripts/ui-audit.sh` ratchets the two loaders into their wrappers - **R25** (contained ->
-`ZemerLoadingIndicator`) and **R26** (bare -> `MediaLoadingSpinner`).
+**Material 3 Expressive: adopt per component, never globally.** The app stays on standard
+`MaterialTheme` (never `MaterialExpressiveTheme`, never a global `MotionScheme.expressive()` - the app's
+hand-rolled animations ignore the theme motion scheme, so springiness is added per-interaction).
+When an Expressive component fits, use it behind a per-site
+`@OptIn(ExperimentalMaterial3ExpressiveApi::class)` and through a SHARED wrapper (material3
+`1.5.0-alpha18`, compose `1.11.4`). In use:
+- **Loaders:** the contained content spinner `ZemerLoadingIndicator` (ui-audit **R25**: no raw
+  `ContainedLoadingIndicator(` outside it) and the bare over-media `MediaLoadingSpinner` (**R26**); Home
+  pull-to-refresh = `PullToRefreshDefaults.LoadingIndicator`; loading bars = `LinearWavyProgressIndicator`
+  (`AppStateViews`, `LabeledWavyProgress`). Tiny in-button spinners and determinate download rings stay
+  standard `CircularProgressIndicator`.
+- **Play-preparing spinner:** a tapped song/video/episode shows `PreparingOverlay` (scrim +
+  `MediaLoadingSpinner` in the NEUTRAL now-playing-equalizer color, never the accent) from tap until
+  READY. Driven by `PlayerConnection.preparingMediaId`, set in `playQueue` from the queue's
+  `preparingItemId` (the preload, or a `ListQueue`'s tapped startIndex item so preload-less plays are
+  covered), cleared on READY / error / a 30 s timeout, skipped when the tapped item is already current;
+  read via `rememberIsPreparing(id)`; `ItemThumbnail` and the video hero draw `PreparingOverlay`, the
+  Latest Releases hero `OverlayPlayButton(loading)`. `YouTubeGridItem` shows the
+  centred play button for `EpisodeItem`s too. `AlbumPlayButton` keeps its OWN spinner (an album's play
+  id is a track, so it can't ride the shared signal). The in-player VIDEO buffering spinner is instead
+  the contained, theme-colored `ZemerLoadingIndicator` (a content load).
+- **Chips:** `ChipsRow` + `LibraryFilterChip` render as `TonalToggleButton`, keeping the D-pad focus
+  treatment.
+- **Carousel heroes** (Latest Releases `HorizontalMultiBrowseCarousel` via
+  `latestreleases/LatestReleaseCarouselItem`; Featured Videos): one shared `CarouselHeroFrame` (focus
+  ring drawn with the carousel's `maskBorder` so it follows the morph) + `HeroTitleOverlay` (Latest Releases badges
+  forced white on the scrim). Both advance ONE item per swipe via `heroCarouselFlingBehavior` =
+  `singleAdvanceFlingBehavior` with its DEFAULT spring snap - never pass a fixed-duration `tween` (it
+  ignores release velocity and hitches every swipe). `LatestReleaseCard` is the See-all list card.
+- **Shapes + pops:** `MaterialShapes` cookie clips via `ui/component/ExpressiveShapes` - About credits
+  avatars (`expressiveAvatarShape`) and the currently-playing card art (`expressivePlayingShape`); artist
+  avatars app-wide stay circles. `rememberPopScale` pops the player like heart, driven by the USER'S TAP
+  counter, never the liked flag (it flips on every track transition). `rememberActivationPopScale` pops a
+  card ONCE as it becomes the playing item. **Never add a press-scale to the shared `GridItem` /
+  `ListItem`** - `awaitFirstDown` also fires when a touch starts a scroll, so every flung row bounced.
 
-This UI stays on **standard `MaterialTheme`** (never `MaterialExpressiveTheme` - no global expressive
-theme swap; a global `MotionScheme.expressive()` was tried and reverted, because the app's hand-rolled
-animations ignore the theme's motion scheme - springiness is added per-interaction, not by a switch), but
-individual **Material 3 Expressive** components are adopted component-by-component behind per-site
-`@OptIn(ExperimentalMaterial3ExpressiveApi::class)` (material3 `1.5.0-alpha18`, compose `1.11.4`). In use
-today: the content-loading spinner (`ContainedLoadingIndicator`, wrapped once in the shared
-`ui/component/ZemerLoadingIndicator` - a raw `ContainedLoadingIndicator(` outside it fails ui-audit
-**R25**), the Home pull-to-refresh indicator (expressive `PullToRefreshDefaults.LoadingIndicator`),
-`LinearWavyProgressIndicator` for loading bars (`AppStateViews`, the update dialog), the filter-chip rows
-(`ChipsRow` + the shared `ui/component/LibraryFilterChip` render as `TonalToggleButton`, shape-morphing on
-selection, keeping the D-pad focus treatment), the Home Latest Releases shelf
-(`HorizontalMultiBrowseCarousel`, each hero the ONE shared `latestreleases/LatestReleaseCarouselItem` - it
-carries the D-pad focus ring, drawn OVER the full-bleed cover via the carousel's own `maskBorder` so it
-follows the item morph, plus the library badges (download progress / liked / explicit) forced white on the
-dark scrim; it shares the release binding with the "See all" `LatestReleaseCard`, which is now list-only),
-`MaterialShapes` cookie clips on the About credits avatars (via the
-shared `ui/component/ExpressiveShapes`; deliberately NOT applied app-wide to artist avatars, which stay
-circles), a bouncy **pop** on the player shuffle / repeat toggles AND the like heart
-(`ui/component/rememberPopScale`) - the like pop is driven by the USER'S TAP (a per-control counter), NOT
-the liked flag, which also flips on every track transition and bounced the heart on plain skips - plus the
-rising-edge `rememberActivationPopScale` for a card that pops ONCE as it BECOMES the playing item (never
-again when it is left; the currently-playing thumbnail + carousel hero use it). (A per-tap **press
-bounce** on every card and row was tried and REMOVED: it hooked `awaitFirstDown`, which also fires when a
-touch STARTS a scroll, so every row you pressed to fling the list visibly scaled-and-sprang - owner
-rejected the effect. Do not reintroduce a press-scale on the shared `GridItem` / `ListItem`.) Tiny
-in-button spinners and determinate download rings stay standard
-`CircularProgressIndicator` on purpose - the ONE exception is the **play-preparing spinner** (owner-requested
-to match pull-to-refresh): a tapped song / video / episode whose audio has not started yet shows the
-expressive `LoadingIndicator` over its cover instead of a hanging play button, from tap until the player
-reaches READY. It is driven by `PlayerConnection.preparingMediaId` (set from the queue's `preparingItemId`
-in `playQueue` - the preload for most queues, and a `ListQueue`'s tapped startIndex item so episodes /
-one-off plays that carry NO preload are covered - cleared on the first READY / error / a 30s timeout, and
-skipped when the tapped item is already the loaded/current one) and read by the `rememberIsPreparing(id)`
-helper; `ItemThumbnail`, the `OverlayPlayButton` overlay and the video hero carousel render it through the
-shared `ui/component/PreparingOverlay` (a scrim + the shared `ui/component/MediaLoadingSpinner`, the bare
-expressive indicator in a NEUTRAL color - the SAME color as the now-playing equalizer, never the accent -
-so a card's spinner is never a different color from its playing animation). The `YouTubeGridItem` play
-button now shows for `EpisodeItem`s too, not just songs, while `AlbumPlayButton` resolves its OWN
-self-contained spinner during the pre-play album fetch (an album's play id is a track, not the album, so it
-can't ride the shared signal). The **in-player VIDEO buffering** spinner is deliberately DIFFERENT: the
-CONTAINED, theme-colored `ZemerLoadingIndicator` (bigger, exactly the Home pull-to-refresh look - a video
-buffer is a content load), NOT the small neutral card spinner. The two full-bleed **carousel heroes**
-(Latest Releases + Featured Videos) share their focus ring + `ui/component/HeroTitleOverlay` (the bottom
-gradient title/subtitle, with an optional badges slot) and advance ONE item per swipe through the shared
-`heroCarouselFlingBehavior` (`ui/component/CarouselHeroFrame.kt`): `singleAdvanceFlingBehavior` with its
-DEFAULT spring snap - single advance comes from the behavior's internal `PagerSnapDistance.atMost(1)`, and
-the spring consumes the fling's release velocity for a continuous hand-off. Do NOT pass a fixed-duration
-`tween` snap (a tween ignores that velocity and hitches on every swipe - the choppy-carousel bug). A
-separate 3-state **Refresh rate** setting (Appearance -> Theme; `RefreshRateMode` - **System** the
-default: no forced mode, the OS runs adaptive refresh; **Standard** pins ~60Hz for battery; **High**
-forces the highest rate at the current resolution, kept because some panels resolve "no preference"
-to 60Hz) drives `MainActivity`'s window `preferredDisplayModeId`/`preferredRefreshRate` via the pure,
-unit-tested `utils/RefreshRateSelection` (`selectRefreshRateMode` returns null for SYSTEM ->
-`preferredDisplayModeId(null)` = 0 = system default, so switching modes clears a previously-forced
-one, not leaves it stale; a one-time migration maps the old boolean's explicit OFF to Standard and
-ON/unset to System - the old default force-pinned the max rate, a continuous battery cost in an
-audio-first app). New
-transport buttons reuse `TransportSkipButton` + the accent focus border; new D-pad rows reuse
-`Modifier.focusBorder()`. `scripts/ui-audit.sh` ratchets raw `Modifier.blur(` in `ui/` (R12) - route
-player blur through the effective style.
+**Refresh rate** (Appearance; `RefreshRateModeKey` / `RefreshRateMode`): **System** (default, no forced
+mode), **Standard** (~60 Hz, battery), **High** (max rate at the current resolution). `MainActivity`
+applies it through the pure, tested `utils/RefreshRateSelection`: `selectRefreshRateMode` returns null
+for SYSTEM so switching back clears a previously-forced mode; `migrateRefreshRateMode` maps the legacy
+boolean's explicit OFF to Standard and ON/unset to System (the old default force-pinned max rate - a
+constant battery cost).
 
 ### Video mode (the in-player Song/Video toggle; audio-first everywhere)
 
-A video-classified song ("video-song") plays as **ordinary audio by default on every surface** - search, home, artist, genre, library, downloads. Watching it is a per-play, in-player opt-in: an icon
-pill (`VideoModePill`) on the art slot swaps the current queue item's rendition between audio and
-video without changing the queue, the track, or the tracking identity. There is **no standalone video
-screen or nav route** - the old `VideoPlayerScreen` / `video/{videoId}` route / `ArtistItemsScreen`
-were deleted with this redesign; a fullscreen video is `PlayerVideoFullscreen`, an in-player overlay
-(I6), not a destination. The numbered invariants below (I1 - I8, D3/D4/D5/D7/D8) are cited by the same
-labels in the source comments (`VideoModeController.kt`, `VideoModeLogic.kt`, `PlayerVideoUiLogic.kt`)
- - there is no separate design doc, the code comments ARE the spec.
+A video-classified song plays as **ordinary audio by default on every surface**. Watching is a
+per-play, in-player opt-in: `VideoModePill` on the art slot swaps the current queue item's rendition
+between audio and video without changing the queue, track or tracking identity. There is **no video
+screen or nav route** (don't reintroduce one); fullscreen is the in-player overlay
+`PlayerVideoFullscreen`. The I1-I8 / D3/D4/D7 labels are cited in source comments
+(`VideoModeController.kt`, `VideoModeLogic.kt`, `PlayerVideoUiLogic.kt`, …) - the code comments ARE the
+spec (the "unified-video DESIGN §n" some cite is not in the repo). Quality ladder detail:
+`docs/video_quality/README.md`.
 
-**Classification (know it, don't guess).** `SongItem.isVideo` is the ONE flag, set exactly once at the
-mapper boundary - `ZemerResultMapper.songItems(..., isVideo = true)` for every Zemer videos-category
-row (artist Videos section, home-rows videos, genre videos, search Videos chip/section) and by
-InnerTube's own `musicVideoType` for the (mostly dormant) non-engine search users. Every UI surface - the `Icon.Video()` badge (`ui/component/Items.kt`), menu `isVideo` gating, the search `clickKind`
-telemetry, the artist/genre section relabel - reads this ONE flag; never re-derive it per screen (a
-title-sniff like `section.title.contains("video")` is a compensation smell that means the mapper
-missed a spot). `SongItem.isVideo` deliberately does **not** flow into `MediaMetadata`/playback - a
-video-song downloads, persists, and plays exactly like a plain song; only `VideoModeController` cares
-that it's video-capable.
+**Classification.** `SongItem.isVideo` is set once at the mapper boundary
+(`ZemerResultMapper.songItems(..., isVideo = true)` for every Zemer videos-category row; InnerTube's
+`musicVideoType` for the non-engine search users). Per-item surfaces (the `Icon.Video()` badge, menu
+`isVideo` gating, search `clickKind`) read that flag - never re-derive it per item with a title-sniff
+(a sniff means the mapper missed a spot; the section-level `isVideoSection` title checks in
+`ArtistScreen`/`ArtistSectionScreen` are the existing exceptions). `SongItem.toMediaMetadata()` deliberately does NOT carry `isVideo` into
+playback - a video-song plays/downloads/persists like a plain song; it only marks `VideoSongIds` for the
+toggle.
 
-**Availability - `VideoModeLogic.availability()` is the single source of truth** (pure, JVM-tested;
-`VideoModeController` never re-derives its conditions). Hard gates, checked FIRST and unconditionally:
-casting, `BlockVideosKey`, and a Zemer Station broadcast - any one returns null (no toggle) regardless
-of what rendition would otherwise exist, including an already-downloaded LOCAL file. Renditions, in
-order: **LOCAL** (a downloaded muxed file - no source swap, works offline), **SELF** (a KNOWN non-ATV
-`musicVideoType` - never guessed on unknown), **COUNTERPART** (an audio song with a known video
-counterpart id - the `next()` counterpart source is dormant in production, plumbing only). A fourth,
-corpus-sourced path grants SELF **instantly** while YouTube's own type is still unknown:
-`VideoSongIds` (a small process-wide LRU, marked at the `SongItem.toMediaMetadata()` boundary) lets
-the pill be already-decided the moment a corpus-discovered video-song is tapped, instead of waiting on
-a network round-trip - but a later-LEARNED `musicVideoType` (including ATV) always overrides it.
-`blockVideosNow` (the controller's cached mirror of the live preference, read off the async DataStore
-collector) is seeded **unknown** (`null`), not `false` - a synchronous `recomputeNow()` during a
-**restored** queue (a persisted item's `SongEntity.isVideo` and local-file resolution are both
-independent of the async collector) can otherwise run before the real value lands; unknown reads
-fail-safe as **blocked**. `videoModeAvailable` is published TWO ways: an async `combine` over every
-input that can change out-of-band, and a **synchronous republish** (`recomputeNow()`, called from
-`MusicService.onEvents` in the same stack that updates `currentMediaMetadata`) - the pill's visibility
-must change atomically with the current item, or it visibly flashes in mid-way through the
-player-open animation.
+**Availability - `VideoModeLogic.availability()` is the single source of truth** (pure, JVM-tested).
+Hard gates first, unconditionally: casting, `BlockVideosKey`, a Zemer Station broadcast → null (no
+toggle), even for a downloaded LOCAL file. Renditions in order: **LOCAL** (downloaded muxed file, no
+source swap, offline), **SELF** (a KNOWN non-ATV `musicVideoType`, never guessed), **COUNTERPART**
+(known video counterpart id; plumbing only, dormant). `VideoSongIds` (process LRU) grants SELF instantly
+for a corpus video-song while YouTube's type is unknown; a later-learned `musicVideoType` (incl. ATV)
+overrides it. `blockVideosNow` is seeded **null** and unknown reads as **blocked** (a restored queue can
+recompute before the DataStore collector lands). `videoModeAvailable` is published by an async `combine`
+AND a synchronous `recomputeNow()` from `MusicService.onEvents` (same stack as `currentMediaMetadata`),
+so the pill never flashes mid player-open.
 
-**The swap mechanics (`VideoModeController`, media3-literal).** Entering video mode replaces the
-current `MediaItem` with a `video:<id>`-keyed rendition (`VideoRendition`, `buildUpon()` - same
-mediaId, different URI/cache key) and seeks to the captured position; exiting reverses it,
-position-continuous. `pendingSwap` + `videoModeItemId` classify the OWN swap's own
-`onMediaItemTransition` so it never fires the queue's real-transition side effects (cast reload,
-auto-load-more, save-queue) or double-counts the listen - `ListenAccumulator` suppresses a
-swap-caused `PlaybackStats` end and emits once, accumulated, at the real end (I4). A **repeat-one loop
-of the SAME video item** classifies the SAME way (`isRepeatOfSameItem`, from media3's
-`MEDIA_ITEM_TRANSITION_REASON_REPEAT`) - treating it as a real track change reverted video to audio,
-un-seeked, on every single loop, which is exactly the opposite of what repeat-one promises; per-loop
-tracking still fires correctly since `ListenAccumulator` isn't touched by this classification.
-**`exitVideoModeSameItem` verifies the current index actually holds the video-mode item before
-touching it** (mirrors `revertDepartedItem`'s existing by-identity check) - media3 MASKS
-`seekToNext`/`Previous` synchronously, updating `currentMediaItemIndex` before the matching transition
-callback dispatches, so an unrelated exit trigger (block flag, cast, error) landing in that gap could
-otherwise clobber the user's freshly-selected track with the departed audio item.
+**Swap mechanics (`VideoModeController`).** Enter replaces the current `MediaItem` with a
+`video:<id>`-keyed rendition (`VideoRendition`, `buildUpon()`: same mediaId, different URI/cache key) and
+seeks to the captured position; exit reverses it, position-continuous. `pendingSwap` + `videoModeItemId`
+classify the OWN swap's `onMediaItemTransition` so it never fires real-transition side effects (cast
+reload, auto-load-more, save-queue); `ListenAccumulator` suppresses a swap-caused `PlaybackStats` end and
+emits once at the real end (I4). A repeat-one loop of the same video item (`isRepeatOfSameItem`, media3
+`MEDIA_ITEM_TRANSITION_REASON_REPEAT`) classifies the same way (else every loop reverted to audio).
+`exitVideoModeSameItem` verifies by identity that the current index still holds the video item - media3
+masks `seekToNext`/`Previous` synchronously, so an exit trigger in that gap would clobber the new track.
 
-**A player error during video mode hands off, never crashes into silence:**
-`VideoModeController.onPlayerError` reverts to audio for a STREAMING rendition failure (SELF/
-COUNTERPART) - must run before `MusicService`'s own 403-refresh path, which would otherwise invalidate
-the wrong (audio) cache entry. A **LOCAL** rendition error is NOT handled here (`onPlayerError` returns
-`false`) - LOCAL never swapped the source, so the failure is the downloaded file itself, and the
-service's normal error pipeline (self-repair, network wait, auto-skip) is what must run; swallowing it
-here would strand the player in `ERROR` with nothing to re-prepare it. Separately, a **STREAMING** item
-(not yet downloaded, no video mode involved) whose file exists hands playback over to it on ANY player
-error - the mid-play-download-then-offline case (the sticky-source rule keeps a mid-play download
-streaming until the item restarts; going offline afterward would otherwise stall on the network wait
-with a good file on disk). Async (`scope.launch` + `withContext(IO)`), never `runBlocking` - a
-`Player.Listener` callback dispatches on the main thread by default.
+**Errors hand off, never strand the player.** `VideoModeController.onPlayerError` runs BEFORE
+`MusicService`'s 403-refresh (which would invalidate the wrong, audio, entry). A STREAMING rendition
+error invalidates the stale URLs (rendition key, plain key, merge-audio key, SABR resolve cache), reverts
+to audio and returns true; it never touches the user's quality. A **LOCAL** error returns `false` so the
+service's normal pipeline (self-repair, network wait, auto-skip) runs. Separately, a STREAMING item whose
+downloaded file now exists hands over to the file on a player error that is not an expired-URL 403
+(stations excepted; mid-play download then offline) -
+async (`scope.launch` + `withContext(IO)`), never `runBlocking` on the listener's main thread.
 
-**Cache correctness (two corruption classes, both fixed, both load-bearing).** (1) The data-source
-chain reads a downloaded local file THROUGH `playerCache`, keyed by the same mediaId as the item's
-STREAM - and `CacheDataSource` serves cached spans regardless of the resolved URI. Historically
-harmless (a download used the streaming itag, byte-identical spans); Option A muxed video downloads
-(and itag drift) broke that identity, so a downloaded item whose id had streamed spans mixed two
-containers in one extractor pass (negative-offset arraycopy, "No valid varint length mask found",
-black video). **Every position-0 open that picks the local file purges the id's `playerCache`
-resource first** (`removeResource`), and `DownloadUtil.removeDownload` purges it again on delete
-(bare id + the `video:` namespace) - a file play must read ONLY file bytes, always. (2) A download's
-resolved stream URL is a `forDownload` format (muxed for videos, generally a different itag than
-what's streaming) and downloads never read the shared playback URL cache themselves - writing it there
-(even into an apparently-empty slot) let a mid-play download poison a later seek's stream source with
-a foreign container. **Downloads must never write `DownloadUtil.sharedUrlCache`.**
+**Cache correctness (both load-bearing).** (1) Local files are read THROUGH `playerCache` under the same
+mediaId as the stream, and `CacheDataSource` serves cached spans regardless of URI - so a muxed download
++ streamed spans mixed two containers (black video / extractor errors). **Every position-0 open that
+picks the local file purges the id's `playerCache` resource first**, and `DownloadUtil.removeDownload`
+purges the bare id + the whole `VideoRendition.allRenditionKeys` family on delete (one `runCatching` per key). (2) **Downloads must
+never write `DownloadUtil.sharedUrlCache`** - a download's `forDownload` format is a different
+itag/container and poisons a later seek's stream source.
 
-**Downloads - Option A: a video-capable item downloads its MUXED video, not audio-only.**
-`VideoModeController.currentItemIsVideo` (musicVideoType OR the corpus flag) drives the player-menu
-download decision, gated `!blockVideos` (a blocked user's download stays plain audio - `songRow`
-otherwise HIDES the row entirely for a video item, leaving no download at all). The muxed file plays
-as ordinary audio in the music queue (`Mp4Extractor` added to `createMediaSourceFactory` for the
-plain-moov container the fragmented/mkv extractors can't parse) and the shared song row stays
-addable to music playlists; the Song/Video toggle then works fully offline via LOCAL, and one
-"Remove" truthfully covers both renditions. Every video download (streamed or muxed) shares ONE
-metered-aware bitrate cap with the streaming swap (`VideoRendition.defaultMaxBitrateKbps`) - 1500 kbps
-metered / 6000 unmetered by default, overridable per-download via `requestedVideoBitrate` (which must
-survive a failed attempt, see §download system) - a video fetch must never silently pull the largest
-available file on a metered connection. See §The download system for `VideoDownloadsInMusicKey` (the
-library-wide "show video downloads as music too" preference this enables).
+**Option A downloads:** a video-capable item downloads its MUXED video (player menu: `!blockVideos &&
+(isVideo || currentItemIsVideo)`; a blocked user gets plain audio, since `songRow` HIDES the row for a
+video item). The muxed file plays as audio in the music queue (`Mp4Extractor` is registered in
+`createMediaSourceFactory` for its plain-moov container), stays addable to playlists, and makes the
+toggle work offline via LOCAL; one Remove covers both renditions. The AUTOMATIC video pick (stream or
+download) shares one metered-aware cap, `VideoRendition.defaultMaxBitrateKbps` (1500 metered / 6000
+unmetered), overridable per download via `requestedVideoBitrate` - never silently pull the largest file
+on a metered connection.
 
-**The quality ladder (beyond-720p; `VideoQualityLogic` + the in-player switcher).** Streaming video
-is no longer capped at the progressive muxed formats (which top out at 360p/720p): the quality ladder
-spans progressive PLUS the adaptive video-only formats - measured live (`tests/video-qualities.mjs`),
-the music client serves avc1 144p…1080p and vp9-only 1440p/2160p for uploads that have them. Full
-feature map: `docs/video_quality/README.md`. The rules that must not regress:
+**The quality ladder** (`VideoQualityLogic` + the in-player switcher; progressive + adaptive
+video-only rungs up to 2160p). Rules that must not regress:
 - **`VideoQualityLogic` is the ONE ladder/selection authority** (pure, JVM-tested): one rung per
-  qualityLabel (progressive wins its label; then avc1 > vp9 > av01, then bitrate), targets resolve to
-  the best rung at-or-below ("1080p" on a 720p-max video → 720p, never null for an explicit pick),
-  AUTO = the pre-switcher automatic progressive pick (the metered bitrate cap governs ONLY that).
-- **The rung's itag lives IN the cache key** (`video:<id>:p<itag>` progressive / `:q<itag>` adaptive,
-  `VideoRendition`): two rungs' bytes can never share cache spans (the container-mixing corruption
-  class) - which is also why the exact-itag resolution deliberately has NO fallback format (a
-  different container under an itag key would reintroduce the corruption; total failure surfaces
-  through the video error path instead). The **two keys that CAN drift are guarded**: the plain
-  `video:<id>` automatic key (its itag flips 18/22 with the metered cap) and the `videoaudio:<id>`
-  merge-audio key (the audio pick flips with metered state) each track their last-resolved itag
-  (`videoKeyItagCache`/`mergeAudioItagCache`) and purge their cached spans on any change - seeded
-  through the shared `seedPlainVideoKey` so the resolver AND the prefetch path both run the guard.
-  Every `preferVideo=true` resolution (video branch, live merge branch, prefetch) resolves the merge
-  audio at **HIGH** so its itag agrees across all three and the purge never thrashes. The `:q` mark
-  routes an item through the `MergingMediaSource` in `createMediaSourceFactory` - an adaptive rung is
-  video-only, so playback merges it with the audio stream under `videoaudio:<id>` (never the bare
-  id's spans). `removeDownload` purges the WHOLE key family (`VideoRendition.allRenditionKeys`, one
-  runCatching PER key). Only WEB-client resolutions seed the rung-URL table (`videoRungUrls`) - a
-  non-web fallback's URLs 403 past the 1 MiB wall, so a non-web success leaves the table empty and a
-  switch re-resolves; the ladder-URL block is skipped entirely for `forDownload` (never consumed).
-  A video error invalidates the plain key AND the rung key AND the merge-audio key (all seeded from
-  the same now-dead response), so a re-entry always re-resolves fresh.
-- **The switcher** (`VideoQualitySelector`, shared by the inline art slot at BottomStart and the
-  fullscreen overlay at TopEnd - a VideoModePill-family over-media chip, never a floating dropdown)
-  shows the CURRENT item's live ladder, decoder-capability-filtered. The picker BODY
-  (`VideoQualityMenu` - `NavigationTitle` heading over shared `OnboardingChoiceCard` rows) is one
-  composable presented two ways: the INLINE player opens it as the root bottom-sheet menu
-  (`LocalMenuState`, portrait), the FULLSCREEN overlay renders it in a fullscreen-LOCAL centered
-  scrollable panel (`onOpen`) - the root bottom sheet is a portrait sheet that fought the immersive
-  landscape window's orientation/insets/z-order, so fullscreen must present its own panel inside the
-  overlay (Back closes the panel before exiting fullscreen). It
-  (`VideoDecoderCaps` - never offer vp9 2160p to a SoC that can't decode it); a pick applies to that
-  item for the session. **An explicit quality the user chose - in Settings OR the in-player switcher
- - is HONORED on every connection, metered included.** It is a deliberate choice, not something to
-  silently override: no metered gate, no bandwidth pre-gate, no error-time AUTO pin discards it (a
-  video error just invalidates the stale URL so a re-entry re-resolves fresh at the chosen quality;
-  the decoder-caps filter already keeps undecodable rungs off the menu). Data/stutter protection
-  lives where it belongs: the AUTOMATIC pick (AUTO - the default-default) keeps its metered bitrate
-  cap, and the reactive rebuffer guard drops the CURRENT video a rung when it actually stalls
-  (per-item; a new video still starts at the user's setting). Two CONCURRENT maps: `qualityOverrides`
-  is the effective session state (an in-player pick OR the guard's reactive downgrade) driving
-  streaming; `userQualityPicks` holds ONLY explicit switcher choices and is what DOWNLOADS read
-  (`downloadVideoQuality` → `userQualityPicks[id] ?: defaultVideoQuality`), so the guard's downgrade
-  never leaks into a download. The Settings default (`VideoQualityKey`, Player settings, hidden when
-  videos are blocked) applies to new plays via `effectiveQualityTarget` (`qualityOverrides ?:
-  default`). A same-itag switcher tap (tapping the quality already playing, including the automatic
-  pick's true label) is a no-op - never a redundant re-swap. First entry plays AUTO instantly and upgrades
-  position-continuously when the ladder lands with the resolution - never a blocking wait, and never a
-  redundant re-swap when the automatic pick already streams the target rung (the resolved itag rides
-  the ladder callback). Quality re-swaps ride the same `pendingSwap` + `listenAccumulator.onSwap`
-  discipline as enter/exit (a swap is never a track change, never a double-counted listen). LOCAL
-  renditions and RELAY mode have no switcher (one baked/fixed rendition; quality keys must never reach
-  the relay resolver). A video-mode player error pins the item's session pick to AUTO so neither the
-  failed pick NOR the persisted default can loop a re-entry back into the failing rung.
-- **Fast entry + instant switching (the perf contract).** ONE video resolution resolves EVERY ladder
-  rung's URL plus the merge-audio partner from the same response (`PlaybackData.videoRungUrls` /
-  `mergeAudioUrl` - pure local sig/n/pot computation, no extra network; exactly what
-  `tests/video-qualities.mjs` proves per rung) and `MusicService.seedVideoUrlCaches` seeds them all,
-  so a quality switch and the adaptive audio track never pay a second player round-trip. The expanded
-  player PREFETCHES the rendition in the background while the Song/Video pill is showing
-  (`prefetchVideoRendition` - deduped, expiry-aware, relay-gated, silent on failure), so a Video tap
-  starts with a single CDN range request. The web-URL finalization lives in ONE helper
-  (`applyWebUrlTransforms`) shared by the main resolution path and the rung table - never fork it.
-- **The rebuffer guard (never keep stalling mid-play; fast AND slow connections).** A STATE_BUFFERING
-  after READY on a STREAMING rendition is a mid-play stall; TWO stalls within 45s trigger a downgrade
-  (`VideoQualityLogic.shouldDowngradeForRebuffer`, pure + tested). Two is deliberate - a single
-  transient blip (a routine momentary hiccup) must NOT permanently drop the user's chosen quality;
-  only a repeated pattern means the rung genuinely can't sustain. The drop is exactly ONE
-  rung down (`rungBelow`), so playback settles on the HIGHEST rung that actually plays (2160p → 1440p
-  → 1080p → 720p, stopping the moment 720p is stable). It deliberately does NOT bandwidth-gate a
-  multi-rung jump: a rung's `bitrate` is its PEAK and media3's estimate is depressed right after a
-  stall, so a bandwidth jump over-dropped (2160p → 480p when 720p was fine). Each step is
-  position-continuous and pins the item there so the ladder callback can't bounce back up. Seek-caused buffering is exempt via a **timestamp grace window**
-  (`onSeekDiscontinuity` stamps the time; a stall within `SEEK_GRACE_MS` is ignored) - NOT a boolean
-  flag, because a seek into an already-buffered region fires no state change to clear a flag and a
-  stale flag would swallow the next real stall. A swap's own prepare never counts (history resets on
-  every swap), LOCAL/audio playback never counts, and AUTO never downgrades (already the cheapest
-  single-stream pick). The shared LoadControl is left at media3's rebuffer default (2s) - video
-  stutter is handled by the quality downgrade, NOT by widening the shared buffer, which would regress
-  audio/RELAY rebuffer latency. The buffering spinner lives INSIDE the shared `PlayerVideoSurface`
-  so the inline art slot and the fullscreen overlay show one identical treatment.
-- **Prefetch is skipped where it can't help** (`prefetchVideoRendition`): RELAY (fixed rendition), a
-  downloaded LOCAL video (plays from disk - a resolution would be pure waste, and offline it just
-  fails), or when offline. The relay guard is also enforced at the swap chokepoint itself
-  (`swapToVideoKey`) so a late pre-relay-toggle prefetch callback can never install a `:q` key in a
-  relay session.
-- **Download remux failures are classified** (`VideoMuxer.Result`): a TRANSIENT I/O failure (disk
-  full) preserves the requested quality so a retry re-attempts the same rung (never silently
-  downgrade what the user asked to save); only a DETERMINISTIC format-incompatibility clears the
-  request and falls back to the automatic progressive pick.
-- **Downloads above the progressive ceiling fetch video+audio separately and REMUX on-device**
-  (`VideoMuxer` - framework MediaExtractor/MediaMuxer, zero new dependencies: avc1+AAC → MP4,
-  vp9+Opus → WebM on API 29+ only - `selectRung(opusWebmMuxSupported)`; av01 is stream-only). The
-  download target is decoder-capability-gated (a rung the device can't decode must never become a
-  committed LOCAL file that errors on every play) but is NOT metered-capped - an explicit download
-  quality is honored as chosen; only the automatic (AUTO) pick keeps the metered bitrate cap. The
-  audio partner is resolved from the SAME video
-  response and client (`PlaybackData.downloadAudioUrl` - container-matched: mp4/avc video → AAC,
-  webm/vp9 video → Opus; NO second `/player` round-trip and no client-disagreement mux failure, with
-  a defensive second resolution only when the response carried no usable audio), and each stream is
-  verified against its declared contentLength before muxing (a truncated track fails the attempt with
-  the quality preserved). The requested quality label (`requestedVideoQuality`) follows the
-  `requestedVideoBitrate` lifecycle rules (survives failed attempts, cleared on
-  success/cancel/delete) - EXCEPT a DETERMINISTIC mux-incompatibility (`VideoMuxer.Result.INCOMPATIBLE`)
-  which clears it so the retry falls back to the automatic progressive pick; a TRANSIENT mux failure
-  (disk I/O) preserves the quality for the retry. The player-menu download passes the user's EXPLICIT
-  pick (`downloadVideoQuality` reads `userQualityPicks`, never a machine downgrade) so the saved file
-  is the quality the user chose.
+  qualityLabel (progressive wins its label, then avc1 > vp9 > av01, then bitrate); a target resolves to
+  the best rung at-or-below (never null for an explicit pick); AUTO = the automatic progressive pick, the
+  only thing the metered cap governs.
+- **The rung's itag lives IN the cache key** (`video:<id>:p<itag>` / `:q<itag>`) so rungs never share
+  spans, which is why exact-itag resolution has NO fallback format. The two drift-prone keys - plain
+  `video:<id>` and merge-audio `videoaudio:<id>` - track their last itag (`videoKeyItagCache` /
+  `mergeAudioItagCache`, via the shared `seedPlainVideoKey`, used by resolver AND prefetch) and purge
+  spans on change. Every `preferVideo=true` resolution resolves merge audio at **HIGH** so its itag
+  agrees everywhere. A `:q` key routes through the `MergingMediaSource` (video-only rung + audio under
+  `videoaudio:<id>`, never the bare id's spans). Only WEB-client resolutions seed `videoRungUrls` (a
+  non-web URL 403s past the 1 MiB wall); the ladder block is skipped for `forDownload`.
+- **An explicit quality (Settings `VideoQualityKey` OR the switcher) is HONORED on every connection,
+  metered included** - no metered gate, no bandwidth pre-gate, no error-time AUTO pin. Protection lives in
+  the AUTO cap and the rebuffer guard. `qualityOverrides` (switcher pick OR guard downgrade) drives
+  streaming; `userQualityPicks` (explicit picks only) is what DOWNLOADS read (`downloadVideoQuality`), so
+  a guard downgrade never leaks into a download. New plays use `effectiveQualityTarget`. A same-itag tap
+  is a no-op. First entry plays AUTO instantly and upgrades position-continuously when the ladder lands
+  (no blocking wait, no redundant re-swap); a re-entry with a known ladder enters at the target rung. Quality re-swaps use the same `pendingSwap` +
+  `listenAccumulator.onSwap` discipline. LOCAL and RELAY have no switcher (quality keys must never reach
+  the relay resolver - enforced at `swapToVideoKey`).
+- **Switcher UI:** `VideoQualitySelector` (over-media chip: inline art slot BottomStart, fullscreen
+  TopEnd), decoder-filtered by `VideoDecoderCaps`. One picker body `VideoQualityMenu`: inline = the root
+  bottom-sheet menu (`LocalMenuState`); fullscreen = a fullscreen-LOCAL panel (`onOpen`) inside the
+  overlay (the root sheet fought the immersive landscape window); Back closes the panel first.
+- **Fast entry:** one resolution yields every rung URL + the merge-audio partner (`videoRungUrls` /
+  `mergeAudioUrl`, pure-local cipher work) seeded by `MusicService.seedVideoUrlCaches`, so switching
+  never pays a second `/player`. The expanded player prefetches while the pill shows
+  (`prefetchVideoRendition`: deduped, expiry-aware, silent; skipped for RELAY, a LOCAL download, and
+  offline). URL finalization is ONE helper, `applyWebUrlTransforms` - never fork it.
+- **Rebuffer guard:** a `STATE_BUFFERING` after READY on a STREAMING rendition is a stall; TWO within
+  `REBUFFER_WINDOW_MS` (45 s) drop exactly ONE rung (`shouldDowngradeForRebuffer`, `rungBelow`) and pin
+  the item there. One blip never downgrades; never bandwidth-jump several rungs (a rung's bitrate is its
+  peak and the estimate is depressed after a stall). Seeks are exempt via a **timestamp** grace window
+  (`onSeekDiscontinuity`, `SEEK_GRACE_MS`) - not a boolean flag, which a seek into buffered data would
+  never clear. A swap's own prepare, LOCAL/audio, and AUTO never count. Don't widen the shared
+  LoadControl (it would regress audio/RELAY rebuffer latency). The buffering spinner lives inside the
+  shared `PlayerVideoSurface`.
+- **Downloads above the progressive ceiling** fetch video + a container-matched audio partner from the
+  SAME response/client (`PlaybackData.downloadAudioUrl`: mp4/avc → AAC, webm/vp9 → Opus), verify each
+  against its contentLength, and remux on-device (`VideoMuxer`; avc1+AAC → MP4, vp9+Opus → WebM on API
+  29+ only via `opusWebmMuxSupported`; av01 is stream-only). The target is decoder-gated but NOT
+  metered-capped. `requestedVideoQuality` follows `requestedVideoBitrate`'s lifecycle (survives failed
+  attempts) EXCEPT a deterministic failure (`VideoMuxer.Result.INCOMPATIBLE`, no mux-compatible audio, a
+  missing contentLength), which clears it so the retry falls back to the automatic progressive pick; a
+  transient (disk I/O) mux failure keeps it.
 
-**UI-only rules (`PlayerVideoUiLogic`, pure, JVM-tested - the inline surface and the fullscreen
-overlay must never disagree about which one is live).** Opening the lyrics sheet reverts video mode
-to audio (position-continuous) - the sheet covers the inline video slot, leaving it decoding
-invisibly behind the sheet; closing lyrics does NOT auto-restore video (it's a per-play opt-in the
-user re-toggles). Fullscreen force-exits the instant video mode ends (track advance/skip/error revert)
-or the player sheet collapses - a fullscreen video must never survive past the content it was showing.
-Backgrounding the app (`MainActivity.onStop`) reverts video mode to audio too - the same "don't decode
-invisibly" reasoning, orientation changes never pass here (`configChanges` handles them, no Activity
-restart). **Leaving via Home/recents while in video mode enters picture-in-picture instead**
-(`ui/player/VideoPip.kt`, #498). Entry: on API 31+ the platform's auto-enter is armed exactly while
-video mode is on (`setVideoPipAutoEnter`, a `LaunchedEffect(isVideoMode)` in `MainActivity` - it fires
-only for Home/recents); below that `onUserLeaveHint` enters under the pure, tested
-`PlayerVideoUiLogic.shouldEnterPipOnLeave` - NEVER while an Activity this one launched is opening
-(`ownActivityLaunchInFlight`, raised by the `startActivity` / `startActivityForResult` overrides and
-cleared on resume: the platform delivers the hint for the recognition dialog, share sheets, pickers and
-sign-in too, and PiP under our own dialog was the bug). An Activity in PiP is paused, not stopped, so
-the onStop revert does not run. `VideoPipOverlay` is the window's ONE content owner (inline + fullscreen
-yield through their `inPip` flag): the video surface in video mode (`showPipVideo`), else the current
-cover art (`showPipArtwork` - video mode is per-play, so a track change / error / cast revert inside the
-window must show the audio still playing, never the app UI shrunk into a thumbnail-sized window; there
-is no exit-PiP API). Closing the window stops the Activity -> the normal onStop revert.
-`smallestScreenSize` in the manifest `configChanges` is load-bearing: without it a PiP transition may
-recreate the Activity, whose onStop reverts video and leaves an empty window (it only worked without
-because the app has no size-qualified resources - the first `sw600dp` folder would have broken it).
+**UI rules (`PlayerVideoUiLogic`, pure, JVM-tested).** Opening the lyrics sheet reverts to audio
+(closing it does not restore video). Fullscreen force-exits when video mode ends or the sheet
+collapses. `MainActivity.onStop` reverts to audio (no invisible decode). **Leaving via Home/recents in
+video mode enters picture-in-picture** (`ui/player/VideoPip.kt`): API 31+ arms platform auto-enter while
+video mode is on (`setVideoPipAutoEnter`); below, `onUserLeaveHint` enters under
+`shouldEnterPipOnLeave`, NEVER while an Activity we launched is opening (`ownActivityLaunchInFlight`, set
+by the `startActivity`/`startActivityForResult` overrides, cleared on resume - the hint also fires for
+our dialogs, share sheets, pickers). `VideoPipOverlay` is the window's ONE content owner (inline +
+fullscreen yield via `inPip`): video when in video mode (`showPipVideo`), else cover art
+(`showPipArtwork`). `smallestScreenSize` in the manifest `configChanges` is load-bearing (without it a
+PiP transition can recreate the Activity, whose onStop revert leaves an empty window).
 
-**The blocked-user guarantee, end to end (verified, not assumed).** There is exactly ONE code path
-that can ever set video mode true - `VideoModeController.enterVideoMode`, reachable only through
-`setVideoMode(true)`, which unconditionally re-checks `computeAvailability()` first. Every actual
-video-rendering surface in the app (`PlayerVideoSurface`, composed only inside `Thumbnail`'s inline
-slot and `PlayerVideoFullscreen`) requires `isVideoMode == true` with no `||` bypass. So a blocked
-user's video-songs are rows - relabeled ("Video songs"), badged, played as audio - never a moving
-pixel: no code path exists to enter video mode while blocked, casting, or during a station broadcast.
-When touching this system, don't reintroduce a `!blockVideos` *visibility* gate on a video row/section
-anywhere (the current design is "always shown, relabeled + audio-gated, never hidden" - see the Home
-tab's Featured Videos rule) - hiding was the pre-redesign behavior and is a regression, not a fix.
+**The blocked-user guarantee.** The ONLY path that sets video mode true is
+`VideoModeController.enterVideoMode`, reached only via `setVideoMode(true)`, which re-checks
+`computeAvailability()` first; every `PlayerVideoSurface` site (`Thumbnail`, `PlayerVideoFullscreen`,
+`VideoPipOverlay`) requires `isVideoMode` with no bypass. So no code path enters video while blocked,
+casting or broadcasting. **Don't reintroduce a `!blockVideos` visibility gate** on a video row/section:
+the design is "always shown, relabeled + audio-gated, never hidden".
 
 ### The theme system (palette picker, cohesive Material You, pure-black)
 
-The app's colors are one cohesive materialKolor scheme generated from a **single seed accent**, chosen
-in **Settings → Appearance → Theme** (`ui/screens/settings/ThemeScreen.kt`, ported from Metrolist). Rules
-that must not regress:
+One materialKolor scheme generated from a **single seed accent**, picked in Settings → Appearance →
+Theme (`ui/screens/settings/ThemeScreen.kt`). Rules that must not regress:
 
-- **One seed, no neutralized surfaces.** `ZemerTheme` (`ui/theme/Theme.kt`) seeds the WHOLE scheme
-  (surfaces, containers, accents) from the selected color so the app is tonally cohesive - the
-  system-wallpaper "Material You" look. Do **not** re-introduce surface neutralization (copying
-  `darkColorScheme()` surfaces over the seed) - that greys the surfaces while the accent stays
-  saturated, so bars can't pick up the theme and containers clash. The only override is the **brand
-  accent** pinning its exact dark primary family (`BrandPrimaryDark`/`…Container` in `ThemePalettes.kt`,
-  the design hexes `FFAFB7`/`60383E` materialKolor's tones drift from).
-- **The picker is a single control.** `SelectedThemeColorKey` (int ARGB) holds the accent;
-  `DynamicThemeKey` is the album-art toggle. Pure selection logic is `ThemePaletteSelection`
-  (JVM-tested). Palette entries (`PaletteColors` in `ui/theme/ThemePalettes.kt`, R8-hex-exempt because
-  it's `ui/theme/`): **Dynamic** (album-art, `Color.Transparent` sentinel), **System** (wallpaper,
-  `SystemWallpaperThemeColor` sentinel - shown only on Android 12+ via `visiblePaletteColors`), **Zemer**
-  (brand), then the accent spectrum. **Default = `DefaultAccentColor` = the Zemer brand palette on every
-  device** (System/wallpaper stays in the picker, just not the default). The `SystemWallpaperThemeColor`
-  sentinel routes `ZemerTheme` to the platform `dynamicDark/LightColorScheme` (the ONLY wallpaper path).
-- **Pure-black ("BLACK" mode) is all-black via the scheme, not hardcoded.** `ColorScheme.pureBlack(true)`
-  drives every surface/surfaceContainer/surfaceVariant token to `Color.Black`, so dark mode stays tinted
-  grey and BLACK mode is truly black - a clear difference. Consequently **no `if (pureBlack) Color.Black
-  else <token>` conditionals** anywhere: bars, drawer, dialogs, snackbar, mini-player and search just use
-  the plain surface token and let the scheme black it. Don't reintroduce per-site pure-black hardcodes.
-- **Top bars are neutral chrome.** `zemerTopAppBarColors()` (`ui/component/BackTopAppBar.kt`) = plain
-  `surfaceContainer` container + neutral title/icons; the accent lives in content, never the app-bar
-  chrome. Every screen bar (including MainActivity's Home bar) routes through it - one source, no
-  per-screen drift.
-- **Activities outside MainActivity use `ZemerAppTheme`** (`ui/theme/Theme.kt`), which resolves the
-  user's saved palette + dark mode + pure-black, so popups (the recognition dialog) follow the chosen
-  theme instead of the brand default. `ZemerTheme` with default params = brand pink and is only correct
-  inside MainActivity (which drives `themeColor` itself, incl. album-art). The home-screen **widget**
-  (`widget/MusicWidget.kt`) is RemoteViews and can't read the Compose theme - it uses the static
-  `@color/widget_accent` (brand). `MusicWidget.hasPlacedWidget` (the per-playback-session placement check
-  `MusicService` runs before ticking the widget) must stay wrapped: Glance builds on
-  `AppWidgetManager.getInstance`, null on ROMs without an AppWidgetService, and the resulting NPE inside
-  `getGlanceIds` escaped the service scope and killed background playback on every play transition.
+- **One seed, no neutralized surfaces.** `ZemerTheme` (`ui/theme/Theme.kt`) seeds the WHOLE scheme from
+  the selected color. Never copy `darkColorScheme()` surfaces over the seed (greys the surfaces while the
+  accent stays saturated). The only override: the brand accent pins its exact dark primary family
+  (`BrandPrimaryDark`/`…Container` in `ThemePalettes.kt`).
+- **The picker is one control.** `SelectedThemeColorKey` (int ARGB) + `DynamicThemeKey` (album-art);
+  selection logic is the JVM-tested `ThemePaletteSelection`. `PaletteColors` (`ui/theme/`, hence
+  R8-hex-exempt): **Dynamic** (`Color.Transparent` sentinel), **System** (`SystemWallpaperThemeColor`,
+  Android 12+ only via `visiblePaletteColors`; the ONLY route to `dynamicDark/LightColorScheme`),
+  **Zemer** (brand), then the spectrum. Default = `DefaultAccentColor` = the Zemer brand on every device.
+- **Pure-black is via the scheme, not hardcodes.** `ColorScheme.pureBlack(true)` blacks
+  surface/background/surfaceVariant/surfaceDim and surfaceContainer{Lowest,Low,} but keeps
+  surfaceContainerHigh/Highest and surfaceBright so cards and dialogs stay visible. So **no `if
+  (pureBlack) Color.Black else <token>`** - use the plain token. The only remaining ones are in the queue
+  sheet (`ui/player/Queue.kt`) and MainActivity's active search bar; don't add more.
+- **Top bars are neutral chrome:** `zemerTopAppBarColors()` (`ui/component/BackTopAppBar.kt`) =
+  `surfaceContainer` + neutral title/icons, used by every screen bar incl. MainActivity's Home bar.
+- **Activities outside MainActivity use `ZemerAppTheme`** (resolves saved palette + dark mode +
+  pure-black); `ZemerTheme` with default params is brand pink and only correct inside MainActivity. The
+  RemoteViews **widget** uses static `@color/widget_accent`. `MusicWidget.hasPlacedWidget` must stay
+  wrapped in try/catch: Glance NPEs on ROMs without an AppWidgetService, and the escape killed background
+  playback on every play transition.
 
 ### The download system (ONE unified path - never fork it)
 
-Downloads go **exclusively** through `MediaStoreDownloadManager` (file saved to MediaStore, durable
-truth is `SongEntity.isDownloaded` + `mediaStoreUri`; live progress in its in-memory `downloadStates`).
-The legacy ExoPlayer download map (`DownloadUtil.downloads` / `getDownload()`) is **dead** for
-status - nothing the UI reads should touch it.
+Downloads go **exclusively** through `MediaStoreDownloadManager` (durable truth `SongEntity.isDownloaded`
++ `mediaStoreUri`; live progress in its in-memory `downloadStates`). The legacy ExoPlayer download map,
+media3 `DownloadManager` and `ExoDownloadService` are gone; the ratchets keep them out. State/UI/menu
+detail: `docs/ui/standards.md §12`. Rules:
+- **One read path:** state from `playback/DownloadStateResolver` (`forSong` / `aggregateSongs` /
+  `aggregateByIds`, `songProgress` / `aggregateProgress[ByIds]`) = persisted `isDownloaded` **OR** live
+  state (reading the live map alone makes downloads vanish after relaunch); UI through
+  `ui/component/DownloadStatusUi.kt` (`rememberSongDownloadStatus/Progress`, `SongDownloadBadge`,
+  `AggregateDownloadButton`, `DownloadStatusIcon`); menu rows through `downloadMenuItem(...)`
+  (`ui/menu/DownloadMenuItems.kt`) decided by `playback/DownloadMenuLogic` (`songRow`/`collectionRow`). A
+  download row **never dismisses the menu**. Videos use the same path (`DOWNLOAD_VIDEO`, hidden when
+  blocked; Option A muxed downloads - see §Video mode).
+- **A collection NEVER shows a FAILED/retry row** (`collectionRow` takes only the aggregate status; don't
+  add an `anyFailed` arg): a failed member leaves the aggregate NOT_DOWNLOADED, so DOWNLOAD re-enqueues
+  the missing members; a retry row was a dead end. Only single songs get FAILED.
+- **Async collection menus:** fetch the songs **at click time** (fetch-if-empty), and Download, Remove
+  AND the aggregate status all read that SAME resolved list, never the possibly-empty `songs` prop. Online
+  items aggregate by videoId (`aggregateByIds` + a persisted-downloaded id set) and **persist each
+  `MediaMetadata` THEN download** (a lookup of a not-yet-persisted id no-ops).
+- **Playing a downloaded file** (`MusicService.resolveDownloadedFileUri`, shared by DIRECT and relay):
+  use the file when it opens; if gone, **stream this play AND re-enqueue a download** - never crash,
+  never clear `isDownloaded` - but skip the re-enqueue when `downloadUtil.mediaStoreDownloadState(id)` is
+  already FAILED this session (else every play re-downloads). `downloadedFileOpens` returns false on ANY
+  open failure so playback streams.
+- **Every DAO `WHERE x IN (:list)` goes through `db/SqliteBindLimit.chunks`** (a `...Chunk` `@Query` + a
+  splitting default method): Android < 11 binds at most 999 variables (`SqliteBindLimitTest`).
+- **`database.query {}` is fire-and-forget** - never split one logical mutation across two `query {}`
+  blocks on the same row (they race; this once persisted `isDownloaded=0`). Use one
+  `database.transaction {}` whose final write is authoritative.
+- **`markSongAsDownloaded` must not clobber user state:** base the row on the EXISTING DB row and write
+  only download columns (`isDownloaded`, `dateDownload`, `mediaStoreUri`, `isVideo`); backfill
+  `duration`/`thumbnailUrl` only when missing. `performDownload` backfills both from
+  `playbackData.videoDetails`.
+- **`requestedVideoBitrate` survives a failed attempt** - cleared on success/cancel/delete, never in the
+  per-attempt `finally` (else `retryDownload` falls back to uncapped quality).
+- **Remove deletes the file on every backend:** `MediaStoreHelper.deleteFromMediaStore` routes SAF
+  document uris (custom download path) through `DocumentsContract.deleteDocument`.
+- **Downloaded video-songs appear in downloaded MUSIC by default** (`VideoDownloadsInMusicKey`, default
+  true): `DatabaseDao.downloadedSongs*` take `includeVideos`, and the library list, Downloaded
+  auto-playlist, library mix AND Android Auto (`MediaLibrarySessionCallback`) read the SAME preference.
+  The opt-out lives on `DownloadedVideosScreen`, reachable even when videos are blocked.
 
-Every download/progress affordance reads ONE path; do not re-implement per surface:
-- **State (pure, tested):** `playback/DownloadStateResolver.kt` - `forSong`/`aggregateSongs`/
-  `aggregateByIds` combine persisted `isDownloaded` **OR** live MediaStore state (so a download
-  survives a process restart - reading the live map *alone* is the bug that makes downloads "vanish"
-  after relaunch). `songProgress`/`aggregateProgress[ByIds]` for the progress fraction.
-- **UI:** `ui/component/DownloadStatusUi.kt` - `rememberSongDownloadStatus/Progress`,
-  `SongDownloadBadge` (default song-row badge), `AggregateDownloadButton` (album/playlist header),
-  `DownloadStatusIcon`.
-- **Menu rows:** `ui/menu/DownloadMenuItems.kt` `downloadMenuItem(...)`, decided by
-  `playback/DownloadMenuLogic.kt` (`songRow`/`collectionRow`, pure + tested). A download row **never
-  dismisses the menu** (it animates Download → progress → Remove in place). Videos use the same path
-  (`DOWNLOAD_VIDEO`, hidden when videos blocked). **Option A (§Video mode): a video-capable song
-  downloads its MUXED video, not audio-only** - the player-menu download reads
-  `VideoModeController.currentItemIsVideo` (gated `!blockVideos`) so the toggle works fully offline
-  afterward; see §Video mode for the shared metered-bitrate cap and the playerCache-corruption
-  invariants a download must respect.
-- **A collection NEVER shows a FAILED/retry row** (`collectionRow` takes only the aggregate status - REMOVE / DOWNLOADING / DOWNLOAD). A failed member just leaves the aggregate NOT_DOWNLOADED, so the
-  collection offers DOWNLOAD again, which re-enqueues only the not-yet-downloaded members (= retry)
-  and stays removable once everything is on disk. A dedicated collection "retry" row is a **dead end**
- - it hid Download AND Remove and re-failed the dead track forever with no escape. Only *single*
-  songs get a FAILED row (`songRow`). Don't reintroduce an `anyFailed` arg on `collectionRow`.
-- **Downloading a collection** whose songs load async (online album/playlist/selection menus):
-  resolve/fetch the songs **at click time** (fetch-if-empty) so the first tap downloads - a
-  captured-empty list is the "press once does nothing, twice works" bug. **EVERY action in that menu
- - Download, Remove, *and* the aggregate status - must read the SAME resolved/fetched list, never the
-  original (possibly-empty) `songs` prop.** A Remove that iterates the empty prop while Download
-  iterates the fetched list silently removes nothing (was a real bug on the Home long-press playlist
-  menu). For online items aggregate by videoId (`aggregateByIds` + a persisted-downloaded id set) so
-  progress animates without Room entities, and on Download **persist each `MediaMetadata`
-  (`database.insert`/`transaction { insert(...) }`) THEN download** - a bare `database.song(id).first()`
-  returns null for a not-yet-persisted id and the tap silently no-ops.
-- **Playback of a downloaded file** (`MusicService.createDataSourceFactory`): use the local file when
-  it opens; if it's genuinely gone, **stream this play AND re-enqueue a download to self-repair** - never crash with ENOENT, and never silently delete the `isDownloaded` flag (that makes downloads
-  vanish from the Downloaded playlist). Two non-obvious rules here: (1) the self-repair must **skip
-  re-enqueueing a download whose live state is already FAILED this session** (check
-  `downloadUtil.mediaStoreDownloadState(id)`) - the manager only no-ops for active/complete, not
-  FAILED, so a permanently-unrecoverable source would otherwise fire a fresh full download on *every*
-  play; (2) the file-open probe (`downloadedFileOpens`) returns false on **any** open failure
-  (FileNotFound *or* SecurityException/other) so playback streams - handing ExoPlayer a URI we just
-  failed to open only fails again.
-- **Every DAO `WHERE x IN (:list)` query goes through `db/SqliteBindLimit.chunks`** (a `@Query` `...Chunk`
-  method plus a default interface method that splits the list): Android below 11 binds at most 999 variables
-  per statement, and `getSongsByIds` over a heavy player cache killed the DB thread on an Android 8 device
-  ("too many SQL variables"). Never add a raw `IN (:ids)` query without the chunked wrapper (`SqliteBindLimitTest`).
-- **`database.query {}` is fire-and-forget** (it posts to an executor, doesn't suspend). NEVER split a
-  single logical mutation across two `query {}` blocks that touch the same row - they race and the
-  wrong one can land last. The download-mark bug was exactly this: `markSongAsDownloaded` upserted the
-  row twice (relations with `isDownloaded=false`, then `isDownloaded=true`), so a downloaded song
-  intermittently persisted `isDownloaded=0` with no `mediaStoreUri` - the file saved but it "didn't
-  download" / streamed / vanished. Do the whole mutation in one `database.transaction {}` whose final
-  write is authoritative.
-- **`markSongAsDownloaded` must NOT clobber user state.** It bases the persisted row on the **existing
-  DB row** (read first) and overwrites only the download-owned columns (`isDownloaded`, `dateDownload`,
-  `mediaStoreUri`, `isVideo`) - a full-row `@Upsert` of the caller's `Song` would silently reset
-  `liked` / `inLibrary` / library tokens when the caller handed a stale/partial `Song` (e.g. an
-  album-page entity, or the like-then-auto-download race). It also backfills `duration` AND
-  `thumbnailUrl` only when the existing row lacks them.
-- **Backfill `duration` AND `thumbnailUrl` from the playback response** in `performDownload`
-  (`playbackData.videoDetails`) - songs reached via an album/playlist page often carry neither
-  (showed "0:00" / no artwork in the Downloaded list).
-- **A per-download video bitrate must survive a failed attempt.** `requestedVideoBitrate` is cleared on
-  success / cancel / delete, **never** in the per-attempt `finally` - else `retryDownload` re-issues the
-  download with no bitrate and silently falls back to best/default quality (a large file over a metered
-  connection the user explicitly capped).
-- **Remove must delete the actual file on EVERY backend.** A custom download path saves a SAF document
-  uri; `ContentResolver.delete` silently no-ops on those, so `MediaStoreHelper.deleteFromMediaStore`
-  routes document uris through `DocumentsContract.deleteDocument`.
-- **Downloaded video-songs also appear in the downloaded MUSIC surfaces by default** - `VideoDownloadsInMusicKey` (default ON), since Option A means one muxed file serves both renditions
-  (see §Video mode). `DatabaseDao.downloadedSongs*` take `includeVideos`; the phone library list, the
-  Downloaded auto-playlist, the library mix, AND Android Auto's downloaded browse (`MediaLibrarySessionCallback`,
-  `downloadedSongsWhitelistedByCreateDateAsc`) all read the SAME preference - don't let Auto and the
-  phone disagree about which songs are in the list again. The opt-out switch lives on
-  `DownloadedVideosScreen` ("Show in downloaded music"), which stays reachable even when videos are
-  blocked (same reasoning as the Home Featured Videos shelf above - it never renders watchable video).
+**Audio format + metadata embedding (pure Kotlin, no NDK).**
+- **Routing is `utils/CoverArtEmbedder`** (`supportsEmbedding` + embed) by extension: MP4/M4A →
+  `AudioRemux.flattenMp4` then `utils/mp4/Mp4MetadataWriter` (ilst atoms incl. `covr`, `aART`, `trkn`,
+  lyrics); WebM/Ogg Opus → `AudioRemux.webmOpusToOgg` then `utils/ogg/OggOpusTagger` (OpusTags +
+  `METADATA_BLOCK_PICTURE`). **The Ogg tagger STREAMS page by page** (`PageReader` over a
+  `RandomAccessFile`) - a whole-file read was an OOM site with concurrent downloads; trailing garbage or a
+  truncated page yields no output. Tests: `Mp4MetadataWriterTest`, `OggOpusTaggerTest`, on-device
+  `OpusDevicePipelineTest`.
+- **Opus needs API 29+** (`AudioRemux.oggMuxSupported`; `minSdk` 26): `MediaStoreDownloadManager` sets
+  `downloadOpusOk = !videoDownload && oggMuxSupported && DownloadAudioFormat == BEST`, and `YTPlayerUtils`
+  allows itag 251 for a download only then; 26-28 get best AAC/m4a. Never save a raw `.webm`
+  (MediaStore.Audio rejects it).
+- **`OggExtractor` MUST stay registered** in `createMediaSourceFactory` (else downloaded `.ogg` files hit
+  "Source error" → a self-repair re-download loop).
+- **`DownloadAudioFormatKey` ("downloadAudioFormat") is permanent** (Player settings, API 29+): `BEST`
+  (default) / `COMPATIBLE` (always AAC). Renaming it strands updating users.
+- **A download is never reduced by streaming quality or metering:** audio downloads resolve at
+  `AudioQuality.HIGH` (`if (videoDownload) audioQuality else AudioQuality.HIGH`).
 
-**Audio format + metadata embedding (pure Kotlin - the bento4 native layer is GONE).** The app no longer
-bundles `libcoverart.so` / the bento4 NDK submodule; all download metadata is written in pure Kotlin, and
-an audio download can now keep **Opus** instead of being forced to AAC. Rules that must not regress:
-- **Container routing lives in `utils/CoverArtEmbedder`** (`supportsEmbedding` + embed), dispatching by
-  extension: **MP4/M4A** -> flatten a fragmented input via `utils/mp4/AudioRemux.flattenMp4`, then tag with
-  `utils/mp4/Mp4MetadataWriter` (iTunes-style `moov/udta/meta/ilst` atoms: title/artist/album/year, `covr`
-  cover art, `aART`/`trkn` album-artist/track-number, and identity-exact lyrics). **WebM/Ogg Opus** ->
-  rewrap WebM to Ogg via `AudioRemux.webmOpusToOgg`, then tag with `utils/ogg/OggOpusTagger` (an OpusTags
-  Vorbis-comment packet + `METADATA_BLOCK_PICTURE` cover). **The Ogg tagger STREAMS page by page**
-  (`PageReader` over a `RandomAccessFile`; only the head page, the OpusTags packet and one audio page are
-  ever resident): the earlier whole-file read plus a per-page copy peaked at ~2x the track size, and three
-  concurrent Opus downloads was an OutOfMemoryError site. Trailing garbage or a truncated page is refused
-  with no output file, exactly as before (`OggOpusTaggerTest`). An already-Ogg file is tagged directly. All
-  three are framework/pure-Kotlin - **no native dependency, no NDK.** Guarded by JVM tests
-  (`Mp4MetadataWriterTest` / `OggOpusTaggerTest`) plus the on-device `OpusDevicePipelineTest` (real
-  itag-251 WebM->Ogg remux + tag, then `MediaMetadataRetriever` reads every field + cover back from BOTH
-  containers).
-- **Opus is API 29+ only, and gated - `minSdk` is 26.** `AudioRemux.oggMuxSupported` is `SDK_INT >= Q`
-  (needs `MediaMuxer` OGG output). `MediaStoreDownloadManager` sets `downloadOpusOk = !videoDownload &&
-  oggMuxSupported && DownloadAudioFormat == BEST`, and `YTPlayerUtils` only allows WebM/Opus (itag 251) for
-  a download when `downloadOpusOk`. So **26-28 fall back to best AAC/m4a** - exactly the m4a-only job bento4
-  did (it had no Opus path on ANY version), so this is never a regression - and 29+ gain Opus. A raw
-  `.webm` is never saved (MediaStore.Audio rejects it); the rewrap-to-`.ogg` is what makes Opus storable.
-- **`OggExtractor` MUST stay registered** in `MusicService.createMediaSourceFactory` - a downloaded
-  `.ogg`/`.opus` file otherwise fails with "Source error" into a self-repair re-download loop.
-- **`DownloadAudioFormatKey` ("downloadAudioFormat") is a permanent preference** (Player settings, shown
-  API 29+ only): `DownloadAudioFormat.BEST` (default - Opus where available) or `COMPATIBLE` (always
-  AAC/m4a). Renaming the key strands updating users; record its default in the preference-defaults baseline.
-- **A download is a deliberate act - never reduced by the streaming quality preference or metering.**
-  `YTPlayerUtils` forces the download's audio to HIGH (`if (videoDownload) audioQuality else HIGH`), fixing
-  the old negated-multiplier bug where `maxByOrNull` picked the WORST format on a metered/LOW connection.
-
-Enforcement (so this can't regress): `scripts/check-download-unification.sh` (whole-app, wired into
-the UI-audit workflow) + `scripts/ui-audit.sh` rule **R13** fail CI on any `downloadUtil.downloads` /
-`getDownload(` read, any `Download.STATE_*` outside the legacy infra (`DownloadUtil.kt` /
-`ExoDownloadService.kt`), or any per-surface `Icon.Download(`. Full rules: `docs/ui/standards.md §12`.
-When you touch downloads run both scripts and add pure regression tests next to the resolver/menu
-logic (the manager/playback layer needs Robolectric, which the project does not have - say so rather
-than skip silently).
+Enforcement: `scripts/check-download-unification.sh` (whole app, run by the UI-audit workflow; bans
+`downloadUtil.downloads` / `getDownload(` reads, `Download.STATE_*` outside `DownloadUtil.kt`, and
+`Icon.Download(`) + ui-audit **R13** (`ui/`). When touching downloads run both and add pure tests next to
+the resolver/menu logic (the manager/playback layer would need Robolectric, which the project lacks - say
+so rather than skip silently).
 
 ### tests/ - the hard-data streaming harness
 
-Node ≥20 scripts (deps vendored in `tests/node_modules`, no install needed) that reproduce the app's *exact* stream path (same `/player` request as `InnerTube.kt`, same cipher run in jsdom, same poTokens) against the live CDN - so playback is measured, not guessed. Needs `innertube_cookie.txt` at the repo root (a dumped logged-in session; **gitignored**, never commit).
+Node ≥20 scripts that reproduce the app's *exact* stream path (same `/player` request as
+`InnerTube.kt`, same cipher in jsdom, same poTokens) against the live CDN. Setup: `npm ci --prefix
+tests` once (`tests/node_modules` is gitignored) and `innertube_cookie.txt` at the repo root (a logged-in
+session; **gitignored**, never commit). Methodology + the symptom-indexed runbook: `tests/README.md`,
+`tests/INVESTIGATION.md` - read them first when streaming breaks.
 
-- Run one: `node tests/cipher.mjs` (live player health), `node tests/validate-player-config.mjs <hash>`, `node tests/web-remix-stream.mjs`. Pin a player with `PLAYER_HASH=<hash>`.
-- `tests/README.md` + `tests/INVESTIGATION.md` are the methodology and the symptom-indexed runbook - read them first when streaming breaks.
-- The harness mirrors app constants on purpose; when `YouTubeClient.kt` / `PoTokenGenerator.kt` change, update the matching mirror (`clients.mjs` / `potoken.mjs`). Player configs are **not** mirrored - `tests/player-configs.mjs` reads the same `player_configs.json` the app bundles (requires the cipher submodule checked out; if missing, scripts fail with an actionable message).
-- Loader unit tests (no cookie or network needed): `node --test tests/player-configs.test.mjs` - validation rules, collision rejection, the `config-covers.mjs` CLI, and the cross-language parity fixtures shared with the cipher repo's Kotlin tests.
-- **`tests/search/`** is the same idea for the *search* path: a faithful Node port of the app's ONE remaining InnerTube search function - `search(filter)`×6, still called by `RecognitionResolver`, the Android Auto voice search, and the add-to-playlist online search - run against live YouTube Music: `node tests/search/run.mjs [query...]`. (The `searchSuggestions`/`searchSummary`/`searchContinuation` ports were retired with their app functions when the YouTube search engine was removed - Zemer serves the search UI.) It reproduces the app's exact request (WEB_REMIX, `setLogin=false` → visitorData only, no cookie/auth) and reports any error: a strict-deserialization break (a non-null field YouTube dropped → whole response fails → "No results"), a parser drop (with the exact field), or an empty result. `node --test tests/search/self-test.mjs` proves the checker catches breaks (no network). The kotlinx strict-field table in `tests/search/schema.mjs` is transcribed from the innertube models - keep it in sync when their nullability changes. Zemer's artist-whitelist filter runs *after* this function (needs the app DB) and is the next suspect when it's healthy but a caller still comes up empty. See `tests/search/README.md`.
+- Run one: `node tests/cipher.mjs`, `node tests/validate-player-config.mjs <hash>`,
+  `node tests/web-remix-stream.mjs`; pin a player with `PLAYER_HASH=<hash>`.
+- The harness mirrors app constants on purpose: when `YouTubeClient.kt` / `PoTokenGenerator.kt` change,
+  update `clients.mjs` / `potoken.mjs`. Player configs are NOT mirrored - `tests/player-configs.mjs`
+  reads the bundled `player_configs.json` (needs the cipher submodule).
+- Offline loader tests: `node --test tests/player-configs.test.mjs` (incl. the cross-language parity
+  fixtures shared with the cipher repo).
+- **`tests/search/`** ports the app's ONE remaining InnerTube search function, `YouTube.search(filter)`
+  (used by `RecognitionResolver`, Android Auto voice search, `AddToPlaylistDialogOnline`):
+  `node tests/search/run.mjs [query...]` reports strict-deserialization breaks, parser drops and empty
+  results; `node --test tests/search/self-test.mjs` proves the checker (no network). The app sends no
+  visitorData/cookie/auth (`sendVisitorData = false`); the harness still sends visitorData (known drift).
+  Keep the strict-field table in `tests/search/schema.mjs` in sync with innertube model nullability.
+  Details: `tests/search/README.md`.
 
 ### Modules & app layout
 
-- **`:app`** (`com.jtech.zemer`) - single-activity Jetpack Compose UI, Hilt DI (`App.kt` `@HiltAndroidApp`, modules under `di/`), Media3. `MainActivity` + `NavigationBuilder.kt` host the Compose nav graph; `MusicService` (a Media3 `MediaLibraryService`) owns ExoPlayer and is bridged to the UI by `PlayerConnection`, with `playback/queues/` implementations. State is Room (`db/MusicDatabase.kt`, `song.db`) + DataStore preferences (`utils/DataStore.kt` - holds the auth cookie / visitorData / dataSyncId and all settings). Content-filtering (whitelist, KidZone) lives in `sync/` + `utils/SyncUtils.kt`. The offline search-backup snapshot (sync engine + read-layer port) lives in `offline/` (on-disk store under `filesDir/subset/` - see §Offline search backup). Downloads via Media3 `ExoDownloadService` plus a MediaStore path. Crash/error telemetry is Firebase Crashlytics: `utils/CrashReportingTree.kt` (planted in `App.kt`) turns every Timber log (DEBUG+) into a breadcrumb and `reportException()` calls into non-fatal issues - so report errors via `reportException()`/`Timber`, never `printStackTrace`; release CI uploads R8 mappings and native symbols automatically. `App.kt` sets the Crashlytics custom key `commit` = `BuildConfig.COMMIT_HASH` because every main build ships as the SAME versionCode/versionName (a nightly reports as "38" like stable) - the key is the only way to tell a nightly crash from a stable one in the console.
-- **`:innertube`** (`com.metrolist.innertube`) - the YouTube Music InnerTube API client (Ktor): request building, auth context, page parsers that turn YouTube renderer trees into typed models. Holds the `YouTubeClient` definitions. (The NewPipe extractor bridge is gone: the cipher player is the single sts/decipher source - a live probe 2026-08-27 showed the extractor's sig parse broken on the current player, and it fetched the player over the same iframe_api route as the cipher, so it could not survive any failure the cipher couldn't.)
-- The lyrics provider clients are NOT modules: LrcLib.net (`lyrics/lrclib/`) and api-lyrics.simpmusic.org (`lyrics/simpmusic/`) both live in `:app` under `com.jtech.zemer.lyrics.*`. (The fork's `:lrclib` / `:simpmusic` Gradle modules were folded in, 2026-09-24; they carried an unused second matcher + Levenshtein and an unused `Lyrics` wrapper, dropped with the move.)
+- **`:app`** (`com.jtech.zemer`) - single-activity Compose UI, Hilt DI (`App.kt`, modules in `di/`),
+  Media3. `MainActivity` + `NavigationBuilder.kt` host the nav graph; `MusicService` (a
+  `MediaLibraryService`) owns ExoPlayer, bridged to the UI by `PlayerConnection`, queues in
+  `playback/queues/`. State: Room (`db/MusicDatabase.kt`, `song.db`) + DataStore (`utils/DataStore.kt` -
+  cookie / visitorData / dataSyncId and all settings). Content filtering: `sync/` + `utils/SyncUtils.kt`.
+  Offline search backup: `offline/` (store under `filesDir/subset/`). Downloads:
+  `MediaStoreDownloadManager` / `MediaStoreDownloadService`. Crash telemetry is Firebase Crashlytics via
+  `utils/CrashReportingTree.kt` (Timber DEBUG+ → breadcrumbs, `reportException()` → non-fatals) - report
+  errors via `reportException()`/`Timber`, never `printStackTrace`. `App.kt` sets custom keys `commit` and
+  `run_number` because nightly and stable builds share one versionCode/versionName.
+- **`:innertube`** (`com.metrolist.innertube`) - the Ktor InnerTube client (requests, auth context,
+  renderer parsers) and the `YouTubeClient` definitions. The cipher is the single sts/decipher source (no
+  NewPipe extractor - don't reintroduce it).
+- Lyrics provider clients live in `:app` (`lyrics/lrclib/`, `lyrics/simpmusic/`), not separate modules.
 - **`cipher`** - see "Cipher / player rotation" above.
 
 ## Documentation
 
-`docs/` is a **code-derived docset** - most of it is generated, not hand-written:
+`handoff-docs/...` paths cited in this file are the app↔server contract docs; they live outside this
+repo (the maintainers' handoff-docs folder).
 
-- `docs/generate.py` regenerates `docs/repository-map.md`, `docs/build-release.md`, and `docs/reference/*.md` from tracked source (file inventory; Gradle / CI / native / JVM-module facts). It is idempotent - converges in one run - and needs PyYAML (`pip install pyyaml`) for `build-release.md`. **Never hand-edit those generated files**; change the source or the generator.
-- `.github/workflows/docs-regenerate.yml` runs the generator on every push to `main` and commits any change back (`[skip ci]`), so the generated docs stay current automatically. Running `python3 docs/generate.py` locally before a commit is still good practice.
-- Hand-authored docs are the exception - this `AGENTS.md`, `docs/ui/standards.md` (the UI rulebook), and prose/rationale carry intent a generator can't derive.
+- `docs/generate.py` regenerates `docs/reference/{kotlin-files,non-kotlin-files,resource-index}.md`,
+  `docs/build-release.md`, the `### Counts` / inventory tail of `docs/repository-map.md`, and the
+  `<!-- generated:NAME -->` … `<!-- /generated:NAME -->` regions inside `docs/app/{README,database,
+  playback,preferences-sync-auth,viewmodels}.md`, `docs/ui/README.md` and `docs/innertube/README.md`
+  (`REGION_DOCS`). Idempotent; needs PyYAML for `build-release.md`. **Never hand-edit generated files or
+  regions** - change the source or the generator.
+- `.github/workflows/docs-regenerate.yml` reruns it on every push to `main` and commits changes
+  (`[skip ci]`); running `python3 docs/generate.py` before a commit is still good practice.
+- Everything else (this file, `docs/ui/standards.md`, the feature READMEs, the prose around generated
+  regions) is hand-authored and drifts unless updated with the code.
 
 ## Verifying your changes
 
 - **Build both** `:app:assembleDebug` and `:app:assembleRelease` (release catches R8/shrink breakage).
 - **Streaming / cipher / poToken changes** must be proven with the `tests/` harness against the live CDN (HTTP 206 / whole-song drain), and ideally confirmed on-device via the `YTPlayerUtils` logcat (`Playback: client=…, itag=…`).
-- **UI changes** must comply with `docs/ui/standards.md` (the UI rulebook - Material 3 standard, design tokens, shared `Dialog.kt` dialogs, shared grouped-list components `Material3SettingsGroup`/`Material3MenuItem` per section 11) and stay 100% D-pad navigable - any new row/list component must carry the `.focusable()` + focus-border treatment, since upstream (Metrolist) rows omit it. Update the doc when a rule changes. Run `bash scripts/ui-audit.sh` - it ratchets sections 5, 7, 8 and 11 (no *new* hardcoded user-facing strings, raw `AlertDialog`s, raw font sizes, hardcoded hex colors, or raw `ListItem(` action rows under `ui/menu/`; strings and dialogs are baselined at zero, menus build from `Material3MenuGroup`).
+- **UI changes** must comply with `docs/ui/standards.md` (the UI rulebook - Material 3 standard, design tokens, shared `Dialog.kt` dialogs, shared grouped-list components `Material3SettingsGroup`/`Material3MenuItem` per section 11) and stay 100% D-pad navigable - any new row/list component must carry the `.focusable()` + focus-border treatment, since upstream (Metrolist) rows omit it. Update the doc when a rule changes. Run `bash scripts/ui-audit.sh` - it checks sections 5, 7, 8, 11 and the R12-R26 rules (listed in `scripts/ui-audit.sh`) (no *new* hardcoded user-facing strings, raw `AlertDialog`s, raw font sizes, hardcoded hex colors, or raw `ListItem(` action rows under `ui/menu/`; strings and dialogs are baselined at zero, menus build from `Material3MenuGroup`).

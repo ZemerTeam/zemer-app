@@ -40,16 +40,16 @@
 
 ## Native code and submodules
 
-## Native code
+### Native code
 
 None - metadata embedding is pure Kotlin
 (`utils/mp4/`, `utils/ogg/`); no NDK/CMake build.
 
-## Git submodules
-| Submodule | Path | URL |
-|---|---|---|
+### Git submodules
 
-| `cipher` | path `cipher` | https://github.com/ZemerTeam/zemer-cipher.git |
+| Submodule | Path | URL |
+| --- | --- | --- |
+| `cipher` | `cipher` | https://github.com/ZemerTeam/zemer-cipher.git |
 
 ## Auxiliary JVM modules
 

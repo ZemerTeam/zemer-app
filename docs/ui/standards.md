@@ -1,9 +1,8 @@
 # UI standards and rules
 
-How to build UI in this app so new screens look and behave like the existing ones. Match these
-conventions rather than inventing parallel patterns. All UI is Jetpack Compose + Material 3.
-Most of the codebase follows them; some older screens predate parts of this doc (section 8 in
-particular), so `scripts/ui-audit.sh` ratchets the known gaps down without blocking you.
+How to build UI in this app so new screens look and behave like the existing ones. All UI is
+Jetpack Compose + Material 3. A few older sites predate parts of this doc; `scripts/ui-audit.sh`
+baselines those gaps (`scripts/ui-audit-baseline.tsv`) and ratchets them down.
 
 ## 1. Reuse before building
 
@@ -14,41 +13,36 @@ particular), so `scripts/ui-audit.sh` ratchets the known gaps down without block
   icon buttons (`IconButton.kt`), chips (`ChipsRow.kt`), placeholders (`EmptyPlaceholder.kt`,
   `AppStateViews.kt`), one-time feature promos (`OfflineBackupPromo.kt` — a self-gating dismissible
   banner backed by DataStore keys; copy its pattern for the next discovery banner), and more.
-- One shared component deliberately lives OUTSIDE `ui/component/`: the onboarding radio-choice card
-  (`ui/screens/onboarding/OnboardingChoiceCard.kt`) — onboarding steps (bottom-nav setup, search
-  backup) must use it, never a bespoke per-screen card (it carries the mandatory §11 focus
-  treatment a copy is exactly how a screen forgets).
-- Do not introduce a second component that duplicates one of these. (For example, settings rows use
-  the `Preference.kt` widgets below — do not add a parallel "settings group" widget set; grouped/
-  separated rows use the components in section 11 — do not hand-roll cards per row.)
-- **Componentize on every touch.** Whenever you edit a screen, check whether a shared component
-  already covers what you are writing; if it does, use it. The moment you would write a *second*
-  near-copy of a widget that already exists elsewhere, extract it into `ui/component/` (or reuse the
-  existing one) and repoint every site in the same pass — never leave two hand-rolled copies to
-  drift. In particular: the top-bar back button is `BackNavigationIcon` / `BackTopAppBar`, the row
-  3-dot overflow is `MoreVertMenuButton`, and a plain `TopAppBar` action icon is
-  `TopAppBarActionButton` — all in `IconButton.kt`. A discovery row that opens a menu for a mixed
+- The onboarding radio-choice card is `ui/component/OnboardingChoiceCard.kt` — onboarding steps must
+  use it, never a bespoke per-screen card (it carries the mandatory §11 focus treatment a copy forgets).
+- Do not introduce a second component that duplicates one of these (settings rows use the
+  `Preference.kt` widgets; grouped/separated rows use the section 11 components).
+- **Componentize on every touch.** The moment you would write a *second* near-copy of a widget that
+  already exists elsewhere, extract it into `ui/component/` (or reuse the existing one) and repoint
+  every site in the same pass. In particular: the top-bar back button is `BackNavigationIcon` (`IconButton.kt`) or the
+  whole back-only bar `BackTopAppBar` (`BackTopAppBar.kt`), the row 3-dot overflow is
+  `MoreVertMenuButton`, and a plain `TopAppBar` action icon is `TopAppBarActionButton` — the last
+  three in `IconButton.kt`. A discovery row that opens a menu for a mixed
   list of InnerTube `YTItem`s uses `ytItemMenu(item, …, isVideo)` (`ui/menu/YouTubeItemMenu.kt`) —
-  the one `when (item) -> YouTube*Menu` dispatcher — instead of copy-pasting the four-branch block.
+  the one `when (item) -> YouTube*Menu` dispatcher — instead of copy-pasting the per-type block.
 - **Top bars are uniform via two shared sources** (`ui/component/`): the title goes through
   `AppBarTitle(text)` (bold `titleLarge`, single-line+ellipsis, matching Home) and the colors through
-  `colors = zemerTopAppBarColors()` (black under AMOLED / `surfaceContainer` otherwise, with
-  `scrolledContainerColor == containerColor` so a bar never greys-out on scroll — the default
-  `scrolledContainerColor` is not AMOLED-aware). `BackTopAppBar` bakes both in. The only exceptions are
-  the full-bleed login/onboarding bars, the video player's fixed-black bar, and ArtistScreen's
-  over-header transparent state. Do not hand-roll a title `Text` or omit `colors` on a new screen bar.
+  `colors = zemerTopAppBarColors()` (`surfaceContainer`, which the pure-black scheme turns black, with
+  `scrolledContainerColor == containerColor` so a bar never greys-out on scroll — the M3 default
+  container is `surface`, scrolled `surfaceContainer`). `BackTopAppBar` bakes both in. The only exception
+  is ArtistScreen's over-header transparent state. Do not hand-roll a title `Text` or omit `colors` on a new screen bar.
 - **Never hand-build an id-bearing nav route.** `navController.navigate("artist/$id")` /
-  `navigate("album/$id")` crashes when the id is blank (an empty id builds `"artist/"`, which matches
-  no destination and throws — this was a real bug). Use the null-safe `navigateToArtist(id)` /
-  `navigateToAlbum(id)` in `ui/utils/AppNavigation.kt` — a blank id is a no-op, and the pure
-  `artistRoute`/`albumRoute` builders are unit-tested. Enforced by `R16-navroute` (baseline 0). Zemer
+  `navigate("album/$id")` / `navigate("online_podcast/$id")` crashes when the id is blank (an empty id builds `"artist/"`, which matches
+  no destination and throws). Use the null-safe `navigateToArtist(id)` /
+  `navigateToAlbum(id)` / `navigateToPodcast(id)` in `ui/utils/AppNavigation.kt` — a blank id is a no-op, and the pure
+  `artistRoute`/`albumRoute`/`podcastRoute` builders are unit-tested. Enforced by `R16-navroute` (baseline 0). Zemer
   routes with query params keep their builders (`zemerAlbumRoute`, `zemerPlaylistRoute`, `ZemerRoutes.kt`).
 - **Resolve the Zemer repository through the one extension.** A leaf composable with no ViewModel that
   needs `ZemerSearchRepository` calls `context.zemerSearchRepository()` (the extension in
   `di/ZemerSearchRepositoryEntryPoint.kt`), never a hand-written
   `EntryPointAccessors.fromApplication(..., ZemerSearchRepositoryEntryPoint::class.java).zemerSearchRepository()`.
-  Enforced by `R17-entrypoint` (UI-scoped, baseline 0). The `playback/queues/*` classes that hold the
-  boilerplate live outside `ui/` and use the same extension.
+  Enforced by `R17-entrypoint` (UI-scoped, baseline 0). The `playback/queues/*` classes (outside `ui/`)
+  use the same extension.
 - **Never `runBlocking` on a UI path.** Blocking the main thread from a composable ANRs. Use a suspend
   function + `LaunchedEffect`/`rememberCoroutineScope`, or a `Flow` (`collectAsState`). The DataStore
   sync accessors (`dataStore[Key]`) are the documented exception and must run off the main thread.
@@ -65,11 +59,14 @@ particular), so `scripts/ui-audit.sh` ratchets the known gaps down without block
 - **Toast through the one helper.** `context.toast(resId | text, long = false)`
   (`extensions/ContextExt.kt`) over a hand-rolled `Toast.makeText(...).show()`. Enforced by `R21-toast`
   (baseline 0).
+- **A loading skeleton matches the content that replaces it and never renders on another tab.** Home's
+  music-shaped shimmer is gated `homeTab == HomeContentTab.MUSIC` on the `val shouldShowShimmer` line;
+  `R22-home-shimmer` (a positive assertion, not a ratchet) fails CI otherwise.
 - Enforcement (ratcheting): `scripts/ui-audit.sh` rules `R14-backbtn` and `R15-morevert` fail CI on
   any *new* raw `R.drawable.arrow_back` / `R.drawable.more_vert` in a screen — build the back button
   and the overflow menu from the shared components instead. The existing hand-rolls are baselined in
-  `scripts/ui-audit-baseline.tsv` (a large backlog — burn it down when you touch a screen; a
-  state-branching nav icon that legitimately flips to `close` in selection mode stays baselined).
+  `scripts/ui-audit-baseline.tsv` (burn them down when you touch the screen; a state-branching nav
+  icon that legitimately flips to `close` in selection mode stays baselined).
   The remaining reuse rules here (the other shared components, the `Material3SettingsGroup` settings
   cards, the `.focusable()` D-pad treatment) are not greppable and stay a code-review gate.
 
@@ -87,8 +84,10 @@ composables below, passed as slots; conditional rows are CONDITIONALLY INCLUDED 
 `listOfNotNull`) — never an always-present `AnimatedVisibility` slot, which leaves a phantom
 zero-height card in the stack. Section-scoped info content (captions, usage bars) goes in the
 group's `headerContent` slot; dialogs and non-row content stay outside the group. Screens whose
-column already applies horizontal padding pass `horizontalPadding = 0.dp`. Every screen leads with
-`Spacer(Modifier.height(SettingsScreenTopSpacing))` under the top bar.
+column already applies horizontal padding pass `horizontalPadding = 0.dp`. Column-based settings
+screens lead with `Spacer(Modifier.height(SettingsScreenTopSpacing))` under the top bar (a few
+bespoke screens — `AboutScreen`, `AndroidAutoSettings`, `ButtonSetupScreen`, `LogViewerScreen`,
+`ThemeScreen` — currently deviate).
 
 Skeleton:
 
@@ -124,19 +123,24 @@ fun ExampleSettings(
         )
     }
 
-    TopAppBar(
-        title = { Text(stringResource(R.string.example_title)) },
-        navigationIcon = {
-            IconButton(
-                onClick = navController::navigateUp,
-                onLongClick = navController::backToMain,
-            ) {
-                Icon(painterResource(R.drawable.arrow_back), contentDescription = null)
-            }
-        },
+    BackTopAppBar(
+        title = { AppBarTitle(stringResource(R.string.example_title)) },
+        navController = navController,
         scrollBehavior = scrollBehavior,
     )
 }
+```
+
+A screen that needs extra actions or custom focus wiring on the back button uses a plain
+`TopAppBar` with the shared pieces instead (the pattern of `OfflineSearchSettings`):
+
+```kotlin
+    TopAppBar(
+        title = { AppBarTitle(stringResource(R.string.example_title)) },
+        navigationIcon = { BackNavigationIcon(navController) },
+        scrollBehavior = scrollBehavior,
+        colors = zemerTopAppBarColors(),
+    )
 ```
 
 Rules:
@@ -145,11 +149,12 @@ Rules:
   `windowInsetsPadding(LocalPlayerAwareWindowInsets.current)`. Use a `LazyColumn` instead only when
   the screen contains a dynamic or reorderable list (see section 6) — never nest a `LazyColumn`
   inside a `verticalScroll` `Column`.
-- The `TopAppBar` is emitted after the body (it draws over the top) and is given the passed
-  `scrollBehavior`. Its back button is the app's `com.jtech.zemer.ui.component.IconButton` with
-  `onClick = navController::navigateUp` and `onLongClick = navController::backToMain`.
-- Group separation comes from `PreferenceGroupTitle` (it has its own 16dp padding). Do not insert
-  arbitrary `Spacer` heights between groups.
+- The top bar is emitted after the body (it draws over the top) and is given the passed
+  `scrollBehavior`. Its back button is the shared `BackNavigationIcon(navController)` (tap =
+  `navigateUp`, long-press = `backToMain`) — baked into `BackTopAppBar`; never hand-roll the
+  `arrow_back` `IconButton` (ratcheted by `R14-backbtn`).
+- Group separation comes from the group title (`SettingsCardGroup`'s `title`, a `PreferenceGroupTitle`
+  with its own padding). Do not insert arbitrary `Spacer` heights between groups.
 
 ## 3. Settings widgets (`ui/component/Preference.kt`)
 
@@ -158,10 +163,11 @@ Use these; do not hand-roll equivalents.
 | Component | Use for |
 | --- | --- |
 | `PreferenceGroupTitle(title)` | Section header. Renders an uppercase `labelLarge` in `primary`. |
-| `PreferenceEntry(title, description?, icon?, trailingContent?, onClick?, isEnabled?)` | Generic clickable row; the base for everything below. Use directly when you need a custom trailing control (e.g. a drag handle + switch) or a row that opens a dialog. |
-| `SwitchPreference(title, description?, icon?, checked, onCheckedChange, isEnabled?)` | Boolean toggle row. The thumb shows `check`/`close` icons automatically. |
-| `EditTextPreference(...)` | Inline text field preference. |
-| `SliderPreference(...)` | Numeric slider preference. |
+| `PreferenceEntry(title, description?, icon?, trailingContent?, onClick?, isEnabled?, contentPadding)` | Generic clickable row; the base for everything below. Use directly when you need a custom trailing control (e.g. a drag handle + switch) or a row that opens a dialog. `contentPadding` defaults to `PreferenceEntryDefaults.contentPadding`; rows inside a dialog list pass `compactContentPadding` — tighten a row through it, never by forking the row. |
+| `SwitchPreference(title, description?, icon?, checked, onCheckedChange, isEnabled?, contentPadding)` | Boolean toggle row. The thumb shows `check`/`close` icons automatically. Same `contentPadding` knob. |
+| `ListPreference(...)` / `EnumListPreference(...)` | A row that shows the current value and opens a single-choice radio list dialog (the enum variant derives the entries from an `Enum`). Use instead of hand-rolling the row + `showDialog` + `ListDialog`. |
+| `EditTextPreference(...)` | A row showing the current text that opens a `TextFieldDialog` to edit it. |
+| `SliderPreference(...)` | A row showing the current value that opens a slider dialog (`ActionPromptDialog`, with Reset). |
 
 - `title` is `@Composable () -> Unit` (usually `{ Text(stringResource(...)) }`); `description` is a
   plain `String?`; `icon` is `{ Icon(painterResource(R.drawable.x), null) }`.
@@ -182,9 +188,11 @@ Use these; do not hand-roll equivalents.
 
 ## 5. Strings (localization)
 
-- Add every new user-facing string to `app/src/main/res/values/metrolist_strings.xml`.
-- Never add strings to `app/src/main/res/values/strings.xml` — it is upstream InnerTune strings and
-  is headed `Do not add new features here`.
+- Add new user-facing strings to the default-English files — both
+  `app/src/main/res/values/strings.xml` and `app/src/main/res/values/metrolist_strings.xml` are
+  editable.
+- Never edit the translated files under `app/src/main/res/values-iw/` — other locales are managed
+  separately.
 - No hardcoded user-facing text in Kotlin; always `stringResource(R.string.x)` (or
   `context.getString(...)` in non-composable contexts: toasts, notifications, clipboard labels,
   queue titles built in click handlers — hoist a `val` from `stringResource` when the value is
@@ -196,8 +204,7 @@ Use these; do not hand-roll equivalents.
 - Enforcement: `scripts/ui-audit.sh` fails CI on any new hardcoded user-facing string under `ui/`
   (R5-hardcoded, baseline zero). The check is a multi-line-aware scanner
   (`scripts/ui-strings-scan.py`), not a line grep, so it also catches a literal that sits on a
-  different line from its `Text(`/`text =`/`Toast`/`section =` — the shape that used to slip
-  through.
+  different line from its `Text(`/`text =`/`Toast`/`section =`.
 
 ## 6. Lists and reordering
 
@@ -206,17 +213,24 @@ Use these; do not hand-roll equivalents.
   non-list parts in `item { }` blocks and the list in `items(...) { }` so there is exactly one
   scrollable. Do not give a `LazyColumn` a hardcoded pixel height to embed it in a `Column`.
 - Reordering uses `sh.calvin.reorderable` (`rememberReorderableLazyListState`, `ReorderableItem`,
-  `longPressDraggableHandle`). Map moves by stable item `key`, not lazy index, and persist the new
-  order in the handle's `onDragStopped`.
+  `draggableHandle`/`longPressDraggableHandle`). Map moves by stable item `key`, not lazy index, and persist
+  the new order once the drag ends (the handle's `onDragStopped`, or `isAnyItemDragging` turning false),
+  not on every move.
+- For a drag-to-reorder list of named entries use the shared `ReorderableList`
+  (`ui/component/ReorderableList.kt`; every row is the shared `PreferenceEntry`, so it is D-pad
+  focusable), and draw any drag handle with `ReorderDragHandle` from the same file — never
+  hand-roll a `drag_handle` icon or a reorder row.
 
 ## 7. Dialogs
 
 - Use the app's `Dialog.kt` helpers (`DefaultDialog`, `ListDialog`, `TextFieldDialog`,
-  `ActionPromptDialog`) — never raw Material 3 `AlertDialog`/`BasicAlertDialog`. The helpers
-  derive the AMOLED pure-black surface themselves (`rememberPureBlack()` in `ui/theme/Theme.kt`:
-  preference AND dark theme active) — do not thread a pureBlack parameter through callers.
-- The bare compose `Dialog` primitive is reserved for non-modal custom containers; the only
-  current case is `AccountSettingsDialog` (full-screen scrim with a top-anchored panel). Anything
+  `ActionPromptDialog`) — never raw Material 3 `AlertDialog`/`BasicAlertDialog`. The helpers use
+  `AlertDialogDefaults.containerColor` (`surfaceContainerHigh`), which the theme's pure-black scheme
+  deliberately leaves unchanged, so dialogs stay visible on the black canvas in AMOLED mode — do not
+  thread a pureBlack parameter or hardcode a color.
+- The bare compose `Dialog` primitive is reserved for non-modal custom containers; the current
+  cases are `AccountSettingsDialog` (full-screen scrim with a top-anchored panel) and
+  `MainActivity`'s shared-song panel. Anything
   shaped like a modal dialog goes through the helpers.
 - In `buttons`, Cancel comes first and the affirmative action last (matching M3's
   dismiss-then-confirm order). A pick-and-close list puts only Cancel there.
@@ -256,23 +270,23 @@ Use these; do not hand-roll equivalents.
 - Enforcement: `scripts/ui-audit.sh` (ratcheting) fails CI on *new* raw `fontSize = N.sp`,
   `Color(0x..)`, or `Modifier.blur(` (R12 — route player blur through the effective style) under
   `ui/` (outside `theme/`); the current known cases are baselined in `scripts/ui-audit-baseline.tsv`
-  and can only shrink (run `--update` after fixing some). A few fixed values are genuinely required
-  and stay baselined: AMOLED pure-black (`0xFF0A0A0A`), the lyric-image *export* (it renders a
-  shareable bitmap, not themed UI), and color-picker swatches. Keep such cases minimal.
+  and can only shrink (run `--update` after fixing some). The only fixed colors/sizes still baselined
+  are the lyric-image *export* (`LyricsImageCard.kt`, `Lyrics.kt` — a shareable bitmap, not themed
+  UI). Palette/color-picker swatches live in `ui/theme/`, which is exempt. AMOLED pure-black comes
+  from the scheme, never a hex.
 - **Material 3 Expressive — prefer it when a fitting component exists.** The app stays on standard
   `MaterialTheme` (never a global `MaterialExpressiveTheme` / `MotionScheme.expressive()` swap), but
   adopts individual **Material 3 Expressive** components behind a per-site
   `@OptIn(ExperimentalMaterial3ExpressiveApi::class)`. When adding or replacing a UI element and an
   Expressive equivalent fits, prefer it — always through a SHARED wrapper so the experimental opt-in
-  lives in one place: `ZemerLoadingIndicator` (the CONTAINED content/section spinner — pull-to-refresh,
-  video buffering, section loads; ratcheted **R25**), `MediaLoadingSpinner` (the BARE over-media / card
-  tap-to-play spinner; ratcheted **R26**), `CarouselHeroFrame` + `HeroTitleOverlay` (full-bleed carousel
+  lives in one place: `ZemerLoadingIndicator` (the CONTAINED content/section spinner — video buffering,
+  section loads; ratcheted **R25**), `MediaLoadingSpinner` (the BARE over-media / card tap-to-play
+  spinner; ratcheted **R26**) and its sibling `PullRefreshLoadingIndicator` (pull-to-refresh), `CarouselHeroFrame` + `HeroTitleOverlay` (full-bleed carousel
   heroes), the filter-chip `TonalToggleButton`, `MaterialShapes`, and the `rememberPopScale` /
-  `rememberActivationPopScale` motion helpers (a per-tap press-bounce on the shared `GridItem` /
-  `ListItem` was tried and removed — it fired on scroll-start too; do not reintroduce it). Stays
-  standard on purpose: tiny in-button
-  and determinate spinners (`CircularProgressIndicator`), and springiness added per-interaction rather
-  than by a theme.
+  `rememberActivationPopScale` motion helpers. Never add a per-tap press-bounce to the shared
+  `GridItem` / `ListItem` (it also fires when a touch starts a scroll). Stays standard on purpose:
+  tiny in-button and determinate spinners (`CircularProgressIndicator`), and springiness added
+  per-interaction rather than by a theme.
 
 ## 9. Icons
 
@@ -282,7 +296,7 @@ Use these; do not hand-roll equivalents.
 
 ## 10. Documentation
 
-- No emojis or decorative symbols anywhere in `docs/` — ASCII only. (Arrows like `->` over a glyph.)
+- No emojis in `docs/`. Prefer plain ASCII arrows like `->` over decorative glyphs.
 - Keep this file in sync when a shared UI convention changes.
 
 ## 11. Grouped lists, menus and detail sheets
@@ -291,7 +305,8 @@ For label/value or action rows grouped into sections, reuse one of these — do 
 per row or a parallel group widget:
 
 - `Material3SettingsGroup(title, items)` + `Material3SettingsItem` (`Material3SettingsGroup.kt`) —
-  one rounded card with the items stacked inside, separated by hairline dividers. The icon is a
+  each item rendered as its own card (position-shaped corners via `settingsCardShape`, the same
+  geometry as `SettingsCardGroup`), no dividers. The icon is a
   `Painter` and is rendered inside a tinted-primary chip by the component. This is the **settings**
   idiom (the settings hub uses it).
 - `Material3MenuGroup(items)` + `Material3MenuItemData` (`Material3MenuItem.kt`) — each item is its
@@ -305,7 +320,7 @@ per row or a parallel group widget:
 Rules for these and any new row component:
 
 - **D-pad (non-negotiable):** the row must be `.focusable()` with an animated focus background +
-  border. Metrolist's upstream rows omit this; ours must not. For a bespoke clickable row/card
+  border (upstream Metrolist rows omit it). For a bespoke clickable row/card
   outside the shared group components, apply `Modifier.focusBorder()` (`FocusBorder.kt`) — the single
   source of truth for that treatment — placed **before** `.clickable {}` in the chain so the ripple
   is clipped (`Material3MenuItemRow` / `Material3SettingsItemRow` inline the same effect).
@@ -323,8 +338,8 @@ Rules for these and any new row component:
   `.focusable()` after `.focusRequester(fr)` binds `fr` to that wrapper node instead of the text
   editor, so `fr.requestFocus()` (e.g. auto-focusing the search field) gains focus but never starts
   text input and the soft keyboard stays hidden. Attach `.focusRequester(fr)` directly to the field.
-- The row provides `titleMedium` for the title and `bodyMedium`/`onSurfaceVariant` for the
-  description. To shrink text (e.g. dense detail rows), pass an explicit `style` on your `Text` —
+- The rows provide `titleMedium` for the title; `Material3MenuItem` also provides
+  `bodyMedium`/`onSurfaceVariant` for the description. To shrink text (e.g. dense detail rows), pass an explicit `style` on your `Text` —
   it overrides the row default — rather than editing the component.
 - Localize every label and format numbers with `numberFormatter` (locale grouping separator — do
   not force a separator).
@@ -335,21 +350,20 @@ Rules for these and any new row component:
   `ListItem`s that remain in menu files are baselined in `scripts/ui-audit-baseline.tsv`; the count
   can only shrink. If a genuine dialog/data-list `ListItem` is added, record it with `--update`.
 - Common menu dialogs are shared, not re-implemented per menu: `SelectArtistDialog` (the
-  multi-artist picker) and `AlreadyInPlaylistDialog` (`MenuDialogs.kt`). Reuse them rather than
+  multi-artist picker), `AlreadyInPlaylistDialog`, `ConfirmDialog` (the one Cancel/OK
+  confirmation) and `RemoveDownloadConfirmDialog` (`MenuDialogs.kt`). Reuse them rather than
   hand-rolling a `ListDialog` copy.
 - **Bottom-sheet menus must stay scrollable.** Every menu shown via `LocalMenuState.show { … }` is
   hosted in the full-height `ModalBottomSheet` of `BottomSheetMenu.kt`, with the menu's own
   `LazyColumn` as the single scroll container. Leave that `LazyColumn` user-scrollable (the default)
   and let its `contentPadding` carry the bottom `WindowInsets.systemBars` inset — do **not** gate
-  scrolling on orientation/screen (e.g. `userScrollEnabled = !isPortrait`). Tall menus fit on the
-  developer's device but overflow on shorter screens, larger font/display scale, or with a gesture
-  nav bar; disabling scroll there makes the bottom items unreachable.
+  scrolling on orientation/screen (e.g. `userScrollEnabled = !isPortrait`): on shorter screens,
+  larger font/display scale or with a gesture nav bar the bottom items become unreachable.
 
 ## 12. Download state (one source of truth)
 
 Download/progress state is computed in exactly one place and read everywhere — never re-derived per
-surface. This is what keeps a downloaded album/song/playlist showing "Remove download" (and a live
-progress ring) identically in the library, Home, search rows, every menu and every header.
+surface, so every row, menu and header agrees.
 
 - The rule lives in `playback/DownloadStateResolver.kt` (pure, unit-tested): a song is **DOWNLOADED**
   when the persisted `SongEntity.isDownloaded` flag is set **OR** the live MediaStore state is
@@ -368,22 +382,21 @@ progress ring) identically in the library, Home, search rows, every menu and eve
 - **A collection never gets a FAILED/retry row.** `collectionRow` returns only REMOVE / DOWNLOADING /
   DOWNLOAD — a failed member leaves the aggregate NOT_DOWNLOADED, so the collection offers DOWNLOAD
   (which re-enqueues just the missing members = retry) and is removable once complete. A collection
-  "retry" row was a dead end that hid Download *and* Remove and re-failed the dead track forever. Only
+  "retry" row is a dead end (it hides Download *and* Remove and re-fails the dead track forever). Only
   single songs get a FAILED row (`songRow`).
 - **Async/online collection menus (album / playlist / multi-select) read ONE resolved list for every
   action.** Resolve/fetch the tracks at click time (fetch-if-empty), then Download, Remove **and** the
   aggregate status all iterate that *same* resolved list — never the original (possibly-empty) `songs`
-  prop. A Remove that loops the empty prop while Download loops the fetched list removes nothing (real
-  bug on the Home long-press playlist menu). For online items: aggregate via `aggregateByIds` (+ a
+  prop (a Remove that loops the empty prop removes nothing). For online items: aggregate via `aggregateByIds` (+ a
   persisted-downloaded id set) so progress shows without Room entities, and on Download **persist each
   item then download** (`database.insert`/`transaction { insert }` then `database.song(id).first()`) —
   a bare lookup of a not-yet-persisted id no-ops, so the first tap appears to do nothing.
-- **Manager invariants** (`MediaStoreDownloadManager`, no Robolectric so verified by code + on-device):
+- **Manager invariants** (`MediaStoreDownloadManager`; no Robolectric, so verified by code review + on-device):
   `markSongAsDownloaded` bases the row on the **existing** DB row and overwrites only download columns
   (never clobber `liked`/`inLibrary` with a caller's stale `Song`); `performDownload` backfills
   `duration` **and** `thumbnailUrl` from the playback response; the per-download video bitrate is
   cleared only on success/cancel/delete (never on a failed attempt, so retry keeps the chosen quality).
-- The legacy ExoPlayer `DownloadUtil.downloads` / `getDownload()` map is dead (nothing writes it for
-  MediaStore downloads). **Do not read it, and do not hand-roll an `Icon.Download(`.** Enforcement:
+- The legacy ExoPlayer `DownloadUtil.downloads` / `getDownload()` map is dead for status. **Do not read
+  it, and do not hand-roll an `Icon.Download(`.** Enforcement:
   `scripts/ui-audit.sh` rule `R13-download` (baselined at zero) fails CI on any new
   `downloadUtil.downloads`, `.getDownload(` or `Icon.Download(` under `ui/`.
