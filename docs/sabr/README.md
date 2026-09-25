@@ -35,7 +35,8 @@ multiple videos, by `tests/sabr-clients.mjs`:
 | Client | SABR result | In the app roster? |
 |---|---|---|
 | **WEB_REMIX** (the app's main client) | yes whole song, every video | yes (tried first) |
-| **VISIONOS** / VISIONOS_0_1 | yes whole song, pot-less direct client | yes |
+| **VISIONOS** | yes whole song, pot-less direct client | yes |
+| VISIONOS_0_1 | yes whole song (harness) | no (DIRECT fallback only) |
 | **TVHTML5_SIMPLY** | yes whole song, no sign-in | yes |
 | IOS / IPADOS / WEB_CREATOR / ANDROID_VR | no throttled to ~60s on most content (whole only on rare unrestricted videos) | **no** |
 | WEB (desktop) | no needs browser-grade attestation | no |
@@ -88,7 +89,7 @@ varint is NOT the protobuf varint** - the leading byte's high bits encode the to
 | 35 | `NEXT_REQUEST_POLICY` | `playback_cookie=7` - echoed back in the next request |
 | 43 | `SABR_REDIRECT` | a new url (field 1) to continue against |
 | 57 | `SABR_CONTEXT_UPDATE` | `{ type=1, value=3 }` - echoed back as a `streamerContext.sabrContext { type, value }` |
-| 58 | `STREAM_PROTECTION_STATUS` | `status` (1=OK, 2=pending, 3=attestation-required) - the attestation signal, logged |
+| 58 | `STREAM_PROTECTION_STATUS` | `status` (1=OK, 2=pending, 3=attestation-required) - the attestation signal, logged; 3 consecutive no-media responses at status >= 2 bail the session as attestation-capped (`SabrProtection`), moving to the next client |
 | 44 | `SABR_ERROR` | the server rejected the request |
 
 ### 3.3 The continuation loop
@@ -100,9 +101,11 @@ varint is NOT the protobuf varint** - the leading byte's high bits encode the to
    `SABR_CONTEXT_UPDATE`s, a redirect, `SABR_ERROR`, `STREAM_PROTECTION_STATUS`.
 3. For each **new** segment (init once, each `sequence_number` once - resends skipped), write its `MEDIA`
    bytes at its **absolute `start_range`** (see sec 4).
-4. Advance `playerTimeMs` = the buffered end time; set `bufferedRange` = `[0, bufEnd]`, `endSegmentIndex` =
+4. Advance `playerTimeMs` = the buffered end time; set `bufferedRange` = `[first segment start, bufEnd]` (0 for a from-the-top drain), `endSegmentIndex` =
    the last sequence. Echo the cookie + context updates. POST again.
-5. Stop when `lastSeq >= end_segment_number`.
+5. Stop when `lastSeq >= end_segment_number`, or when byte coverage from the first segment reaches
+   contentLength (a seeked session gets no `end_segment_number`); bail on 6 dry responses, the iteration
+   cap, or the attestation cap.
 
 ---
 
@@ -121,7 +124,7 @@ duration/position**, which overflowed media3's `Util.percentInt` inside `getBuff
 crash-looped with no recovery short of clearing data). The positional write makes reassembly **byte-exact
 regardless of arrival order** - `SabrBufferTest` pins out-of-order writes (segment 3 before 2 before init)
 reassembling to the exact bytes, gaps holding the watermark back, mid-stream regions covered and readable,
-and over-length writes ignored.
+and an overshooting final segment clamped to contentLength (writes at or past contentLength ignored).
 
 ### 4.1 The companion hardening - `CastAwarePlayer.getBufferedPercentage`
 
@@ -164,8 +167,9 @@ re-drained the whole track from byte 0. Replace/evict (a small cap keeps current
 errored** so a parked reader is always woken, never left hanging.
 
 **The streams ORCHESTRATE sessions around reader demand** (`SabrAudioStream` / `SabrVideoStream`, one
-shared mechanism): a covered read serves from the spool; a read just past the drain frontier waits for
-the catch-up; a far/backward read **seek-restarts** the session at the estimated `playerTimeMs` for
+shared mechanism): a covered read serves from the spool; any read ahead of a live session's landing
+point waits for that session to drain forward; a read behind the session's first segment (or with no live
+session) **seek-restarts** the session at the estimated `playerTimeMs` for
 that byte — proven live (`tests/sabr-seek.mjs`, dual-track via `sabr-video.mjs START_S`): the server
 serves the segment containing T with absolute offsets, the range echo anchors at OUR first segment,
 and a seeked session gets NO `end_segment_number` (completion is judged by byte coverage). A restart is decided by the pure `SabrSeekLogic`: a session that landed AT OR BEFORE the target is left
@@ -330,7 +334,7 @@ SABR mode is on, **downloads must run over SABR too** - otherwise a device that 
 could never save a track. `MediaStoreDownloadManager.performDownload` mirrors the RELAY branch:
 
 - **SABR mode is derived like `relayMode`**, from the same prefs the player reads
-  (`StreamSabrKey` + the four client toggles), split into `sabrAudioMode` (one track) and
+  (`StreamSabrKey` + the three client toggles `StreamSabr{WebRemix,VisionOS,TVHTML5}Key`), split into `sabrAudioMode` (one track) and
   `sabrVideoMode` (dual-track + on-device remux — sec 9.4).
 - When SABR, `playbackData` is **null** (no `/player`-for-download round-trip, same as relay); the audio
   download runs through **`SabrStreamResolver.download(id, enabled, file, onProgress, audioQuality, opusAllowed)`**
@@ -438,7 +442,8 @@ drains **both** tracks. Reliable = whole video **and** whole audio on **both** `
 |---|---|---|
 | **WEB_REMIX** (main client) | yes whole, both videos | yes |
 | **TVHTML5_SIMPLY** | yes whole, both videos | yes |
-| **VISIONOS** / VISIONOS_0_1 | yes whole, both videos | yes |
+| **VISIONOS** | yes whole, both videos | yes |
+| VISIONOS_0_1 | yes whole, both videos (harness) | no (DIRECT fallback only) |
 | WEB_CREATOR / IOS / IPADOS | partial whole on unrestricted, ~60s cap on some | no |
 | ANDROID_VR | no ~60s cap | no |
 | WEB (desktop) / TVHTML5 7.x | no no SABR inputs / unplayable | no |
@@ -471,8 +476,8 @@ and adds an isolated dual-track layer in `playback/sabr/`:
   with no accompanying media-item change otherwise left ExoPlayer's loading thread waiting forever.
 - **`SabrVideoResolver`** - dual-format resolve over the same client roster, pinning the exact video itag
   for the quality target via field 17 (best audio too), cipher n-transform for web clients. Reuses the
-  DIRECT `VideoQualityLogic.rungs` ladder (minus progressive + undecodable rungs + rungs whose
-  contentLength the buffer can't hold) and returns it + the pinned rung, so the switcher offers the same
+  DIRECT `VideoQualityLogic.rungs` ladder (minus progressive + undecodable rungs) and returns it + the pinned rung
+  (rungs whose contentLength the buffer can't hold are excluded from the PICK, not from the published ladder), so the switcher offers the same
   rungs as the DIRECT path. **The resolve returns a READY, unregistered stream**: `VideoModeController`
   installs it in the registry only at the swap COMMIT on the main thread, after the `stillOurs` guard —
   registering from the resolve (IO) thread destroyed the CURRENTLY-PLAYING stream before the guard could
@@ -537,7 +542,7 @@ On-device soak of SABR video playback + downloads is the remaining validation ga
 - **Casting** cannot ride SABR: the cast receiver fetches its own URL and cannot speak UMP — a cast
   session still needs a progressive URL (the DIRECT pipeline).
 - **A WebView poToken is required** for every fresh resolve (the streamerContext pot) — there is no
-  pot-less SABR client the way DIRECT has ANDROID_VR.
+  pot-less SABR client the way DIRECT's VISIONOS fallback streams with no poToken.
 - **On-device soak** (more clients/content, long tracks, seeks, network transitions) is the remaining
   gate before SABR is promoted from experimental. It is fully isolated and cannot affect the DIRECT
   path while off.

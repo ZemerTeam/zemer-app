@@ -17,6 +17,7 @@ contract lives in the handoff doc `~/zemer-fix/handoff-docs/zemer-app-ondevice-f
 | `/zemer-playlists` | ✅ | List + detail; `auto-*` raw-order ranks reproduced; chart-movement badges are live-only. |
 | `/podcast-genres` | ✅ | `offlinePodcastGenres`/`offlinePodcastGenre` — titles/kinds from the `genrecatalog` shard when present, else the naive slug-uppercase fallback. |
 | `/radio` | ⚠️ partial | `offlineRadio` (2026-09-11, the `radio-<n>` shards) — see the "Offline radio" section; `kind == "genre"` stays live-only. |
+| `/podcast`, `/podcast-channel`, `/podcasts`, `/podcasts/new-episodes` | ✅ | The podcast read layer (`OfflineReadProvider` podcast reads); only `/podcast-home-rows` is live-only. |
 | `/playlist` | ❌ live-only | Live YouTube expansion — not in the snapshot. |
 
 Fallback responses use the **same wire models** the app decodes from the live server
@@ -99,7 +100,8 @@ token degrades to an empty page (ends the queue), never a crash.
    `ZemerResultMapper.thumbnailFor`'s `hqdefault` — that helper covers fields the server sends no
    thumbnail for, a different contract).
 4. **Provider + routing** — `OfflineReadProvider` caches the decoded corpus behind a
-   `SoftReference`, keyed on (manifest version, live-whitelist fingerprint);
+   `SoftReference`, keyed on (manifest version, live artist + podcast-channel whitelist fingerprint) and overlaid
+   with both `withLiveWhitelist` and `withLivePodcastWhitelist`;
    `ZemerSearchRepository.serverOrOffline` does the server-first routing.
 
 ## Invariants (regression-prone; enforced by unit tests)
@@ -123,9 +125,10 @@ token degrades to an empty page (ends the queue), never a crash.
   - `contentGatePasses` + `idDropped` — ONE shared female/KidZone/video gate + blocked-id check
     across every offline surface; never hand-inline the predicate per site.
 - **Sync freshness is mandatory when enabled**: daily auto-update at app start on ANY connection
-  (no metered gate — a product decision; incremental diffs are small), launched via
-  `OfflineSubsetSyncer.requestSync` on the syncer's OWN scope so leaving a screen never cancels a
-  first download. `WhitelistCache` is a `@Volatile` whole-map swap so a concurrent whitelist
+  (no metered gate — a product decision; incremental diffs are small): `App.kt` runs
+  `OfflineSubsetSyncer.maybeSync()` 5 s after start, gated on a 24 h interval. UI-triggered downloads
+  (settings/onboarding) go through `requestSync`, which runs on the syncer's OWN scope so leaving a
+  screen never cancels a first download. `WhitelistCache` is a `@Volatile` whole-map swap so a concurrent whitelist
   refresh can never expose an empty/partial map to the overlay.
 
 ## Surfaces
