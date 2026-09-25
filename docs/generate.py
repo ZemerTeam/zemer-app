@@ -417,11 +417,16 @@ def _native_section():
     if not os.path.exists("app/src/main/cpp/CMakeLists.txt"):
         # No first-party native code (the cover-art embedder is pure Kotlin now); only
         # the submodule inventory remains meaningful.
-        lines = ["## Native code", "", "None - metadata embedding is pure Kotlin", "(`utils/mp4/`, `utils/ogg/`); no NDK/CMake build.", "", "## Git submodules", ""]
-        lines += [f"| `{name}` | path `{path}` | {url} |" for name, path, url in subs]
+        # H3s: the caller (gen_build_release_md) already emits the "## Native code and
+        # submodules" H2 this section sits under.
+        lines = ["### Native code", "", "None - metadata embedding is pure Kotlin",
+                 "(`utils/mp4/`, `utils/ogg/`); no NDK/CMake build.", "", "### Git submodules", ""]
         if subs:
-            lines.insert(6, "| Submodule | Path | URL |")
-            lines.insert(7, "|---|---|---|")
+            # Header directly before the rows (after the blank line) so the table renders.
+            lines += ["| Submodule | Path | URL |", "| --- | --- | --- |"]
+            lines += [f"| `{name}` | `{path}` | {url} |" for name, path, url in subs]
+        else:
+            lines.append("None.")
         return "\n".join(lines)
     cmake = _text("app/src/main/cpp/CMakeLists.txt")
     cmin = (re.search(r'cmake_minimum_required\(VERSION\s+([\d.]+)\)', cmake) or [None, "?"])[1]

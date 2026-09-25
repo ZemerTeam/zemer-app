@@ -19,8 +19,11 @@ The app's search entry point, on the `WEB_REMIX` client:
 | `search(query, filter)` x6 filters | POST `search` (params) | `SearchPage.toYTItem` |
 
 **Faithfulness facts** (verified against `InnerTube.kt`):
-- Search runs with `setLogin = false` — the app sends **visitorData only, no cookie/Authorization**.
-  The harness matches this (it does read `innertube_cookie.txt` only to reuse its `visitorData`).
+- Search runs with `setLogin = false, sendVisitorData = false` — the app sends **no visitorData, no
+  cookie and no Authorization** (`InnerTube.kt` `search()`; a shared/stale visitorData can make search
+  silently return empty). **Known drift:** the harness (`lib.mjs`) still sends `visitorData` (it reads
+  `innertube_cookie.txt` only to reuse it, as `X-Goog-Visitor-Id` + `context.client.visitorData`), so
+  it is not app-exact on that one point.
 - The 6 `SearchFilter` param strings, the request body shape, and the section-walking logic
   (`musicShelfRenderer` + `itemSectionRenderer`, `distinctBy id`) are copied verbatim.
 - `lib.mjs` / `parsers.mjs` are line-for-line ports of the InnerTube helpers, the

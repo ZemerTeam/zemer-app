@@ -65,10 +65,11 @@ not the request.
 
 ---
 
-## The fix (recommended)
-- **Remove MWEB from the fallback chain** (`YTPlayerUtils.ALL_FALLBACK_CLIENTS`) and the Stream
-  Sources setting — i.e. revert `feat: add MWEB client as stream source fallback` (af6a5a4). When
-  reached it only burns a `/player` round-trip + cipher + a 403 HEAD before falling through.
+## The fix (APPLIED 2026-09)
+- **MWEB was removed** from the DIRECT fallback chain (`YTPlayerUtils.ALL_FALLBACK_CLIENTS`), the
+  Stream Sources setting, and the SABR roster (`SabrPlayerResolver`) — the recommendation here
+  (revert `feat: add MWEB client as stream source fallback`, af6a5a4) is done. When reached it only
+  burnt a `/player` round-trip + cipher + a 403 HEAD before falling through.
 - Separately, **`validateStatus`'s HEAD is a latent false-negative** (also noted in the harness
   gotchas and the WEB_REMIX path): it 403s on URLs that GET fine. Worth removing/replacing with a
   small ranged GET, but that does **not** rescue MWEB (MWEB fails the real GET past 1 MiB too).
@@ -76,8 +77,9 @@ not the request.
 ## Related: player rotation found during this work
 `iframe_api` was A/B-serving a new `player_ias` **16ee6936** (md5 alias `ca366632`, STS 20613)
 alongside the live `69e2a55d`. Its cipher config was derived and **empirically validated** (real
-signatureCipher → 206; full WEB_REMIX drain = whole song) and added to both
-`cipher/.../FunctionNameExtractor.kt` and `tests/cipher.mjs`:
+signatureCipher → 206; full WEB_REMIX drain = whole song) and added to
+`cipher/library/src/main/assets/player_configs.json` (the single config file read by both the app
+and the harness):
 `sig = mP(4,155,INPUT)`, `n = g.Yx` trick, `sts = 20613`. New tooling for next time:
 `tests/derive-player-config.mjs` (regex candidates), `tests/validate-player-config.mjs`
 (ground-truth 206 check — the one to trust), `tests/check-live-player.mjs` (is a rotation real?).
@@ -109,6 +111,8 @@ mint, exactly like the progressive 1-MiB wall. (innertubex reached the same conc
 **App behaviour (2026-09):** `SabrSession`/`SabrVideoSession` detect the sustained cap
 (`SabrProtection`: STREAM_PROTECTION_STATUS>=2 with no media for 3 responses) and bail FAST with an
 `attestation-capped` reason, so the per-id stall fallback moves to a client that can attest instead
-of grinding to the dry cap. MWEB stays a conditional last-resort client (it DOES drain ungated
-videos whole, e.g. dQw4w9WgXcQ); it is not a reliable download client for gated content on either
-transport, and the whole-capable clients (WEB_REMIX / TVHTML5_SIMPLY / VISIONOS) cover it.
+of grinding to the dry cap. MWEB was subsequently **REMOVED (2026-09)** from the DIRECT chain,
+the Stream Sources setting and the SABR roster: it only ever drained ungated videos whole (e.g.
+dQw4w9WgXcQ), which the whole-capable clients (WEB_REMIX / TVHTML5_SIMPLY / VISIONOS) already
+cover, and is walled on gated content on both transports. The `SabrProtection` guard remains for
+any future gated client.

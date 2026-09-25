@@ -6,8 +6,11 @@ was ever considered. This feature exposes the **full quality ladder** — the ad
 formats **144p … 2160p** plus progressive — as a selectable, streamable, downloadable set, with **no
 new APK dependencies** (framework `MediaMuxer`/`MediaExtractor` + media3's `MergingMediaSource`).
 
-The non-negotiable invariants live in `AGENTS.md` §The quality ladder / §The switcher / §The rebuffer
-guard / §Downloads. This doc is the map. Everything was proven against the live CDN first
+The non-negotiable invariants live in `AGENTS.md` §Video mode, in its "The quality ladder" paragraph
+(the bold bullets: the ladder authority, the switcher, fast entry, the rebuffer guard, prefetch, and
+the download remux rules). This doc is the map. Under SABR (`StreamSabrKey` on), video rungs are pinned
+per request by `SabrVideoResolver` (field-17 `preferredVideoFormatId`) with its own live switcher over
+the same `VideoQualityLogic` ladder — see `docs/sabr/README.md` sec 9.4. Everything was proven against the live CDN first
 (`tests/video-qualities.mjs`) before the app code was written.
 
 ## The pieces
