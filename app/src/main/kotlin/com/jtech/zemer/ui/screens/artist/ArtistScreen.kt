@@ -891,8 +891,7 @@ fun ArtistScreen(
             TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent)
         } else {
             // Once scrolled past the header, use the shared bar color so it matches every other
-            // screen and does not grey-out on scroll (the default scrolledContainerColor isn't
-            // AMOLED-aware).
+            // screen and does not change color on scroll (container == scrolled).
             zemerTopAppBarColors()
         }
     )
