@@ -12,7 +12,7 @@ Every tracked non-Kotlin path outside `docs/` is listed. Text files report line 
 | `.github/workflows/ui-audit.yml` | 56 lines | text `.yml` |
 | `.gitignore` | 117 lines | text `[none]` |
 | `.gitmodules` | 3 lines | text `[none]` |
-| `AGENTS.md` | 2088 lines | text `.md` |
+| `AGENTS.md` | 1000 lines | text `.md` |
 | `LICENSE` | 674 lines | text `[none]` |
 | `README.md` | 9 lines | text `.md` |
 | `app/.gitignore` | 1 lines | text `[none]` |
@@ -314,9 +314,9 @@ Every tracked non-Kotlin path outside `docs/` is listed. Text files report line 
 | `scripts/ui-audit.sh` | 248 lines | text `.sh` |
 | `scripts/ui-strings-scan.py` | 96 lines | text `.py` |
 | `settings.gradle.kts` | 54 lines | text `.kts`; plugins `org.gradle.toolchains.foojay-resolver-convention` |
-| `tests/INVESTIGATION.md` | 281 lines | text `.md` |
-| `tests/MWEB-INVESTIGATION.md` | 118 lines | text `.md` |
-| `tests/README.md` | 178 lines | text `.md` |
+| `tests/INVESTIGATION.md` | 221 lines | text `.md` |
+| `tests/MWEB-INVESTIGATION.md` | 47 lines | text `.md` |
+| `tests/README.md` | 128 lines | text `.md` |
 | `tests/analyze-player.mjs` | 53 lines | text `.mjs` |
 | `tests/broken-clients.mjs` | 143 lines | text `.mjs` |
 | `tests/check-live-player.mjs` | 81 lines | text `.mjs` |
@@ -369,7 +369,7 @@ Every tracked non-Kotlin path outside `docs/` is listed. Text files report line 
 | `tests/re-deep.mjs` | 79 lines | text `.mjs` |
 | `tests/re-ios.mjs` | 69 lines | text `.mjs` |
 | `tests/re-oauth.mjs` | 116 lines | text `.mjs` |
-| `tests/recent-releases/README.md` | 62 lines | text `.md` |
+| `tests/recent-releases/README.md` | 45 lines | text `.md` |
 | `tests/recent-releases/build-feed.mjs` | 145 lines | text `.mjs` |
 | `tests/recent-releases/lib.mjs` | 239 lines | text `.mjs` |
 | `tests/recent-releases/probe-dates.mjs` | 80 lines | text `.mjs` |
@@ -390,7 +390,7 @@ Every tracked non-Kotlin path outside `docs/` is listed. Text files report line 
 | `tests/sabr-watchtime.mjs` | 157 lines | text `.mjs` |
 | `tests/scan-live-players.mjs` | 124 lines | text `.mjs` |
 | `tests/scan-live-players.test.mjs` | 44 lines | text `.mjs` |
-| `tests/search/README.md` | 124 lines | text `.md` |
+| `tests/search/README.md` | 95 lines | text `.md` |
 | `tests/search/album-facet-probe.mjs` | 42 lines | text `.mjs` |
 | `tests/search/corpus-ambiguity.mjs` | 15 lines | text `.mjs` |
 | `tests/search/corpus-resolve.mjs` | 69 lines | text `.mjs` |

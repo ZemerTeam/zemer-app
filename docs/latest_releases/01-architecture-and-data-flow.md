@@ -1,98 +1,79 @@
-# 01 — Architecture and data flow
+# 01 - Architecture, data flow & filtering
 
-## Why a server feed at all
-
-The feature shows "newest releases from kosher artists." YouTube's own new-releases surfaces
-cannot supply this: per `tests/recent-releases/README.md` (and the `LatestReleasesStore`
-KDoc, `LatestReleasesStore.kt:21-26`), "the global YouTube feeds (`FEmusic_new_releases`,
-charts) carry almost no kosher content," so the feed is **precomputed server-side and served as
-a small JSON the app fetches cheaply.**
-
-The app is therefore a pure **consumer** of a JSON document. It does not crawl YouTube to build
-the list — that work happens off-device (doc 02). This keeps the on-device cost to a single
-small HTTP GET per launch.
-
-## The modules
-
-All app-side code lives under one package, `com.jtech.zemer.latestreleases` (including the shared
-card composable), plus a ViewModel and two UI screens:
+## Modules (`app/src/main/kotlin/com/jtech/zemer/`)
 
 | File | Responsibility |
 |---|---|
-| `latestreleases/LatestReleasesStore.kt` | Network + disk cache. The `LatestReleasesFeed`/`LatestRelease` data models, the ETag fetch, the retry/give-up/staleness policy. A singleton `object` with test seams. |
-| `latestreleases/LatestReleaseMapping.kt` | `LatestRelease.toAlbumItem()` — adapts a feed row to the InnerTube `AlbumItem` the rest of the app already renders, filters, and navigates. |
-| `latestreleases/LatestReleaseDate.kt` | `LatestRelease.relativeDateLabel()` — formats `uploadDate` as a localized relative span ("2 days ago"). |
-| `latestreleases/LatestReleasePlayback.kt` | `LatestRelease.playableSingle()` / `openOrPlay()` — the shared single-vs-album tap decision (play a 1-track single with radio, else open the album); `isNowPlaying()`, the now-playing match (single by videoId, album by browseId); and `sampleTracks()` / `shufflePlay()` backing the See-all shuffle FAB. |
-| `latestreleases/LatestReleaseCarouselItem.kt` | `LatestReleaseCarouselItem` — the Home shelf's carousel hero (a `CarouselItemScope` extension over the shared `CarouselHeroFrame` + `HeroTitleOverlay`): D-pad focus ring, library badges, tap / long-press menu, now-playing state, single vs album play button. |
-| `latestreleases/LatestReleaseCard.kt` | `LatestReleaseCard` — the See-all list row (list-only, a `YouTubeListItem`; no `asGrid` param): album mapping, subtitle, centred play button, now-playing state, tap and long-press menu, plus the shared `ReleaseBadges`. |
-| `latestreleases/LatestReleaseFilter.kt` | `LatestReleaseFilter` (All / Albums / Songs) + `applyFilter` — the See-all chip filter (single = song, else album). |
-| `latestreleases/LatestReleasesVisibility.kt` | `visibleLatestReleases` — the reactive combine that re-filters the feed on any feed / whitelist / content-filter change. |
-| `viewmodels/LatestReleasesViewModel.kt` | Orchestration + whitelist re-filter. Owns the `StateFlow<List<LatestRelease>>` the UI observes. Hilt-injected. |
-| `ui/screens/HomeScreen.kt` | The Home shelf (`latest_releases_title` / `latest_releases_list` items): a `HorizontalMultiBrowseCarousel` (`preferredItemWidth = 180.dp`, `heroCarouselFlingBehavior`) of `LatestReleaseCarouselItem`s. |
-| `ui/screens/LatestReleasesScreen.kt` | The "See all" full-list screen, route `latest_releases`, rendering each release via `LatestReleaseCard`. |
-| `ui/component/Items.kt` | `subtitleOverride` + `centeredPlayButton` params on `YouTubeGridItem` / `YouTubeListItem`, so a card can show `Artist • <relative date>` and a single can show the centred play button on its artwork. |
+| `latestreleases/LatestReleasesStore.kt` | `LatestReleasesFeed` / `LatestRelease` models; network + disk cache ([03](03-runtime-store.md)). |
+| `latestreleases/LatestReleaseMapping.kt` | `LatestRelease.toAlbumItem()`. |
+| `latestreleases/LatestReleaseDate.kt` | `LatestRelease.relativeDateLabel()`. |
+| `latestreleases/LatestReleasesVisibility.kt` | `visibleLatestReleases` - the reactive re-filter. |
+| `latestreleases/LatestReleasePlayback.kt` | `isPlayableSingle` / `playableSingle` / `openOrPlay` (tap), `isNowPlaying`, `playAlbum`, `sampleTracks` / `shufflePlay` ([04](04-ui.md)). |
+| `latestreleases/LatestReleaseFilter.kt` | See-all All / Albums / Songs filter (`applyFilter`). |
+| `latestreleases/LatestReleaseCarouselItem.kt` | The Home carousel hero. |
+| `latestreleases/LatestReleaseCard.kt` | The See-all list row + the shared `ReleaseBadges`. |
+| `viewmodels/LatestReleasesViewModel.kt` | Orchestration + whitelist re-filter; exposes `releases: StateFlow<List<LatestRelease>>`. |
+| `ui/screens/HomeScreen.kt`, `ui/screens/LatestReleasesScreen.kt` | The shelf; the `latest_releases` See-all route. |
 
-## End-to-end flow
+## Flow
 
 ```
-         (off-device, doc 02)
-  server job  --writes-->  recent-releases.json  --served w/ ETag-->  FEED_URL
-                                                                         |
-  ============================ app (per launch) ==========================|====
-                                                                         v
-  LatestReleasesViewModel.init                              LatestReleasesStore
-    |  initialize(context)                                    cachedReleases()  --> disk cache (instant, no net)
-    |  cachedReleases() -----------------------------------------^  |
-    |     -> filterReleases() -> _releases.value (instant)          |
-    |  refresh() ---------------------------------------------------^  conditional GET (ETag), retry x3
-    |     -> filterReleases() -> _releases.value (after net)
-    v
-  releases: StateFlow<List<LatestRelease>>
-    |
-    +--> HomeScreen        (take(12) -> HorizontalMultiBrowseCarousel of LatestReleaseCarouselItem)
-    +--> LatestReleasesScreen ("See all": full list -> LazyColumn of YouTubeListItem rows)
+server job --writes--> recent-releases.json --(ETag)--> FEED_URL
+                                                           |
+LatestReleasesViewModel.init                     LatestReleasesStore
+  cachedReleases()  ─── disk cache, no network ──────────┤
+  refresh()         ─── conditional GET, ≤3 attempts ────┘
+        │ sets the unfiltered `feed`
+        ▼
+  visibleLatestReleases(feed, WhitelistCache.entries, ContentFilterState.state, ::filterReleases)
+        ▼
+  releases ──▶ HomeScreen (take(12), carousel)
+           └─▶ LatestReleasesScreen (full list)
 ```
 
-The two render paths use **separate** `LatestReleasesViewModel` instances (each `hiltViewModel()`
-call resolves in its own nav scope), but the store underneath is a process-wide `object`, so the
-cached feed and the refresh are shared regardless — opening "See all" reuses the cache (a
-conditional refresh, not a fresh fetch).
+Each surface gets its own `hiltViewModel()` instance, but the store is a process-wide `object`, so
+the cache and the once-per-launch refresh are shared.
 
-## The "never break the rest of the UI" contract
+## The ViewModel
 
-This is the central design constraint, stated in three KDocs and enforced by code:
+```kotlin
+init {
+    LatestReleasesStore.initialize(context)
+    viewModelScope.launch(Dispatchers.IO) {
+        visibleLatestReleases(feed, WhitelistCache.entries, ContentFilterState.state, ::filterReleases)
+            .collect { _releases.value = it }
+    }
+    viewModelScope.launch(Dispatchers.IO) {
+        val cached = LatestReleasesStore.cachedReleases()   // instant, no network
+        if (cached.isNotEmpty()) feed.value = cached
+        feed.value = LatestReleasesStore.refresh()          // fresh on 200, last-good otherwise
+    }
+}
+```
 
-1. **Isolated ViewModel.** `LatestReleasesViewModel` is "deliberately separate from
-   [HomeViewModel] so a failure fetching the external feed can never affect the rest of Home"
-   (`LatestReleasesViewModel.kt:22-30`). `HomeViewModel.kt` has no reference to the feed; the
-   Home screen obtains the feed ViewModel independently (`HomeScreen.kt:140-141`).
+The loader sets only the **unfiltered** `feed` (null until the cache or refresh answers).
+`visibleLatestReleases` is `combine(feed.filterNotNull(), whitelist, filters)` + `mapLatest`: it
+**re-filters whenever the feed, the artist whitelist or the content filters change** (a newer input
+cancels an in-flight pass) and emits nothing until the feed has loaded. Don't go back to filtering
+once at load: a feed that lands before the whitelist would stay empty all session (every artist still
+unverified). Toggling a content preference re-filters the shelf live, cached feed included.
 
-2. **No throwing across the boundary.** Both store entry points "return an empty list rather
-   than throwing, so callers gate on `isNotEmpty()`" (`LatestReleasesStore.kt:63`). Every
-   network/parse/disk error is caught and logged via Timber, never propagated (doc 03).
+### `filterReleases`
 
-3. **Empty is a valid state, never forced content.** The Home shelf only renders when the
-   filtered list is non-empty (`HomeScreen.kt:529`, `latestReleasesCapped.takeIf {
-   it.isNotEmpty() }`), and the "See all" screen "when the feed is empty/unavailable the list is
-   simply empty — nothing is forced" (`LatestReleasesScreen.kt:41-43`).
+1. `distinctBy { it.browseId }` - the external feed may list one album under several artists, and
+   `browseId` is the list key on both surfaces (a duplicate crashes the lazy list).
+2. Map to `AlbumItem` (`toAlbumItem`) and run `filterWhitelisted(database, config)` - the **same**
+   app-wide filter, so female / KidZone / Israeli preferences apply by artist id exactly as elsewhere.
+3. Keep the de-duplicated releases whose `browseId` survived, **preserving feed (newest-first) order**.
+   Logs `Showing X releases (of Y before whitelist filter)`.
 
-The net effect: a server outage, a malformed push, or an offline device degrades the feature to
-"the shelf isn't there," and nothing else on Home is touched.
+## Adapters
 
-## Reuse, not reinvention
-
-The feed carries enough per release (`browseId`, `playlistId`, `title`, `artist`, `thumbnail`,
-`year`) to build a standard `AlbumItem` (`LatestReleaseMapping.kt:11-19`). Once mapped, the
-release flows through the app's existing machinery unchanged:
-
-- **Filtering:** `filterWhitelisted(database)` — the same function used elsewhere
-  (`utils/WhitelistFilter.kt:149`).
-- **Rendering:** the shared carousel-hero frame (`CarouselHeroFrame` + `HeroTitleOverlay`) on Home,
-  `YouTubeListItem` — the same album rows — on See-all.
-- **Menu:** `YouTubeAlbumMenu` on long-press.
-- **Tap:** `openOrPlay` — a single (`trackCount == 1`) plays via `ZemerRadioQueue.song`, anything
-  else navigates to `album/<id>`. Both reuse existing queue/navigation; the single's metadata is
-  built from the feed (`playableSingle`).
-
-So the only genuinely new code is the store, the ViewModel orchestration, the small adapters
-(`toAlbumItem`, `relativeDateLabel`, `playableSingle`/`openOrPlay`), and the screen scaffolding.
+- **`toAlbumItem()`** builds an `AlbumItem(browseId, playlistId, title, artists = [Artist(artistName,
+  artistId)], year, thumbnail)`. The feed carries one artist per release. Mapping to `AlbumItem` is
+  what reuses the album row, `YouTubeAlbumMenu` / `ytItemMenu`, `album/<id>` navigation and
+  `filterWhitelisted`.
+- **`relativeDateLabel(now)`** parses `uploadDate` with `OffsetDateTime` and formats it with
+  `DateUtils.getRelativeTimeSpanString(…, DAY_IN_MILLIS)` - localized, no string resources. Returns
+  null on an unparseable date; the subtitle `joinByBullet(artistName, label)` then shows just the
+  artist.

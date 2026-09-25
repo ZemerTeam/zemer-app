@@ -1204,11 +1204,11 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `docs/latest_releases/04-ui.md` | 58 lines | `.md` |
 | `docs/latest_releases/README.md` | 57 lines | `.md` |
 | `docs/lyrics/README.md` | 194 lines | `.md` |
-| `docs/multi_update/01-architecture.md` | 81 lines | `.md` |
-| `docs/multi_update/02-install-methods.md` | 102 lines | `.md` |
-| `docs/multi_update/03-restart.md` | 71 lines | `.md` |
-| `docs/multi_update/04-wiring.md` | 99 lines | `.md` |
-| `docs/multi_update/05-runbook.md` | 84 lines | `.md` |
+| `docs/multi_update/01-architecture.md` | 56 lines | `.md` |
+| `docs/multi_update/02-install-methods.md` | 73 lines | `.md` |
+| `docs/multi_update/03-restart.md` | 41 lines | `.md` |
+| `docs/multi_update/04-wiring.md` | 46 lines | `.md` |
+| `docs/multi_update/05-runbook.md` | 50 lines | `.md` |
 | `docs/multi_update/README.md` | 41 lines | `.md` |
 | `docs/offline/README.md` | 130 lines | `.md` |
 | `docs/podcasts/README.md` | 86 lines | `.md` |
@@ -1230,7 +1230,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `docs/status/README.md` | 94 lines | `.md` |
 | `docs/status/jewishstatus-api.md` | 71 lines | `.md` |
 | `docs/status/yidstatus-api.md` | 50 lines | `.md` |
-| `docs/tracking/README.md` | 357 lines | `.md` |
+| `docs/tracking/README.md` | 271 lines | `.md` |
 | `docs/ui/README.md` | 585 lines | `.md` |
 | `docs/ui/standards.md` | 397 lines | `.md` |
 | `docs/video_quality/README.md` | 127 lines | `.md` |

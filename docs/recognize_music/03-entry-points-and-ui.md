@@ -1,75 +1,80 @@
-# 3 · Entry points, UI & navigation
+# 3 · Entry points, UI, history & the widget
 
-There is **one** recognition UI — the Zemer-branded popup — reached from two places. There is no
-separate full-screen recognition page (an earlier full screen was removed in favor of the popup).
+There is **one** recognition UI - the popup activity - reached from two entry points. There is
+intentionally no `recognize_music` nav route.
 
-## The popup — `RecognizeMusicDialogActivity`
+## The popup - `RecognizeMusicDialogActivity`
 
-`ui/screens/recognition/RecognizeMusicDialogActivity.kt` is a **transparent** `ComponentActivity`
-(`@AndroidEntryPoint`, theme `@style/Theme.Zemer.Transparent` in `res/values/styles.xml`) that draws
-a small centered card over whatever's on screen — like Google's Sound Search.
+`ui/screens/recognition/RecognizeMusicDialogActivity.kt`: a transparent `@AndroidEntryPoint`
+`ComponentActivity` (`@style/Theme.Zemer.Transparent`) drawing a centered card over the current screen.
 
-- **Records while visible** → it has normal "while-in-use" microphone access, so there is **no
-  foreground microphone service** and no `FOREGROUND_SERVICE_MICROPHONE` permission anywhere.
-- Wraps content in `ZemerAppTheme` (the user's saved palette + dark mode + pure-black); the card
-  uses the M3 theme tokens (`colorScheme.surface` / `onSurface` / `onSurfaceVariant` / `primary`),
-  so it follows the chosen theme.
-- Header: the **actual launcher icon** (`R.mipmap.ic_launcher`, round) + "Zemer" + a **history**
-  icon (top-right) that opens recognition history.
-- Auto-starts listening on open (guarded so it fires once per instance); requests `RECORD_AUDIO`
-  via `rememberLauncherForActivityResult` if not yet granted.
-- States mirror `RecognizeUiState`: pulsing mic (Listening) → spinner (Identifying/Searching) →
-  result (cover + title + artist + **Play** / **Try again**) → or "No match" / error.
-- **Play** → starts `MainActivity` with `ACTION_VIEW` data `https://music.zemer.io/watch?v=<id>` and
-  finishes; that deep link plays the song through the existing whitelist-guarded path.
-- **History icon** → starts `MainActivity` with data `https://music.zemer.io/recognition_history`
-  and finishes.
+- **Records while visible**, so it has normal while-in-use mic access: **no foreground microphone
+  service** and no `FOREGROUND_SERVICE_MICROPHONE` permission. Keep it that way.
+- Wrapped in `ZemerAppTheme` (the user's palette / dark mode / pure-black); the card uses theme tokens.
+- Header: the launcher icon (`R.mipmap.ic_launcher`, circle-clipped), app name, and a history icon.
+- Auto-starts listening once per instance (a `rememberSaveable` flag, so rotation doesn't restart
+  capture or re-prompt); requests `RECORD_AUDIO` via `rememberLauncherForActivityResult` if needed.
+- **Play** → `MainActivity` with `ACTION_VIEW` `https://music.zemer.io/watch?v=<id>`, then `finish()`.
+  **History icon** → `https://music.zemer.io/recognition_history`, then `finish()`.
 
-The VM (`RecognizeMusicViewModel`) is shared; the popup and any future surface get identical behavior.
+Both deep links are handled in `MainActivity.handleDeepLinkIntent`: `watch?v=` runs `YouTube.queue(...)`
+then `filterWhitelistedWithLocalArtists(...)` before playing (a non-whitelisted id toasts
+`R.string.song_not_available`); `recognition_history` navigates to that route
+(`ui/screens/NavigationBuilder.kt` → `RecognitionHistoryScreen`).
 
-## Entry point 1 — in-app FAB
+## Entry point 1 - in-app FAB
 
-`ui/component/RecognizeMusicFab.kt` is a Material 3 FAB with the mic icon. It's placed in
-`MainActivity` over the nav content (bottom-end, above the nav bar / mini-player), shown on main
-screens when not searching and the player sheet isn't expanded. Tapping it launches the popup:
+`ui/component/RecognizeMusicFab.kt`, placed in `MainActivity` at bottom-end above the nav bar /
+mini-player. Shown only when `RecognizeMusicFabKey` is on (default **true**, Settings → Appearance), the
+current route is Home **and** the effective Home tab is MUSIC (same `effectiveHomeTab` inputs as the
+Home selector), search is inactive, and the player sheet is collapsed/dismissed.
 
-```kotlin
-RecognizeMusicFab(onClick = { context.startActivity(Intent(context, RecognizeMusicDialogActivity::class.java)) }, …)
-```
+## Entry point 2 - the widget
 
-It is **toggleable**: `RecognizeMusicFabKey` (default **on**), exposed in **Settings → Appearance**
-("Recognize music button"). `MainActivity` reads the preference to decide whether to show the FAB.
+There is **one** home-screen widget: the Glance player widget (`widget/MusicWidget.kt`,
+`MusicWidgetReceiver`) with the mic folded in.
 
-## Entry point 2 — the home-screen widget
+- **Main row**: album art (`fillMaxHeight`), a weighted, ellipsized title/artist column, then
+  prev / play-pause (`widget_accent`) / next / mic (`RecognizeButton` → the popup via
+  `actionStartActivity`). Transport buttons use `actionStartService` to `MusicService`, handled in
+  `onStartCommand` (`MusicWidget.ACTION_PREV` / `ACTION_PLAY_PAUSE` / `ACTION_NEXT`).
+- **Seek row**: elapsed · `LinearProgressIndicator` · total, from the Glance prefs `position_ms` /
+  `duration_ms`. It is dropped when the widget is shorter than
+  `WidgetLayout.COMPACT_SEEK_THRESHOLD_DP` (72 dp) instead of clipping the controls.
+- `sizeMode = SizeMode.Exact`: laid out for the actual size every time (fixed `Responsive` buckets
+  clipped on smaller placements). `res/xml/music_widget_info.xml` sets `minHeight=84dp`,
+  `minResizeHeight=76dp`, 2×2 target cells.
+- Read-only progress: RemoteViews can't offer a draggable scrubber.
 
-The combined player widget (`widget/MusicWidget.kt`) has a mic button (`RecognizeButton`) that opens
-the same popup via `actionStartActivity(Intent(context, RecognizeMusicDialogActivity::class.java))`.
-Full widget details in [05-widget.md](05-widget.md).
+`MusicService` feeds it: `updateWidget()` pushes title/artist/art/position/duration (the cast
+receiver's state and clock while casting). `onIsPlayingChanged(true)` starts a 1 s ticker that runs
+only while `widgetIsPlaying()` and only if `MusicWidget.hasPlacedWidget` (checked once per playback
+session, so users without a widget pay nothing); pausing pushes one final update.
+`hasPlacedWidget` must stay wrapped in try/catch: `getGlanceIds` NPEs on ROMs without an
+AppWidgetService, which would kill background playback. `MusicWidget.updateWidget` itself no-ops
+when no widget is placed and loads art (coil, copied off `HARDWARE` config, persisted to a file) only
+when the URL changes.
 
-## Deep links (`MainActivity.handleDeepLinkIntent`)
+## Recognition history
 
-Two paths matter to this feature (both are whitelist-safe):
+**Table** (`db/entities/RecognitionHistoryEntity.kt`): `recognition_history` with `id`, `songId`,
+`title`, `artist` (joined names), `thumbnailUrl`, `artistIds` (comma-joined browse ids, for the
+whitelist re-check), `recognizedAt`; indexed on `songId` (de-dup delete) and `recognizedAt` (ordering).
+Added by the additive `AutoMigration(from = 32, to = 33)` and unchanged since.
 
-| URI path | Effect | Notes |
-|---|---|---|
-| `…/watch?v=<id>` | Plays the song | Runs `YouTube.queue(...)` then `filterWhitelistedWithLocalArtists(...)` before playing — a non-whitelisted id shows the "song not available" toast (`R.string.song_not_available`). Used by the popup's Play. |
-| `…/recognition_history` | Navigates to the history screen | `navController.navigate("recognition_history")`. Used by the popup's history icon. |
+**DAO** (`db/DatabaseDao.kt`): `recognitionHistory()` (newest first), `insertRecognitionHistory`,
+`deleteRecognitionHistoryBySong`, `deleteRecognitionHistory`, `clearRecognitionHistory`.
 
-History rows do **not** use the deep link: a tap plays seed-first radio in-app
-(`playQueue(ZemerRadioQueue.song(entry.toMediaMetadata(), …))`, `RecognitionHistoryScreen.kt`).
+**Write**: only in `RecognitionResolver.recordHistory`, after both gates pass - delete-then-insert by
+song (most recent, no repeats), wrapped in `runCatching` so a history failure never breaks
+recognition. The whitelist re-check on read is in [02](02-whitelist-guarantee.md).
 
-## Navigation routes
+**UI**: `RecognitionHistoryScreen` - a `LazyColumn` (`LocalPlayerAwareWindowInsets` padding) of
+`focusBorder()` rows; tap plays seed-first radio
+(`playQueue(ZemerRadioQueue.song(entry.toMediaMetadata(), pc.service))`), per-row remove, and clear-all
+behind a `DefaultDialog` confirm. Rows never use the deep link.
 
-| Route | Screen |
-|---|---|
-| `recognition_history` | `RecognitionHistoryScreen` (`ui/screens/NavigationBuilder.kt`) |
-
-There is intentionally **no** `recognize_music` route anymore — recognition is the popup activity,
-not a nav destination.
-
-## Permissions (`AndroidManifest.xml`)
-
-- `android.permission.RECORD_AUDIO` — required to listen.
-- `<uses-feature android:name="android.hardware.microphone" android:required="false">` — so the app
-  still installs on mic-less devices.
-- **No** foreground-service permissions for recognition (the popup records while visible).
+`RecognitionHistoryEntity.toMediaMetadata()` (`recognition/RecognitionHistoryPlayback.kt`) holds two
+easy-to-regress rules: `duration = -1` (the unknown sentinel; `0` makes `MusicService.recoverSong`
+skip its repair fetch and show "0:00" forever), and names paired with `artistIds` only when counts
+match (a lone name takes the first id; otherwise null ids rather than mis-attributing a channel).
