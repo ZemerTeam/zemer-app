@@ -84,6 +84,6 @@ constructor(
         }
     }
 
-    // No per-row art fetch: each content-mirror whitelist doc (`podcastChannelsWhitelist`) carries a
-    // ready-to-load thumbnailUrl, synced straight into the whitelist table.
+    // No per-row art fetch: `podcastChannelsWhitelist`'s thumbnailUrl syncs straight into the whitelist
+    // table and renders when present; a missing one shows the placeholder.
 }

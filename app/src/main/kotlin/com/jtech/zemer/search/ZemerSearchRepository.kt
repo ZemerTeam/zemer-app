@@ -262,9 +262,9 @@ class ZemerSearchRepository @Inject constructor(
             ?.let { it.toChannelEpisodeItems() to it.nextOffset }
 
     /**
-     * The telemetry-ranked Podcasts-tab rows (Top Podcasts + Trending Episodes). Live-only (discovery,
-     * like `/playlist`/`/radio`) — no offline snapshot; the caller's fail-soft VM hides the rows on a
-     * failure. The server applies an alphabetical fallback for `topPodcasts` while telemetry is thin.
+     * The Podcasts-tab rows (Featured Podcasts + the telemetry-ranked Top Podcasts + Trending Episodes).
+     * Live-only (discovery, like `/playlist`) — no offline snapshot; the caller's fail-soft VM hides the
+     * rows on a failure. The server applies an alphabetical fallback for `topPodcasts` while telemetry is thin.
      */
     suspend fun podcastHomeRows(options: ZemerSearchOptions): ZemerResultMapper.PodcastHomeRows =
         ZemerResultMapper.podcastHomeRows(client.podcastHomeRows(options.allowFemale, options.blockVideos))
@@ -416,9 +416,9 @@ class ZemerSearchRepository @Inject constructor(
 
     /**
      * The genre catalog for the home chips row + the catalog screen, in the server's
-     * most-populated-first order, with counts computed against the flags sent. LIVE-ONLY: the genre
-     * taxonomy is not in the offline snapshot, so this is deliberately not wrapped in
-     * [serverOrOffline] (like `/playlist`, `/radio` and `/stations`). Memoized for a short TTL,
+     * most-populated-first order, with counts computed against the flags sent. LIVE-ONLY: the offline
+     * read layer serves no `/genres`, so this is deliberately not wrapped in
+     * [serverOrOffline] (like `/playlist` and `/stations`). Memoized for a short TTL,
      * KEYED ON THE FLAG PAIR (so a response fetched under one flag set is never rendered under
      * another): the catalog is fetched by two independent surfaces (the Home strip's ViewModel and
      * the catalog screen's) and Home re-fires its refresh on every return to the tab, so a common

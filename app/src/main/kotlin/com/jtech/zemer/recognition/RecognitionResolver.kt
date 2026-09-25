@@ -13,8 +13,8 @@ import timber.log.Timber
 
 /**
  * The single, shared "recognized song → whitelisted result" bridge used by every recognition
- * surface (the recognition popup, `RecognizeMusicDialogActivity`, which the FAB, the widget and the
- * launcher shortcut all open). Centralizing it here guarantees all
+ * surface (the recognition popup, `RecognizeMusicDialogActivity`, which the FAB and the widget open).
+ * Centralizing it here guarantees all
  * surfaces are held to the same rule: a recognized song can only ever surface if it resolves to a
  * whitelisted artist.
  *
