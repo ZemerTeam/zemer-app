@@ -2,11 +2,11 @@
 //
 // YouTube web clients (WEB / WEB_REMIX / TVHTML5) need a poToken in two places.
 // Bindings verified against the app's PoTokenGenerator.getWebClientPoToken(videoId, sessionId):
-//   - streamingDataPoToken : appended to the media URL as &pot=...
-//                            content binding = the SESSION id (visitorData). Minted FIRST, once.
 //   - playerRequestPoToken : sent in serviceIntegrityDimensions.poToken on the /player request.
-//                            content binding = the VIDEO ID. Minted after the streaming token.
-// (PoTokenResult(playerPot, streamingPot) = PoTokenResult(generate(videoId), generate(visitorData)).)
+//                            content binding = the SESSION id (visitorData). Minted FIRST, once.
+//   - streamingDataPoToken : appended to the media URL as &pot=...
+//                            content binding = the VIDEO ID. Minted after the session token.
+// (PoTokenResult(playerRequestPoToken = sessionPot, streamingDataPoToken = videoPot).)
 // Session id is ALWAYS visitorData — dataSyncId is rejected by BotGuard as a session context.
 //
 // Run directly to mint + print tokens (uses ../innertube_cookie.txt for visitorData):
@@ -40,7 +40,7 @@ function ensureDom() {
  * app mints both the player token (binding=visitorData) and the streaming token
  * (binding=videoId) from a single attestation.
  *
- * @param {string} sessionIdentifier  visitorData (or dataSyncId)
+ * @param {string} sessionIdentifier  visitorData
  */
 export async function createMinter(sessionIdentifier) {
   ensureDom();
