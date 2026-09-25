@@ -25,9 +25,13 @@ can false-match anywhere in ~2 MB of player JS. **A heuristic must never shadow 
 validated config** — and a heuristic false positive must not block the unknown-player
 forced refresh (next section). `FunctionNameExtractorPrecedenceTest.kt` pins this.
 
-`extractSignatureTimestamp()` prefers the literal `signatureTimestamp`/`sts` in the player
-JS and falls back to the config's `sts` — so the value sent in the InnerTube `/player`
-request matches the player generation that will decipher the response.
+`extractSignatureTimestamp()` resolves the STS in a fixed order: (1) the **anchored
+`signatureTimestamp` literal** in the player JS (the player's own field — immune to config
+typos, stale aliases and bad remote pushes, since a config's `sts` is not CDN-validated);
+(2) the **config's** `sts`, for players lacking the literal; (3) the **loose `sts` pattern**,
+which can false-match anywhere in ~2 MB of JS and so never shadows the other two
+(`FunctionNameExtractor.kt`). The value sent in the InnerTube `/player` request therefore
+matches the player generation that will decipher the response.
 
 ## The self-heal: `CipherDeobfuscator.getOrCreateWebView()`
 
@@ -62,18 +66,26 @@ invalidation) → extraction misses → `forceRefresh("xxxxxxxx")` fetches the J
 table now covers it → re-extract → WebView built with the validated expressions → the song
 plays. The user never sees the rotation. If the entry is NOT yet on `master`, the refresh
 returns false, the 5-minute cooldown arms (only if GitHub was actually reached), and the
-hourly monitor + email is what gets a human to push the entry (doc 06).
+30-minute monitor + email is what gets a human to push the entry (doc 06).
 
 A second, blunter retry wraps every decipher call: `deobfuscateStreamUrl` catches any
 exception, calls `PlayerJsFetcher.invalidateCache()` + `closeWebView()` and retries once
 with fresh player JS (`isRetry = true` → `forceRefresh` of the JS, not the config).
+
+Except a **renderer death**: a `CipherRendererGoneException` (the WebView's render process was
+OOM-killed or stopped responding) **fails fast** — no fresh-JS retry, which would just re-parse
+~2.8 MB under the same memory pressure — so playback falls through to the fallback clients.
+Each death is recorded in the pure, JVM-tested `RendererRecoveryPolicy`; after repeated
+consecutive deaths it opens a short, half-open **backoff** window during which
+`getOrCreateWebView` **skips WebView creation** entirely (the current song fails over fast); the
+first attempt after the window retries, and a success resets the policy.
 
 ## Keeping the cached WebView fresh: config-epoch rebuild + stream-rejection refresh
 
 The triggers above only fire while *building* a WebView (incomplete extraction) or on a
 decipher *exception*. Once a `CipherWebView` is built it is reused for the life of the
 process — and that one WebView is shared by **every cipher (web) client**: WEB_REMIX,
-WEB_CREATOR, TVHTML5_SIMPLY, MWEB. Two gaps in that reuse let a wrong cipher survive until a
+WEB_CREATOR, TVHTML5_SIMPLY. Two gaps in that reuse let a wrong cipher survive until a
 force-stop+reopen, breaking *all* of those clients at once (cipher commit `2826208`):
 
 1. **A config that self-heals AFTER the WebView was built was ignored until a restart.** The
@@ -93,7 +105,7 @@ force-stop+reopen, breaking *all* of those clients at once (cipher commit `28262
    - `MusicService.handleExpiredUrlError` (the ExoPlayer 403/410 path). Only **WEB_REMIX** skips
      HEAD validation, so only its bad URL reaches ExoPlayer and 403s.
    - `YTPlayerUtils`, when a `needsNTransform` (cipher) client fails `validateStatus` during
-     resolution. **WEB_CREATOR / TVHTML5_SIMPLY / MWEB** are HEAD-validated, so a wrong sig is caught here
+     resolution. **WEB_CREATOR / TVHTML5_SIMPLY** are HEAD-validated, so a wrong sig is caught here
      and never reaches ExoPlayer — without this site a WEB_REMIX-disabled user would never
      self-heal. Fired off a dedicated scope so the network refresh can't block the fall-through.
 

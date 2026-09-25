@@ -76,8 +76,8 @@ subtitle.
   sends `If-None-Match` and honours `304` — doc 03).
 - **Builder location:** the deployed job is **not** in this repo. Per
   `tests/recent-releases/README.md` ("Where it ships"), it is "a self-contained copy in the
-  **vps repo** (`~/github/private/vps` -> `flask_app/apps/api/zemer/`), run by a systemd timer
-  4x/day." The copy under `tests/recent-releases/` is the **validated twin** of that job (doc
+  **vps repo** (`~/github/private/my-vps` -> `flask_app/apps/api/zemer/`), run by a systemd timer
+  hourly." The copy under `tests/recent-releases/` is the **validated twin** of that job (doc
   06) — the algorithm was proven here against live YouTube first, then deployed.
 - **Data sources the builder uses (proven by the harness):**
   - The precise date is `/player` -> `microformat.microformatDataRenderer.uploadDate`, full

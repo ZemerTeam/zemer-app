@@ -117,7 +117,7 @@ Three app-side pieces close the gap:
 ## Connecting
 
 ```kotlin
-fun connectTo(deviceInfo, streamUrl, contentType, metadata, resumePosition, onTrackEnded): Boolean {
+fun connectTo(deviceInfo, streamUrl, contentType, metadata, resumePosition, onTrackEnded, onPlaybackError): Boolean {
     connectedDevice?.let { d ->                       // silence + drop any previous device:
         castCall { d.stopPlayback() }                 // a bare disconnect leaves its loaded stream
         castCall { d.disconnect() }                   // playing (the relay keeps serving it) — a
@@ -130,7 +130,7 @@ fun connectTo(deviceInfo, streamUrl, contentType, metadata, resumePosition, onTr
     val newDevice = runCatching { castContext.createDeviceFromInfo(deviceInfo) } … ?: return false
     connectedDevice = newDevice                       // synchronous — see below
     remoteConnectionState.value = Connecting          // preset for awaitOutcome — see below
-    val issued = runCatching { newDevice.connect(null, DevEventHandler(this, newDevice, onTrackEnded), 1000u) } …
+    val issued = runCatching { newDevice.connect(null, DevEventHandler(this, newDevice, onTrackEnded, onPlaybackError), 1000u) } …
     if (!issued) onConnectionDisconnected()           // single teardown path; returns false
     return issued
 }
@@ -178,7 +178,11 @@ override fun connectionStateChanged(state: DeviceConnectionState) {
 override fun playbackStateChanged(state) {
     if (handler.connectedDevice !== device) return   // stale-device guard — see below
     handler.remotePlaybackState.value = state
-    CastPlayback.playIntentForState(state)?.let { handler.shouldPlay = it }  // mirror TV remote
+    // mirror TV remote — except a PAUSED at the very end of the track: some receivers
+    // auto-pause at pos==duration to signal end-of-track, which is not a user pause
+    val endOfTrackPause = state == PAUSED &&
+        CastAutoAdvance.nearEnd(remoteDuration, remoteTime, CastAutoAdvance.PAUSED_END_EPSILON_SEC)
+    if (!endOfTrackPause) CastPlayback.playIntentForState(state)?.let { handler.shouldPlay = it }
 }
 override fun timeChanged(t)     { /* stale guard */ handler.remoteTime.value = t }
 override fun durationChanged(d) { /* stale guard */ handler.remoteDuration.value = d }

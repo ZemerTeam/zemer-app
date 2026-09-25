@@ -11,9 +11,9 @@ a small centered card over whatever's on screen — like Google's Sound Search.
 
 - **Records while visible** → it has normal "while-in-use" microphone access, so there is **no
   foreground microphone service** and no `FOREGROUND_SERVICE_MICROPHONE` permission anywhere.
-- Wraps content in `ZemerTheme`; the card is **pure black** to match the widget — it uses the widget
-  palette (`R.color.widget_background` / `widget_text_primary` / `widget_text_secondary` /
-  `widget_accent`), not the M3 theme surface, so it looks identical regardless of light/dark theme.
+- Wraps content in `ZemerAppTheme` (the user's saved palette + dark mode + pure-black); the card
+  uses the M3 theme tokens (`colorScheme.surface` / `onSurface` / `onSurfaceVariant` / `primary`),
+  so it follows the chosen theme.
 - Header: the **actual launcher icon** (`R.mipmap.ic_launcher`, round) + "Zemer" + a **history**
   icon (top-right) that opens recognition history.
 - Auto-starts listening on open (guarded so it fires once per instance); requests `RECORD_AUDIO`
@@ -52,8 +52,11 @@ Two paths matter to this feature (both are whitelist-safe):
 
 | URI path | Effect | Notes |
 |---|---|---|
-| `…/watch?v=<id>` | Plays the song | Runs `YouTube.queue(...).filterWhitelisted(...)` before playing — non-whitelisted ids silently no-op. Used by the popup's Play and history rows. |
+| `…/watch?v=<id>` | Plays the song | Runs `YouTube.queue(...)` then `filterWhitelistedWithLocalArtists(...)` before playing — a non-whitelisted id shows the "song not available" toast (`R.string.song_not_available`). Used by the popup's Play. |
 | `…/recognition_history` | Navigates to the history screen | `navController.navigate("recognition_history")`. Used by the popup's history icon. |
+
+History rows do **not** use the deep link: a tap plays seed-first radio in-app
+(`playQueue(ZemerRadioQueue.song(entry.toMediaMetadata(), …))`, `RecognitionHistoryScreen.kt`).
 
 ## Navigation routes
 

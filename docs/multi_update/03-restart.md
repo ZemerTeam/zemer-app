@@ -62,7 +62,8 @@ Because a silent install kills the app with no system UI in front of it, the ins
 warns the user first instead of just disappearing:
 
 - The install dialog shows an "Installing…" indicator with a per-method note
-  (`UpdaterSettings.kt`): root -> *"The app will restart automatically once the update is
+  (`InstallerType.installingNote`, rendered by the shared `ui/component/UpdateDownloadDialog.kt`
+  used by both `UpdaterSettings` and `MainActivity`): root -> *"The app will restart automatically once the update is
   installed."*; Shizuku -> *"The app will close to finish installing. Reopen it to use the
   new version."*
 - `rememberApkInstallController` waits `SILENT_INSTALL_HEADS_UP_MS` (1.2 s) before launching

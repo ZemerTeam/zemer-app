@@ -51,8 +51,8 @@ transparent, pure-black card over the current screen (like Google's Sound Search
 | UI | `ui/screens/recognition/RecognizeMusicDialogActivity.kt` | The branded popup (transparent activity). |
 | | `ui/screens/recognition/RecognitionHistoryScreen.kt` | History list (play / remove / clear). |
 | Widget | `widget/MusicWidget.kt` | Combined player + recognize widget (Glance), with the live seek bar. |
-| Persistence | `db/entities/RecognitionHistoryEntity.kt` | `recognition_history` Room table (added in DB v33). |
-| Tests | `app/src/test/.../recognition/*.kt` | DSP + matcher + hard-gate (fail-closed) unit tests. |
+| Persistence | `db/entities/RecognitionHistoryEntity.kt` | `recognition_history` Room table (added in DB v33; unchanged since — DB is currently v36). |
+| Tests | `app/src/test/.../recognition/*.kt` | DSP + matcher + hard-gate (fail-closed) + history gate/playback unit tests. |
 
 ## Index
 

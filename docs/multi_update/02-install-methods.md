@@ -19,10 +19,13 @@ DataStore, so **constants are append-only — never reorder or remove** (an
 `InstallerTest` pins the ordinals):
 
 ```kotlin
-enum class InstallerType(@StringRes val title: Int) {
-    NATIVE(R.string.installer_native_title),    // ordinal 0
-    ROOT(R.string.installer_root_title),        // ordinal 1
-    SHIZUKU(R.string.installer_shizuku_title);  // ordinal 2
+enum class InstallerType(
+    @StringRes val title: Int,
+    @StringRes val installingNote: Int?,   // "installing…" heads-up; null = none
+) {
+    NATIVE(R.string.installer_native_title, installingNote = null),                           // ordinal 0
+    ROOT(R.string.installer_root_title, installingNote = R.string.installing_note_restart),   // ordinal 1
+    SHIZUKU(R.string.installer_shizuku_title, installingNote = R.string.installing_note_reopen); // ordinal 2
     companion object { fun fromOrdinal(ordinal: Int): InstallerType = entries.getOrElse(ordinal) { NATIVE } }
 }
 ```
@@ -83,9 +86,10 @@ so a `NoSuchMethodError` is caught specifically and surfaced as
 Selecting Shizuku may need a permission grant, which is asynchronous. The screen registers a
 `Shizuku.OnRequestPermissionResultListener` in a `DisposableEffect`; on grant it persists the
 choice, on denial it shows `shizuku_permission_required`. `selectInstaller` checks
-installed → alive → permission and calls `Shizuku.requestPermission(0)` only when needed.
-Known edge case: if the user leaves the Updater screen before answering the grant prompt, the
-listener is disposed and the selection is lost (rare — see [05](05-runbook.md)).
+installed → alive, **persists the selection**, then calls `Shizuku.requestPermission(0)` only
+when the permission is missing. Persisting before the async grant means leaving the Updater
+screen mid-prompt can't lose the choice; the install path re-validates the permission
+(see [05](05-runbook.md)).
 
 ## InstallReceiver — the Shizuku session callback
 

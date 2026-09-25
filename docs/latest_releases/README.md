@@ -4,7 +4,7 @@ Hand-authored docset for the **Latest Releases** feature: a Home-tab shelf of th
 releases from whitelisted (kosher) artists, newest-first across artists, sourced from a small
 precomputed JSON the app fetches from a server.
 
-Everything in these pages is derived from the code in `zemer-app` on the `recent` branch. Every
+Everything in these pages is derived from the code in `zemer-app` on `main`. Every
 claim cites the file and symbol that proves it. No assumptions: where a fact came from a live
 probe rather than the source, it is marked as such and points at the harness script that proved
 it.
@@ -19,8 +19,9 @@ The global YouTube feeds (`FEmusic_new_releases`, charts) carry almost no kosher
 2. The app **fetches that JSON** (`LatestReleasesStore`), caches it on disk, and re-filters it
    through the same per-user whitelist filter every other surface uses
    (`LatestReleasesViewModel` -> `filterWhitelisted`).
-3. The result renders as a **card shelf on Home** (above Featured Playlists) plus a **"See all"
-   screen**, reusing the app's existing album card, album menu, and navigation. Cards show
+3. The result renders as a **carousel shelf on Home** (on the Music tab, after Music Status and
+   directly above Zemer Playlists) plus a **"See all" screen**, reusing the app's existing album
+   menu and navigation. Cards show
    `Artist • <relative date>`; a **single** (`trackCount == 1`) shows a centred play button on its
    artwork and plays with autoplay radio on tap, while an **album** keeps the corner play button
    and opens its page.
@@ -38,11 +39,13 @@ simply makes the shelf empty.
 | Feed -> AlbumItem adapter | `app/.../latestreleases/LatestReleaseMapping.kt` |
 | Relative-date label | `app/.../latestreleases/LatestReleaseDate.kt` |
 | Tap (play single / open album) | `app/.../latestreleases/LatestReleasePlayback.kt` |
-| Home shelf | `app/.../ui/screens/HomeScreen.kt` (`latest_releases_title` / `latest_releases_list`) |
+| Home shelf | `app/.../ui/screens/HomeScreen.kt` (`latest_releases_title` / `latest_releases_list`), each hero a `latestreleases/LatestReleaseCarouselItem.kt` |
 | "See all" screen | `app/.../ui/screens/LatestReleasesScreen.kt`, route `latest_releases` |
 | Card subtitle override | `app/.../ui/component/Items.kt` (`YouTubeGridItem`/`YouTubeListItem` `subtitleOverride`) |
 | JVM resilience test | `app/src/test/.../latestreleases/LatestReleasesStoreTest.kt` |
 | JVM tap-decision test | `app/src/test/.../latestreleases/LatestReleasePlaybackTest.kt` |
+| JVM See-all filter test | `app/src/test/.../latestreleases/LatestReleaseFilterTest.kt` |
+| JVM re-filter visibility test | `app/src/test/.../latestreleases/LatestReleasesVisibilityTest.kt` |
 | Hard-data harness | `tests/recent-releases/` |
 
 ## The pages
@@ -73,8 +76,9 @@ The app does **not** compute the feed; it consumes a JSON a server precomputes. 
 and on disk, refreshes it once per launch with a conditional GET, and never throws — the worst a
 dead server can do is leave the shelf empty. The ViewModel
 (`LatestReleasesViewModel`, deliberately separate from `HomeViewModel`) shows the cached copy
-instantly, refreshes once, and re-runs both through `filterWhitelisted` so per-user content
-preferences (female / KidZone / Israeli, by artist id) apply exactly as everywhere else. The UI
-reuses the app's standard album card and menu, so the shelf looks and behaves like every other
-browse shelf. The server algorithm itself was proven in `tests/recent-releases/` against live
+instantly, refreshes once, and re-filters through `filterWhitelisted` whenever the feed, the
+whitelist or the content filters change, so per-user content preferences (female / KidZone /
+Israeli, by artist id) apply exactly as everywhere else. The UI
+reuses the app's shared carousel-hero frame (Home), album list row (See all) and album menu, so the
+shelf looks and behaves like every other browse shelf. The server algorithm itself was proven in `tests/recent-releases/` against live
 YouTube before being deployed.

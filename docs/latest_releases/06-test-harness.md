@@ -1,8 +1,10 @@
 # 06 — Tests and the hard-data harness
 
-Three test layers cover this feature: a JVM unit test pinning the store's resilience, a JVM unit
-test pinning the single-vs-album tap decision, and the `tests/recent-releases/` harness that
-proved the **server algorithm** against live YouTube before it was deployed.
+Three test layers cover this feature: JVM unit tests pinning the store's resilience
+(`LatestReleasesStoreTest`), the single-vs-album tap decision (`LatestReleasePlaybackTest`), the
+See-all All/Albums/Songs filter (`LatestReleaseFilterTest`) and the reactive re-filter
+(`LatestReleasesVisibilityTest`); and the `tests/recent-releases/` harness that proved the
+**server algorithm** against live YouTube before it was deployed.
 
 ## JVM unit test — store resilience (`app/src/test/.../latestreleases/LatestReleasesStoreTest.kt`)
 
@@ -54,6 +56,20 @@ Pure JVM (no player, no Android runtime). Pins `LatestRelease.playableSingle()` 
 
 ```bash
 ./gradlew :app:testDebugUnitTest --tests "*LatestReleasePlaybackTest"
+```
+
+## JVM unit tests — the See-all filter and the reactive re-filter
+
+- **`LatestReleaseFilterTest`** (`app/src/test/.../latestreleases/`) pins `applyFilter`: ALL keeps
+  everything in order; ALBUMS keeps multi-track and unknown-`trackCount` releases; SONGS keeps only
+  playable singles and excludes a one-track release with no videoId.
+- **`LatestReleasesVisibilityTest`** pins `visibleLatestReleases`: a feed that lands before the
+  whitelist is re-filtered in place when the whitelist arrives; a content-filter change re-filters
+  the visible releases; nothing is emitted before the feed loads, and an identical whitelist reload
+  does not re-filter.
+
+```bash
+./gradlew :app:testDebugUnitTest --tests "*LatestReleaseFilterTest" --tests "*LatestReleasesVisibilityTest"
 ```
 
 ## Hard-data harness — `tests/recent-releases/`

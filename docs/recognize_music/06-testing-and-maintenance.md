@@ -10,6 +10,8 @@ Pure-JVM tests (no Android runtime) — run with `./gradlew :app:testDebugUnitTe
 | `AudioResamplerTest` | 44.1 kHz → 16 kHz output length, no-op when rates match, little-endian round-trip. |
 | `RecognitionMatcherTest` | Accuracy matcher: exact match, **different-artist rejection**, shared-title-word rejection, diacritics/feat/brackets normalization, tightest-wins, blank-artist → no match. |
 | `RecognitionMatchSelectorTest` | The whitelist invariant + **hard gate**: result is always a member of the candidate list; `isWhitelistedResult` passes when whitelisted, rejects when not, and **fails closed** (empty artists / null ids). |
+| `RecognitionHistoryFilterTest` | The history whitelist gate: an entry is shown/played only while a stored artist is *currently* whitelisted; fails closed (no stored ids / empty whitelist); `joinIds` round-trip. |
+| `RecognitionHistoryPlaybackTest` | The history-entry → `MediaMetadata` seed for the radio replay: the `-1` unknown-duration sentinel, artist names paired with their stored browse ids (null ids kept on a count mismatch), id + thumbnail carry-over. |
 
 What is **not** unit-tested (would need instrumentation/heavy infra; verify on-device):
 `RecognitionAudioCapture` (real `AudioRecord`), the live `Shazam` network call, the Room migration at

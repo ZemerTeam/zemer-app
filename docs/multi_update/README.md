@@ -2,8 +2,8 @@
 
 Hand-authored docset for Zemer's in-app updater: how a downloaded APK gets installed
 through one of several methods (Standard / Root / Shizuku), and how the app relaunches
-itself after a silent update. Everything here is derived from the code as of
-`feat/multi-update` `213b0a8`; every claim cites the file and symbol that proves it.
+itself after a silent update. The feature is merged to `main`; every claim cites the file and
+symbol that proves it.
 
 ## TL;DR
 
@@ -49,7 +49,8 @@ identical at both entry points.
    signals that trigger it.
 4. **[04-wiring.md](04-wiring.md)** — everything outside the `updater/` package: Gradle
    dependencies, the manifest (receiver, ShizukuProvider, `overrideLibrary`), the
-   `HiddenApiBypass` call in `App.kt`, ProGuard keep rules, and the FileProvider.
+   lazy `HiddenApiBypass` exemption (`AppInstaller.ensureHiddenApiBypass`, on first Shizuku
+   install), ProGuard keep rules, and the FileProvider.
 5. **[05-runbook.md](05-runbook.md)** — testing the flow on-device, the version-downgrade
    trick, known edge cases, and where to look when an install fails.
 
@@ -67,7 +68,7 @@ a missing/denied privilege surfaces an inline error and the user can fall back t
 
 ## Implementation history (the actual commits)
 
-On branch `feat/multi-update` (not yet merged to `main`):
+Developed on `feat/multi-update`, now merged to `main` (the branch no longer exists):
 
 | Commit | What |
 |---|---|

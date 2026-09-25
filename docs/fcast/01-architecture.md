@@ -74,6 +74,8 @@ split-brain). The `Connected`-based predicate is the source of truth; see
 | `castContext` (`CastContext()`) | lazy, first touched in `connectTo()` | `FCastDiscoveryHandler` `by lazy` |
 | `CastNativeLibLoader` | == `MusicService` | `MusicService` `by lazy` |
 | `CastController` | == `MusicService` (process) | `MusicService` `by lazy` |
+| `CastStreamRelay` (LAN relay server) | socket bound on first `relayedStreamUrl`, stopped by `stopCastRelay()` (after `CastController`'s `RELAY_STOP_GRACE_MS` disconnect grace) | `MusicService` field |
+| `CastSessionLocks` (Wi-Fi + wake lock) | acquired when a relay URL is issued, released with the relay | `MusicService` `by lazy` |
 | `NsdDeviceDiscoverer` | from first `startDiscovery()` to process death | `MusicService.startDiscovery()` |
 | `PlayerConnection` | == bound Activity (disposed on unbind/destroy) | `MainActivity.onServiceConnected` |
 
@@ -89,8 +91,10 @@ delegates its few cast hooks to `CastController`. See
 
 ### Connect / disconnect lifecycle
 
-- **Connect** is initiated from the picker (`CastPicker.connect`) → it pauses
-  local, resolves the stream URL, and calls `handler.connectTo(...)`. The SDK's
+- **Connect** is initiated from the picker (`CastPicker.connect`) →
+  `CastConnector.connect`, which pauses local, resolves the stream URL, swaps in
+  the relay URL (`MusicService.relayedStreamUrl`, direct googlevideo fallback),
+  and calls `handler.connectTo(...)`. The SDK's
   `connectionStateChanged(Connected)` callback then loads the URL onto the
   receiver.
 - **Disconnect** comes from the user ("Stop casting") or the SDK reporting
@@ -112,5 +116,8 @@ delegates its few cast hooks to `CastController`. See
   `PlayerConnection.playPause`, [04](04-playback-and-transport.md).
 - **"Who decides a cast track ended?"** → `CastController` detectors +
   `CastAutoAdvance`, [05](05-auto-advance.md).
+- **"How does the receiver fetch the stream / what if it errors or goes idle?"**
+  → `CastStreamRelay`, `CastErrorRecovery`, `CastIdleWatchdog`,
+  [05](05-auto-advance.md).
 - **"Where does the `.so` come from?"** → `CastNativeLibLoader`,
   [02](02-on-demand-native-lib.md).

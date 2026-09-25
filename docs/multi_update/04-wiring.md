@@ -58,15 +58,19 @@ authority `${applicationId}.FileProvider`, paths in `res/xml/provider_paths.xml`
 already covers `cache-path`/`external-cache-path` where `UpdateChecker` writes the APK. No
 new provider was added.
 
-## `App.kt` — lift the hidden-API denylist
+## Lifting the hidden-API denylist (lazily, in `AppInstaller`)
 
 The Shizuku path reaches hidden `PackageInstaller` constructors, which Android 9+ blocks by
-default. `App.onCreate` exempts them once, early:
+default. The exemption is applied **lazily** on the first Shizuku install —
+`AppInstaller.installShizuku` calls `ensureHiddenApiBypass()` — not at startup, so users who
+never pick Shizuku don't pay for it (`App.kt` only keeps a comment pointing here):
 
 ```kotlin
-if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+private fun ensureHiddenApiBypass() {
+    if (hiddenApiBypassApplied || Build.VERSION.SDK_INT < Build.VERSION_CODES.P) return
     runCatching { HiddenApiBypass.addHiddenApiExemptions("I", "L") }
-        .onFailure { Timber.w(it, "Hidden API bypass unavailable; Shizuku install method will not work") }
+        .onFailure { Timber.w(it, "Hidden API bypass unavailable; Shizuku install may fail") }
+    hiddenApiBypassApplied = true
 }
 ```
 
@@ -92,4 +96,4 @@ are kept:
 ```
 
 Because these only matter under R8, **the release build is the real test of this wiring** —
-a debug build that runs proves nothing about the keep rules (per CLAUDE.md, build both).
+a debug build that runs proves nothing about the keep rules (per AGENTS.md, build both).

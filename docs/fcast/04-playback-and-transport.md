@@ -46,12 +46,11 @@ duration**, not `getCurrentPosition`, which is why those are overridden too —
 otherwise the scrubber would sit at the paused local player's position while the
 TV advances.
 
-> **Known gap:** `CastAwarePlayer` does **not** mirror the remote PLAYING/PAUSED
-> state back into the session, so the notification play/pause *icon* still
-> reflects the (paused) local player while casting. Fully mirroring it would
-> require synthesising `Player.Event`s from the remote callbacks, deliberately
-> avoided to keep the core notification behaviour untouched. The scrubber and
-> seek/skip *are* correct. See [07](07-testing-and-troubleshooting.md).
+The play/pause **state** is mirrored as well: while casting, `getPlayWhenReady()`
+/ `isPlaying()` report the receiver's state, and a collector on
+`remotePlaybackState` re-notifies the session's registered listeners, so the
+notification's play/pause *icon* follows the receiver (including a pause from the
+TV's own remote). None of this fires while not casting.
 
 ## Seam 2 — the in-app player UI (`PlayerConnection`)
 
@@ -98,9 +97,10 @@ The position is the **interpolated** remote clock (`interpolatedRemoteTimeSec()`
 which extrapolates between the receiver's coarse ~1 Hz reports so the bar moves
 smoothly — see [05](05-auto-advance.md).
 
-`isCasting` is a `stateIn(Lazily)` flow; its upstream is started by an in-class
-collector in `PlayerConnection.init` (the stall poll) and by the UI, so
-`isCasting.value` is reliable once the connection exists.
+`isCasting` is a `stateIn(Lazily)` flow; its upstream is started by the
+`isPlaying` `combine` in `PlayerConnection` (which folds `isCasting` in) and by
+the UI, so `isCasting.value` is reliable once the connection exists. (The stall
+poll lives in `CastController`, not here.)
 
 ## Seam 3 — the home-screen widget (`MusicService.onStartCommand`)
 
@@ -272,12 +272,17 @@ first track equals the id already on the receiver** must still reload — so
 
 ## Stream URL + content type
 
-`CastPicker.connect` resolves the same stream the app would play locally:
+`CastConnector.connect` resolves the same stream the app would play locally, then
+hands the receiver the phone-side relay URL for it (falling back to the direct
+googlevideo URL when the relay can't serve — see [05](05-auto-advance.md)):
 
 ```kotlin
 val streamUrl = currentId?.let { service.resolveStreamUrl(it) } ?: service.currentStreamUrl
-handler.connectTo(streamUrl = streamUrl, contentType = service.currentContentType, …)
+val castUrl = currentId?.let { service.relayedStreamUrl(it, streamUrl) } ?: streamUrl
+handler.connectTo(streamUrl = castUrl, contentType = service.currentContentType, …)
 ```
+
+`CastController`'s track-change reload does the same (`relayedStreamUrl(mediaId, url)`).
 
 `resolveStreamUrl` runs the normal `YTPlayerUtils` path and, on success, caches
 the real container MIME in `songMimeCache`. `streamContentType(id)` (and

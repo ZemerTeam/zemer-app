@@ -89,8 +89,8 @@ fun advanceRemoteAfterEnd() = scope.launch {
 ## Why a debounce, on one thread
 
 The three detectors can fire near-simultaneously, and a real media-item
-transition also bumps `lastTransitionTime`. `advanceRemoteAfterEnd` runs on the
-connection scope (main thread) and does the debounce check + the timestamp stamp
+transition also bumps `lastTransitionTime`. `advanceRemoteAfterEnd` runs on
+`CastController`'s scope (the service's Main scope) and does the debounce check + the timestamp stamp
 there — serialised on one thread — so the detectors (and a genuine transition)
 can't double-advance and skip a track. The **repeat-one** path matters here: it
 replays the same index, which fires *no* media-item transition of its own, so the
@@ -103,30 +103,33 @@ application thread.
 
 ## The stall trackers and the position reset
 
-The IDLE detector compares against `lastRemotePosition`; the stall detector against
-`lastRemoteTimeUpdateAt` (silence) plus the interpolated clock. Both trackers are
-maintained by a collector on `remoteTime`:
+The IDLE detector judges `endEdgePositionSec(remoteTime, handler.lastProgressSec)`
+(see detector 2); the stall detector uses `lastRemoteTimeUpdateAt` (silence) plus
+`interpolatedRemoteTimeSec()`. `lastRemotePosition` no longer feeds either end
+detector — it only drives the **idle watchdog's forward-progress clock**
+(`lastForwardProgressAt`, below). The trackers are maintained by a collector on
+`remoteTime`:
 
 ```kotlin
 service.discoveryHandler.remoteTime.collect { time ->
+    if (time > lastRemotePosition + PROGRESS_EPSILON_SEC) lastForwardProgressAt = now()  // real progress
     lastRemotePosition = time                 // unconditional — see below
     lastRemoteTimeUpdateAt = System.currentTimeMillis()
 }
 ```
 
 `lastRemotePosition` is recorded **unconditionally** (not only when `time > 0`).
-`connectTo()` / `load()` reset `remoteTime` to `0` for a new track, and that `0`
-*must* clear the previous track's near-end position. Otherwise a fresh connect —
-or a **device switch**, whose old-device `Disconnected` is intentionally ignored
-so the `onDisconnect` reset never runs — leaves `lastRemotePosition` stale near
-the end, and the stall detector compares it against the *new* track's duration and
-spuriously auto-skips it. Recording `0` is safe because `nearEnd(dur, 0, eps)` is
-false for any real-length track. This property is pinned by a regression test in
-`CastAutoAdvanceTest` ("resetting last position to zero clears a stale near-end").
+`connectTo()` / `load()` reset `remoteTime` to `0` (or the resume position) for a
+new track, so the next genuine report is measured against the new track's
+baseline rather than the previous track's near-end position — a backward reset
+never counts as forward progress.
+(`CastAutoAdvanceTest` still pins the underlying rule —
+`nearEnd(dur, 0, eps)` is false — in "resetting last position to zero clears a
+stale near-end".)
 
 On disconnect, `CastController`'s `onDisconnect` handler also resets
-`lastRemotePosition`, `lastRemoteTimeUpdateAt`, `lastTransitionTime`, and
-`remoteLoadedMediaId` — so a later reconnect/new track doesn't auto-skip on stale
+`lastRemotePosition`, `lastRemoteTimeUpdateAt`, `lastForwardProgressAt`,
+`lastTransitionTime`, `remoteLoadedMediaId`, and the error-ladder counters — so a later reconnect/new track doesn't auto-skip on stale
 near-end state.
 
 `triggerRemoteLoad` also resets the **visible** remote clock (`remoteTime` /
@@ -154,16 +157,65 @@ escalates per the pure, unit-tested `CastErrorRecovery` ladder:
    picks up where it stopped, not from 0).
 2. **RESOLVE_FRESH** — drop the cached URL (`MusicService.invalidateStreamCache`), re-resolve,
    reload (still resuming).
-3. **ADVANCE** — abandon the track and let the queue continue, **capped** at
+3. **DIRECT_URL** — only when the failing load was a **relay** URL
+   (`castStreamRelay.servesUrl(...)`): hand the receiver the raw googlevideo URL instead. The
+   error callback can't say *why* the receiver failed, and one that can't reach the relay at
+   all (cleartext-http policy, phone unreachable) would otherwise burn the ladder on relay URLs.
+   Skipped entirely for a load that was already direct.
+4. **ADVANCE** — abandon the track and let the queue continue, **capped** at
    `MAX_CONSECUTIVE_ERROR_ADVANCES` consecutively abandoned tracks so a dead network can't
    machine-gun the whole queue. With repeat-one or no next item there is nowhere to go, so the
-   ladder **gives up** instead (a toast + non-fatal; never an endless replay loop).
+   ladder goes to **GIVE_UP** instead (a toast + non-fatal; never an endless replay loop).
 
 Bookkeeping that keeps the ladder honest: error callbacks within `ERROR_BURST_WINDOW_MS` count
 as one failure (a broken pipeline can emit several); each media-item transition resets the
 per-track attempt count (every track gets a fresh ladder) but **not** the abandoned-tracks
 streak; real playback progress (`PROGRESS_RESET_SEC` of remote clock) resets both; and
 connect/disconnect reset everything.
+
+## The phone-side stream relay
+
+googlevideo binds a stream URL to the network identity that minted it and 403s
+every new connection from another identity past the first free MiB — so a
+receiver behind CGNAT IPv4 (or on a different IPv6 prefix) can never fetch the
+phone's URLs directly. `CastStreamRelay` (held by `MusicService`) is a minimal
+LAN HTTP server that proxies the stream, making the fetching identity equal the
+minting one by construction:
+
+- `MusicService.relayedStreamUrl(mediaId, rawUrl)` returns a
+  `http://<phone>:<port>/stream/<token>` URL (random port, per-track 128-bit
+  token), or `rawUrl` when the relay can't serve (a `"Cast relay URL"` non-fatal is
+  reported). Both `CastConnector.connect` and `CastController`'s reload use it.
+- The socket binds the wildcard address; the advertised host is re-derived per
+  URL by a route probe toward the receiver (`receiverAddress`).
+- Client `HEAD` is translated to an upstream `GET` (googlevideo HEAD
+  false-negatives); upstream expiry/403 or a mid-body drop is re-resolved (forced
+  on the last attempt) and spliced at the exact byte offset the receiver already
+  has. The pure HTTP/Range math is `CastRelayProtocol`.
+- While a relay URL is out, `CastSessionLocks` holds a Wi-Fi high-perf lock + a
+  partial wake lock (casting is exactly the screen-off state where power-save
+  would starve the receiver).
+- The relay (and locks) stop via `MusicService.stopCastRelay()` from
+  `CastController`'s `onDisconnect`, after `RELAY_STOP_GRACE_MS` and only if still
+  disconnected — a device switch's deferred `Disconnected` must not kill the URL
+  the new receiver is about to fetch.
+
+## The idle watchdog: ending dead sessions
+
+A session can hang with nothing playing and never tear down (the receiver paused
+and abandoned, or cut off mid-track while its TCP socket lingers, so the SDK never
+reports `Disconnected`) — holding the relay, the foreground service and the locks
+open. The same 1 Hz stall poll asks the pure `CastIdleWatchdog.shouldEndIdleSession(state,
+idleForMs)`, where `idleForMs` = time since `lastForwardProgressAt` (reset by real
+forward progress, a fresh load/connect, and a resume to PLAYING):
+
+- `PAUSED_IDLE_TIMEOUT_MS` = **20 min** while the receiver is paused (a pause is a
+  user action — generous);
+- `STALLED_IDLE_TIMEOUT_MS` = **3 min** while not paused but the clock is frozen.
+
+On a hit `CastController.endIdleSession()` disconnects, which recovers the local
+player and stops the relay via `onDisconnect`. (The GIVE_UP rung of the error
+ladder is the third dead-session exit.)
 
 ## Advance survives the Activity being destroyed
 

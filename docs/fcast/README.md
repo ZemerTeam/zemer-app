@@ -3,9 +3,10 @@
 Zemer can stream the currently-playing track to an [FCast](https://fcast.org)
 receiver (an open-source casting protocol — a Chromecast-style "play this URL on
 that screen"). The phone resolves the same googlevideo stream URL it would play
-locally, hands it to the receiver over the local network, and then acts as a
-remote control + a remote-clock mirror. Local audio is paused while casting; the
-receiver plays.
+locally and hands the receiver a **LAN relay URL** that proxies it through the
+phone (`MusicService.relayedStreamUrl` → `CastStreamRelay`; falls back to the
+direct googlevideo URL when the relay can't serve), then acts as a remote control
++ a remote-clock mirror. Local audio is paused while casting; the receiver plays.
 
 This docset is **hand-authored rationale** — the *why* and the cross-cutting
 data flow that a per-file generated doc can't capture. It is deliberately not
@@ -39,8 +40,8 @@ so a cast session keeps advancing after the Activity is destroyed.
 | --- | --- | --- |
 | `playback/FCastDiscoveryHandler.kt` | SDK boundary | The singleton that owns discovery, connection, load, transport, and the remote-state `StateFlow`s. Also `DevEventHandler` (the SDK callback sink) and the pure helpers `castCall`, `urlLoadRequest`, `MediaMetadata.toCastMetadata()`. |
 | `playback/CastNativeLibLoader.kt` | SDK boundary | Downloads + verifies the FCast native `.so` on demand (with a live 0..1 progress fraction in `CastLibState.Downloading`) and points uniffi/JNA at it. Pure metadata in `CastNativeLib`. |
-| `playback/CastController.kt` | control plane | End-of-track auto-advance (all three detectors), the single track-change reload owner, and disconnect → resume-local. Owned by `MusicService` (process-scoped), so casting survives the Activity. |
-| `playback/CastConnector.kt` | control plane | Orchestrates a user-initiated connect: resolve stream → re-resolve address → connect → await the terminal result (`CastConnectResult`), for the picker to surface. |
+| `playback/CastController.kt` | control plane | End-of-track auto-advance (all three detectors), the single track-change reload owner, receiver-error recovery (`CastErrorRecovery`), the idle watchdog, the relay's lifetime, and disconnect → resume-local. Owned by `MusicService` (process-scoped), so casting survives the Activity. |
+| `playback/CastConnector.kt` | control plane | Orchestrates a user-initiated connect: resolve stream → re-resolve address → relay URL (`relayedStreamUrl`) → connect → await the terminal result (`CastConnectResult`), for the picker to surface. |
 | `playback/CastConnect.kt` | pure logic | The connect-flow decisions: terminal-result mapping, whether a failed tap prunes the device from the picker. Unit-tested. |
 | `playback/CastDeviceAddressResolver.kt` | discovery | Click-time NSD re-resolve of a device whose discovery entry lost its addresses. |
 | `playback/CastDeviceRefresher.kt` | discovery | The pull-to-refresh NSD burst: re-discovers, re-resolves, and TCP-probes entries so cache-resolved dead receivers are pruned. |
@@ -51,6 +52,11 @@ so a cast session keeps advancing after the Activity is destroyed.
 | `playback/CastVolumeKeys.kt` | pure logic | `CastVolumeKeys.decide(keyCode, action, isCasting)` → `AdjustUp/AdjustDown/Consume/Ignore` — the app-scoped hardware-volume-key routing rule. Unit-tested. |
 | `playback/RemoteVolumeTracker.kt` | pure logic | The tracked receiver volume (`volume: StateFlow`) + the unknown-until-reported rule: relative key steps are refused until the receiver reports its level or the slider sets one, so the `1.0` placeholder is never stepped-and-sent. Unit-tested. |
 | `ui/component/CastVolumeKeyHandler.kt` | UI | `castVolumeKeyModifier()` — routes volume keys to the receiver inside overlay windows (menus/dialogs) via Compose `onPreviewKeyEvent`, since those windows bypass `MainActivity.dispatchKeyEvent` and the platform `OnUnhandledKeyEventListener` is API 28+. |
+| `playback/CastStreamRelay.kt` | relay | The LAN HTTP server that proxies googlevideo streams to the receiver (googlevideo binds a URL to the minting network identity, so a receiver behind CGNAT/another IPv6 prefix 403s past the free MiB). Random port + per-track token; HEAD→GET; re-resolves and splices at the exact byte offset on upstream expiry/drop. Unit-tested. |
+| `playback/CastRelayProtocol.kt` | pure logic | The relay's HTTP plumbing: request-head parsing, `/stream/<token>` paths, Range/Content-Range resume math, URL-host formatting. Unit-tested. |
+| `playback/CastSessionLocks.kt` | relay | Wi-Fi (`WIFI_MODE_FULL_HIGH_PERF`) + partial wake locks held while relaying, so a screen-off phone doesn't starve the receiver. |
+| `playback/CastIdleWatchdog.kt` | pure logic | Auto-ends a dead session: `PAUSED_IDLE_TIMEOUT_MS` (20 min paused) / `STALLED_IDLE_TIMEOUT_MS` (3 min frozen clock while not paused). Unit-tested. |
+| `playback/CastErrorRecovery.kt` | pure logic | The receiver-playback-error ladder: RELOAD → RESOLVE_FRESH → DIRECT_URL (relay loads only) → ADVANCE (capped) → GIVE_UP. Unit-tested. |
 | `playback/CastAutoAdvance.kt` | pure logic | End-of-track thresholds + the `nearEnd`/`stalled`/`debouncePassed` decisions. Unit-tested. |
 | `playback/PlayerConnection.kt` (cast parts) | UI seam | `isCasting`, cast-aware `playPause`/`seekTo`/`seekToPrevious`/`currentPositionMs`. Drives no cast logic of its own — its few cast hooks (queue-start bookkeeping, `markRemoteLoaded`, `advanceRemoteAfterEnd`) delegate to `CastController`. |
 | `playback/MusicService.kt` (cast parts) | host | Owns the handler + lib loader + `CastController`, `startDiscovery`/`downloadCastLib`, `resolveStreamUrl`/`streamContentType`, and the widget transport branches + cast-aware widget rendering. Wraps the player in `CastAwarePlayer`. |

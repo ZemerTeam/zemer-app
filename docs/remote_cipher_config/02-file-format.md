@@ -77,13 +77,16 @@ bump; changing the meaning/shape of existing fields is.
 
 Primary key = the 8-hex hash from the player URL. Alias = the first 8 hex chars of
 `md5(first 10000 bytes of base.js)`, computed by `FunctionNameExtractor.extractPlayerHash()`
-when no URL-shaped hash can be found in the player JS, and by the monitor workflow
-(`player-monitor.yml`, "Compute MD5 fallback hash":
-`curl … | head -c 10000 | md5sum | cut -c1-8`). Both keys map to the **same config object**
+when no URL-shaped hash can be found in the player JS, and by the monitor's scanner
+(`tests/scan-live-players.mjs`, `playerIdentity`: md5 of the first 10000 bytes, first 8 hex) —
+not a separate workflow step. Both keys map to the **same config object**
 after parsing (`configs[hash] = config; for (alias in aliases) configs[alias] = config`).
 `validate-player-config.mjs` prints entries with the alias already included.
 
-## The live table (as of cipher `81c7ed8`)
+## The table — a historical excerpt (as of cipher `81c7ed8`)
+
+The bundled `player_configs.json` now holds **296 players, sts 20602–20686**; the 10 entries below
+are the table as it stood at `81c7ed8`, kept as an illustration of the shape:
 
 ```json
 {

@@ -14,14 +14,15 @@ assets, disk cache, HTTP, concurrency.
 | `FORCE_REFRESH_COOLDOWN_MS` | 5 min (`5*60*1000`) | a player unknown both locally and remotely must not turn every song into a GitHub hit |
 | `CACHE_FILE` | `configs_remote.json` | in `filesDir/cipher_cache/` |
 | `META_FILE` | `configs_remote.meta` | line 1 = ETag (may be empty), line 2 = lastFetchMs (`readMeta`/`writeMeta`) |
-| `ASSET_NAME` | `player_configs.json` | the bundled offline default (~1.5 KB) |
+| `ASSET_NAME` | `player_configs.json` | the bundled offline default (~30 KB) |
 
 **Naming trap, documented in the code:** the cache dir is *shared* with `PlayerJsFetcher`,
 which (a) purges every `player_*` file on each player-JS refresh
 (`PlayerJsFetcher.writeToCache`: `listFiles()?.filter { it.name.startsWith("player_") }?.forEach { it.delete() }`)
-and (b) wipes the entire dir in `invalidateCache()`. Hence the config files must NOT start
-with `player_`. A full wipe is benign by design: the in-memory map survives, and the next
-refresh refetches without an ETag.
+and (b) in `invalidateCache()` deletes only `player_*` files and `current_hash.txt` — the
+config cache (`configs_remote.json`) and its ETag (`configs_remote.meta`) survive, so a decipher
+retry never forces a full non-conditional config re-download. Hence the config files must NOT
+start with `player_`.
 
 ## State
 

@@ -29,9 +29,9 @@ data class RecognitionHistoryEntity(
 
 Added in **`MusicDatabase` version 32 → 33** as a **purely additive `@AutoMigration(from = 32, to = 33)`**
 (a brand-new table; no changes to existing tables). `artistIds` and the two indices are part of that
-same fresh-table definition — the table is *born* at v33, so there is no separate column-add step and
-**no version beyond 33**. The entity is registered in the `@Database` `entities` list and the schema
-is exported to `app/schemas/.../33.json`. This is the safe kind of schema change (CLAUDE.md flags
+same fresh-table definition — the table is *born* at v33, so there is no separate column-add step, and
+the table is **unchanged since v33** (the DB is currently v36; later migrations don't touch it). The entity is registered in the `@Database` `entities` list and the schema
+is exported to `app/schemas/.../33.json`. This is the safe kind of schema change (AGENTS.md flags
 schema changes as high-risk and requiring human sign-off — this one was explicitly requested and is
 additive-only).
 

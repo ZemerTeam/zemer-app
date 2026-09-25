@@ -25,7 +25,7 @@ this feature; both ultimately feed an APK file into the install stage:
 
 | Checker | Source | Used by | File |
 |---|---|---|---|
-| `UpdateChecker` | `https://ghtrack.zemer.io` (`/api`, `/changelog`, `/download`) | the Updater settings screen, the startup update dialog | `utils/UpdateChecker.kt` |
+| `UpdateChecker` | stable: `https://ghtrack.zemer.io` (`/api`, `/changelog`, `/download`); nightly channel: `https://nightly.zemer.io/api` (SHA-pinned `downloadUrl`, size + SHA-256 verified before install) | the Updater settings screen, the startup update dialog | `utils/UpdateChecker.kt`, `utils/updater/NightlyUpdates.kt` |
 | `Updater` | Firestore doc `appUpdates/latest` (per-arch URLs) | "new version available" row in Account settings (opens the URL) | `utils/Updater.kt` |
 
 The **download-and-install** path is `UpdateChecker.downloadUpdate(context)`, which streams
@@ -76,5 +76,6 @@ append-only — see [02](02-install-methods.md).
 
 The Updater screen renders the picker with the shared `ListPreference` component (a radio
 dialog), reading each option's label from `InstallerType.title`. Selecting Root or Shizuku
-runs that method's availability/permission check before persisting the choice; failures show
-inline under the row (`UpdaterSettings.kt`, `selectInstaller`).
+runs that method's availability checks before persisting the choice; for Shizuku the
+permission is requested *after* persisting (the grant is async). Failures show inline under
+the row (`UpdaterSettings.kt`, `selectInstaller`).

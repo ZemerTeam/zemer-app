@@ -49,7 +49,7 @@ extraction (the self-heal path, doc 05).
    becomes executable JS in `CipherWebView`, config-over-heuristic precedence, and the
    mid-session self-heal that fixes playback at the exact moment it would break.
 6. **[06-harness-and-monitor.md](06-harness-and-monitor.md)** — the `tests/` loader, the
-   `config-covers.mjs` verdict CLI, and the hourly `player-monitor.yml` workflow.
+   `config-covers.mjs` verdict CLI, and the 30-minute `player-monitor.yml` workflow.
 7. **[07-runbook.md](07-runbook.md)** — operations: adding a config for a new player,
    deploy order, schema bumps, and what to check when something is off.
 
@@ -61,7 +61,7 @@ executable n-transform is built device-side from a pinned template. The store
 (`PlayerConfigStore`) holds an immutable merged map (bundled ⊕ remote, remote wins) behind
 a `@Volatile` reference — reads are lock-free, refreshes swap the whole map. Any invalid
 remote file is rejected wholesale and the device keeps its last-good table, so the worst a
-bad push can do is *nothing*. CI watches YouTube hourly and opens an issue + email when an
+bad push can do is *nothing*. CI watches YouTube every 30 minutes and opens an issue + email when an
 unknown player appears; a human derives the new entry, validates it against the live CDN
 (`node tests/validate-player-config.mjs <hash>` — HTTP 206 is the proof), and pushes it.
 

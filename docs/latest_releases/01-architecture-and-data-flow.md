@@ -23,10 +23,13 @@ card composable), plus a ViewModel and two UI screens:
 | `latestreleases/LatestReleaseMapping.kt` | `LatestRelease.toAlbumItem()` — adapts a feed row to the InnerTube `AlbumItem` the rest of the app already renders, filters, and navigates. |
 | `latestreleases/LatestReleaseDate.kt` | `LatestRelease.relativeDateLabel()` — formats `uploadDate` as a localized relative span ("2 days ago"). |
 | `latestreleases/LatestReleasePlayback.kt` | `LatestRelease.playableSingle()` / `openOrPlay()` — the shared single-vs-album tap decision (play a 1-track single with radio, else open the album); `isNowPlaying()`, the now-playing match (single by videoId, album by browseId); and `sampleTracks()` / `shufflePlay()` backing the See-all shuffle FAB. |
-| `latestreleases/LatestReleaseCard.kt` | `LatestReleaseCard` — the one shared card composable both surfaces render each release through (`asGrid` picks grid vs list); centralizes the album mapping, subtitle, centred play button, now-playing state, tap and long-press menu. |
+| `latestreleases/LatestReleaseCarouselItem.kt` | `LatestReleaseCarouselItem` — the Home shelf's carousel hero (a `CarouselItemScope` extension over the shared `CarouselHeroFrame` + `HeroTitleOverlay`): D-pad focus ring, library badges, tap / long-press menu, now-playing state, single vs album play button. |
+| `latestreleases/LatestReleaseCard.kt` | `LatestReleaseCard` — the See-all list row (list-only, a `YouTubeListItem`; no `asGrid` param): album mapping, subtitle, centred play button, now-playing state, tap and long-press menu, plus the shared `ReleaseBadges`. |
+| `latestreleases/LatestReleaseFilter.kt` | `LatestReleaseFilter` (All / Albums / Songs) + `applyFilter` — the See-all chip filter (single = song, else album). |
+| `latestreleases/LatestReleasesVisibility.kt` | `visibleLatestReleases` — the reactive combine that re-filters the feed on any feed / whitelist / content-filter change. |
 | `viewmodels/LatestReleasesViewModel.kt` | Orchestration + whitelist re-filter. Owns the `StateFlow<List<LatestRelease>>` the UI observes. Hilt-injected. |
-| `ui/screens/HomeScreen.kt` | The Home shelf (`latest_releases_title` / `latest_releases_list` items), rendering each release via `LatestReleaseCard(asGrid = true)`. |
-| `ui/screens/LatestReleasesScreen.kt` | The "See all" full-list screen, route `latest_releases`, rendering each release via `LatestReleaseCard(asGrid = false)`. |
+| `ui/screens/HomeScreen.kt` | The Home shelf (`latest_releases_title` / `latest_releases_list` items): a `HorizontalMultiBrowseCarousel` (`preferredItemWidth = 180.dp`, `heroCarouselFlingBehavior`) of `LatestReleaseCarouselItem`s. |
+| `ui/screens/LatestReleasesScreen.kt` | The "See all" full-list screen, route `latest_releases`, rendering each release via `LatestReleaseCard`. |
 | `ui/component/Items.kt` | `subtitleOverride` + `centeredPlayButton` params on `YouTubeGridItem` / `YouTubeListItem`, so a card can show `Artist • <relative date>` and a single can show the centred play button on its artwork. |
 
 ## End-to-end flow
@@ -46,7 +49,7 @@ card composable), plus a ViewModel and two UI screens:
     v
   releases: StateFlow<List<LatestRelease>>
     |
-    +--> HomeScreen        (take(12) -> LazyRow of YouTubeGridItem cards)
+    +--> HomeScreen        (take(12) -> HorizontalMultiBrowseCarousel of LatestReleaseCarouselItem)
     +--> LatestReleasesScreen ("See all": full list -> LazyColumn of YouTubeListItem rows)
 ```
 
@@ -84,7 +87,8 @@ release flows through the app's existing machinery unchanged:
 
 - **Filtering:** `filterWhitelisted(database)` — the same function used elsewhere
   (`utils/WhitelistFilter.kt:149`).
-- **Rendering:** `YouTubeGridItem` / `YouTubeListItem` — the same album cards/rows.
+- **Rendering:** the shared carousel-hero frame (`CarouselHeroFrame` + `HeroTitleOverlay`) on Home,
+  `YouTubeListItem` — the same album rows — on See-all.
 - **Menu:** `YouTubeAlbumMenu` on long-press.
 - **Tap:** `openOrPlay` — a single (`trackCount == 1`) plays via `ZemerRadioQueue.song`, anything
   else navigates to `album/<id>`. Both reuse existing queue/navigation; the single's metadata is

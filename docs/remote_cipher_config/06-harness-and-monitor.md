@@ -1,4 +1,4 @@
-# 06 — The harness and the hourly monitor
+# 06 — The harness and the 30-minute monitor
 
 ## `tests/player-configs.mjs` — the loader (app repo)
 
@@ -52,10 +52,12 @@ the schemaVersion gate, the template golden, and the cross-language parity fixtu
 5. Prints a paste-ready JSON entry including the MD5 alias. If the committed file already
    has an entry for the hash, it re-validates that entry first.
 
-## `.github/workflows/player-monitor.yml` — the hourly watchdog
+## `.github/workflows/player-monitor.yml` — the 30-minute watchdog
 
-Runs hourly (`cron: '0 * * * *'`) + manual dispatch. Step by step, with the reasoning the
-file itself documents:
+Runs every 30 minutes (`cron: '*/30 * * * *'`) + manual dispatch. Runs are serialized by a
+`concurrency` group (`youtube-player-monitor`, `cancel-in-progress: false`) so an overlapping
+schedule + manual dispatch can't both scan and open duplicate issues. Step by step, with the
+reasoning the file itself documents:
 
 1. **Fetch the config file ONCE, from the live URL** (app commit `8bdb956`):
    `curl -fsS --retry 3` against the same raw zemer-cipher `master` URL devices fetch — so
@@ -76,11 +78,15 @@ file itself documents:
    config itself is invalid (devices reject such a file wholesale → a red run, the right
    alarm). Its pure core (`aggregate`, `coveredKeys`) is unit-tested in
    `tests/scan-live-players.test.mjs`.
-3. **Alert per unknown player** (only when `unknown[]` is non-empty): open one GitHub issue
-   per hash (labels `player-update`, `cipher`; deduped by title against open issues; the
-   body flags low-rate hits as canaries-caught-early) and send one summary email to
+3. **Alert per unknown player** (only when `unknown[]` is non-empty): send a Telegram message
+   per unknown hash (the issue title + body; skipped when `TELEGRAM_BOT_TOKEN` is empty), open
+   one GitHub issue per hash (labels `player-update`, `cipher`; deduped by title against open
+   issues; the body flags low-rate hits as canaries-caught-early) — as the Zemer-Dude GitHub App
+   (token from `actions/create-github-app-token`) when `vars.ZEMER_APP_ID` is set, else the
+   default `GITHUB_TOKEN` — and send one summary email to
    `dietdroidwp@gmail.com` via Gmail SMTP secrets listing every unknown hash with its
-   frequency/md5/sts. Both contain the exact runbook commands (doc 07).
+   frequency/md5/sts (sent even if issue creation fails). All contain the exact runbook
+   commands (doc 07).
 
 The monitor **never auto-commits** — entries are derived, 206-validated, and pushed by a
 human. By design: the validation needs a logged-in cookie and live-CDN judgment that CI

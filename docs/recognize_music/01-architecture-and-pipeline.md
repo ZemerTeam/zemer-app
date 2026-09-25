@@ -59,7 +59,8 @@ https://amp.shazam.com/discovery/v5/en/US/android/-/tag/{uuid1}/{uuid2}
 
 with a randomized geolocation + timezone and a spoofed Android `User-Agent`. No auth/API key. The
 body carries only the fingerprint (`signature.uri`). Built-in **rate limiting** (1 req/s,
-2 concurrent), **retry** with exponential backoff on 429, and a 5-minute **result cache**. The
+2 concurrent) and **retry** on 429/5xx — up to 3 attempts (`MAX_RETRIES`) with exponential backoff
+from 2 s (`INITIAL_RETRY_DELAY_MS`); there is **no result cache** (`recognition/shazam/Shazam.kt`). The
 response is parsed (`ShazamResponseJson.toRecognitionResult`) into `RecognitionResult` — of which
 Zemer uses essentially only `title` and `artist`.
 

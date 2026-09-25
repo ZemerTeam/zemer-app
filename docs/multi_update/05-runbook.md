@@ -25,7 +25,7 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
   Download & Install, which downloads to cache and installs via the chosen method.
 
 > **Restore the version before releasing.** A `versionCode` that goes *down* is a downgrade
-> Android itself refuses to install over a higher version, and per CLAUDE.md the version is a
+> Android itself refuses to install over a higher version, and per AGENTS.md the version is a
 > release-team decision. The `30` value only exists to make the installed build look older than
 > the published one during testing.
 
@@ -65,10 +65,11 @@ is reopened by hand.
 
 ## Known edge cases (not bugs to "fix" blindly)
 
-- **Shizuku grant lost on navigation.** The grant listener lives in the Updater screen's
-  `DisposableEffect`; leaving the screen before answering the Shizuku prompt disposes it and
-  the selection is not persisted. Rare (the prompt is usually an overlay over the same
-  activity). Fixing properly means an activity-scoped listener; left as-is intentionally.
+- **Leaving mid-grant keeps the selection.** `selectInstaller` persists Shizuku *before*
+  the async permission request (`UpdaterSettings.kt`), so leaving the Updater screen before
+  answering the prompt (which disposes the `DisposableEffect` listener) no longer loses the
+  choice; the install path re-validates the permission and reports
+  `shizuku_permission_required` if it is still missing.
 - **Two install entry points, one path.** If you add install behaviour, add it to
   `rememberApkInstallController`, not to a call site — `MainActivity` and `UpdaterSettings`
   share it on purpose (see [01](01-architecture.md)).

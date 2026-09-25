@@ -6,7 +6,7 @@ so most "it's broken" cases are either the server feed or the per-user whitelist
 ## How the pieces relate
 
 ```
-vps repo job (4x/day, systemd)  --writes-->  recent-releases.json  --ETag-->  FEED_URL
+vps repo job (hourly, systemd)  --writes-->  recent-releases.json  --ETag-->  FEED_URL
                                                                                   |
 app: LatestReleasesStore (fetch + cache)  ->  LatestReleasesViewModel (filter)  -> UI shelf + See-all
 ```
@@ -38,7 +38,7 @@ The header/list are only emitted when the **filtered** list is non-empty
    Look for `Fetched N releases (window …, v…)` (success), `Feed unchanged (304)`,
    `Feed fetch HTTP <code>` (server error), or `Gave up after 3 attempts` (network down).
 3. **Did the whitelist filter empty it?** The same tag logs
-   `After refresh: X releases shown (of Y before whitelist filter)`. If `Y > 0` but `X == 0`, the
+   `Showing X releases (of Y before whitelist filter)` (logged on every filter pass). If `Y > 0` but `X == 0`, the
    user's content preferences (female / KidZone / Israeli) excluded every release — that's
    correct behaviour, not a bug. Cross-check with `WhitelistFilter` logs (tag from
    `utils/WhitelistFilter.kt`).
@@ -104,7 +104,5 @@ Tap behaviour is `openOrPlay` -> `playableSingle()`: it plays only when `trackCo
   in.
 - The store swallows all errors and returns empty/last-good — that is the contract, not missing
   error handling. Errors are reported via Timber (tag `Zemer_LatestReleases`), not thrown.
-- `explicit = false` in `toAlbumItem` is deliberate — the whitelist is the content gate, and the
-  feed carries no explicit flag.
 - The 3-day staleness cap is deliberate — it makes a dead server fail "off" rather than showing
   ancient "latest" releases forever.

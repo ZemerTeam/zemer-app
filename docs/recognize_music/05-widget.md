@@ -28,8 +28,8 @@ clipped whenever the real widget was narrower/shorter than a bucket — that was
 bug.) With Exact + `fillMaxHeight` art + a weighted text column, content adapts to any size with no
 clipping and no whitespace.
 
-`res/xml/music_widget_info.xml`: `minHeight=84dp`, `minResizeHeight=76dp`, `targetCellWidth=4`,
-`targetCellHeight=1` — short by default, but tall enough that the transport + seek row always fit.
+`res/xml/music_widget_info.xml`: `minHeight=84dp`, `minResizeHeight=76dp`, `targetCellWidth=2`,
+`targetCellHeight=2` — tall enough by default that the transport + seek row always fit.
 
 ## The live seek bar (~1 s)
 
@@ -49,12 +49,15 @@ The widget state carries `position_ms` / `duration_ms` (Glance `Preferences`), f
   private fun startWidgetTicker() {           // self-stops when paused
       if (widgetTickerJob?.isActive == true) return
       widgetTickerJob = scope.launch {
-          while (isActive && player.isPlaying) { updateWidget(); delay(1000) }
+          if (!MusicWidget.hasPlacedWidget(this@MusicService)) return@launch  // no widget → no ticker
+          while (isActive && widgetIsPlaying()) { updateWidget(); delay(1000) }
       }
   }
   ```
 
-  On pause it pushes one final update so the bar freezes at the paused position.
+  The `hasPlacedWidget` guard runs once per playback session, so users with no widget pay nothing;
+  `widgetIsPlaying()` is cast-aware (it reads the receiver's state while casting). On pause it
+  pushes one final update so the bar freezes at the paused position.
 
 > **Not draggable.** A home-screen widget (Glance/RemoteViews) can show progress + time but cannot be
 > dragged to seek — only the system media player gets a scrubber. The bar is read-only; tapping the

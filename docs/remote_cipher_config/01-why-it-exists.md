@@ -20,8 +20,8 @@ JavaScript file (`player_ias.vflset/.../base.js`, "the player"):
 Both transforms are *defined inside the player JS* and are renamed/restructured every time
 YouTube ships a new player build. Each build is identified by an 8-hex-char hash in its URL
 (e.g. `https://www.youtube.com/s/player/16ee6936/player_ias.vflset/en_GB/base.js`).
-Rotations are frequent — the current bundled table covers 10 player generations spanning
-sts 20602→20613 (see `player_configs.json`), i.e. multiple rotations per month.
+Rotations are frequent — the current bundled table covers 296 player builds spanning
+sts 20602→20686 (see `player_configs.json`), i.e. multiple rotations per month.
 
 There is a third per-player value: **`signatureTimestamp` (STS)** — an integer the app must
 send in the InnerTube `/player` request (`InnerTube.kt`, `playbackContext`). Critically, it
