@@ -270,7 +270,7 @@ the same way). `MediaStoreDownloadManager` mirrors the RELAY branch:
 
 ## 8. The harness - proof + validator
 
-`tests/` (Node >= 20, vendored deps, needs `innertube_cookie.txt` at the repo root):
+`tests/` (Node >= 20; `npm ci --prefix tests` once; needs `innertube_cookie.txt` at the repo root):
 
 - **`node tests/sabr-stream.mjs [videoId] [client]`** - whole-song drain proving byte-exact reassembly by
   full distinct-segment coverage summing to `contentLength`. The reference the Kotlin engine ports.

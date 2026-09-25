@@ -53,7 +53,7 @@ An **opt-in, login-less** mode for devices whose kosher filter blocks `music.you
 - **One flag, default off, DIRECT is untouched.** `PlaybackModeKey` → `constants/PlaybackMode` (`DIRECT`/`RELAY`), default `DIRECT`. Every relay branch is gated on it; a normal login runs zero relay code. **Never let a relay change touch the DIRECT path.**
 - **The seam is `MusicService`.** `createDataSourceFactory()` (DIRECT) is unchanged; the per-open `playbackDataSourceFactory` (a `RoutingDataSource`) picks the separate, **cache-free** `RelayDataSourceFactory` only when the flag is on. `relayModeNow` mirrors the flag but is seeded **null** and resolved with a one-time synchronous DataStore read on the first open, so a relay user's cold-start play is never mis-routed to DIRECT. Both factories share **`resolveDownloadedFileUri`**: a downloaded song plays from disk, decided once at position 0, with self-repair + `recoverSong` + video-mode nudge - so relay never switches source mid-track.
 - **`playback/relay/` holds the pure/isolated pieces:** `RelayStream` (URL builder - `/stream?v=` audio, `&kind=video` 360p mp4, `/download?v=`), `RelayDownload` (container sniff → extension + HTTP-status classification, unit-tested), `RelayDeviceId`, `RelayDataSourceFactory`. Keep logic here, not in the giants.
-- **Onboarding + gating.** The login gate's third option **"I have a filter"** is login-less (sets `RELAY`, no cookie). `MainActivity`'s gate must NOT bounce a relay session (it derives login + relay from one DataStore snapshot via `produceState`). The redirect decision is the pure, tested `ui/screens/LoginGateRedirect`: a **null route means `NavHost` has not set the graph yet** and the effect must NOT navigate (Navigation throws "Navigation graph has not been set" - a warm start / recreate delivers the snapshot before the graph exists, which crash-looped launch); the effect is keyed on the route so it re-runs on the first real one. A **normal login globally resets `RELAY`→`DIRECT`** in `App.kt` (from ANY entry point), and the **Settings toggle + nav-drawer Account entry are hidden when not login-less**. These gates key off the cookie's `SAPISID` (true for anon too), the standard "has a session" idiom.
+- **Onboarding + gating.** The login gate's third option **"I have a filter"** is login-less (sets `RELAY`, no cookie). `MainActivity`'s gate must NOT bounce a relay session (it derives login + relay from one DataStore snapshot via `produceState`). The redirect decision is the pure, tested `ui/screens/LoginGateRedirect`: a **null route means `NavHost` has not set the graph yet** and the effect must NOT navigate (Navigation throws "Navigation graph has not been set" - a warm start / recreate delivers the snapshot before the graph exists, which crash-looped launch); the effect is keyed on the route so it re-runs on the first real one. A **normal login globally resets `RELAY`→`DIRECT`** in `App.kt` (from ANY entry point), the **Settings relay toggle is hidden for any SAPISID session** (`cookieHasSession()` - true for anon too, the standard "has a session" idiom), and the **nav-drawer Account entry is hidden while in RELAY** (relay is accountless; that gate keys off `PlaybackModeKey`).
 - **Downloads** pull `/download` (m4a → embeds cover art like a normal download; an Opus/webm fallback is saved as `.opus` since MediaStore.Audio rejects `.webm`), verify completeness against `Content-Length`, and play offline from the local file. **Video** reuses the normal `VideoModeLogic` path pointing at `&kind=video`; an audio-only id 404s → revert to audio.
 - **The song-details sheet stays YouTube-free AND source-opaque in relay** (`ui/utils/ShowMediaInfo.kt`): the InnerTube `getMediaInfo()` call is **not requested** when `relayMode` (not merely hidden on failure - an unfiltered relay session would otherwise show YouTube stats), and the **Information** section renders only when `informationItems.isNotEmpty()` (empty in relay - no local `FormatEntity`). The sheet shows only General (title/artists/media-id) and never a "playback source"/relay row.
 - **Relay device counting (two mutually-exclusive headers by build type)** on every RELAY media request (`/stream`, incl. `&kind=video`, and `/download`), as default request properties of the relay OkHttp factory / the `/download` request, so they never reach googlevideo or DIRECT:
@@ -277,8 +277,8 @@ Rules that must not regress:
 - **Featured Albums / Videos / Artists / Playlists come solely from `ZemerSearchRepository.homeRows()`**
   (`GET /home-rows` → `ZemerResultMapper.homeRows()` → `HomeRows`). There is **no InnerTube scrape
   fallback**: `loadHomeRows()` returning null hides the four featured rows, never breaks Home.
-- **The ranked content gate is female/israeli/blocked-ids ONLY - NOT the famous/american quality
-  proxy** (`isAllowedRanked` / `RankedContentGate`, distinct from `isBlockedArtist`); applying the proxy
+- **The ranked content gate is female/Israeli/kids-only (+ blocked-ids in the mapper) ONLY - NOT the
+  famous/american quality proxy** (the shared `RankedContentGate`, also applied by `VideoHomeRowsViewModel`; distinct from `isBlockedArtist`); applying the proxy
   cut the rows to near-empty. Cards carry the artist channel id (`ZemerAlbum/Track.artistId`,
   `ZemerArtist.id`) - without it the one-per-artist `rotateByArtist` dedup and the female/israeli check
   both no-op.
@@ -306,7 +306,8 @@ Rules that must not regress:
   now-playing cards tick every 60s while ON SCREEN only (`repeatOnLifecycle(RESUMED)`).
 - **Easter egg:** five quick taps on the Home top-bar title (1.5s idle resets) play a fixed song,
   whitelist-filtered (`ui/utils/HomeTitleEasterEgg.kt`, tap rule tested). Owner-requested - keep it.
-- **Every content row has a "See all" arrow** → `home_see_all/{row}` (`HomeSeeAllRow`), reading the
+- **Every music/video discovery row has a "See all" arrow** (the Radio-tab stations grid and the
+  Podcasts-tab Continue Listening / New Episodes rows deliberately have none) → `home_see_all/{row}` (`HomeSeeAllRow`), reading the
   process-wide `HomeSeeAllStore` snapshot `HomeViewModel` publishes each load (the FULL, un-rotated
   filtered pool) - no re-fetch, no re-filter, so it can never disagree with its row. Latest Releases /
   Zemer Playlists keep their own see-all screens.
@@ -543,7 +544,7 @@ App map: `docs/podcasts/README.md`. Rules that must not regress:
   `PodcastSortTypeKey`/`PodcastSortDescendingKey` (never the Songs keys). New Episodes is an
   `AutoPlaylistCard` playing the `/podcasts/new-episodes` feed (never InnerTube `RDPN` - unfiltered, a
   kosher leak); Episodes-for-Later is ALWAYS the local saved list (never the online `SE` playlist). Same
-  for personal and anon. The shared data sources (whitelist filter + leak gate) live ONLY in
+  for personal and anon. The shared data sources (subscription scope + whitelist filter) live ONLY in
   `utils/PodcastLibrarySources`.
 - Episode plays tag `PlaySource.podcast(id)` / `TrackingSurface.podcast|channel` (append-only slugs); a
   tapped episode plays via `ListQueue.episode` (see §Shared non-visual helpers).
@@ -619,8 +620,8 @@ detail in `docs/tracking/README.md`. Rules that must not regress:
   dampener): inside the viewport AND settled ~300ms, deduped per `(surface, videoId)`. Never count a
   composed-but-offscreen row or one a fling passed through; a row nested in a lazy parent must check the
   PARENT's viewport too. When in doubt, do not report.
-- **Impressions are the only droppable event type**: discarded while the upload backoff window is open
-  and past half the queue cap (`IMPRESSION_QUEUE_CEILING`) - both drops are song-independent; the
+- **Impressions are the only droppable event type**: discarded while the upload backoff window is open,
+  or once the queue is at half its cap (`IMPRESSION_QUEUE_CEILING`) - both drops are song-independent; the
   per-POST row cap (`MAX_IMPRESSION_ROWS_PER_POST`) exists because server truncation would not be.
 - **Surface slugs (`TrackingSurface`) are the server's coverage-gate vocabulary** - append-only; send the
   tracking maintainer the updated declared list whenever a release instruments a new surface.
@@ -632,7 +633,7 @@ detail in `docs/tracking/README.md`. Rules that must not regress:
   single-in-flight + backoff discipline, converting timestamps in the DEVICE zone, and permanently off
   once their done-flag is set. Plays: row-ID cursor + a persisted max-id bound (live-tracked rows never
   double-upload), 3-year window. Actions (a snapshot): resume by persisted **acked-line count** (snapshot
-  `t`s are unstable - zone changes, `SyncUtils.likedSongs` rewriting `likedDate` - so server dedup can't
+  `t`s are unstable - zone changes, `SyncUtils.syncLikedSongs` rewriting `likedDate` - so server dedup can't
   absorb a replay), favorites before downloads, a **10-year** window (don't shrink it), pacing sleeps only
   BETWEEN batches, 90 s start delay (load spreading, not ordering), machine downloads included (weak
   signal server-side). Detail + rationale: `docs/tracking/README.md`.

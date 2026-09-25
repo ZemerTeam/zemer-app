@@ -97,7 +97,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `.github/workflows/ui-audit.yml` | 56 lines | `.yml` |
 | `.gitignore` | 117 lines | `[none]` |
 | `.gitmodules` | 3 lines | `[none]` |
-| `AGENTS.md` | 1000 lines | `.md` |
+| `AGENTS.md` | 1001 lines | `.md` |
 | `LICENSE` | 674 lines | `[none]` |
 | `README.md` | 9 lines | `.md` |
 | `app/.gitignore` | 1 lines | `[none]` |
@@ -1203,7 +1203,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `docs/latest_releases/03-runtime-store.md` | 57 lines | `.md` |
 | `docs/latest_releases/04-ui.md` | 58 lines | `.md` |
 | `docs/latest_releases/README.md` | 57 lines | `.md` |
-| `docs/lyrics/README.md` | 194 lines | `.md` |
+| `docs/lyrics/README.md` | 192 lines | `.md` |
 | `docs/multi_update/01-architecture.md` | 56 lines | `.md` |
 | `docs/multi_update/02-install-methods.md` | 73 lines | `.md` |
 | `docs/multi_update/03-restart.md` | 41 lines | `.md` |
