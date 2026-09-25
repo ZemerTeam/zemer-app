@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# UI standards audit (docs/ui/standards.md, sections 5, 7-8: strings, dialogs, theme & color).
+# UI standards audit (docs/ui/standards.md, sections 1, 5, 7-8, 11, 12: reuse, strings, dialogs, theme & color, menus, downloads).
 #
 # Ratcheting check: it FAILS only on NEW Rule 5/7/8 violations beyond the committed baseline
 # (scripts/ui-audit-baseline.tsv). The current known violations are allowlisted, so CI is green
@@ -230,7 +230,7 @@ improved="$(awk -F'\t' '
 ' <(printf "%s\n" "$cur") "$BASELINE")"
 
 if [ -n "$new" ]; then
-  echo "UI audit FAILED — new Rule 5/7/8/11/12/13/14/15/16/17/18/19/20/21/23-27 violations (docs/ui/standards.md sections 1, 5, 7-8, 11, 13):"
+  echo "UI audit FAILED — new Rule 5/7/8/11/12/13/14/15/16/17/18/19/20/21/23-27 violations (docs/ui/standards.md sections 1, 5, 7-8, 11, 12):"
   echo "$new"
   echo
   echo "Route font sizes through MaterialTheme.typography (Type.kt), colors through"
