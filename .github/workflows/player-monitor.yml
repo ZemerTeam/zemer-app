@@ -14,7 +14,7 @@ concurrency:
 
 jobs:
   check-player:
-    runs-on: [self-hosted, linux, x64, debiantripleu-ci]
+    runs-on: debiantripleu-ci
     permissions:
       issues: write
     steps:
