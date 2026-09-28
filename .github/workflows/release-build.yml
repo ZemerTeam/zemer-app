@@ -42,7 +42,7 @@ on:
 
 jobs:
   assemble-release:
-    runs-on: ${{ !contains(fromJSON('["pull_request","pull_request_review","pull_request_target","issue_comment","workflow_run"]'), github.event_name) && 'debiantripleu-ci' || 'ubuntu-latest' }}
+    runs-on: ubuntu-latest
     permissions:
       contents: write
 
