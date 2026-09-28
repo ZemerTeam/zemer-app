@@ -16,7 +16,7 @@ import { loadRawPlayerConfigs, nTrick } from "./player-configs.mjs";
 
 const ORIGIN = "https://music.youtube.com";
 const WEB_UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:140.0) Gecko/20100101 Firefox/140.0";
-const WEB_REMIX = { clientName: "WEB_REMIX", clientVersion: "1.20260213.01.00", clientId: "67" };
+const WEB_REMIX = { clientName: "WEB_REMIX", clientVersion: "1.20260707.12.00", clientId: "67" };
 
 const dec = (s) => { try { return s && /%[0-9A-Fa-f]{2}/.test(s) ? decodeURIComponent(s) : s; } catch { return s; } };
 const PLAYER_JS_URL = (h) => `https://www.youtube.com/s/player/${h}/player_ias.vflset/en_GB/base.js`;
