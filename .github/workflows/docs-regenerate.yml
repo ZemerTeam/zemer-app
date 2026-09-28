@@ -20,7 +20,7 @@ concurrency:
 
 jobs:
   regenerate:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, x64, debiantripleu-ci]
     steps:
       # Commit as the Zemer-Dude GitHub App (logo avatar) when it's configured: set repo variable
       # ZEMER_APP_ID and secret ZEMER_APP_PRIVATE_KEY. Until then this step is skipped and

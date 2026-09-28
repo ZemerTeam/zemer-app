@@ -36,7 +36,7 @@ concurrency:
 
 jobs:
   node-tests:
-    runs-on: ubuntu-latest
+    runs-on: ${{ !contains(fromJSON('["pull_request","pull_request_review","pull_request_target","issue_comment","workflow_run"]'), github.event_name) && 'debiantripleu-ci' || 'ubuntu-latest' }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -48,7 +48,7 @@ jobs:
           node --test tests/search/self-test.mjs
 
   unit-tests:
-    runs-on: ubuntu-latest
+    runs-on: ${{ !contains(fromJSON('["pull_request","pull_request_review","pull_request_target","issue_comment","workflow_run"]'), github.event_name) && 'debiantripleu-ci' || 'ubuntu-latest' }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
