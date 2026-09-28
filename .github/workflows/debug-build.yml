@@ -9,7 +9,7 @@ on:
 
 jobs:
   assemble-debug:
-    runs-on: debiantripleu-ci
+    runs-on: [self-hosted, linux, x64, debiantripleu-ci]
     permissions:
       contents: read
 
