@@ -4,7 +4,7 @@ import kotlinx.serialization.Serializable
 
 /**
  * Wire models for `GET /genres` (search.zemer.io) — the song-level genre layer (contract:
- * `~/zemer-fix/handoff-docs/zemer-app-genres.md`). Two hard rules from that contract:
+ * `handoff-docs/zemer-app-genres.md`). Two hard rules from that contract:
  *
  * - **Key off the slug ([ZemerGenreSummary.id]), never the label** — `title` is a display string the
  *   server changes freely.

@@ -200,7 +200,7 @@ class VideoQualityLogicTest {
 
     @Test
     fun `stall downgrade steps down exactly one rung and stops at the bottom`() {
-        // The rebuffer guard drops ONE rung per stall (2160p -> 1440p -> 1080p -> 720p ...), so
+        // The rebuffer guard drops ONE rung per downgrade (2160p -> 1440p -> 1080p -> 720p ...), so
         // playback settles on the highest rung that actually plays instead of over-dropping.
         val rungs = VideoQualityLogic.rungs(liveStreamingData())
         assertEquals("1440p", VideoQualityLogic.rungBelow(rungs, "2160p")?.label)

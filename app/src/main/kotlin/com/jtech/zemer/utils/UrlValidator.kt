@@ -60,7 +60,7 @@ object UrlValidator {
     }
 
     /**
-     * Validates a URL string without parsing
+     * Validates a URL string
      * @param urlString The URL string to validate
      * @return true if valid, false otherwise
      */

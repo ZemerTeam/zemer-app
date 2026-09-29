@@ -1,7 +1,7 @@
 name: Regression tests
 
-# Runs the app's JVM unit tests on every push/PR - previously they lived in the repo but
-# were never executed in CI. Covers the app + innertube module tests, the cipher library
+# Runs the app's JVM unit tests on every push/PR.
+# Covers the app + innertube module tests, the cipher library
 # tests, and the network-free Node loader tests. There is deliberately no signing and no
 # APK assemble here: assembleRelease in the release workflow already covers "does it build",
 # so this job stays fast and needs no keystore.

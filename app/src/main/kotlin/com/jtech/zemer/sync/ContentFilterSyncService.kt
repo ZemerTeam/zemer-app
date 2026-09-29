@@ -36,14 +36,12 @@ class ContentFilterSyncService @Inject constructor(
     private var _isApplyingServerPreferences = false
 
     init {
-        // Listen for authentication state changes
         serviceScope.launch {
             authManager.authStateFlow.collect { authState ->
                 handleAuthStateChange(authState)
             }
         }
 
-        // Listen for preference changes
         serviceScope.launch {
             ContentFilterState.state.collect { config ->
                 handlePreferenceChange(config)
@@ -95,7 +93,6 @@ class ContentFilterSyncService @Inject constructor(
                 Log.d("ZemerSync", "User is signed in, performing normal sync with retry")
                 Log.d("ZemerSync", "Attempting sync with auth ready check...")
 
-                // Set syncing state
                 _syncState.value = SyncState.SYNCING
 
                 val result = retryWithAuthTimeout {
@@ -157,37 +154,22 @@ class ContentFilterSyncService @Inject constructor(
         }
     }
 
-    /**
-     * Enable/disable sync
-     */
     suspend fun setSyncEnabled(enabled: Boolean) {
         userPreferencesRepository.setSyncEnabled(enabled)
     }
 
-    /**
-     * Check if sync is enabled
-     */
     suspend fun isSyncEnabled(): Boolean {
         return userPreferencesRepository.isSyncEnabled()
     }
 
-    /**
-     * Get sync status flow
-     */
     fun getSyncStatusFlow(): Flow<SyncStatus> {
         return userPreferencesRepository.getSyncStatusFlow()
     }
 
-    /**
-     * Get user's devices
-     */
     suspend fun getUserDevices(): Result<List<UserDevice>> {
         return userPreferencesRepository.getUserDevices()
     }
 
-    /**
-     * Handle authentication state changes
-     */
     private suspend fun handleAuthStateChange(authState: AuthState) {
         when (authState) {
             is AuthState.SignedIn -> {
@@ -209,16 +191,10 @@ class ContentFilterSyncService @Inject constructor(
         }
     }
 
-    /**
-     * Handle preference changes
-     */
     private suspend fun handlePreferenceChange(config: ContentFilterConfig) {
-        // Only sync if user is authenticated, sync is enabled, and we're not applying server preferences
         if (authManager.isUserSignedIn &&
             userPreferencesRepository.isSyncEnabled() &&
             !_isApplyingServerPreferences) {
-            // Debounce sync to avoid too frequent uploads
-            // In a real implementation, you might want to add proper debouncing
             syncToServer()
         }
     }
@@ -253,9 +229,6 @@ class ContentFilterSyncService @Inject constructor(
         }
     }
 
-    /**
-     * Wait for authentication to be ready with timeout
-     */
     private suspend fun waitForAuthReady(timeoutMs: Long = 10000L): Boolean {
         val startTime = System.currentTimeMillis()
 
@@ -281,7 +254,6 @@ class ContentFilterSyncService @Inject constructor(
 
         for (attempt in 0 until maxRetries) {
             try {
-                // Check if auth is ready
                 val isSignedIn = authManager.isUserSignedIn
                 val userEmail = authManager.currentUserEmail
                 Log.d("ZemerSync", "Retry attempt ${attempt + 1}: isSignedIn=$isSignedIn, userEmail=$userEmail")
@@ -323,9 +295,6 @@ class ContentFilterSyncService @Inject constructor(
     }
 }
 
-/**
- * Sealed class representing sync states
- */
 sealed class SyncState {
     object IDLE : SyncState()
     object SYNCING : SyncState()

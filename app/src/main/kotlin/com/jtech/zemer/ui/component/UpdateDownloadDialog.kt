@@ -103,7 +103,7 @@ fun UpdateDownloadDialog(
     DefaultDialog(
         onDismiss = { if (!busy) onDismiss() },
         horizontalAlignment = Alignment.Start,
-        // Centered over the symmetric version card (DefaultDialog starts a title only when an
+        // Centered over the symmetric version card (DefaultDialog centers a title only when an
         // icon is present).
         title = {
             Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {

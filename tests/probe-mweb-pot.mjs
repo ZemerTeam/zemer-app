@@ -3,7 +3,7 @@ import { createMinter } from "./potoken.mjs";
 import { createCipher } from "./cipher.mjs";
 import crypto from "node:crypto";
 const VIDEO_ID = process.argv[2] || "gl9VXSMZwTo";
-const PO = process.argv[3] || "video"; // which pot goes in streamerContext: video|web|both-url
+const PO = process.argv[3] || "video"; // video|web: which pot goes in streamerContext; both-url: the web pot goes on the URL instead
 const PLAYER_ORIGIN = "https://music.youtube.com";
 const C = { clientName: "MWEB", clientVersion: "2.20260708.05.00", clientId: 2, ua: "Mozilla/5.0 (iPad; CPU OS 16_7_10 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1,gzip(gfe)" };
 const dec = (s) => { try { return s && /%[0-9A-Fa-f]{2}/.test(s) ? decodeURIComponent(s) : s; } catch { return s; } };

@@ -38,7 +38,7 @@ fun interface RelayUpstreamResolver {
  * different IPv6 prefix) can therefore never fetch the phone's URLs directly. Relaying makes the
  * fetching identity equal the minting identity by construction.
  *
- * Design constraints (see local/notes/cast-url-403-and-relay-fix.md for the measurements):
+ * Design constraints:
  *  - Alive only while casting: [CastConnector] hands out the first relay URL, [CastController] stops
  *    the relay after a disconnect grace period. Random port + a per-track 128-bit token is the whole
  *    exposure surface.

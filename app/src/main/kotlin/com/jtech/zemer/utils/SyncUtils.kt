@@ -80,7 +80,7 @@ class SyncUtils @Inject constructor(
     private val _whitelistSyncProgress = MutableStateFlow(WhitelistSyncProgress())
     val whitelistSyncProgress: StateFlow<WhitelistSyncProgress> = _whitelistSyncProgress.asStateFlow()
 
-    // Podcast whitelist sync (the SEPARATE podcastsWhitelist collection, mirroring the artist whitelist).
+    // Podcast whitelist sync (the SEPARATE podcastChannelsWhitelist, mirroring the artist whitelist).
     private val isSyncingPodcastWhitelist = MutableStateFlow(false)
     val isPodcastWhitelistSyncing: StateFlow<Boolean> = isSyncingPodcastWhitelist.asStateFlow()
     private val _podcastWhitelistSyncProgress = MutableStateFlow(WhitelistSyncProgress())
@@ -612,7 +612,6 @@ class SyncUtils @Inject constructor(
                             val allowedSongs = playlistPage.songs.filterWhitelistedWithLocalArtists(database, allowedArtistIds)
 
                             if (allowedSongs.isNotEmpty()) {
-                                // Only add playlist if it has at least one allowed song
                                 remotePlaylists.add(playlist)
 
                                 var playlistEntity = localPlaylists.find { it.playlist.browseId == playlist.id }?.playlist
@@ -673,7 +672,7 @@ class SyncUtils @Inject constructor(
                     }
                 }
 
-                // Remove playlists that are no longer in remote (not filtered) from database
+                // Un-bookmark synced playlists that are no longer in the kept remote set
                 val remoteIds = remotePlaylists.map { it.id }.toSet()
                 localPlaylists.filterNot { it.playlist.browseId in remoteIds }.filterNot { it.playlist.browseId == null }.forEach { database.update(it.playlist.localToggleLike()) }
             }
@@ -957,7 +956,7 @@ class SyncUtils @Inject constructor(
     }
 
     /**
-     * Sync the podcast whitelist (the Firestore `podcastsWhitelist` collection) into the local
+     * Sync the podcast whitelist (`podcastChannelsWhitelist`, mirror-first) into the local
      * `podcast_whitelist` table + in-memory [PodcastWhitelistCache], mirroring [syncArtistWhitelist]:
      * a version probe skips the fetch when unchanged, existing thumbnails are preserved across a
      * refresh, and a failure keeps the previous list (never empties the browse screen). Account-
@@ -970,7 +969,7 @@ class SyncUtils @Inject constructor(
             _podcastWhitelistSyncProgress.value = WhitelistSyncProgress()
             try {
                 // The allow-set + version gate + art all come from the content mirror (content.zemer.io/
-                // podcastsWhitelist), MIRROR-FIRST with Firestore fallback — exactly like the artist
+                // podcastChannelsWhitelist), MIRROR-FIRST with Firestore fallback — exactly like the artist
                 // whitelist (WhitelistFetcher.fetch*): each doc now carries thumbnailUrl + channelId, so
                 // the browse grid renders straight from the mirror with no per-device catalog fetch.
                 val remoteVersion = WhitelistFetcher.fetchPodcastVersion().getOrNull()
@@ -1057,7 +1056,6 @@ class SyncUtils @Inject constructor(
         if (removedArtistIds.isEmpty()) return
 
         try {
-            // Process each removed artist
             for (artistId in removedArtistIds) {
                 try {
                     // Step 1: Get all song IDs for this artist

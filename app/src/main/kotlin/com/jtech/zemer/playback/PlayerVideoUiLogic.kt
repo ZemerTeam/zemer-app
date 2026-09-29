@@ -72,7 +72,7 @@ object PlayerVideoUiLogic {
     /**
      * Whether opening the lyrics sheet should revert video mode to audio. Video plays inline in the
      * album-art slot; the lyrics sheet expands over it, so the video surface keeps decoding — burning
-     * bandwidth and CPU invisibly behind the lyrics (DESIGN §4). The defensible rule: opening lyrics
+     * bandwidth and CPU invisibly behind the lyrics. The defensible rule: opening lyrics
      * exits video mode (position-continuous revert to audio). Closing lyrics does NOT auto-return to
      * video — video is a per-play opt-in the user re-toggles.
      */

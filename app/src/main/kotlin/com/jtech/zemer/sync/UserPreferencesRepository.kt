@@ -39,7 +39,6 @@ import android.util.Log
 import javax.inject.Inject
 import javax.inject.Singleton
 
-// Extension functions for easier access
 private fun ContentFilterConfig.toDeviceContentFilters(): DeviceContentFilters {
     return DeviceContentFilters(
         enableContentFilters = filtersEnabled,
@@ -80,7 +79,7 @@ class UserPreferencesRepository @Inject constructor(
         private const val DEVICE_PREFERENCES_SUBCOLLECTION = "devicePreferences"
     }
 
-    // Helper function to get document ID - now using Firebase UID instead of email
+    // The user's document ID is their Firebase UID.
     private fun getDocumentId(): String {
         return authManager.currentUserId ?: throw IllegalStateException("User not authenticated")
     }
@@ -120,7 +119,7 @@ class UserPreferencesRepository @Inject constructor(
     private val syncEnabledKey = booleanPreferencesKey("content_filter_sync_enabled")
 
     /**
-     * Fetch device preferences from Firestore (NEW STRUCTURE: Single document per user with devices array)
+     * Fetch device preferences from Firestore (single document per user with a devices array)
      */
     suspend fun fetchDevicePreferences(): Result<ContentFilterConfig> {
         return try {
@@ -129,7 +128,7 @@ class UserPreferencesRepository @Inject constructor(
 
             val deviceId = deviceIdGenerator.getDeviceId()
 
-            // NEW: Fetch single document by UID directly from devicePreferences collection
+            // Fetch single document by UID directly from devicePreferences collection
             val document = firestore
                 .collection(USER_PREFERENCES_COLLECTION)
                 .document(getDocumentId())
@@ -144,15 +143,12 @@ class UserPreferencesRepository @Inject constructor(
                 val deviceData = entity.devices.find { it.deviceId == deviceId }
                 val config = deviceData?.contentFilters?.toConfig() ?: entity.contentFilters.toConfig()
 
-                // Update sync timestamp
                 updateLastSyncTime()
 
-                // Store device ID locally
                 storeDeviceId(deviceId)
 
                 Result.success(config)
             } else {
-                // No preferences exist for this user yet
                 Result.failure(Exception("No user preferences found"))
             }
         } catch (e: Exception) {
@@ -165,14 +161,14 @@ class UserPreferencesRepository @Inject constructor(
 
     /**
      * Fetch device preferences by device ID only (no authentication required)
-     * This searches for preferences across all users by device ID (NEW STRUCTURE)
+     * This searches for preferences across all users by device ID
      */
     suspend fun fetchDevicePreferencesByDeviceId(): Result<ContentFilterConfig> {
         return try {
             val deviceId = deviceIdGenerator.getDeviceId()
             Log.d("ZemerSync", "Fetching preferences for device ID: $deviceId")
 
-            // NEW: Query all user documents in userPreferences collection for this device ID in the devices array
+            // Query all user documents in the devicePreferences collection for this device ID in the devices array
             // Since Firestore doesn't support array queries across all documents directly,
             // we need to fetch all user documents and search in memory
             val query = firestore
@@ -187,7 +183,6 @@ class UserPreferencesRepository @Inject constructor(
             for (document in query.documents) {
                 val entity = document.toObject(DevicePreferencesEntity::class.java)
                 if (entity != null) {
-                    // Search for this device in the devices array
                     val deviceData = entity.devices.find { it.deviceId == deviceId }
                     if (deviceData != null) {
                         foundConfig = deviceData.contentFilters.toConfig()
@@ -198,15 +193,12 @@ class UserPreferencesRepository @Inject constructor(
             }
 
             if (foundConfig != null) {
-                // Update sync timestamp
                 updateLastSyncTime()
 
-                // Store device ID locally
                 storeDeviceId(deviceId)
 
                 Result.success(foundConfig)
             } else {
-                // No preferences exist for this device yet
                 Log.d("ZemerSync", "No device preferences found for device ID: $deviceId")
                 Result.failure(Exception("No device preferences found"))
             }
@@ -291,10 +283,8 @@ class UserPreferencesRepository @Inject constructor(
 
             Log.d("ZemerSync", "Successfully uploaded to: devicePreferences/$userId")
 
-            // Update sync timestamp
             updateLastSyncTime()
 
-            // Store device ID locally
             storeDeviceId(deviceId)
 
             Result.success(Unit)
@@ -308,14 +298,14 @@ class UserPreferencesRepository @Inject constructor(
     }
 
     /**
-     * Update existing device preferences in Firestore (NEW STRUCTURE)
+     * Update existing device preferences in Firestore
      */
     suspend fun updateDevicePreferences(config: ContentFilterConfig): Result<Unit> {
         return try {
             // No email needed for updating preferences - we use UID as document ID
             val deviceId = deviceIdGenerator.getDeviceId()
 
-            // NEW: Fetch the user document and update the specific device in the devices array
+            // Fetch the user document and update the specific device in the devices array
             val document = firestore
                 .collection(USER_PREFERENCES_COLLECTION)
                 .document(getDocumentId())
@@ -326,7 +316,6 @@ class UserPreferencesRepository @Inject constructor(
                 val entity = document.toObject(DevicePreferencesEntity::class.java)
                     ?: return Result.failure(Exception("Failed to parse user preferences"))
 
-                // Update the specific device in the devices array
                 val updatedDevices = entity.devices.map { deviceData ->
                     if (deviceData.deviceId == deviceId) {
                         deviceData.copy(
@@ -339,7 +328,6 @@ class UserPreferencesRepository @Inject constructor(
                     }
                 }
 
-                // Update the document with the modified devices array
                 firestore
                     .collection(USER_PREFERENCES_COLLECTION)
                     .document(getDocumentId())
@@ -353,7 +341,6 @@ class UserPreferencesRepository @Inject constructor(
                 uploadDevicePreferences(config)
             }
 
-            // Update sync timestamp
             updateLastSyncTime()
 
             Result.success(Unit)
@@ -363,14 +350,13 @@ class UserPreferencesRepository @Inject constructor(
     }
 
     /**
-     * Get all devices for the current user (NEW STRUCTURE)
+     * Get all devices for the current user
      */
     suspend fun getUserDevices(): Result<List<UserDevice>> {
         return try {
             // No email needed - we use UID as document ID
             val currentDeviceId = deviceIdGenerator.getDeviceId()
 
-            // NEW: Fetch single user document by UID
             val document = firestore
                 .collection(USER_PREFERENCES_COLLECTION)
                 .document(getDocumentId())
@@ -395,34 +381,25 @@ class UserPreferencesRepository @Inject constructor(
                     Result.failure(Exception("Failed to parse user preferences"))
                 }
             } else {
-                Result.success(emptyList()) // No devices found
+                Result.success(emptyList())
             }
         } catch (e: Exception) {
             Result.failure(e)
         }
     }
 
-    /**
-     * Check if sync is enabled
-     */
     suspend fun isSyncEnabled(): Boolean {
         return syncDataStore.data.map { preferences ->
-            preferences[syncEnabledKey] ?: true // Default to enabled
+            preferences[syncEnabledKey] ?: true
         }.first()
     }
 
-    /**
-     * Set sync enabled/disabled
-     */
     suspend fun setSyncEnabled(enabled: Boolean) {
         syncDataStore.edit { preferences ->
             preferences[syncEnabledKey] = enabled
         }
     }
 
-    /**
-     * Get last sync time
-     */
     suspend fun getLastSyncTime(): Long {
         return syncDataStore.data.map { preferences ->
             preferences[lastSyncTimeKey] ?: 0L
@@ -447,11 +424,6 @@ class UserPreferencesRepository @Inject constructor(
                 return Result.failure(Exception("User not authenticated"))
             }
 
-            // Temporarily remove sync check to test if that's the issue
-            // if (!isSyncEnabled()) {
-            //     return Result.failure(Exception("Sync is disabled"))
-            // }
-
             // Get current local configuration from DataStore
             val prefs = mainDataStore.data.first()
             val currentConfig = ContentFilterConfig(
@@ -466,10 +438,8 @@ class UserPreferencesRepository @Inject constructor(
             val existingPrefs = fetchDevicePreferences()
 
             if (existingPrefs.isSuccess) {
-                // Update existing preferences
                 updateDevicePreferences(currentConfig)
             } else {
-                // Create new preferences
                 uploadDevicePreferences(currentConfig)
             }
 
@@ -539,18 +509,12 @@ class UserPreferencesRepository @Inject constructor(
         }
     }
 
-    /**
-     * Update last sync timestamp
-     */
     private suspend fun updateLastSyncTime() {
         syncDataStore.edit { preferences ->
             preferences[lastSyncTimeKey] = System.currentTimeMillis()
         }
     }
 
-    /**
-     * Store device ID locally
-     */
     private suspend fun storeDeviceId(deviceId: String) {
         syncDataStore.edit { preferences ->
             preferences[deviceIdKey] = deviceId
@@ -572,9 +536,6 @@ class UserPreferencesRepository @Inject constructor(
         }
     }
 
-    /**
-     * Get sync status flow
-     */
     fun getSyncStatusFlow(): Flow<SyncStatus> {
         return syncDataStore.data.map { preferences ->
             val lastSync = preferences[lastSyncTimeKey] ?: 0L
@@ -591,14 +552,14 @@ class UserPreferencesRepository @Inject constructor(
     }
 
     /**
-     * Mark preferences as auto-restored and save the email (NEW STRUCTURE)
+     * Mark preferences as auto-restored and save the email
      */
     suspend fun markAutoRestored(config: com.jtech.zemer.utils.ContentFilterConfig) {
         try {
             // Get the email from the user preferences that were just fetched
             val deviceId = deviceIdGenerator.getDeviceId()
 
-            // NEW: Search in userPreferences collection for this device ID
+            // Search the devicePreferences collection for this device ID
             val query = firestore
                 .collection(USER_PREFERENCES_COLLECTION)
                 .get()
@@ -609,7 +570,6 @@ class UserPreferencesRepository @Inject constructor(
             for (document in query.documents) {
                 val entity = document.toObject(DevicePreferencesEntity::class.java)
                 if (entity != null) {
-                    // Search for this device in the devices array
                     val deviceData = entity.devices.find { it.deviceId == deviceId }
                     if (deviceData != null) {
                         userEmail = entity.userEmail
@@ -628,18 +588,12 @@ class UserPreferencesRepository @Inject constructor(
         }
     }
 
-    /**
-     * Check if content filters were auto-restored
-     */
     suspend fun isAutoRestored(): Boolean {
         return syncDataStore.data.map { preferences ->
             preferences[ContentFiltersAutoRestoredKey] ?: false
         }.first()
     }
 
-    /**
-     * Get the restored email
-     */
     suspend fun getRestoredEmail(): String? {
         return syncDataStore.data.map { preferences ->
             val email = preferences[ContentFiltersRestoredEmailKey]
@@ -647,18 +601,12 @@ class UserPreferencesRepository @Inject constructor(
         }.first()
     }
 
-    /**
-     * Check if content filters are locked
-     */
     suspend fun isLocked(): Boolean {
         return syncDataStore.data.map { preferences ->
             preferences[ContentFiltersLockedKey] ?: false
         }.first()
     }
 
-    /**
-     * Set content filters lock state
-     */
     suspend fun setLocked(locked: Boolean) {
         syncDataStore.edit { preferences ->
             preferences[ContentFiltersLockedKey] = locked
@@ -667,9 +615,6 @@ class UserPreferencesRepository @Inject constructor(
 
     }
 
-/**
- * Data class representing a user's device
- */
 data class UserDevice(
     val deviceId: String,
     val deviceName: String,
@@ -679,9 +624,6 @@ data class UserDevice(
     val isCurrentDevice: Boolean
 )
 
-/**
- * Sealed class representing sync status
- */
 sealed class SyncStatus {
     object NOT_AUTHENTICATED : SyncStatus()
     object DISABLED : SyncStatus()

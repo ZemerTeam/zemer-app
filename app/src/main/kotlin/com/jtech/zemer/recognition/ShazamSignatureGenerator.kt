@@ -14,8 +14,8 @@ import kotlin.math.max
 /**
  * Pure Kotlin implementation of the Shazam audio fingerprinting algorithm.
  *
- * Ported from the vibra C++ library (https://github.com/marin-m/SongRec) which implements
- * the Shazam signature algorithm using FFT-based audio fingerprinting.
+ * Ported from the vibra C++ library (https://github.com/BayernMuller/vibra, itself adapted from SongRec),
+ * which implements the Shazam signature algorithm using FFT-based audio fingerprinting.
  *
  * This replaces the native C++ + FFTW3 implementation with a pure JVM solution.
  *

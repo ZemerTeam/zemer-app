@@ -92,7 +92,7 @@ object VideoModeLogic {
 
         // Type still UNKNOWN, but the CORPUS classified this a video-song — authoritative server data
         // (every Zemer videos-category row), not a guess: SELF, instantly, no round-trip. A LEARNED
-        // ATV type never reaches here (it exits null above via the counterpart tier), so YouTube's own
+        // ATV type never takes this branch (only the counterpart tier above can serve it), so YouTube's own
         // verdict still governs once known.
         if (musicVideoType == null && corpusVideoSong) {
             return if (isBlockedRendition(mediaId)) null else Rendition(RenditionKind.SELF, mediaId)

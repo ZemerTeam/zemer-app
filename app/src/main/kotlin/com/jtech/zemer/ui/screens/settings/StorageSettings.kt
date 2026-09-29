@@ -193,7 +193,7 @@ fun StorageSettings(
         Spacer(Modifier.height(SettingsScreenTopSpacing))
         SettingsCardGroup(
             title = stringResource(R.string.downloaded_songs),
-            // Section-scoped size caption between the title and the rows (main's hierarchy).
+            // Section-scoped size caption between the title and the rows.
             headerContent = {
                 Text(
                     text = stringResource(R.string.size_used, formatFileSize(downloadCacheSize)),
@@ -286,8 +286,8 @@ fun StorageSettings(
                             Modifier
                                 .fillMaxWidth()
                                 .padding(start = 4.dp, top = 2.dp, bottom = 6.dp),
-                            color = MaterialTheme.colorScheme.primary, // Explicitly use theme color
-                            trackColor = MaterialTheme.colorScheme.surfaceVariant, // Use appropriate track color
+                            color = MaterialTheme.colorScheme.primary,
+                            trackColor = MaterialTheme.colorScheme.surfaceVariant,
                             strokeCap = StrokeCap.Round // M3 default style
                         )
 
@@ -363,8 +363,8 @@ fun StorageSettings(
                         Modifier
                             .fillMaxWidth()
                             .padding(start = 4.dp, top = 2.dp, bottom = 6.dp),
-                        color = MaterialTheme.colorScheme.primary, // Explicitly use theme color
-                        trackColor = MaterialTheme.colorScheme.surfaceVariant, // Use appropriate track color
+                        color = MaterialTheme.colorScheme.primary,
+                        trackColor = MaterialTheme.colorScheme.surfaceVariant,
                         strokeCap = StrokeCap.Round // M3 default style
                     )
 

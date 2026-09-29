@@ -8,7 +8,7 @@ package com.jtech.zemer.playback.sabr
  */
 internal object SabrUmp {
 
-    /** Part-type ids we act on (the rest are informational and ignored). */
+    /** Known part-type ids (MEDIA_END and unlisted types are ignored). */
     const val MEDIA_HEADER = 20
     const val MEDIA = 21
     const val MEDIA_END = 22

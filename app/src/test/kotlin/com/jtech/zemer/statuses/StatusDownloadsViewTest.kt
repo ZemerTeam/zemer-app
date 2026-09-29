@@ -3,7 +3,7 @@ package com.jtech.zemer.statuses
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
-/** JVM coverage of the Status library's pure filter/sort/group logic. */
+/** JVM coverage of the Status library's pure filter/sort logic. */
 class StatusDownloadsViewTest {
 
     private fun d(id: String, kind: String, creator: String, posted: String, saved: Long) = StatusDownload(

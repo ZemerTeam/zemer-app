@@ -29,7 +29,7 @@ data class ZemerCategories(
     val playlists: List<ZemerPlaylist> = emptyList(),
     val community: List<ZemerPlaylist> = emptyList(),
     // Podcast SHOWS + EPISODES folded into search (server reply 2026-08-01). Absent on an older
-    // server build → empty. Shows open the podcast SHOW screen; episodes play by videoId.
+    // server build → empty. Shows open the host channel (else the SHOW); episodes play by videoId.
     val podcasts: List<ZemerPodcastShow> = emptyList(),
     val episodes: List<ZemerPodcastEpisode> = emptyList(),
 )
@@ -163,8 +163,8 @@ data class ZemerPlaylist(
  * for the flags sent, so the app does NOT re-run the artist-membership whitelist; it re-applies only the
  * client-owned checks as defence-in-depth (female/israeli via [ZemerTrack.artistId]).
  *
- * [topCommunity] stays empty until the app tags `community:<playlistId>` playback; the lenient parser
- * ([zemerResponseJson]) tolerates the key being absent on older servers.
+ * [topCommunity] is ranked by YouTube view count instead; the lenient parser ([zemerResponseJson])
+ * tolerates the key being absent on older servers.
  */
 @Serializable
 data class ZemerHomeRowsResponse(
@@ -199,8 +199,8 @@ data class ZemerPlaylistHeader(
 /**
  * Wire model for `GET /album` (search.zemer.io). [tracks] arrive already whitelist-scoped and
  * content-filtered server-side (an entirely blocked album is a 404, not an empty list), so the opened
- * album matches the search card — never re-run the local artist whitelist over it. The header carries
- * no playlistId; the search card's rides along on the nav route instead.
+ * album matches the search card — never re-run the local artist whitelist over it. The search card's
+ * playlistId rides along on the nav route ([ZemerAlbumHeader.playlistId] is optional).
  */
 @Serializable
 data class ZemerAlbumResponse(
@@ -273,7 +273,7 @@ data class ZemerAlbumHeader(
  * Wire model for `GET /artist` (search.zemer.io) — an artist's whole catalog, already whitelist-scoped
  * and content-filtered server-side for the flags sent. Returned as flat arrays; the app builds the
  * `ArtistPage` sections from them (there is no pagination — the arrays are complete). A `404` means the
- * artist is filtered out entirely or absent from the corpus; the caller then falls back to InnerTube.
+ * artist is filtered out entirely or absent from the corpus; the screen shows its not-available state.
  * The `artist` header and `playlists` reuse [ZemerArtist]/[ZemerPlaylist]; `songs`/`videos` reuse
  * [ZemerTrack]; `albums`/`singles` reuse [ZemerAlbum] (the server splits them on `type`).
  */

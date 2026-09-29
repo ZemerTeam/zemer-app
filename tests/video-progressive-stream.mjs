@@ -5,7 +5,7 @@
 // audio adaptiveFormat. Everything else — cipher (sig + n), poToken mint, faithful /player request,
 // the &pot= append, and the range/drain battery against the live CDN — is identical to the audio probe,
 // because video mode resolves through the SAME playerResponseForPlayback(preferVideo=true) path (no
-// streaming-pipeline change). The verification target (unified-video DESIGN §2 / §9): a progressive
+// streaming-pipeline change). The verification target: a progressive
 // itag returns HTTP 206 AND drains past the 1 MiB pot-bound wall (the whole file, not just the first
 // free MiB).
 //
@@ -25,7 +25,7 @@ import { createCipher } from "./cipher.mjs";
 const VIDEO_ID = process.argv[2] || process.env.VIDEO_ID || "JTF9fLJvniI";
 const CHUNK = Number(process.env.CHUNK || 262144);
 const COVER_SECONDS = Number(process.env.COVER_SECONDS || 90);
-// Mirror the app's metered/non-metered cap (VideoModeController: 1500 metered, 6000 otherwise). The
+// Mirror the app's metered/non-metered cap (VideoRendition: 1500 metered, 6000 otherwise). The
 // harness runs on a dev machine (treated as non-metered) → default 6000; override with MAX_KBPS.
 const MAX_KBPS = process.env.MAX_KBPS ? Number(process.env.MAX_KBPS) : 6000;
 const WEB_REMIX = CLIENTS_WITH_RETIRED.find((c) => c.key === "WEB_REMIX");

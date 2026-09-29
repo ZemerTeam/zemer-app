@@ -1,6 +1,6 @@
 // Hard-data probe for WEB_CREATOR streaming.
 //
-// WEB_CREATOR is loginRequired + useSignatureTimestamp, and (in the app) useWebPoTokens=false.
+// WEB_CREATOR is loginRequired + useSignatureTimestamp, and (in the app) useWebPoTokens=true.
 // Two questions, answered against the live CDN with the real logged-in cookie:
 //   1. Is WEB_CREATOR even PLAYABLE with this account? Tested with no / videoId / visitorData
 //      poToken in the /player request.

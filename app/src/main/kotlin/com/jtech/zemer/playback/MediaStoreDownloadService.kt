@@ -76,7 +76,6 @@ class MediaStoreDownloadService : Service() {
 
         notificationManager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
 
-        // Create notification channel for downloads
         createNotificationChannel()
 
         // CRITICAL: Start foreground immediately to avoid ANR
@@ -90,7 +89,6 @@ class MediaStoreDownloadService : Service() {
                 .onEach { states ->
                     updateNotification(states)
 
-                    // Stop service if no active downloads
                     if (states.values.none { it.status == MediaStoreDownloadManager.DownloadState.Status.DOWNLOADING ||
                                 it.status == MediaStoreDownloadManager.DownloadState.Status.QUEUED }) {
                         stopSelf()
@@ -209,7 +207,6 @@ class MediaStoreDownloadService : Service() {
     private suspend fun createSingleDownloadNotification(
         state: MediaStoreDownloadManager.DownloadState
     ): Notification {
-        // Get song info from database
         val song = database.song(state.songId).first()
         val title = song?.song?.title ?: "Unknown"
         val artist = song?.artists?.firstOrNull()?.name ?: "Unknown Artist"
@@ -225,7 +222,6 @@ class MediaStoreDownloadService : Service() {
             else -> null
         }
 
-        // Create cancel intent
         val cancelIntent = Intent(this, MediaStoreDownloadService::class.java).apply {
             action = ACTION_CANCEL_DOWNLOAD
             putExtra(EXTRA_SONG_ID, state.songId)
@@ -273,7 +269,6 @@ class MediaStoreDownloadService : Service() {
                 "$queuedCount ${if (queuedCount == 1) "song" else "songs"} queued"
         }
 
-        // Calculate average progress
         val avgProgress = downloads
             .filter { it.status == MediaStoreDownloadManager.DownloadState.Status.DOWNLOADING }
             .map { it.progress }

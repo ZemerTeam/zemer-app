@@ -10,10 +10,10 @@ import java.io.File
 import java.util.concurrent.TimeUnit
 
 /**
- * Turns a resolved `/player` response into a playable SABR DataSpec. The streaming pipeline (when SABR
+ * Turns a resolved `/player` response into a SABR session config. The streaming pipeline (when SABR
  * mode is on for a SABR-capable client — WEB_REMIX / TVHTML5_SIMPLY / VISIONOS, validated whole-song in
- * `tests/sabr-clients.mjs`) calls [register] with the pieces it already has, then hands ExoPlayer the
- * returned `sabr://<mediaId>` uri; [SabrDataSource] does the rest.
+ * `tests/sabr-clients.mjs`) calls [buildConfig] via [SabrPlayerResolver], which registers the config,
+ * then hands ExoPlayer the `sabr://<mediaId>` uri; [SabrDataSource] does the rest.
  *
  * Inputs are primitives so this stays decoupled from the innertube models and unit-testable. The caller
  * supplies [nTransform] (the cipher n-parameter transform) for web clients whose serverAbrStreamingUrl is
@@ -152,8 +152,7 @@ object SabrStreamResolver {
             ustreamerConfig = decodeBase64(ustreamerConfigBase64),
             format = SabrMessages.Format(itag, lastModified, contentLength),
             // The streamerContext poToken as raw bytes. Decode tolerantly: the app's PoTokenGenerator
-            // emits STANDARD base64 (+/), bgutils emits url-safe (-_); normalize either to standard,
-            // pad, and decode - a strict URL_SAFE decode throws "bad base-64" on a standard token.
+            // emits url-safe base64 (-_); normalize either alphabet to standard, pad, and decode.
             poToken = decodeBase64(poTokenBase64Url),
             clientInfo = SabrMessages.ClientInfo(
                 clientName = client.clientName,

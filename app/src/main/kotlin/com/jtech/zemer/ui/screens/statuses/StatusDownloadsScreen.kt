@@ -126,7 +126,7 @@ fun StatusDownloadsScreen(
     val sortedFiltered = remember(filtered, sort) { filtered.sortedFlat(sort) }
 
     // Multi-select: wrap the visible items for the shared selection machinery. Re-derived (selection
-    // resets) whenever the visible set changes; the wrapper's own default is `true`, so start unselected.
+    // resets) whenever the visible set changes.
     var selection by remember { mutableStateOf(false) }
     val wrapped = remember(sortedFiltered) { sortedFiltered.map { ItemWrapper(it).apply { isSelected = false } } }
     if (selection && wrapped.isEmpty()) selection = false

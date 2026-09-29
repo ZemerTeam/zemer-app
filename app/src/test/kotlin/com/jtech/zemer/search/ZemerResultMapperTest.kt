@@ -646,7 +646,7 @@ class ZemerResultMapperTest {
         assertEquals("OLAK9", resp.toAlbumPage(playlistId = "MPRE1").album.playlistId)
         // A real opener OP id still wins over the server's.
         assertEquals("OLAK1", resp.toAlbumPage(playlistId = "OLAK1").album.playlistId)
-        // Opener echoing the browseId with no server id -> browseId fallback (disabled automix only).
+        // Opener echoing the browseId with no server id -> browseId fallback.
         val bare = resp.copy(album = resp.album.copy(playlistId = null))
         assertEquals("MPRE1", bare.toAlbumPage(playlistId = "MPRE1").album.playlistId)
     }

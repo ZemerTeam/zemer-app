@@ -8,7 +8,7 @@
 // cpn appended, comparing byte totals and every chunk status.
 //
 //   node tests/watchtime-cpn-stream.mjs [videoId]
-//   COVER_MIB=6 node tests/watchtime-cpn-stream.mjs   # drain more of the file
+//   COVER_MIB=20 node tests/watchtime-cpn-stream.mjs  # drain more of the file
 
 import crypto from "node:crypto";
 import { CLIENTS, ORIGIN, PLAYER_URL } from "./clients.mjs";

@@ -13,7 +13,7 @@ import kotlinx.coroutines.CancellationException
  * the sources the server vouches for. Sources are walked SYNCED FIRST (a source the server flags `synced`, one
  * carrying `syncedLrc`/`richSync` inline, or the one pointer the resolver's measured `lineTimes` cover), then
  * by [rank]: zemer (Zemer's own certified text + word timings) > jkaraoke / apple (line-synced from the source) >
- * lrclib / kugou / zingmusic / youtube > the text pages jyrics / shironet / tab4u / zemirotdb /
+ * lrclib / kugou / simpmusic / zingmusic / youtube > the text pages jyrics / shironet / tab4u / zemirotdb /
  * lyricstranslate > the operator-hosted booklet / manual / canonical / community bodies (kept behind the
  * pointers: a pointer is the fresher copy, the inline body the fallback through a provider outage).
  * Every body goes through the same parser the server used to verify it (golden-pinned ports), so what the

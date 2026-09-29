@@ -150,9 +150,9 @@ private fun prefetchStatusImage(
 }
 
 /**
- * Full-screen WhatsApp/Stories-style viewer for JewishStatus creators. Reachable only from the Home
- * "Music Status" row; [initialCreatorId] is the tapped creator's STABLE id (not an index, which would
- * remap to the wrong creator after a process-death re-fetch under the recency sort). Advances across
+ * Full-screen WhatsApp/Stories-style viewer for status creators. Reached from the Home "Music Status"
+ * row and its See-all grid; [initialCreatorId] is the tapped creator's STABLE id (not an index, which
+ * would remap to the wrong creator after a process-death re-fetch under the recency sort). Advances across
  * creators, tap-left-35% = back / tap-right = forward, auto-advance (video plays to its end, image/text
  * hold [StatusPost.durationSeconds] or 7s).
  *
@@ -161,8 +161,7 @@ private fun prefetchStatusImage(
  * the correct theme-agnostic choice.
  *
  * Its OWN short-lived ExoPlayer, independent of MusicService. The Zemer music player is paused while
- * the viewer is up and RESUMED on close (mirrors [com.jtech.zemer.ui.screens.player.VideoPlayerScreen]'s
- * cast handling, plus the local resume the owner asked for).
+ * the viewer is up and RESUMED on close ([com.jtech.zemer.ui.utils.PauseMusicWhileActive]).
  */
 @Composable
 fun StoryScreen(
@@ -247,9 +246,9 @@ fun StoryScreen(
     // Reset per status (keyed on creator+post index) so a new status starts collapsed and playing.
     var captionExpanded by remember(creatorIdx, postIdx) { mutableStateOf(false) }
 
-    // True once the CURRENT video has actually drawn its first frame. The thumbnail is held over the
-    // player until then (not merely until progress ticks) so there is no black gap between the thumbnail
-    // and the video - the "blurry, flash, then play" the user saw. Reset per status by the play effect.
+    // True once the CURRENT video has actually drawn its first frame. A black cover (+ the delayed
+    // loading state) is held over the player until then (not merely until progress ticks). Reset per
+    // status by the play effect.
     var videoRendered by remember { mutableStateOf(false) }
     DisposableEffect(exoPlayer) {
         val listener = object : Player.Listener {
@@ -378,7 +377,7 @@ fun StoryScreen(
         viewModel.markSeen(post.id)
 
         progress = 0f
-        videoRendered = false // hold the thumbnail until THIS status's video draws its first frame
+        videoRendered = false // hold the cover until THIS status's video draws its first frame
         exoPlayer.stop()
 
         if (post.kind == "video" && post.mediaPath != null) {
@@ -528,7 +527,7 @@ fun StoryScreen(
                         val body = post.textBody ?: post.caption ?: ""
                         val textColor = if (parsedBg != null) Color.White else colorScheme.onSurfaceVariant
                         // Links are readable on either backdrop: white (underlined) over a colored bg, the
-                        // gold accent over the neutral themed surface.
+                        // theme accent over the neutral themed surface.
                         val textLinkColor = if (parsedBg != null) Color.White else colorScheme.primary
                         val linkedBody = remember(body, textLinkColor) {
                             linkifyStatusText(body, textLinkColor) { context.openStatusLink(it) }
@@ -825,9 +824,8 @@ private fun FabProgressRing(
 
 /**
  * The face shown for a NON-active creator during a cube swipe. Loads the creator's posts (cached) and
- * renders the SAME status the viewer will resume to (image, text, or a video's thumbnail frame) - no
- * player, no auto-advance - so both sides of the cube show real content. Falls back to the avatar while
- * the posts load or when there is nothing to show.
+ * renders the SAME status the viewer will resume to (image or text; a video stays black) - no player, no
+ * auto-advance. Falls back to the avatar while the posts load.
  */
 @Composable
 private fun StatusPreviewFace(
@@ -850,8 +848,8 @@ private fun StatusPreviewFace(
     val post = posts?.takeIf { it.isNotEmpty() }?.let { it[resumePos(it, seen, todayIso).index] }
 
     Box(Modifier.fillMaxSize().background(Color.Black), contentAlignment = Alignment.Center) {
-        // Only an IMAGE preview uses a still; a VIDEO shows the shared avatar+ring loading state (its
-        // thumbnail is low-res and reads as a blurry flash before playback).
+        // Only an IMAGE preview uses a still; a VIDEO stays black (its thumbnail is low-res and reads
+        // as a blurry flash before playback).
         val imageThumb = if (post?.kind == "image") statusMediaUrl(post.mediaPath) else null
         when {
             // Still loading the feed: the shared avatar + ring loading state.

@@ -180,8 +180,7 @@ object UpdateChecker {
 
     private suspend fun checkForStableUpdate(force: Boolean = false): UpdateResult {
         return try {
-            // `use` closes the client on every exit path (early return, throw), fixing the leak
-            // the old manual close() calls left when an exception was thrown mid-check.
+            // `use` closes the client on every exit path (early return, throw).
             HttpClient().use { httpClient ->
                 val responseText = httpClient.get(API_URL).bodyAsText()
 

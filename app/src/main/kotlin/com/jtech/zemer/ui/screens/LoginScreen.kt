@@ -59,8 +59,8 @@ fun LoginScreen(
 
     var webView: WebView? = null
 
-    // NOTE: Removed setupWebViewForFreshLogin() to avoid interfering with Google login flow
-    // Cookie clearing should only happen during logout, not before login
+    // Cookie clearing should only happen during logout, not before login (it interferes with the
+    // Google login flow).
 
     AndroidView(
         modifier = Modifier
@@ -164,7 +164,6 @@ fun LoginScreen(
                                             context.startActivity(intent)
                                             Runtime.getRuntime().exit(0)
                                         }.onFailure { exception ->
-                                            // Clear invalid credentials and show error
                                             android.util.Log.e("LoginScreen", "Authentication validation failed: ${exception.message}")
                                             reportException(exception)
                                         }

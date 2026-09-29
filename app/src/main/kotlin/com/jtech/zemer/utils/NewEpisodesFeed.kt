@@ -13,10 +13,11 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
 /**
- * Shared "New Episodes" feed state for the two podcast-library ViewModels
- * ([com.jtech.zemer.viewmodels.WhitelistedPodcastsViewModel] and
- * [com.jtech.zemer.viewmodels.LibraryPodcastsViewModel]) - the StateFlows and the fetch live in ONE
- * place so the two can't drift. The list itself comes from the shared [PodcastLibrarySources]. [fetch]
+ * Shared "New Episodes" feed state for the podcast ViewModels
+ * ([com.jtech.zemer.viewmodels.WhitelistedPodcastsViewModel],
+ * [com.jtech.zemer.viewmodels.LibraryPodcastsViewModel] and
+ * [com.jtech.zemer.viewmodels.PodcastSubscriptionsHomeViewModel]) - the StateFlows and the fetch live
+ * in ONE place so they can't drift. The list itself comes from the shared [PodcastLibrarySources]. [fetch]
  * always resets the loading flag (try/finally) so a failed read can never leave the spinner stuck.
  */
 class NewEpisodesFeed(

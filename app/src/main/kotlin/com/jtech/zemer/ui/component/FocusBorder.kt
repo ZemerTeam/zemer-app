@@ -73,17 +73,6 @@ fun focusVisualsEnabled(): Boolean =
     LocalInputModeManager.current.inputMode == InputMode.Keyboard
 
 /**
- * The ONE initial D-pad focus grab (replaces 14 hand-rolled copies): requests [requester] when the
- * session is key-driven ([focusVisualsEnabled]), skipping touch sessions entirely - a touch
- * session's grab painted M3 components' built-in focus pills (drawer items, chips) with no keypad
- * in sight. KEYED on the input mode, so a screen composed during touch use re-arms and grabs the
- * moment the user's first key press flips the session to Keyboard (a first-composition capture
- * missed that flip and left D-pad focus starting from the composition root). [enabled] gates
- * conditional grabs (a row not yet composed); extra [keys] re-run the grab when the target row
- * changes. The grab is wrapped in runCatching: a requester whose row is not composed yet must not
- * crash the screen.
- */
-/**
  * Scrolls the element into view whenever it gains D-pad focus — the focus companion of a
  * scrollable container: a focused row below the fold is brought on-screen instead of the cursor
  * moving invisibly. One remembered [BringIntoViewRequester] per call site (loop items each get
@@ -102,6 +91,17 @@ fun Modifier.bringIntoViewOnFocus(): Modifier = composed {
         }
 }
 
+/**
+ * The ONE initial D-pad focus grab (replaces 14 hand-rolled copies): requests [requester] when the
+ * session is key-driven ([focusVisualsEnabled]), skipping touch sessions entirely - a touch
+ * session's grab painted M3 components' built-in focus pills (drawer items, chips) with no keypad
+ * in sight. KEYED on the input mode, so a screen composed during touch use re-arms and grabs the
+ * moment the user's first key press flips the session to Keyboard (a first-composition capture
+ * missed that flip and left D-pad focus starting from the composition root). [enabled] gates
+ * conditional grabs (a row not yet composed); extra [keys] re-run the grab when the target row
+ * changes. The grab is wrapped in runCatching: a requester whose row is not composed yet must not
+ * crash the screen.
+ */
 @Composable
 fun RequestInitialDpadFocus(
     requester: FocusRequester,

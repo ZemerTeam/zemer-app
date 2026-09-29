@@ -35,9 +35,7 @@ class CachedSongsRepository @Inject constructor(
 
     init {
         scope.launch {
-            // Initial refresh
             refreshInternal()
-            // Then refresh every 30 seconds instead of every 1 second
             while (isActive) {
                 delay(30_000)
                 refreshInternal()
@@ -93,6 +91,6 @@ class CachedSongsRepository @Inject constructor(
 
     fun removeSongFromCache(songId: String) {
         playerCache.removeResource(songId)
-        refresh() // Refresh list after removal
+        refresh()
     }
 }

@@ -8,7 +8,7 @@
 // So a Kotlin property that is non-null AND has no default value is REQUIRED: if YouTube stops
 // sending it (or sends null), `response.body<SearchResponse>()` throws MissingFieldException and the
 // ENTIRE response fails to parse. `YouTube.search()` wraps that in runCatching and
-// `.getOrNull()` swallows it to null -> the ViewModel shows "No results found" / "Search error".
+// its callers get a failure instead of results.
 // That is the highest-impact "search is broken" failure: one missing field kills every result.
 //
 // This module mirrors that exact rule. SCHEMA encodes, per renderer type reachable from a search
@@ -75,7 +75,7 @@ export const SCHEMA = {
   ChipCloudRenderer: { chips: reqList("Chip") },
   Chip: { chipCloudChipRenderer: req("ChipCloudChipRenderer") },
   ChipCloudChipRenderer: {
-    isSelected: opt(),                         // defaulted false in SectionListRenderer.kt (podcast branch)
+    isSelected: opt(),                         // defaulted false in SectionListRenderer.kt
     navigationEndpoint: req("NavigationEndpoint"),
     onDeselectedCommand: opt("NavigationEndpoint"),
     text: opt("Runs"),

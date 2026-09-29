@@ -271,17 +271,14 @@ fun LibraryMixScreen(
                     if (!isSyncing) {
                         coroutineScope.launch {
                             isSyncing = true
-                            // Show start toast
                             context.toast(context.getString(R.string.syncing))
 
                             try {
                                 withContext(Dispatchers.IO) {
                                     viewModel.syncAllLibrary()
                                 }
-                                // Show success toast
                                 context.toast(context.getString(R.string.sync_completed))
                             } catch (e: Exception) {
-                                // Show error toast
                                 context.toast(context.getString(R.string.sync_failed, e.message), long = true)
                             } finally {
                                 isSyncing = false

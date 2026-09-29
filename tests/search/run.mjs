@@ -11,7 +11,7 @@
 //   node tests/search/run.mjs q1 q2 q3 ...           # several custom queries
 //   SAVE=1 node tests/search/run.mjs                # also dump raw JSON responses to tests/search/out/
 //
-// Exit code: 0 = no whole-response killers found; 1 = a strict break was found.
+// Exit code: 0 = no whole-response killers found; 1 = at least one was found.
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -31,7 +31,7 @@ const pct = (n, d) => (d === 0 ? "—" : `${Math.round((100 * n) / d)}%`);
 const critical = [];
 
 // Run a parser but never let one malformed item abort the whole sweep: a throw becomes a reported
-// drop (and a critical finding — the app would crash the same way if the parser is reached).
+// drop (and a critical finding — in the app a parser throw fails the whole YouTube.search).
 function safe(label, fn) {
   try { return fn(); }
   catch (e) { critical.push(`${label} parser threw: ${e.message}`); return { ok: false, kind: "?", reason: `threw: ${e.message}` }; }

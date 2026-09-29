@@ -1,6 +1,6 @@
 package com.jtech.zemer.lyrics.zemer
 
-/** The entity unescape both page parsers (Jyrics, Shironet) need, byte-identical to the server's (golden-pinned through them). */
+/** The entity unescape the parsers share (Jyrics, Shironet, LyricsTranslate, Apple TTML), byte-identical to the server's (golden-pinned through them). */
 object HtmlEntities {
     private val NUMERIC = Regex("""&#(\d+);""")
 

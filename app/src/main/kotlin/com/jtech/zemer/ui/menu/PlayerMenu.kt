@@ -197,7 +197,7 @@ fun PlayerMenu(
                 },
                 modifier = Modifier
                     .weight(1f)
-                    .height(36.dp), // Reduced height from default (assumed ~48.dp) to 36.dp
+                    .height(36.dp),
             )
         }
     }

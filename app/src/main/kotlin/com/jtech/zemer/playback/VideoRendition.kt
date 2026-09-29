@@ -81,7 +81,7 @@ object VideoRendition {
         }
     }
 
-    /** Max muxed-video bitrate (kbps) on a metered connection (the old VideoPlayerScreen's caps). */
+    /** Max muxed-video bitrate (kbps) on a metered connection. */
     const val METERED_MAX_KBPS = 1500
 
     /** Max muxed-video bitrate (kbps) on an unmetered connection. */

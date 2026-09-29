@@ -54,7 +54,7 @@ jobs:
       # sample and only surfaces once it has already rotated in (i.e. once playback is already
       # breaking). Multi-sampling catches it the first hour it appears at all. "Known" is
       # decided by the harness loader (the app's PlayerConfigParser rules) against the live
-      # file, including the md5 alias — same authority as before, applied to every distinct
+      # file, including the md5 alias, applied to every distinct
       # hash seen. The scanner exits non-zero only if the live config itself is invalid
       # (devices would reject it wholesale) → a red run, which is the right alarm for that.
       - name: Scan live players (multi-sample to catch canaries early)

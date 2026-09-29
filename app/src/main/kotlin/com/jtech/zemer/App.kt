@@ -79,7 +79,7 @@ class App : Application(), SingletonImageLoader.Factory {
         super.onCreate()
 
         // Initialize Timber for logging. The Crashlytics tree runs in all builds:
-        // every log becomes a crash-report breadcrumb, ERROR throwables become
+        // every DEBUG+ log becomes a crash-report breadcrumb, ERROR throwables become
         // non-fatal issues.
         Timber.plant(
             CrashReportingTree(
@@ -154,7 +154,7 @@ class App : Application(), SingletonImageLoader.Factory {
         // both set a SAPISID cookie) must never remain in RELAY: reset PlaybackModeKey to DIRECT the moment
         // a login cookie appears, from ANY entry point (the login gate, account settings, a re-login), so
         // playback and downloads leave the degraded relay path. Global by design — it must not depend on the
-        // user opening a particular settings screen (that was the only place doing it before).
+        // user opening a particular settings screen.
         applicationScope.launch(Dispatchers.IO) {
             dataStore.data
                 .map {
@@ -184,7 +184,6 @@ class App : Application(), SingletonImageLoader.Factory {
             }
         }
 
-        // تهيئة إعدادات التطبيق عند الإقلاع
         applicationScope.launch {
             initializeSettings()
             observeSettingsChanges()
@@ -194,7 +193,6 @@ class App : Application(), SingletonImageLoader.Factory {
                 IsraeliArtistRegistry.ensureLoaded()
                 Timber.d("App: IsraeliArtistRegistry pre-loaded")
             }
-            // Removed auto-fetch of anonymous token; user must trigger login manually.
         }
     }
 

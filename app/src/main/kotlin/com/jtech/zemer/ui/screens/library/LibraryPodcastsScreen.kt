@@ -450,7 +450,6 @@ private fun SectionHeader(text: String) {
     }
 }
 
-/** Auto-playlist card (mirrors YT Music) - used for the New Episodes and Episodes-for-Later playlists. */
 /** The 56dp rounded podcast thumbnail with the neutral queue_music fallback — shared by the library rows. */
 @Composable
 private fun PodcastRowThumbnail(thumbnailUrl: String?) {
@@ -477,6 +476,7 @@ private fun PodcastRowThumbnail(thumbnailUrl: String?) {
     }
 }
 
+/** Auto-playlist card (mirrors YT Music) - used for the New Episodes playlist. */
 @Composable
 private fun AutoPlaylistCard(
     title: String,
@@ -637,7 +637,7 @@ private fun PodcastArtistChannelItem(
     }
 }
 
-/** A saved (episodes-for-later) episode row with a bookmark toggle - used for anonymous sessions. */
+/** A saved (episodes-for-later) episode row with a bookmark toggle. */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun EpisodeSongListItem(

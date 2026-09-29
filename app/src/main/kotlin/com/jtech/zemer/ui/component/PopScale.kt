@@ -12,11 +12,11 @@ import androidx.compose.runtime.setValue
 
 /**
  * A one-shot bouncy "pop" scale for toggle controls: whenever [state] changes (after the first
- * composition) the returned scale springs up and settles back to 1, giving a like / shuffle / repeat
- * tap an expressive Material 3 bounce. The initial value is skipped, so opening a screen never pops.
+ * composition) the returned scale springs up and settles back to 1, giving a tap (the player's like)
+ * an expressive Material 3 bounce. The initial value is skipped, so opening a screen never pops.
  *
- * Apply as `Modifier.graphicsLayer { val s = rememberPopScale(state); scaleX = s; scaleY = s }` (read
- * the value in the composable and set it on the layer) - it's a pure draw transform, so it never
+ * Read it in the composable (`val s = rememberPopScale(state)`) and apply it as
+ * `Modifier.graphicsLayer { scaleX = s; scaleY = s }` - it's a pure draw transform, so it never
  * affects layout or the control's behaviour.
  */
 @Composable

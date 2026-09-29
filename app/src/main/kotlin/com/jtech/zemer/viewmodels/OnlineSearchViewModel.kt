@@ -72,7 +72,7 @@ constructor(
     val filterError = mutableStateMapOf<String, String?>()
 
     // Telemetry: ONE `search` event per executed query (this ViewModel is created per submitted
-    // query) — the first successful load fires it; chip switches and engine toggles never re-fire.
+    // query) — the first successful load fires it; chip switches never re-fire.
     // A zero-result search is the most valuable event and is sent faithfully. Persisted in the
     // SavedStateHandle: a back-stack entry restored after process death recreates the ViewModel and
     // reloads results, and must NOT re-fire an event for a query executed in a past session.
@@ -87,13 +87,13 @@ constructor(
         searchTracked = true
         // `provider` stays in the wire contract (the dashboard splits on it); the app is single-engine
         // now, so it is always "zemer". (The YouTube engine was removed per the handoff greenlight in
-        // ~/zemer-fix/handoff-docs/zemer-app-artist-album-innertube-swap.md.)
+        // handoff-docs/zemer-app-artist-album-innertube-swap.md.)
         Tracker.search(query, results, SEARCH_TRACKED_PROVIDER)
     }
 
     init {
         viewModelScope.launch {
-            // collectLatest so a filter change cancels an in-flight (up to 8s) request instead of
+            // collectLatest so a filter change cancels an in-flight (8-20 s timeout) request instead of
             // queueing behind it — otherwise the chip switch appears frozen.
             filter.collectLatest { selectedFilter ->
                 if (selectedFilter == null) {

@@ -4,7 +4,7 @@
 //
 // Prints "covered" or "uncovered" (exit 0). Exits 1 with the validation error when the
 // file itself is invalid — devices would reject it wholesale, so a textually-present hash
-// in an invalid file is NOT covered (the player-monitor workflow treats that as unknown).
+// in an invalid file is NOT covered.
 
 import { readFileSync } from "node:fs";
 import { parsePlayerConfigs } from "./player-configs.mjs";

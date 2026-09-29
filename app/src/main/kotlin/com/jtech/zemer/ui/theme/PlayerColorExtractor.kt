@@ -128,9 +128,6 @@ object PlayerColorExtractor {
         return populationWeight * vibrancyBonus * (saturation + brightness) / 2f
     }
 
-    /**
-     * Configuration constants for color extraction
-     */
     object Config {
     }
 }

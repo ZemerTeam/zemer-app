@@ -130,7 +130,8 @@ object LrcLib {
         pickBody(candidates, duration) ?: throw IllegalStateException("Lyrics unavailable")
     }
 
-    /** A synced body is usable only for the same recording: non-blank and within 1 s of the player's duration. */
+    /** A synced body is usable only for the same recording: non-blank and within 1 s of the player's duration
+     * (or the player's duration is unknown, -1). */
     internal fun syncable(track: LrcLibTrack, duration: Int): Boolean =
         !track.syncedLyrics.isNullOrBlank() && (duration == -1 || abs(track.duration.toInt() - duration) <= 1)
 

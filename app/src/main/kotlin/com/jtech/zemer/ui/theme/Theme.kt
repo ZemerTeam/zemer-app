@@ -28,7 +28,7 @@ import com.materialkolor.dynamiccolor.ColorSpec
 import com.materialkolor.rememberDynamicColorScheme
 import com.materialkolor.score.Score
 
-// Legacy sentinel kept for the album-art extraction fallback. It is no longer the app default accent
+// Legacy sentinel that no code reads any more. It is no longer the app default accent
 // (that is [BrandThemeColor]); the "dynamic" palette is driven by DynamicThemeKey, not by this color.
 val DefaultThemeColor = Color(0xFFED5564)
 
@@ -94,7 +94,7 @@ fun ZemerTheme(
             seedColor = if (themeColor == SystemWallpaperThemeColor) BrandThemeColor else themeColor,
             isDark = darkTheme,
             specVersion = ColorSpec.SpecVersion.SPEC_2025,
-            style = PaletteStyle.TonalSpot // Keep existing style
+            style = PaletteStyle.TonalSpot
         )
     }
 
@@ -124,7 +124,7 @@ fun ZemerTheme(
     // Use standard MaterialTheme instead of MaterialExpressiveTheme
     MaterialTheme(
         colorScheme = colorScheme,
-        typography = AppTypography, // Use the defined AppTypography
+        typography = AppTypography,
         content = content
     )
 }

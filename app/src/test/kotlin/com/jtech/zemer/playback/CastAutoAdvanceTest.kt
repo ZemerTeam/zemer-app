@@ -164,7 +164,7 @@ class CastAutoAdvanceTest {
 
     @Test
     fun `resetting last position to zero clears a stale near-end so a fresh track is not auto-skipped`() {
-        // Regression for the connect/device-switch spurious auto-skip: PlayerConnection's remoteTime
+        // Regression for the connect/device-switch spurious auto-skip: CastController's remoteTime
         // collector now records position 0 unconditionally, so a new track (remoteTime reset to 0)
         // clears the previous track's near-end position. With the old guard the position stayed stale
         // and nearEnd stayed true against the new duration -> the fresh track could be auto-skipped.

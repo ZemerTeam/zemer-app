@@ -43,7 +43,7 @@ class PlayerConnection(
 
     // Instance-owned scope (a child of the host's scope) so [dispose] cancels every collector/launch this
     // connection started. The host re-creates a PlayerConnection on each service re-bind; without this the
-    // UI-state collectors (isCasting / isPlaying / currentSong …) would pile up on the long-lived
+    // UI-state collectors (isCasting / isPlaying …) would pile up on the long-lived
     // lifecycleScope. The cast control plane itself lives on the service-scoped CastController, not here.
     val scope = CoroutineScope(parentScope.coroutineContext + SupervisorJob(parentScope.coroutineContext[Job]))
 
@@ -105,7 +105,7 @@ class PlayerConnection(
 
     /**
      * The media id the user just asked to play that has not started rendering yet - the resolve + buffer
-     * gap that otherwise looks like the play affordance hanging. Set to the queue's preload item on
+     * gap that otherwise looks like the play affordance hanging. Set to [Queue.preparingItemId] on
      * [playQueue] and cleared the moment the player reaches READY (or on error / a safety timeout), so a
      * card's loading spinner can never spin forever. Covers songs, videos and episodes; albums resolve
      * their own pre-fetch spinner inside AlbumPlayButton (their play id is a track, not the album).

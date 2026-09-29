@@ -158,7 +158,7 @@ fun WhitelistedPodcastsScreen(
 }
 
 /**
- * Shared gold section header (title + a trailing sync/refresh icon), used by both podcast rows so the
+ * Shared accent section header (title + a trailing sync/refresh icon), used by both podcast rows so the
  * two can't drift.
  */
 @Composable
@@ -291,7 +291,7 @@ private fun PodcastLibraryHeaderSections(
 }
 
 /**
- * The "Subscribed Channels" row: gold header + sync + a horizontal strip of avatar cards.
+ * The "Subscribed Channels" row: accent header + sync + a horizontal strip of avatar cards.
  */
 @Composable
 private fun SubscribedChannelsSection(
@@ -318,7 +318,7 @@ private fun SubscribedChannelsSection(
 }
 
 /**
- * The "New Episodes" row: gold header + refresh + a horizontal strip of episode cards.
+ * The "New Episodes" row: accent header + refresh + a horizontal strip of episode cards.
  */
 @Composable
 private fun NewEpisodesSection(

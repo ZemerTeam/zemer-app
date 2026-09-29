@@ -21,7 +21,7 @@ import javax.inject.Inject
 
 /**
  * The "Music Status" home row's ViewModel (the LatestReleases / Stations isolation pattern): the
- * JewishStatus feed is a THIRD-PARTY service the app can't guarantee is up, so a fetch failure can
+ * JewishStatus / YidStatus feeds are THIRD-PARTY services the app can't guarantee are up, so a fetch failure can
  * never affect the rest of Home — the row just stays empty and HomeScreen hides it. Creators + the
  * seen set come from the shared [StatusesRepository] (single source, also read by the story viewer).
  */
@@ -38,7 +38,7 @@ class ZemerStatusesViewModel @Inject constructor(
         repository.seen.stateIn(viewModelScope, SharingStarted.Lazily, emptySet())
 
     // The hide-text/hide-image content filter (Settings -> Appearance), so the ring only counts statuses
-    // the user can actually view (a fully-hidden creator drops from the row).
+    // the user can actually view (a fully-hidden creator keeps one muted arc).
     val contentFilter: StateFlow<StatusContentFilter> =
         context.dataStore.data
             .map {

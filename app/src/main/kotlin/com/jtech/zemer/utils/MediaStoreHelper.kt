@@ -632,7 +632,7 @@ class MediaStoreHelper(private val context: Context) {
         // Remove invalid characters for filenames
         var sanitized = fileName.replace(Regex("[\\\\/:*?\"<>|]"), "_")
 
-        // Remove leading/trailing whitespace and dots
+        // Remove leading/trailing whitespace and leading dots
         sanitized = sanitized.trim().trimStart('.')
 
         // Limit filename length

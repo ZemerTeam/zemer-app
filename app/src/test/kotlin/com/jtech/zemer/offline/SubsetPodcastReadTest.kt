@@ -140,7 +140,7 @@ class SubsetPodcastReadTest {
 
     @Test
     fun `genre catalog counts are post-filter, most-populated first, titles capitalized`() {
-        // allowFemale: all three shows carry "gemara" (3); only s1 carries "history" (1).
+        // allowFemale: the three non-kid shows carry "gemara" (3); only s1 carries "history" (1).
         val open = offlinePodcastGenres(corpus, allowFemale = true, blockVideos = false, kidZone = false)
         assertEquals(listOf("gemara", "history"), open.genres.map { it.id }) // count desc → gemara first
         assertEquals(3, open.genres.first { it.id == "gemara" }.showCount)

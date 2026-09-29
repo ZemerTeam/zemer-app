@@ -1,7 +1,7 @@
 // MWEB 403 bisect: reproduce the APP's exact MWEB path in the terminal, then flip one
 // dimension at a time toward the known-good anonymous probe until the cause isolates.
 //
-// Background (docs/MWEB-INVESTIGATION.md): the anonymous terminal probe gets HEAD 200,
+// Background (tests/MWEB-INVESTIGATION.md): the anonymous terminal probe gets HEAD 200,
 // the app gets 403 on validateStatus. The old probes never replicated the app's /player
 // request (visitorData + cookie/SAPISIDHASH + request poToken + X-Goog headers), the app's
 // format pick (max-bitrate webm-biased -> 251 vs first-audio -> 140), the app's pot= append

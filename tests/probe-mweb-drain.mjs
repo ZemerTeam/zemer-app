@@ -114,7 +114,7 @@ async function main() {
     console.log(`=== ${v} ===`);
     const videoPot = await minter.mint(v);
 
-    // MWEB itag 140 (m4a)
+    // MWEB itag 140 (m4a) + 251 (webm), no pot
     for (const [label, f, ua] of [
       ["MWEB-140(m4a) none", f140, MWEB_UA],
       ["MWEB-251(webm) none", f251, MWEB_UA],

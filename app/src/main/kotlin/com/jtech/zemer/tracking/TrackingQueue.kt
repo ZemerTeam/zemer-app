@@ -10,7 +10,7 @@ import java.io.File
  *
  * Not thread-safe by itself: [Tracker] confines all access to a single dispatcher. A plain append
  * is an O(1) file append; only evictions/removals rewrite the file (atomic tmp rename), so a bulk
- * burst never does O(n²) disk work. A corrupt/partial file degrades to the lines that parse as
+ * burst never does O(n²) disk work. A corrupt/partial file degrades to the lines that look like
  * JSON objects (never a crash, never a poisoned queue).
  */
 internal class TrackingQueue(

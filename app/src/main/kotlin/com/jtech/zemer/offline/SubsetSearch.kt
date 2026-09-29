@@ -8,7 +8,7 @@ import kotlin.math.max
 /**
  * In-memory relevance search — the offline (on-device subset) port of `zemer-search/index/search.mjs`,
  * ported faithfully so an offline result ranks identically to the live server's. Two inverted indexes
- * (plain Latin tokens + Hebrew-aware consonant skeletons) with prefix + Damerau typo tolerance, synonym
+ * (plain tokens + Hebrew-aware consonant skeletons) with prefix + Damerau typo tolerance, synonym
  * expansion ([SubsetSynonyms]) and IDF-weighted, field-aware, coverage-gated ranking. Deterministic,
  * pure data ops.
  *

@@ -1019,8 +1019,7 @@ interface DatabaseDao {
     fun downloadedSongsByCreateDateAsc(includeVideos: Boolean): Flow<List<Song>>
 
     // Whitelist-filtered downloaded songs for content-filtered surfaces (Android Auto / media browse).
-    // The pre-unification Auto "Downloaded" list was built from allSongs() (whitelist-filtered); the
-    // plain downloadedSongsByCreateDateAsc() above is NOT whitelist-filtered, so Auto must use this.
+    // The plain downloadedSongsByCreateDateAsc() above is NOT whitelist-filtered, so Auto must use this.
     // includeVideos mirrors VideoDownloadsInMusicKey (read by the Auto caller) so the phone's Downloaded
     // Music list and Auto's Downloaded browse never disagree about which songs are in it.
     @Transaction
@@ -1238,7 +1237,6 @@ interface DatabaseDao {
         val time = LocalDateTime.now().atOffset(ZoneOffset.UTC)
         val oldCount = getPlayCountByMonth(songId, time.year, time.monthValue).first()
 
-        // add new
         if (oldCount <= 0) {
             insert(PlayCountEntity(songId, time.year, time.monthValue, 0))
         }

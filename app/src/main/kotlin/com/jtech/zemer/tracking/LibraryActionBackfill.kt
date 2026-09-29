@@ -62,7 +62,7 @@ private const val MAX_ACTION_BACKFILL_AGE_MS = 10L * 365 * 24 * 60 * 60 * 1000 /
  *   overlap the server acknowledges and keeps segregated from live aggregates.
  * - **Resume by acked-line COUNT, not a row cursor**: the snapshot is recomputed on every attempt,
  *   and its timestamps are NOT stable — a device-zone change shifts every converted `t`, and
- *   `SyncUtils.likedSongs` rewrites every synced song's `likedDate` to sync time — so the server's
+ *   `SyncUtils.syncLikedSongs` rewrites every synced song's `likedDate` to sync time — so the server's
  *   (device, kind, id, t) dedup canNOT be relied on to absorb a full-snapshot replay. Persisting
  *   the count of acked lines and skipping that prefix on restart bounds a replay to the unacked
  *   tail (the row order is stable: favorites then downloads, both `ORDER BY id`; a library

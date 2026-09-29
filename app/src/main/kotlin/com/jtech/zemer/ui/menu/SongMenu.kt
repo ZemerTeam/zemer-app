@@ -116,12 +116,10 @@ fun SongMenu(
     // Track whether user requested video download (for permission callback)
     var pendingVideoDownload by remember { mutableStateOf(false) }
 
-    // Permission launcher for storage access
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestMultiplePermissions()
     ) { permissions ->
         if (permissions.values.all { it }) {
-            // All permissions granted, proceed with download based on user's choice
             if (pendingVideoDownload) {
                 downloadUtil.downloadVideoToMediaStore(song)
             } else {
@@ -129,7 +127,6 @@ fun SongMenu(
             }
             onDismiss()
         } else {
-            // Permissions denied - show error message
             context.toast(context.getString(R.string.storage_permission_required), long = true)
         }
     }

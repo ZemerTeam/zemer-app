@@ -4,7 +4,7 @@ import kotlinx.serialization.Serializable
 
 /**
  * Wire models for **Zemer Stations** — synchronized broadcast radio (`GET /stations`,
- * `GET /station?id=`), per the handoff doc `~/zemer-fix/handoff-docs/zemer-app-stations.md`. One
+ * `GET /station?id=`), per the handoff doc `handoff-docs/zemer-app-stations.md`. One
  * shared, server-programmed wall-clock schedule per station: every listener hears the SAME track at
  * the SAME moment; the client's only job is to join at the live offset and keep step (see
  * [stationJoinPositionMs]). Field names match the JSON exactly; everything the server may omit is
@@ -13,7 +13,7 @@ import kotlinx.serialization.Serializable
  * Content policy (handoff §6): the pools are pre-filtered server-side to the strictest common
  * denominator, so the content flags are NOT sent to these endpoints, and the row is hidden in
  * kidZone mode. Responses are clock-dependent — never cache them. Stations are LIVE-ONLY: never
- * served from the offline snapshot (like `/playlist` and `/radio`).
+ * served from the offline snapshot (like `/playlist`).
  */
 @Serializable
 data class ZemerStationsResponse(
@@ -34,7 +34,7 @@ data class ZemerStation(
     val nowPlaying: ZemerStationNowPlaying? = null,
 )
 
-/** The row's "Now: ‹title› — ‹artist›" line; refreshed once per home load (settled in the handoff). */
+/** The row's "Now: ‹title› — ‹artist›" line; refreshed on load and every 60s while on screen. */
 @Serializable
 data class ZemerStationNowPlaying(
     val title: String = "",

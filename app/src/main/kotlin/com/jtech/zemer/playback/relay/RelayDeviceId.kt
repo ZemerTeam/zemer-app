@@ -49,7 +49,7 @@ object RelayDeviceId {
     // before it is used (a process killed afterwards keeps the same id) and concurrent callers converge on
     // one value. Both entry points funnel through here so the playback and download paths can never diverge.
     private suspend fun getOrCreate(context: Context): String? = mutex.withLock {
-        // A DataStore hiccup must NOT propagate: getSync runs inside the relay data-source resolver, so an
+        // A DataStore hiccup must NOT propagate: getSync runs inside a playback DataSource open, so an
         // exception here would surface as an ExoPlayer load error and stop playback. Fail soft -> no header.
         runCatching {
             val stored = context.dataStore.getSuspend(RelayDeviceIdKey, "")

@@ -25,8 +25,7 @@ fun CastConnectResult.shouldPruneDevice(): Boolean = this is CastConnectResult.F
  * Orchestrates a user-initiated connect from the picker: pause local playback, resolve the stream,
  * fill in the device's addresses if discovery never resolved them, issue the connect, and wait for
  * the receiver to actually report Connected — so the UI can tell the user what happened instead of
- * failing silently (the old flow dismissed the sheet immediately and swallowed every failure into
- * Crashlytics, which read as "tap connect and nothing happens"). Owned by [MusicService]
+ * failing silently. Owned by [MusicService]
  * (process-scoped) like the rest of the cast control plane; must be called on the main thread
  * (it reads the player).
  */
