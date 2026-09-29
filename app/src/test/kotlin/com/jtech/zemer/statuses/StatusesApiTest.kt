@@ -37,10 +37,10 @@ class StatusesApiTest {
         val json = """
             [
               {"id":"p1","kind":"video","media_path":"c1/v.mp4","thumb_path":"c1/t.jpg",
-               "caption":"hello","link_url":null,"duration_seconds":42,"posted_at":"2026-08-01T19:32:52+00:00",
+               "caption":"hello","duration_seconds":42,"posted_at":"2026-08-01T19:32:52+00:00",
                "view_count":5,"download_count":2},
               {"id":"p2","kind":"text","media_path":"","thumb_path":"","caption":"just text",
-               "link_url":"","duration_seconds":null,"posted_at":"2026-07-31T10:00:00+00:00"}
+               "duration_seconds":null,"posted_at":"2026-07-31T10:00:00+00:00"}
             ]
         """.trimIndent()
         val posts = parsePosts(JSONArray(json))
@@ -49,14 +49,12 @@ class StatusesApiTest {
         assertEquals("video", v.kind)
         assertEquals("c1/v.mp4", v.mediaPath)
         assertEquals("hello", v.caption)
-        assertNull(v.linkUrl)                 // explicit JSON null -> null
         assertEquals(42, v.durationSeconds)
         assertEquals(5, v.viewCount)
         val t = posts[1]
         assertEquals("text", t.kind)
         assertNull(t.mediaPath)               // empty string -> null
         assertEquals("just text", t.caption)
-        assertNull(t.linkUrl)                 // empty string -> null
         assertNull(t.durationSeconds)         // JSON null -> null (viewer falls back to 7s)
         assertEquals(0, t.downloadCount)      // absent -> default 0
     }
@@ -169,7 +167,7 @@ class StatusesApiTest {
     fun `applyStatusFilter hides the chosen kinds and keeps order, video always passes`() {
         fun p(id: String, kind: String) = StatusPost(
             id = id, kind = kind, mediaPath = null, thumbPath = null, caption = null,
-            textBody = null, textBgColor = null, linkUrl = null, durationSeconds = null,
+            textBody = null, textBgColor = null, durationSeconds = null,
             postedAt = "2026-08-01T00:00:00+00:00",
         )
         val posts = listOf(p("v", "video"), p("i", "image"), p("t", "text"))

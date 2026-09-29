@@ -71,7 +71,6 @@ import com.jtech.zemer.R
 import com.jtech.zemer.constants.AlbumThumbnailSize
 import com.jtech.zemer.constants.ThumbnailCornerRadius
 import com.jtech.zemer.extensions.toMediaItem
-import com.jtech.zemer.extensions.togglePlayPause
 import com.jtech.zemer.playback.queues.ListQueue
 import com.jtech.zemer.tracking.PlaySource
 import com.jtech.zemer.ui.screens.playlist.PlaylistPlayShuffleButtons
@@ -419,7 +418,7 @@ fun OnlinePodcastScreen(
                             .combinedClickable(
                                 onClick = {
                                     if (episode.id == mediaMetadata?.id) {
-                                        playerConnection.player.togglePlayPause()
+                                        playerConnection.playPause()
                                     } else {
                                         playerConnection.playQueue(
                                             ListQueue(

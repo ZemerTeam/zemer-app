@@ -6,7 +6,9 @@ import com.metrolist.innertube.models.Artist
 import com.metrolist.innertube.models.SongItem
 import com.jtech.zemer.models.toMediaMetadata
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class PlaylistRemoteEditsTest {
@@ -83,5 +85,39 @@ class PlaylistRemoteEditsTest {
             thumbnail = "https://example.com/t.jpg",
         )
         assertNull(item.toMediaMetadata().setVideoId)
+    }
+
+    // --- playlistRebuildNeeded: a sync never rebuilds a playlist to empty (issue #130) ---
+
+    @Test
+    fun `a remote read filtered to nothing never wipes local songs`() {
+        assertFalse(playlistRebuildNeeded(filtered = emptyList(), local = listOf("a" to "S1", "b" to null)))
+    }
+
+    @Test
+    fun `nothing filtered and nothing local is a no-op`() {
+        assertFalse(playlistRebuildNeeded(filtered = emptyList(), local = emptyList()))
+    }
+
+    @Test
+    fun `identical entries skip the rebuild`() {
+        val entries = listOf("a" to "S1", "b" to "S2")
+        assertFalse(playlistRebuildNeeded(filtered = entries, local = entries))
+    }
+
+    @Test
+    fun `changed membership or order rebuilds`() {
+        assertTrue(playlistRebuildNeeded(filtered = listOf("a" to "S1", "c" to "S3"), local = listOf("a" to "S1", "b" to "S2")))
+        assertTrue(playlistRebuildNeeded(filtered = listOf("b" to "S2", "a" to "S1"), local = listOf("a" to "S1", "b" to "S2")))
+    }
+
+    @Test
+    fun `same songs with a missing setVideoId rebuild once to backfill it`() {
+        assertTrue(playlistRebuildNeeded(filtered = listOf("a" to "S1"), local = listOf("a" to null)))
+    }
+
+    @Test
+    fun `an empty local playlist is filled from the filtered read`() {
+        assertTrue(playlistRebuildNeeded(filtered = listOf("a" to "S1"), local = emptyList()))
     }
 }

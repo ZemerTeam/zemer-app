@@ -90,7 +90,9 @@ internal class SabrAudioStream private constructor(
             restartAttempts = restartAttempts, durationMs = cfg.durationMs,
             contentLength = cfg.format.contentLength, marginMs = seekMarginMs,
         )) {
-            SabrSeekLogic.Grace, SabrSeekLogic.LetDrain -> return
+            SabrSeekLogic.Grace -> return
+            // The session is left to drain to the target: pace it from the reader's real position.
+            SabrSeekLogic.LetDrain -> buffer.raiseDemandTo(position)
             SabrSeekLogic.GiveUp ->
                 buffer.markError("SABR seek could not be served at $position after $restartAttempts attempts")
             is SabrSeekLogic.Restart -> {

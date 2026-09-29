@@ -40,7 +40,7 @@ embed page `max(2, n/6)` times each, so a
 3. **Alert**: per unknown hash with no open issue titled `New YouTube player detected: <hash>` (the
    dedup key), a Telegram message (skipped without `TELEGRAM_BOT_TOKEN`) and a GitHub issue with that
    title (labels `player-update`, `cipher`; opened as the Zemer-Dude GitHub App when
-   `vars.ZEMER_APP_ID` is set, else `GITHUB_TOKEN`); plus one summary email listing every unknown hash via Gmail SMTP (sent even
+   `vars.ZEMER_APP_ID` is set, else `GITHUB_TOKEN`); plus one summary email listing every unknown hash via Gmail SMTP to the `MONITOR_ALERT_EMAIL` repository secret (sent even
    if issue creation fails), all carrying the runbook commands.
 
 It **never auto-commits**: validation needs a logged-in cookie and live-CDN judgment CI shouldn't hold.

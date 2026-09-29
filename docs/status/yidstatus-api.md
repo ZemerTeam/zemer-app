@@ -37,7 +37,7 @@ excluded).
 **Status** (`parseYidStatuses`): `id`, `influencer_id` (the creator linkage), `type`
 (`video`/`image`/`text` kept; `audio` and unknown dropped), `is_ad` (true -> dropped), `media_url` and
 `poster_url` (full URLs; `poster_url` is null for images), `caption` (a `text` status's body),
-`background_color`, `link_title`, `duration_seconds`, `timestamp` (ISO-8601 UTC).
+`background_color`, `duration_seconds`, `timestamp` (ISO-8601 UTC).
 
 ## Music filter and grouping
 

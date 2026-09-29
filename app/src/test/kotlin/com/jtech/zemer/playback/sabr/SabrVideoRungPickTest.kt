@@ -70,4 +70,28 @@ class SabrVideoRungPickTest {
         )
         assertEquals(avc_720, picked)
     }
+
+    // --- pinnableRungs: the published ladder only offers rungs a session can pin ---
+
+    @Test
+    fun `rungs with no or an unholdable contentLength are not offered, order kept`() {
+        val lengths = mapOf(
+            315 to SabrBuffer.MAX_BUFFER_BYTES + 1, // 2160p larger than the reassembly buffer holds
+            271 to null,                            // 1440p reports no contentLength
+            137 to 50_000_000L,
+            136 to 20_000_000L,
+        )
+        assertEquals(listOf(avc_1080, avc_720), SabrVideoResolver.pinnableRungs(ladder) { lengths[it] })
+    }
+
+    @Test
+    fun `a ladder whose rungs are all pinnable is unchanged`() {
+        assertEquals(ladder, SabrVideoResolver.pinnableRungs(ladder) { 10_000_000L })
+    }
+
+    @Test
+    fun `an explicit pick of an unpinnable label falls to the best pinnable rung`() {
+        val pinnable = SabrVideoResolver.pinnableRungs(ladder) { if (it == 315) null else 10_000_000L }
+        assertEquals(vp9_1440, SabrVideoResolver.pickRung(pinnable, "2160p", maxAutoBitrateKbps = null))
+    }
 }

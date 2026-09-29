@@ -98,6 +98,21 @@ internal class SabrBuffer private constructor(
         lock.notifyAll()
     }
 
+    /**
+     * Move the demand watermark FORWARD to [position] (never back) when the reader waits at an
+     * uncovered byte ahead of a live session that is left to drain to it ([SabrSeekLogic.LetDrain]).
+     * Without this the watermark stays at the pre-seek read position, the paced session stays parked
+     * (its coverage is still more than the ahead-window past that stale watermark), and the reader
+     * waits for bytes nobody fetches - an infinite buffering hang on any forward seek past the
+     * drained frontier.
+     */
+    fun raiseDemandTo(position: Long) = synchronized(lock) {
+        if (position > lastReadEnd) {
+            lastReadEnd = position
+            lock.notifyAll()
+        }
+    }
+
     /** Contiguous bytes available from 0. */
     fun available(): Long = synchronized(lock) { contiguous }
 

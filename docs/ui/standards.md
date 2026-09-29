@@ -59,6 +59,9 @@ baselines those gaps (`scripts/ui-audit-baseline.tsv`) and ratchets them down.
 - **Toast through the one helper.** `context.toast(resId | text, long = false)`
   (`extensions/ContextExt.kt`) over a hand-rolled `Toast.makeText(...).show()`. Enforced by `R21-toast`
   (baseline 0).
+- **Play/pause through `PlayerConnection.playPause()`.** A raw `player.togglePlayPause()` in UI code
+  drives the LOCAL player, so while casting it resumes local audio on top of the cast. Enforced by
+  `R27-playpause` (baseline 0).
 - **A loading skeleton matches the content that replaces it and never renders on another tab.** Home's
   music-shaped shimmer is gated `homeTab == HomeContentTab.MUSIC` on the `val shouldShowShimmer` line;
   `R22-home-shimmer` (a positive assertion, not a ratchet) fails CI otherwise.

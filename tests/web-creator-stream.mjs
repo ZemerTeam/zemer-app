@@ -81,7 +81,7 @@ async function drainWhole(url, cap) {
   const cred = await getCred();
   const visitorData = dec(cred.visitorData);
   console.log(describeCred(cred));
-  console.log(`video=${VIDEO_ID}  client=WEB_CREATOR (loginRequired=true, useWebPoTokens=false in app)\n`);
+  console.log(`video=${VIDEO_ID}  client=WEB_CREATOR (loginRequired=true, useWebPoTokens=true in app)\n`);
   if (!/SAPISID=/.test(cred.cookie)) console.log("WARNING: no SAPISID in cookie — WEB_CREATOR is login-required, expect LOGIN_REQUIRED\n");
 
   const cipher = await createCipher({ verbose: true });

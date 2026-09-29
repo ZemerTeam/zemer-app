@@ -54,7 +54,6 @@ data class StatusPost(
     val caption: String?,
     val textBody: String?,          // the body of a text-only status (text posts have no media/caption)
     val textBgColor: String?,       // optional "#RRGGBB" background for a text status
-    val linkUrl: String?,
     val durationSeconds: Int?,      // actual video length; the site defaults images/text to 7s
     val postedAt: String,           // ISO-8601, e.g. "2026-08-01T19:32:52+00:00"
     val viewCount: Int = 0,
@@ -196,7 +195,7 @@ fun fetchStatusPosts(base: String, key: String, creatorId: String): List<StatusP
     while (true) {
         val url = "$base/public_posts" +
             "?creator_id=eq.$creatorId" +
-            "&select=id,kind,media_path,thumb_path,caption,text_body,text_bg_color,link_url," +
+            "&select=id,kind,media_path,thumb_path,caption,text_body,text_bg_color," +
             "duration_seconds,posted_at,view_count,download_count" +
             "&order=posted_at.asc" +
             "&limit=$pageSize&offset=$offset"
@@ -257,7 +256,6 @@ internal fun parsePosts(arr: JSONArray): List<StatusPost> =
             caption = o.optStringOrNull("caption"),
             textBody = o.optStringOrNull("text_body"),
             textBgColor = o.optStringOrNull("text_bg_color"),
-            linkUrl = o.optStringOrNull("link_url"),
             durationSeconds = if (o.isNull("duration_seconds")) null else o.getInt("duration_seconds"),
             postedAt = o.optString("posted_at"),
             viewCount = o.optInt("view_count", 0),

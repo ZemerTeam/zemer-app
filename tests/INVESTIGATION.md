@@ -13,10 +13,9 @@ the findings the app depends on).
    wrong here (the stream URL wants a **videoId**-bound poToken, not the visitorData one yt-dlp/NewPipe use).
 2. **Reproduce the app's EXACT path.** Same `/player` request as `InnerTube.kt`, same sig+n cipher as
    the `cipher` submodule (run in jsdom instead of an Android WebView), same poToken minting as
-   `PoTokenGenerator`. A test that diverges from the app proves nothing about the app - and the token
-   *slots* currently do diverge (§1): `URL_POT=player` matches only the app's media-URL pot
-   (`web-remix-stream.mjs` still sends the videoId token in `/player`); only `pot-probe.mjs`'s
-   `req=visRaw` × `url pot=video` cell carries both of the app's tokens.
+   `PoTokenGenerator`, including the token slots: `/player` carries the visitorData-bound token and the
+   media URL (default `URL_POT=streaming`) the videoId-bound one. A test that diverges from the app
+   proves nothing about the app.
 3. **Isolate one variable at a time.** `pot-probe.mjs` holds the request constant and varies only the
    URL pot; `client-fulldownload.mjs` holds the video constant and varies only the client.
 
@@ -35,7 +34,7 @@ The scripts are deliberate ports of specific app code; when the app changes, the
 | `cipher/library/src/main/assets/player_configs.json` | `player-configs.mjs` reads the SAME file | per-player sig expression + n-trick class + STS + MD5 alias, looked up by player hash and injected by `cipher.mjs` |
 | `cipher/.../CipherWebView.kt` (Android WebView) | `cipher.mjs` (jsdom) | injects exports into the base.js IIFE, calls `_cipherSigFunc` / `_nTransformFunc` |
 | `cipher/.../CipherDeobfuscator.kt` | `cipher.mjs` `deobfuscateStreamUrl` / `transformNParamInUrl` | parse `s/sp/url`, apply sig, replace `n=` |
-| `cipher/.../potoken/PoTokenGenerator.kt` + `PoTokenWebView.kt` | `potoken.mjs` (bgutils-js) | BotGuard mint, request key `O43z0dpjhgX20SCx4KAo`. `potoken.mjs` mints the **pre-fix** mapping (streaming pot <- visitorData); the app appends the videoId-bound pot, so `URL_POT=player` reproduces the app's media URL - but `web-remix-stream.mjs`'s `/player` request still carries the videoId-bound token where the app sends the visitorData one |
+| `cipher/.../potoken/PoTokenGenerator.kt` + `PoTokenWebView.kt` | `potoken.mjs` (bgutils-js) | BotGuard mint, request key `O43z0dpjhgX20SCx4KAo`. Same pair as the app: `playerRequestPoToken` <- visitorData (sent in `/player`), `streamingDataPoToken` <- videoId (the URL `&pot=`, default `URL_POT=streaming`) |
 | `YTPlayerUtils.playerResponseForPlayback()` | `web-remix-stream.mjs` `resolveAppUrl()` | full resolve: player -> findFormat -> sig -> n -> pot |
 | `YTPlayerUtils.findFormat()` | `findFormat()` in the scripts | best audio by bitrate + a webm bias (+10240 when webm is allowed) -> itag 251 opus |
 | ExoPlayer HTTP data source (`MusicService` data-source chain) | `fetchRange()` / `drainWhole()` | range GETs on fresh connections; seek = range at a far offset |
@@ -91,8 +90,8 @@ Prints the tokens + lengths. If it errors, bgutils/BotGuard changed (Runbook D).
 
 ### `web-remix-stream.mjs` - reproduce drop/seek; verify a fix
 ```bash
-node tests/web-remix-stream.mjs                 # URL_POT=streaming (pre-fix binding) - reproduces the wall
-URL_POT=player node tests/web-remix-stream.mjs  # videoId pot (the app's URL pot) - should serve past the window
+node tests/web-remix-stream.mjs                 # URL_POT=streaming (videoId pot, the app's URL) - should serve past the window
+URL_POT=player node tests/web-remix-stream.mjs  # visitorData pot on the URL - reproduces the 403 wall
 ```
 Read the `B/B2/C/D` lines: `B continuation` should be "no drop"; `C seek` should be 206; `D one open
 GET` should deliver the whole file. The `P pot-variant probe` shows which binding the CDN wants now.
@@ -193,7 +192,7 @@ Capture the app's real URL and curl it from the **same network** (the URL has `i
 | `VideoQualityLogic` ladder/codec rules | `qualityLadder()` + `CODEC_RANK` in `video-qualities.mjs` |
 | `PlayerJsFetcher` base.js URL (locale path) | `cipher.mjs` `PLAYER_JS_URL` |
 
-After any of these, `node tests/cipher.mjs && node tests/potoken.mjs && URL_POT=player node tests/web-remix-stream.mjs`
+After any of these, `node tests/cipher.mjs && node tests/potoken.mjs && node tests/web-remix-stream.mjs`
 confirms the harness still resolves a playable stream.
 
 ---

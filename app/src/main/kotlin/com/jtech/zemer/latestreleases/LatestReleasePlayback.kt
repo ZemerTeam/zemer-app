@@ -52,7 +52,9 @@ fun LatestRelease.sampleMediaMetadata(): MediaMetadata? {
         id = videoId,
         title = title,
         artists = listOf(MediaMetadata.Artist(id = artistId, name = artistName)),
-        duration = 0, // unknown until the track loads; filled in once playback starts
+        // -1 is the app's "unknown" sentinel: recoverSong fills it from the stream on first play.
+        // 0 would read as a known zero length and never be repaired (0:00 rows, lyric matching off).
+        duration = -1,
         thumbnailUrl = thumbnail,
     )
 }

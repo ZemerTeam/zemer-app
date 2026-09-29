@@ -42,8 +42,7 @@ started by the `isPlaying` combine, which folds it in). While casting:
 `currentPositionMs()` / `currentDurationMs()`, never the remote flows, so the seek bar and synced lyrics
 cannot drift between surfaces. **A tap-the-active-row toggle must call `playerConnection.playPause()`,
 never `player.togglePlayPause()`** - the raw toggle resumes the paused local player on top of the cast.
-(Known violations to fix: `LibraryPodcastsScreen` and `OnlinePodcastScreen` still call
-`player.togglePlayPause()`.)
+ui-audit **R27-playpause** fails CI on a raw toggle in UI code.
 
 ## Seam 3 - the home-screen widget (`MusicService.onStartCommand`)
 

@@ -19,8 +19,8 @@
 //   MODE=stream node tests/video-qualities.mjs <videoId>     # skip the full-drain download step
 //   LABELS=2160p,1080p node tests/video-qualities.mjs <id>   # only these qualityLabels
 //   URL_POT=streaming|player|none                            # pot binding on the stream URL (default
-//                                                            #   player = videoId-bound, the binding that
-//                                                            #   survives past the 1 MiB wall)
+//                                                            #   streaming = videoId-bound, the app's pot -
+//                                                            #   the binding that survives the 1 MiB wall)
 //   PLAYER_HASH=<8 hex>                                      # pin a player across a rotation
 //
 // Needs innertube_cookie.txt at the repo root (gitignored).
@@ -36,7 +36,7 @@ const CHUNK = Number(process.env.CHUNK || 262144);
 const COVER_SECONDS = Number(process.env.COVER_SECONDS || 30);
 const MODE = process.env.MODE || "all"; // all | stream (skip full drains)
 const LABELS = process.env.LABELS ? process.env.LABELS.split(",").map((s) => s.trim()) : null;
-const URL_POT = process.env.URL_POT || "player";
+const URL_POT = process.env.URL_POT || "streaming";
 // CLIENT env picks which InnerTube client's ladder to test (default the app's main WEB_REMIX).
 // The music client caps at 1080p avc1; WEB/TVHTML5 may expose the vp9 1440p/2160p ladder.
 const CLIENT_KEY = process.env.CLIENT || "WEB_REMIX";

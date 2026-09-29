@@ -148,7 +148,9 @@ a read behind the session's first segment (or with no live session) **seek-resta
 estimated `playerTimeMs` (`SabrSeekLogic.estimateStartMs`, linear over `approxDurationMs`). The pure
 `SabrSeekLogic.decide` rules:
 - a session that landed AT OR BEFORE the target is left to DRAIN FORWARD, never restarted (re-issuing the
-  same estimate only cancels the one session making progress);
+  same estimate only cancels the one session making progress); the stream raises the buffer's demand
+  watermark to the target (`SabrBuffer.raiseDemandTo`, forward only), else the paced session stays parked
+  against the pre-seek read position and the reader waits forever;
 - only a landing PAST the target widens the back-margin and re-aims;
 - an unknown duration estimates 0 (a from-0 drain), never an endless restart-at-0;
 - `MAX_SEEK_RESTARTS` bounds it, then the stream errors.
@@ -326,7 +328,8 @@ SABR roster covers video unchanged.
 - **`SabrVideoResolver`** - dual-format resolve over the same roster (cipher n-transform for web clients),
   pinning the video itag via field 17 for the quality target. Its ladder is `VideoQualityLogic.rungs`
   minus progressive (SABR video is dual-track) and minus rungs `VideoDecoderCaps` rejects; rungs whose
-  contentLength fails `SabrBuffer.lengthValid` are excluded from the pick, not the published ladder.
+  contentLength fails `SabrBuffer.lengthValid` are dropped from the published ladder itself
+  (`SabrVideoResolver.pinnableRungs`), so the switcher only offers a rung a session can pin.
   **The resolve returns a READY, UNREGISTERED stream**: `VideoModeController` installs it
   (`SabrVideoRegistry.put`) only at the swap COMMIT on the main thread, after the `stillOurs` guard (an
   IO-thread put destroyed the currently-playing stream before the guard could veto). Position +
@@ -357,6 +360,9 @@ SABR roster covers video unchanged.
 
 - The byte→time seek estimate is linear over `approxDurationMs`, so a highly VBR track may need a
   convergence restart or two (bounded by `MAX_SEEK_RESTARTS`, then errors loudly).
+- A far forward seek on an established session DRAINS through the gap (`LetDrain`) rather than
+  seek-restarting, so it can be slow on long content. A distance-based restart would reopen the
+  restart-loop risk `SabrSeekLogicTest` pins; it needs live validation with `tests/sabr-seek.mjs` first.
 - **Casting** cannot ride SABR: the receiver fetches its own URL and cannot speak UMP.
 - **A WebView poToken is required** for every fresh resolve (the streamerContext pot), unlike DIRECT's
   pot-less VISIONOS fallback.

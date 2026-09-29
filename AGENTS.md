@@ -70,7 +70,7 @@ The alternative to progressive URLs for clients YouTube moved to SABR/UMP (`serv
 - **Pure, JVM-tested engine** (`SabrProto`, `SabrUmp`, `SabrMessages`, `SabrSession`, `SabrSeekLogic`, `SabrProtection`, `SabrBuffer`, `SabrSpool`, the `SabrAudioStream`/`SabrStreamRegistry`/`SabrDataSource` trio in `SabrDataSource.kt`; tests `Sabr*Test`). The UMP varint is NOT the protobuf varint - `SabrMessages.mediaHeaderId` (the MEDIA part's header-id prefix) must use the UMP one (they agree only below 128).
 - **Reassembly is by ABSOLUTE byte offset, never sequential append** (append corrupted the container → garbage duration → a `getBufferedPercentage` crash). `SabrBuffer` is DISK-backed (never a heap array), serves any covered region, refuses an out-of-range contentLength, and `writeAt` CLAMPS an overshooting final segment to contentLength instead of dropping it.
 - **Honesty:** an INCOMPLETE drain marks the buffer ERRORED, never complete (serve every reassembled byte, then a real player error at the gap); every stream-destroy path marks its buffers so a parked reader is always woken. A PLAYBACK session is `restartable` and never marks the shared buffer on its own failure (the stream owns the terminal error).
-- **Seek-restart (`SabrSeekLogic`, `SabrSeekLogicTest`):** a session that landed AT OR BEFORE the target drains forward (never restarted); only one that landed PAST it widens the margin and re-aims; an unknown duration estimates 0 (never an endless restart-at-0); `SabrBuffer.resetDemandFrom` re-anchors demand pacing to the seek target on every restart (else the fresh session blocks before its first POST). A seeked session's range echo anchors at its own first segment.
+- **Seek-restart (`SabrSeekLogic`, `SabrSeekLogicTest`):** a session that landed AT OR BEFORE the target drains forward (never restarted); only one that landed PAST it widens the margin and re-aims; an unknown duration estimates 0 (never an endless restart-at-0); `SabrBuffer.resetDemandFrom` re-anchors demand pacing to the seek target on every restart (else the fresh session blocks before its first POST), and a drain-forward (`LetDrain`) raises it to the target (`SabrBuffer.raiseDemandTo`, forward only; else the parked session never reaches the reader, an endless buffering hang). A seeked session's range echo anchors at its own first segment.
 - **`CastAwarePlayer.getBufferedPercentage` is crash-safe for ANY source** (double math, clamped 0..100, guards TIME_UNSET/zero/NaN) - media3's default throws on a pathological value and the session polls it on restore, which would crash-loop launch.
 - **Roster = SABR-usable clients only** (`SabrPlayerResolver`): WEB_REMIX → VISIONOS → TVHTML5_SIMPLY, each toggleable (`StreamSabr{WebRemix,VisionOS,TVHTML5}Key`), first-working wins, validated by `tests/sabr-clients.mjs`. Don't add throttled/attestation-walled clients (ANDROID_VR/IOS/IPADOS/WEB_CREATOR/MWEB); `SabrProtection` bails a sustained `STREAM_PROTECTION_STATUS>=2` cap fast (`attestation-capped`) so the fallback moves on. Web clients n-transform the ciphered `serverAbrStreamingUrl` and append the videoId-bound `&pot=`; VISIONOS does neither; the streamerContext poToken is the session token for all; decode the pot tolerantly (standard OR url-safe base64). The audio pick mirrors DIRECT (`pickAudio`, `SabrAudioPickTest`; `opusAllowed=false` for a COMPATIBLE / pre-API-29 download). On playback `resolve` rethrows network-class failures (`classifyErrors=true`) so `MusicService` maps them to `NETWORK_CONNECTION_FAILED` and waits instead of skipping.
 - **The seam is `MusicService`** (RELAY pattern): `sabrDataSourceFactory` wraps the SABR source in `DefaultDataSource.Factory` so a downloaded `content://` file still plays from disk; `RoutingDataSource` routes a DIRECT `video:`/`videoaudio:` key to DIRECT even under SABR, and reads the flag from the `sabrModeNow` mirror. A fresh resolve persists a `FormatEntity` (streamClient `… (SABR)`, `loudnessDb`) and runs `recoverSong`.
@@ -214,6 +214,7 @@ Every entry is the ONE implementation; files are under `ui/component/` unless st
 - **Text share:** `context.shareText(url)` (`extensions/ContextExt.kt`); `Tracker.action(SHARE, …)` + `onDismiss()` stay at the call site; file/stream shares keep their own builder. Ratchet `R19-share` (lyric-image share in `component/Lyrics.kt` excluded).
 - **Clipboard:** `context.copyToClipboard(label, text, confirmationRes = R.string.copied)` (also toasts; `text` is a `CharSequence`). Ratchet `R20-clipboard`.
 - **Toast:** `context.toast(resId | text, long = false)` from any `Context`. Ratchet `R21-toast`.
+- **Play/pause:** `PlayerConnection.playPause()` (cast-aware) over a raw `player.togglePlayPause()` in UI code, which resumes LOCAL audio while casting. Ratchet `R27-playpause`.
 - **Focus:** every focus visual conditions on `focusVisualsEnabled()` and every screen-open grab uses `RequestInitialDpadFocus(requester, enabled, keys)`; a focusable row in a scroller uses `Modifier.bringIntoViewOnFocus()` (all `ui/component/FocusBorder.kt`). Functional focus (text fields, key-event moves, cast volume keys) is never gated. Ratchets `R23-focusgate`, `R24-initialfocus`. Full rules: `docs/ui/standards.md` §11.
 - **See-all gate:** `seeAllOnClick(count, action)` / `SEE_ALL_MIN_ITEMS` (`ui/utils/SeeAll.kt`, `SeeAllTest`). Gate on the total the arrow OPENS, not a truncated preview: a preview row (artist-page local sections, search-summary sections, genre album/singles shelves) shows the arrow whenever a fuller view exists.
 - **Single episode tap:** `ListQueue.episode(item, playSource)` - never `ZemerRadioQueue.song` (an episode must not seed music radio).
@@ -226,7 +227,7 @@ Every entry is the ONE implementation; files are under `ui/component/` unless st
 
 **Loading skeletons must match the content that replaces them, and never render on another tab.** The Home content tabs share one `LazyColumn`, and the Home shimmer is music-shaped and driven by music-VM state, so `shouldShowShimmer` **must** stay gated on `homeTab == HomeContentTab.MUSIC` (kept on one line) - else a never-resolving skeleton paints on Radio/Podcasts/Videos. Ratchet `R22-home-shimmer` (a positive assertion).
 
-Enforcement lives in `scripts/ui-audit.sh` (see the rule list at the top of that file; R13 and R23-R26 are described inline beside their greps) + `docs/ui/standards.md`;
+Enforcement lives in `scripts/ui-audit.sh` (see the rule list at the top of that file; R13 and R23-R27 are described inline beside their greps) + `docs/ui/standards.md`;
 when you add a new shared helper with a greppable anti-pattern, add a ratchet rule there in the same pass.
 
 ### The home tab (telemetry-ranked rows; zero-InnerTube for content)
@@ -943,8 +944,8 @@ detail: `docs/ui/standards.md §12`. Rules:
   `AudioQuality.HIGH` (`if (videoDownload) audioQuality else AudioQuality.HIGH`).
 
 Enforcement: `scripts/check-download-unification.sh` (whole app, run by the UI-audit workflow; bans
-`downloadUtil.downloads` / `getDownload(` reads, `Download.STATE_*` outside `DownloadUtil.kt`, and
-`Icon.Download(`) + ui-audit **R13** (`ui/`). When touching downloads run both and add pure tests next to
+`downloadUtil.downloads` / `getDownload(` reads, `Download.STATE_*` (the removed media3 engine's enum),
+and `Icon.Download(`, with no exempt files) + ui-audit **R13** (`ui/`). When touching downloads run both and add pure tests next to
 the resolver/menu logic (the manager/playback layer would need Robolectric, which the project lacks - say
 so rather than skip silently).
 
@@ -967,7 +968,7 @@ session; **gitignored**, never commit). Methodology + the symptom-indexed runboo
   (used by `RecognitionResolver`, Android Auto voice search, `AddToPlaylistDialogOnline`):
   `node tests/search/run.mjs [query...]` reports strict-deserialization breaks, parser drops and empty
   results; `node --test tests/search/self-test.mjs` proves the checker (no network). The app sends no
-  visitorData/cookie/auth (`sendVisitorData = false`); the harness still sends visitorData (known drift).
+  visitorData/cookie/auth (`sendVisitorData = false`), and `run.mjs` matches that.
   Keep the strict-field table in `tests/search/schema.mjs` in sync with innertube model nullability.
   Details: `tests/search/README.md`.
 
@@ -1009,4 +1010,4 @@ repo (the maintainers' handoff-docs folder).
 
 - **Build both** `:app:assembleDebug` and `:app:assembleRelease` (release catches R8/shrink breakage).
 - **Streaming / cipher / poToken changes** must be proven with the `tests/` harness against the live CDN (HTTP 206 / whole-song drain), and ideally confirmed on-device via the `YTPlayerUtils` logcat (`Playback: client=…, itag=…`).
-- **UI changes** must comply with `docs/ui/standards.md` (the UI rulebook - Material 3 standard, design tokens, shared `Dialog.kt` dialogs, shared grouped-list components `Material3SettingsGroup`/`Material3MenuItem` per section 11) and stay 100% D-pad navigable - any new row/list component must carry the `.focusable()` + focus-border treatment, since upstream (Metrolist) rows omit it. Update the doc when a rule changes. Run `bash scripts/ui-audit.sh` - it checks sections 5, 7, 8, 11 and the R12-R26 rules (listed in `scripts/ui-audit.sh`) (no *new* hardcoded user-facing strings, raw `AlertDialog`s, raw font sizes, hardcoded hex colors, or raw `ListItem(` action rows under `ui/menu/`; strings and dialogs are baselined at zero, menus build from `Material3MenuGroup`).
+- **UI changes** must comply with `docs/ui/standards.md` (the UI rulebook - Material 3 standard, design tokens, shared `Dialog.kt` dialogs, shared grouped-list components `Material3SettingsGroup`/`Material3MenuItem` per section 11) and stay 100% D-pad navigable - any new row/list component must carry the `.focusable()` + focus-border treatment, since upstream (Metrolist) rows omit it. Update the doc when a rule changes. Run `bash scripts/ui-audit.sh` - it checks sections 5, 7, 8, 11 and the R12-R27 rules (listed in `scripts/ui-audit.sh`) (no *new* hardcoded user-facing strings, raw `AlertDialog`s, raw font sizes, hardcoded hex colors, or raw `ListItem(` action rows under `ui/menu/`; strings and dialogs are baselined at zero, menus build from `Material3MenuGroup`).

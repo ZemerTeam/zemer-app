@@ -87,6 +87,13 @@ class LatestReleasePlaybackTest {
     }
 
     @Test
+    fun `a sample track's length is the unknown sentinel so first play fills it in`() {
+        // recoverSong only repairs a -1 duration; a 0 was persisted as a real length and never fixed.
+        assertEquals(-1, release(trackCount = 1).sampleMediaMetadata()?.duration)
+        assertEquals(-1, release(trackCount = 5).sampleMediaMetadata()?.duration)
+    }
+
+    @Test
     fun `sampleTracks keeps the sample of every release that has a videoId, preserving order`() {
         val list = listOf(
             release(trackCount = 1, sampleVideoId = "a"),

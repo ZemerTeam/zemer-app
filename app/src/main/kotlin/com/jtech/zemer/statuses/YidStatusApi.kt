@@ -99,7 +99,6 @@ internal fun parseYidStatuses(arr: JSONArray, musicIds: Set<String>): Map<String
                 caption = if (isText) null else caption,
                 textBody = if (isText) caption else null,
                 textBgColor = o.optStringOrNull("background_color"),
-                linkUrl = o.optStringOrNull("link_title"),
                 durationSeconds = if (o.isNull("duration_seconds")) null else o.optInt("duration_seconds"),
                 postedAt = o.optStringOrNull("timestamp") ?: "",
                 source = StatusSource.YID_STATUS,

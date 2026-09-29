@@ -19,9 +19,9 @@ The app's search entry point, on the `WEB_REMIX` client:
 **Faithfulness facts** (verified against `InnerTube.kt`):
 - Search runs with `setLogin = false, sendVisitorData = false` — the app sends **no visitorData, no
   cookie and no Authorization** (`InnerTube.kt` `search()`; a shared/stale visitorData can make search
-  silently return empty). **Known drift:** the harness (`lib.mjs`) still sends `visitorData` (it reads
-  `innertube_cookie.txt` only to reuse it, as `X-Goog-Visitor-Id` + `context.client.visitorData`), so
-  it is not app-exact on that one point.
+  silently return empty). `run.mjs` matches that: `postSearch` called without visitorData sends only
+  the WEB_REMIX client headers. Research scripts that pass a visitorData opt into a request the app
+  never sends.
 - The 6 `SearchFilter` param strings, the request body shape, and the section-walking logic
   (`musicShelfRenderer` + `itemSectionRenderer`, `distinctBy id`) are copied verbatim.
 - `lib.mjs` / `parsers.mjs` are line-for-line ports of the InnerTube helpers, the

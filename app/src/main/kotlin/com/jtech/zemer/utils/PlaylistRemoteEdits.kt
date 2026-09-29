@@ -47,3 +47,16 @@ fun playlistSongMaps(songs: List<MediaMetadata>, playlistId: String): List<Playl
             setVideoId = song.setVideoId,
         )
     }
+
+/**
+ * Whether a synced playlist must be rebuilt from the whitelist-filtered remote entries [filtered]
+ * given its current [local] entries (both `(songId, setVideoId)` in order). Never rebuilds to
+ * empty: a remote read that filtering reduced to nothing (a sparse/topic-channel renderer, issue
+ * #130) keeps the local songs instead of wiping them. A de-whitelisted artist's songs are removed by
+ * the whitelist sync itself, so the kosher guarantee never depends on this path clearing a playlist.
+ * Pairs, not ids: an unchanged membership still rebuilds once to backfill a missing setVideoId.
+ */
+fun playlistRebuildNeeded(
+    filtered: List<Pair<String, String?>>,
+    local: List<Pair<String, String?>>,
+): Boolean = filtered.isNotEmpty() && filtered != local

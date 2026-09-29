@@ -39,7 +39,6 @@ JewishStatus wins a tie); the See-all screen groups them back by `StatusCreator.
 | `mediaPath` / `thumbPath` | `media_path` / `thumb_path` (relative) | `media_url` / `poster_url` (full) |
 | `caption` / `textBody` | `caption` / `text_body` | `caption` -> `textBody` for a `text` status, else `caption` |
 | `textBgColor` | `text_bg_color` | `background_color` |
-| `linkUrl` | `link_url` | `link_title` |
 | `durationSeconds` | `duration_seconds` | `duration_seconds` |
 | `postedAt` (ISO-8601 UTC) | `posted_at` | `timestamp` |
 

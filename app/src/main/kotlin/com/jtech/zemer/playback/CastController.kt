@@ -22,9 +22,9 @@ import timber.log.Timber
  * Owns the FCast **cast control plane** — end-of-track auto-advance (its three detectors), the
  * track-change reload of the receiver, and disconnect recovery. It lives on [MusicService]
  * (process-scoped) rather than the Activity-scoped [PlayerConnection], so a cast session keeps
- * advancing through its queue even after the UI Activity is destroyed. [PlayerConnection] delegates its
- * few cast hooks here (queue-start bookkeeping, markRemoteLoaded, advanceRemoteAfterEnd) and drives no
- * cast logic of its own.
+ * advancing through its queue even after the UI Activity is destroyed. [PlayerConnection] only forwards
+ * queue-start bookkeeping ([onPlayQueueWhileCasting]); [CastConnector] calls [markRemoteLoaded] and wires
+ * [advanceRemoteAfterEnd] as the connection's track-ended callback. Neither drives cast logic of its own.
  *
  * Everything runs on [scope] (the service's Main scope), so the cast-tracking fields are confined to a
  * single thread and never need `@Volatile` — including the [FCastDiscoveryHandler.onDisconnect] callback,
