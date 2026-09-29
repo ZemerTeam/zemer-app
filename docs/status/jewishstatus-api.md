@@ -34,7 +34,7 @@ All posts for one creator, oldest first, paginated 100/page (`fetchStatusPosts`)
 ```
 GET /public_posts
     ?creator_id=eq.<creator-uuid>
-    &select=id,kind,media_path,thumb_path,caption,text_body,text_bg_color,link_url,duration_seconds,posted_at,view_count,download_count
+    &select=id,kind,media_path,thumb_path,caption,text_body,text_bg_color,duration_seconds,posted_at,view_count,download_count
     &order=posted_at.asc
     &limit=100&offset=<n>
 ```
@@ -54,7 +54,7 @@ AFTER publishing the creators, off the critical path; an unresolved id stays unk
 the caught-up state).
 
 **Post** (`parsePosts`): `id`, `kind` (`video`/`image`/`text`), `media_path` / `thumb_path` (relative,
-`<CDN>/status-media/…`), `caption`, `text_body`, `text_bg_color` (`#RRGGBB`), `link_url`,
+`<CDN>/status-media/…`), `caption`, `text_body`, `text_bg_color` (`#RRGGBB`),
 `duration_seconds` (images/text default to 7 s in the viewer), `posted_at` (ISO-8601 UTC - display in the
 device zone), `view_count`, `download_count`.
 

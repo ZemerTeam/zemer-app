@@ -6,13 +6,13 @@ Every tracked non-Kotlin path outside `docs/` is listed. Text files report line 
 | --- | ---: | --- |
 | `.github/workflows/debug-build.yml` | 66 lines | text `.yml` |
 | `.github/workflows/docs-regenerate.yml` | 81 lines | text `.yml` |
-| `.github/workflows/player-monitor.yml` | 195 lines | text `.yml` |
+| `.github/workflows/player-monitor.yml` | 196 lines | text `.yml` |
 | `.github/workflows/regression.yml` | 84 lines | text `.yml` |
 | `.github/workflows/release-build.yml` | 166 lines | text `.yml` |
 | `.github/workflows/ui-audit.yml` | 56 lines | text `.yml` |
 | `.gitignore` | 117 lines | text `[none]` |
 | `.gitmodules` | 3 lines | text `[none]` |
-| `AGENTS.md` | 1012 lines | text `.md` |
+| `AGENTS.md` | 1013 lines | text `.md` |
 | `LICENSE` | 674 lines | text `[none]` |
 | `README.md` | 9 lines | text `.md` |
 | `app/.gitignore` | 1 lines | text `[none]` |
@@ -307,24 +307,24 @@ Every tracked non-Kotlin path outside `docs/` is listed. Text files report line 
 | `lint.xml` | 6 lines | text `.xml`; XML root `lint` |
 | `scripts/check-16kb-alignment.sh` | 67 lines | text `.sh` |
 | `scripts/check-dead-resources.sh` | 94 lines | text `.sh` |
-| `scripts/check-download-unification.sh` | 58 lines | text `.sh` |
+| `scripts/check-download-unification.sh` | 53 lines | text `.sh` |
 | `scripts/dead-resources-baseline.txt` | 4 lines | text `.txt` |
 | `scripts/telegram-chats.sh` | 38 lines | text `.sh` |
 | `scripts/ui-audit-baseline.tsv` | 14 lines | text `.tsv` |
-| `scripts/ui-audit.sh` | 248 lines | text `.sh` |
+| `scripts/ui-audit.sh` | 255 lines | text `.sh` |
 | `scripts/ui-strings-scan.py` | 96 lines | text `.py` |
 | `settings.gradle.kts` | 54 lines | text `.kts`; plugins `org.gradle.toolchains.foojay-resolver-convention` |
 | `tests/INVESTIGATION.md` | 227 lines | text `.md` |
 | `tests/MWEB-INVESTIGATION.md` | 47 lines | text `.md` |
-| `tests/README.md` | 136 lines | text `.md` |
+| `tests/README.md` | 134 lines | text `.md` |
 | `tests/analyze-player.mjs` | 53 lines | text `.mjs` |
 | `tests/broken-clients.mjs` | 143 lines | text `.mjs` |
 | `tests/check-live-player.mjs` | 81 lines | text `.mjs` |
 | `tests/cipher-check.mjs` | 86 lines | text `.mjs` |
 | `tests/cipher.mjs` | 205 lines | text `.mjs` |
-| `tests/client-fulldownload.mjs` | 118 lines | text `.mjs` |
-| `tests/clients-retired.mjs` | 76 lines | text `.mjs` |
-| `tests/clients.mjs` | 49 lines | text `.mjs` |
+| `tests/client-fulldownload.mjs` | 117 lines | text `.mjs` |
+| `tests/clients-retired.mjs` | 86 lines | text `.mjs` |
+| `tests/clients.mjs` | 35 lines | text `.mjs` |
 | `tests/config-covers.mjs` | 24 lines | text `.mjs` |
 | `tests/cred.mjs` | 82 lines | text `.mjs` |
 | `tests/derive-player-config.mjs` | 89 lines | text `.mjs` |
@@ -339,7 +339,7 @@ Every tracked non-Kotlin path outside `docs/` is listed. Text files report line 
 | `tests/player-configs.mjs` | 96 lines | text `.mjs` |
 | `tests/player-configs.test.mjs` | 120 lines | text `.mjs` |
 | `tests/pot-probe.mjs` | 139 lines | text `.mjs` |
-| `tests/potoken.mjs` | 132 lines | text `.mjs` |
+| `tests/potoken.mjs` | 133 lines | text `.mjs` |
 | `tests/probe-all-ids.mjs` | 126 lines | text `.mjs` |
 | `tests/probe-client-auth.mjs` | 208 lines | text `.mjs` |
 | `tests/probe-client-detail.mjs` | 156 lines | text `.mjs` |
@@ -406,7 +406,7 @@ Every tracked non-Kotlin path outside `docs/` is listed. Text files report line 
 | `tests/search/jyrics-crawl.mjs` | 42 lines | text `.mjs` |
 | `tests/search/jyrics-resolve-videos.mjs` | 41 lines | text `.mjs` |
 | `tests/search/jyrics-vs-youtube.mjs` | 20 lines | text `.mjs` |
-| `tests/search/lib.mjs` | 155 lines | text `.mjs` |
+| `tests/search/lib.mjs` | 157 lines | text `.mjs` |
 | `tests/search/lyrics-avenues-probe.mjs` | 82 lines | text `.mjs` |
 | `tests/search/lyrics-coverage.mjs` | 67 lines | text `.mjs` |
 | `tests/search/lyrics-desc-scan.mjs` | 44 lines | text `.mjs` |

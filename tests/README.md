@@ -49,13 +49,13 @@ the first CLI arg or via `VIDEO_ID`.
 |---|---|
 | `cred.mjs` | Loads cookie/visitorData/dataSyncId from `innertube_cookie.txt` (+ env overrides). |
 | `cipher.mjs` | Faithful Node port of the app's **Zemer cipher** (sig deobfuscation + n-transform + STS). Fetches the **same** `base.js` (iframe_api -> `player_ias.vflset/en_GB/base.js`), injects the **same** per-player sig call expression + n-transform class, looked up by player hash in `cipher/library/src/main/assets/player_configs.json`, into the IIFE, and runs it in jsdom. Byte-identical to `CipherWebView`. |
-| `potoken.mjs` | BotGuard **poToken** minter (`bgutils-js` + jsdom), request key `O43z0dpjhgX20SCx4KAo`. Mints the streaming token bound to visitorData and the player token bound to videoId — the **pre-fix** mapping (harness drift); the app appends the videoId-bound pot, so use `URL_POT=player` to reproduce its media URL (`web-remix-stream.mjs`'s `/player` request still carries the videoId token; see Findings). |
+| `potoken.mjs` | BotGuard **poToken** minter (`bgutils-js` + jsdom), request key `O43z0dpjhgX20SCx4KAo`. Mints the app's pair: the player-request token bound to visitorData and the streaming (URL `&pot=`) token bound to videoId, as `PoTokenGenerator.getWebClientPoToken` does (see Findings). |
 | `web-remix-stream.mjs` | Reproduces the WEB_REMIX **1-MiB drop + seek** failure via the app's exact resolve path, then exercises the URL like ExoPlayer (sequential range chunks on fresh connections, seek, one open GET, re-resolve, pot-variant probe) + a (retired-)IOS control from `clients-retired.mjs`. |
 | `pot-probe.mjs` | The **definitive poToken-binding matrix**: request-pot × url-pot × {none/videoId/visitorData-raw/visitorData-enc}, fetched past the 1-MiB window. |
-| `client-fulldownload.mjs` | Drains the **whole** file per client to show which clients actually deliver a full song. Defaults to the app's main + fallback clients **plus `MWEB`** (harness drift: the app removed MWEB); `CLIENTS=A,B` to subset. |
+| `client-fulldownload.mjs` | Drains the **whole** file per client to show which clients actually deliver a full song. Defaults to the app's main + fallback clients; `CLIENTS=A,B` to subset. |
 | `sts-mismatch.mjs` | Regression test for **STS/cipher player coherence**: `/player` with the pinned player's own STS must stream past the wall; another live generation's STS 403s (why `CipherDeobfuscator.signatureTimestamp()` feeds `YTPlayerUtils`). |
 | `video-qualities.mjs` | The **beyond-720p quality ladder** prover: enumerates every video quality (progressive muxed + adaptive video-only, mirroring `VideoQualityLogic.ladderFormats`) plus the audio merge partner, resolves each URL the app's exact way, and per rung (high→low) verifies initial 206, a fresh-connection sweep past the 1-MiB pot wall, a 75% seek, and a **full drain to EOF** (the download proof). PASS/FAIL exit — can gate. |
-| `clients.mjs` / `clients-retired.mjs` | The live client mirror of `innertube/.../models/YouTubeClient.kt` (keep in sync!; it still carries an `MWEB` def the app removed) / the RETIRED client defs + dead-verdicts. |
+| `clients.mjs` / `clients-retired.mjs` | The live client mirror of `innertube/.../models/YouTubeClient.kt` (keep in sync!) / the RETIRED client defs + dead-verdicts (incl. MWEB). |
 | `run.mjs`, `full-stream.mjs`, `retest-web.mjs` | Older player-endpoint probes (kept for reference). |
 
 ### Run them
@@ -63,8 +63,8 @@ the first CLI arg or via `VIDEO_ID`.
 ```bash
 node tests/cipher.mjs                 # self-test: live player hash, STS, sig/n working?
 node tests/potoken.mjs JTF9fLJvniI    # mint the token pair, print bindings/lengths
-node tests/web-remix-stream.mjs                      # reproduce the wall (default URL_POT=streaming = pre-fix binding)
-URL_POT=player node tests/web-remix-stream.mjs       # the app's current URL (videoId-bound pot)
+node tests/web-remix-stream.mjs                      # the app's URL (default URL_POT=streaming = videoId-bound pot)
+URL_POT=player node tests/web-remix-stream.mjs       # reproduce the wall (visitorData-bound pot, 403 past 1 MiB)
 node tests/pot-probe.mjs                             # the binding matrix
 node tests/client-fulldownload.mjs                   # per-client whole-song delivery
 node tests/sts-mismatch.mjs                          # STS/cipher player coherence (403 regression)
@@ -106,11 +106,9 @@ url pot = visitorData   403      403   (raw "==" and url-encoded "%3D%3D" both f
 **The stream URL's `pot=` must be bound to the videoId**, independent of the `/player` request's pot.
 This is why `PoTokenGenerator.getWebClientPoToken` (cipher) returns `streamingDataPoToken = videoPot`
 (appended as `&pot=`) and `playerRequestPoToken = sessionPot` (visitorData-bound, sent in `/player`).
-`tests/potoken.mjs` still mints the swapped (pre-fix) mapping, so `URL_POT=player` reproduces the
-app's current media URL and the default `URL_POT=streaming` reproduces the bug. Its `/player` request
-still sends the videoId-bound token (the app sends the visitorData one), so `web-remix-stream.mjs` is
-not full token parity; only `pot-probe.mjs`'s `req=visRaw` × `url pot=video` cell carries both of the
-app's tokens.
+`tests/potoken.mjs` mints the same pair, so `web-remix-stream.mjs` sends the app's exact tokens: the
+default `URL_POT=streaming` is the app's media URL, and `URL_POT=player` (the visitorData token on the
+URL) reproduces the 403 past 1 MiB.
 
 ### Which clients deliver a WHOLE song
 
