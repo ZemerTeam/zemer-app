@@ -1,24 +1,24 @@
-# 07 — Testing, limitations, troubleshooting
+# 07 - Testing, limitations, troubleshooting
 
-## Unit tests (pure logic, no SDK/Android)
+## Unit tests (pure JVM, no SDK/Android runtime)
 
-The end-of-track and clock/state logic is extracted into pure objects precisely so
-it is unit-testable on the JVM without a player, the FCast SDK, or an Android
-runtime:
+The load-bearing decisions are extracted into pure objects so they can be tested without a player, the
+SDK or Android (all under `app/src/test/kotlin/com/jtech/zemer/playback/`):
 
 | Test | Covers |
 | --- | --- |
-| `CastPlaybackTest` (11) | `isPlaying`/`isPaused`/`playIntentForState` state mapping; seconds↔ms conversion + round-trip; `steppedVolume` step/clamp math; `shouldStartLocalPlayback` (the async-queue dual-playback guard). |
-| `CastAutoAdvanceTest` (16) | `nearEnd` boundary/zero-duration; `debouncePassed`/`stalled` strict windows; combined idle/stall scenarios; the stale-position-reset regression for the device-switch auto-skip; `endEdgePositionSec` with the exact positions from a captured Chromecast sender log (zero-clock-before-IDLE). |
-| `CastErrorRecoveryTest` (7) | The receiver-playback-error ladder: reload → fresh resolve → advance escalation; the consecutive-abandoned-tracks cap; give-up when the queue can't advance (repeat-one / last track); error-burst dedupe; the progress threshold that resets the counters. |
-| `CastNativeLibLoaderTest` (6) | `cacheIsValid` (exists + SHA match, stale/missing/partial rejection), `pickAbi`, and `downloadProgress` (fraction / null-when-unknown). |
-| `CastConnectTest` (8) | The connect-flow decisions: terminal-result mapping and which results prune the tapped device from the picker (only `Failed`; `NoStream` never proved the device dead). |
-| `CastDeviceCatalogTest` (10) | Rebuilding the picker list from a refresh burst: the FCast instance-name vs. Chromecast TXT-`fn` naming rules that merge refreshed entries onto the SDK's map keys. |
-| `CastVolumeKeysTest` (5) | The hardware-volume-key routing rule (`decide`): app-scoped Ignore when not casting / non-volume key; Adjust on ACTION_DOWN; ACTION_UP consumed so the system volume UI doesn't flash. |
-| `RemoteVolumeTrackerTest` (5) | The unknown-until-reported stepping rule: steps refused (and the placeholder undisturbed) until the receiver reports or the slider sets; clamping; reset on a fresh connection. |
-| `SeekMathTest` (3) | `forwardSeekTarget`: clamp to a known duration, and the no-clamp rule for an unknown (0 / unset) duration — a cast track before the receiver reports its duration must not snap a forward double-tap to 0. |
-
-Run them (note `RemoteVolumeTracker*`/`SeekMath*` don't match `Cast*`):
+| `CastPlaybackTest` | state mapping, `isRemotePlaying`, s↔ms conversion, `steppedVolume`, `shouldStartLocalPlayback`, the video-viewer and task-clear guards |
+| `CastAutoAdvanceTest` | `nearEnd` / `finishedNearEnd` / `debouncePassed` / `stalled`, the stale-position reset, `endEdgePositionSec` with positions from a captured Chromecast log (zero-clock-before-IDLE) |
+| `CastErrorRecoveryTest` | the ladder, the abandoned-tracks cap, give-up with nowhere to go, burst dedupe, the progress reset |
+| `CastNativeLibLoaderTest` | `cacheIsValid`, `pickAbi`, `downloadProgress` |
+| `CastConnectTest` | terminal-result mapping; only `Failed` prunes the tapped device |
+| `CastDeviceCatalogTest` | refresh-burst merge and the FCast instance-name vs Chromecast TXT-`fn` naming |
+| `CastVolumeKeysTest` | key routing: Ignore when not casting / non-volume / local video, Adjust on DOWN, Consume on UP |
+| `CastIdleWatchdogTest` | the paused / stalled timeouts and their boundaries |
+| `CastRelayProtocolTest` | request-head parsing, `/stream/<token>` paths, Range/Content-Range math, URL hosts |
+| `CastStreamRelayTest` | the relay end to end: `urlFor`/`servesUrl`, full + 206 Range serving with CORS, HEAD→GET, preflight, 404/405, forced re-mint on a rejected upstream, byte-exact resume after a mid-body drop, 502 on a null resolve, `stop` |
+| `RemoteVolumeTrackerTest` | steps refused until the level is known; clamping; reset per connection |
+| `SeekMathTest` | `forwardSeekTarget` never clamps to an unknown (0/unset) duration |
 
 ```bash
 ./gradlew :app:testDebugUnitTest \
@@ -27,150 +27,97 @@ Run them (note `RemoteVolumeTracker*`/`SeekMath*` don't match `Cast*`):
   --tests "com.jtech.zemer.playback.SeekMath*"
 ```
 
-## What is NOT unit-tested (and why)
+**Not unit-tested:** the stateful wiring (`FCastDiscoveryHandler`, `CastController`, `PlayerConnection`,
+the `MusicService` cast paths) depends on Media3, coroutines, SDK threads and Android, and the project
+has no Robolectric. Its decisions live in the pure objects above; the wiring is covered by building both
+APKs (`./gradlew :app:assembleDebug :app:assembleRelease`, `bash scripts/ui-audit.sh`) and the manual
+checklist.
 
-The stateful wiring — `FCastDiscoveryHandler`, `PlayerConnection`, and the
-`MusicService` cast paths — depends on Media3, coroutines, SDK callback threads,
-and Android. The project has **no Robolectric**, so these layers can't be unit
-tested without heavy new infrastructure. Per the engineering rules this is called
-out explicitly rather than skipped: the load-bearing *decisions* inside them are
-pushed down into the pure objects above (which are tested), and the wiring itself
-is verified by builds + the manual checklist below.
+## Manual checklist (a real receiver on the same Wi-Fi)
 
-## Build verification
-
-Always build both — release runs R8 and catches shrink/keep-rule breakage debug
-never will:
-
-```bash
-./gradlew :app:assembleDebug :app:assembleRelease
-bash scripts/ui-audit.sh
-```
-
-## Manual test checklist (needs a real receiver)
-
-Casting can only be fully validated on a device + an FCast receiver on the same
-Wi-Fi. The high-value paths:
-
-1. **First-run download** — fresh install → Settings → Enable casting → consent →
-   download → `Ready`. Kill mid-download → relaunch re-downloads (no trusted
-   partial).
-2. **Connect & play** — open picker, pick a device → local pauses, receiver plays
-   from the current position; the in-app + notification scrubbers track the TV.
-3. **Transport parity** — play/pause and seek from: in-app button, notification,
-   lock screen, and the home-screen widget all act on the receiver. Include a
-   list screen's active-row tap (e.g. a curated playlist) — it must toggle the
-   receiver, never resume phone audio on top of it. A pause tap **immediately
-   after connecting** (before the receiver's first state report) must pause,
-   not silently re-assert play.
-4. **Skip** — next/previous (in-app, notification, widget, fullscreen lyrics
-   screen) advance the receiver; skip-previous doesn't restart on a >3 s
-   position (it must skip to the previous item — a within-item restart never
-   reloads the receiver).
-5. **Auto-advance** — let a track end → the next loads automatically, exactly once
-   (no double-skip).
-6. **Pause near end** — pause within ~3 s of the end → it must NOT auto-skip.
-7. **Repeat-one** — replays the same track on the receiver.
-8. **New queue = current song** — start a playlist whose first track is the one
-   already casting → it reloads/restarts on the receiver.
-9. **Device switch** — connect A, then connect B → **A stops** (stopPlayback is
-   sent before its socket drops — two receivers must never play at once); B
-   plays from its start and is not spuriously auto-skipped (A's stop-solicited
-   reports are dropped by the stale-device guards).
-10. **Disconnect** — "Stop casting" (and: device drops off Wi-Fi) → local resumes
-    at the last remote position, **paused**.
-11. **Sleep timer** — set a short timer (and the end-of-song mode) while casting
-    → the **receiver** pauses when it fires; in end-of-song mode the next track
-    loads paused instead of playing on.
-12. **Widget state** — while casting, the widget's icon mirrors the receiver
-    (pause icon while the TV plays; flips on remote play/pause) and its seek bar
-    tracks the remote clock.
-13. **Lyrics screen** — open fullscreen lyrics while casting → synced lyrics
-    advance with the receiver and the slider moves.
-14. **Background mid-connect** — tap a device, immediately background the app,
-    return → the picker is not stuck on "Connecting…"; the attempt resolves (or
-    times out and aborts) and rows re-enable.
-15. **Volume** — while casting: hardware buttons and the 3-dot slider move the
-    **receiver's** volume; a volume change from the TV's own remote moves the
-    slider; in another app the buttons stay local. Do this on **both** an FCast
-    receiver and a Chromecast — if the receiver never sends a `volumeChanged`
-    report, button steps stay inert until the slider is used once (by design, see
-    below), and that's worth knowing per receiver type.
+1. **First-run download** - enable casting → consent → `Ready`; killing mid-download re-downloads.
+2. **Connect** - local pauses, the receiver plays from the current position; in-app and notification
+   scrubbers track it.
+3. **Transport parity** - play/pause/seek from the in-app button, notification, lock screen, widget and a
+   list screen's active-row tap all act on the receiver; a pause tap right after connecting pauses.
+4. **Skip** - next/previous from every surface advance the receiver; previous never restarts in-item.
+5. **Auto-advance** - a track end loads the next exactly once. **Pause near the end** does not skip.
+   **Repeat-one** replays on the receiver.
+6. **New queue = current song** - it reloads on the receiver.
+7. **Device switch** - connect A then B: A stops, B plays and is not spuriously auto-skipped.
+8. **Disconnect** - "Stop casting" or the device leaving Wi-Fi → local resumes paused at the last remote
+   position.
+9. **Sleep timer** (incl. end-of-song mode) pauses the receiver; the next track loads paused.
+10. **Widget** icon and seek bar mirror the receiver; **fullscreen lyrics** follow the remote clock.
+11. **Background mid-connect** - the picker is not stuck on "Connecting…" on return.
+12. **Volume** on both an FCast receiver and a Chromecast - keys and the slider move the receiver, the TV
+    remote moves the slider, other apps keep local volume; keys stay inert until the receiver reports a
+    level or the slider is used.
+13. **Status viewer** while casting - the receiver pauses, volume keys drive the video, and it resumes on
+    close only if it was playing.
 
 ## Known limitations (by design)
 
-- **Discovery can't be stopped** (sender-sdk 0.4.0 `NsdDeviceDiscoverer` has no
-  stop API) — it runs from first `startDiscovery()` until the process dies.
-- **ABI** — only `arm64-v8a` / `armeabi-v7a`; other devices report
-  `Failed(UNSUPPORTED_DEVICE)`.
-- **Volume buttons are inert until the receiver's level is known** (its first
-  `volumeChanged` report, or one slider set). The SDK has no volume *getter*, so
-  stepping before that would act on a `1.0` placeholder and could set a quiet
-  receiver to near-max on the first press (`RemoteVolumeTracker`).
-- **Touch-mode dialogs without focused content don't route volume keys.** The
-  `Dialog.kt` dialogs use `seedFocus = false` (so text fields keep their
-  auto-focus); Compose's key pipeline needs *a* focused node, so with nothing
-  focused (touch mode, no text field) volume keys fall through to the system
-  volume while such a dialog is open. D-pad use always focuses something, so the
-  G1 is unaffected.
+- **Discovery cannot be stopped** (sender-sdk 0.4.0 has no stop API).
+- **ABIs:** only `arm64-v8a` / `armeabi-v7a`; others get `Failed(UNSUPPORTED_DEVICE)`.
+- **Volume keys are inert until the receiver's level is known** - the SDK has no volume getter, and
+  stepping the `1.0` placeholder could set a quiet receiver near max.
+- **Touch-mode dialogs with nothing focused don't route volume keys**: the `Dialog.kt` dialogs use
+  `seedFocus = false` (so text fields keep focus) and Compose's key pipeline needs a focused node, so
+  keys fall through to the system volume. D-pad use always focuses something.
 
-## Debugging: log tags & error telemetry
+## Logs and telemetry
 
-All cast logging goes through **Timber**. Debug builds plant `Timber.DebugTree`,
-which tags each line with the **calling class's simple name** — there are no
-hand-written cast log tags. The tags worth filtering:
+Debug builds plant `Timber.DebugTree` (tag = calling class name unless set explicitly); the Crashlytics
+tree runs in every build, turning logs into breadcrumbs and `reportException` into non-fatals.
 
-| Logcat tag | Source | What it shows |
-| --- | --- | --- |
-| `CastDeviceAddressResolver` | app (Timber) | Click-time NSD re-resolves: refreshed addresses/port, resolve failures + error codes. |
-| `CastDeviceRefresher` | app (Timber) | The refresh burst: what resolved, what TCP-probed unreachable and got pruned, discovery-start failures. |
-| `NsdDeviceDiscoverer` | FCast SDK | The SDK's own discovery: services found vs. resolved. |
-| `YTPlayerUtils` | app (streaming) | Stream URL resolution — casting resolves the URL through the same validated path as local playback (`resolveStreamUrl`), so a cast that "loads nothing" often debugs here. |
-| `MusicService` | app | General service lifecycle around the cast session. |
+| Logcat tag | Shows |
+| --- | --- |
+| `CastDeviceAddressResolver` | click-time re-resolve results |
+| `CastDeviceRefresher` | refresh bursts: found/authoritative summary, unreachable-and-pruned |
+| `NsdDeviceDiscoverer` (SDK) | services found vs resolved |
+| `CastRelay` | relay port, start/stop, no route to receiver, "Relay unavailable" (direct-URL fallback) |
+| `CastController` | receiver errors with ladder attempt/action; idle-session auto-end |
+| `YTPlayerUtils` | stream resolution (casting uses the same `resolveStreamUrl` path) |
 
-One command for a cast session:
+NSD listener callbacks (a resolve attempt failing, a burst's discovery failing to start) log from
+anonymous listener classes, so their auto-tags carry a `$…` suffix (e.g.
+`CastDeviceRefresher$discoverBurst$listener`) and `-s` misses them - grep for `Cast NSD` / `Cast refresh`.
 
 ```bash
-adb logcat -s CastDeviceAddressResolver:V CastDeviceRefresher:V NsdDeviceDiscoverer:V YTPlayerUtils:V MusicService:V
+adb logcat -s CastDeviceAddressResolver:V CastDeviceRefresher:V NsdDeviceDiscoverer:V CastRelay:V CastController:V YTPlayerUtils:V
 ```
-
-**Release builds have no logcat output** (only the `CrashReportingTree` is
-planted): every Timber log (DEBUG+) becomes a Crashlytics **breadcrumb**, and
-errors are reported as **non-fatal issues** via `reportException`. The cast
-non-fatals to look for in Crashlytics, and what each means:
 
 | Non-fatal context | Meaning |
 | --- | --- |
-| `FCast SDK call` | Any SDK call threw (`castCall` wraps every one — receivers misbehave; we never crash). |
-| `FCast connect` / `FCast createDeviceFromInfo` | The connect handshake or device construction failed. |
-| `FCast playback error: <msg>` | The receiver itself reported a playback error. Also triggers the recovery ladder (`CastErrorRecovery`): reload → fresh resolve → advance (capped) instead of leaving the session dead. |
-| `FCast: cast error recovery gave up …` | The ladder exhausted its options (repeated errors across tracks, or repeat-one/last-track with a dead load); the user got a toast. |
-| `FCast: could not resolve a stream URL for <id>` | `CastController` had nothing castable for the current item. |
-| `Cast NSD resolve` / `Cast refresh discovery` | The Android NSD layer threw during re-resolve / the refresh burst. |
-| `FCast lib checksum mismatch` | The downloaded `.so` failed SHA verification (see [02](02-on-demand-native-lib.md)). |
+| `FCast SDK call` | an SDK call threw (`castCall`) |
+| `FCast connect` / `FCast createDeviceFromInfo` | the handshake or device construction failed |
+| `FCast playback error: <msg>` | the receiver reported an error; the recovery ladder runs |
+| `FCast: cast error recovery gave up …` | the ladder exhausted its options; the user got a toast |
+| `Cast relay URL` | minting a relay URL threw; the receiver got the direct URL |
+| `FCast: could not resolve a stream URL for <id>` | nothing castable for the current item |
+| `Cast NSD resolve` / `Cast refresh discovery` | Android NSD threw during a re-resolve / a burst |
+| `FCast lib checksum mismatch` | the downloaded `.so` failed SHA verification |
 
 ## Troubleshooting
 
-| Symptom | Likely cause / where to look |
+| Symptom | Where to look |
 | --- | --- |
-| Tap a device, toast "Couldn't connect" (was: nothing happens) | The entry was discovered without addresses and the click-time re-resolve also failed (`CastDeviceAddressResolver`), or the TCP connect was refused / timed out (receiver not actually listening — firewall on port 46899, receiver app closed). `adb logcat -s NsdDeviceDiscoverer:V` shows found vs. resolved services; `MissingAddresses` non-fatals mean the re-resolve path regressed. The failed tap prunes the entry from the picker (it re-appears via refresh if actually alive). |
-| A closed receiver stays listed after refresh | Shouldn't happen anymore: a **force-closed** receiver sends no mDNS goodbye and caches keep answering its resolve for up to the records' TTL, but the refresh burst TCP-probes every resolved service and prunes the unreachable (`CastDeviceRefresher.probeReachable`). If one still lingers, its resolve failed outright (non-authoritative burst — pruning deliberately blocked); one failed tap prunes it. |
-| "Enable casting" then nothing downloads | `Failed(UNSUPPORTED_DEVICE)` (ABI) or `DOWNLOAD_FAILED` (network / GitHub release reachability). Check `castLibState`; non-fatals via `reportException`. |
-| Cast crashes on first connect after an SDK bump | A trusted stale/corrupt `.so`. The marker SHA should prevent this; verify `CastNativeLib.ABIS` SHAs match the `zemer-cast` `sdk-<ver>` release assets. |
-| Receiver rejects the stream | Wrong content type. `currentContentType`/`streamContentType` must return the **container** MIME from `songMimeCache` (populated by `resolveStreamUrl`), never the codec MIME. |
-| Seek bar frozen / jumping while casting | A surface bypassing `currentPositionMs()`/`currentDurationMs()`, or `remoteTime` not updating (receiver not emitting `timeChanged`). |
-| Track auto-skips right after connecting / switching | Stale `lastRemotePosition` — confirm the `remoteTime` collector records position unconditionally (the `0` reset must clear it). Regression-tested in `CastAutoAdvanceTest`. |
-| Local audio plays on top of the cast | A transport site routing on `connectedDevice != null` instead of `isConnected`/`isCasting`, or a `player.*` call that bypassed the seam. |
-| Double-skip at end of track | Two reload owners or a broken debounce — only `PlayerConnection` may reload; `advanceRemoteAfterEnd` must stamp `lastTransitionTime`. |
-| Receiver errors `Not authorized to access resource.` (instant) or `Could not read from resource.` (mid-track) | GStreamer-speak for **googlevideo refusing the receiver's HTTP fetch** (403) — the stream URL is network-identity-bound and the *receiver* fetches it from its own address. Measured on T-Mobile home internet (2026-07): every IPv4/CGNAT fetch is 403 (CGNAT egress IP is per-flow, the binding never matches) while any IPv6 fetch in the home /64 succeeds — so the receiver's per-connection IPv4-vs-IPv6 pick makes it intermittent: an unlucky first connection dies instantly, an unlucky buffer-refill reconnect dies minutes in. It looks exactly like "auto-advance broke" but the advance logic is fine. The recovery ladder (`CastErrorRecovery`) now reloads / re-resolves / advances instead of dying silently; the root fix (receiver fetches via a relay on the phone) is future work. Diagnose with the `tests/` harness: mint a URL and `curl` it with `-4` vs `-6`. |
+| Tap a device → "Couldn't connect" | the re-resolve failed (`CastDeviceAddressResolver`) or the TCP connect was refused / timed out (receiver closed, firewall). The failed tap prunes the entry; a refresh re-adds a live one. `MissingAddresses` non-fatals mean the re-resolve path regressed. |
+| A closed receiver stays listed after refresh | its resolve failed outright, making the burst non-authoritative (pruning deliberately blocked); one failed tap prunes it. |
+| "Enable casting", nothing downloads | `Failed(UNSUPPORTED_DEVICE)` or `DOWNLOAD_FAILED` (network / GitHub reachability) in `castLibState`. |
+| Crash on first connect after an SDK bump | `CastNativeLib.SDK_VERSION`/`ABIS` still name the old assets, so the old `.so` verifies and loads under the new bindings (a wrong SHA shows as `DOWNLOAD_FAILED` instead). |
+| Receiver rejects the stream | wrong content type - must be the container MIME from `songMimeCache`, never the codec MIME. |
+| Seek bar frozen / jumping | a surface bypassing `currentPositionMs()`/`currentDurationMs()`, or the receiver not emitting `timeChanged`. |
+| Auto-skip right after connecting / switching | stale near-end state reaching a detector: `lastProgressSec` must reset on every load/connect/disconnect; the stall detector reads the interpolated clock + `lastRemoteTimeUpdateAt`. |
+| Local audio on top of the cast | a transport site gated on `connectedDevice != null`, a raw `player.*` call (e.g. `togglePlayPause()`), or a `playWhenReady` site skipping `shouldStartLocalPlayback`. |
+| Double skip at track end | a second reload owner or a broken debounce - only `CastController.onMediaItemTransition` reloads. |
+| Receiver errors `Not authorized to access resource.` / `Could not read from resource.` | GStreamer wording for googlevideo 403ing the **receiver's** fetch (the URL is bound to the minting network identity; CGNAT IPv4 vs same-prefix IPv6 makes it intermittent). The relay is the fix and the ladder the backstop; check `CastRelay` for "Relay unavailable". Reproduce by minting a URL with the `tests/` harness and `curl -4` vs `-6`. |
 
-## When you bump the FCast SDK version
+## Bumping the FCast SDK
 
-1. Update `CastNativeLib.SDK_VERSION` and the per-ABI **SHA-256** values to the
-   new `zemer-cast` `sdk-<ver>` release assets (the marker check forces a
-   re-download for existing installs automatically).
-2. Bump the Gradle dependency version in `app/build.gradle.kts` (keep the
-   `libfcast_sender_sdk.so` packaging exclusion).
-3. If the SDK API shape changed (not just the lib), update
-   `FCastDiscoveryHandler` / `CastAwarePlayer` accordingly and rebuild both APKs.
-4. Re-run the manual checklist against a real receiver.
+1. Update `CastNativeLib.SDK_VERSION` and the per-ABI SHA-256s to the new `zemer-cast` `sdk-<ver>`
+   assets (the marker check re-downloads for existing installs).
+2. Bump the dependency in `app/build.gradle.kts`, keeping the `libfcast_sender_sdk.so` exclusion.
+3. If the SDK API changed, update `FCastDiscoveryHandler` / `CastAwarePlayer`, and build both APKs.
+4. Re-run the manual checklist on a real receiver.

@@ -1,8 +1,7 @@
 # Artist whitelist documentation
 
-## Scope
-
-This document covers the artist whitelist as implemented in the app source: database storage, Firestore fetch, in-memory caches, filtering rules, sync consumers, and UI entry points.
+The artist whitelist as implemented in the app: storage, fetch, caches, filtering rules, sync
+consumers, and UI entry points.
 
 ## Storage model
 
@@ -10,25 +9,22 @@ This document covers the artist whitelist as implemented in the app source: data
 
 `ArtistWhitelistEntity` is stored in table `artist_whitelist` with primary key `artistId` and the following fields:
 
-| Field | Kotlin type / default visible in code | Meaning directly implied by field name and usage |
+| Field | Kotlin type / default | Meaning |
 | --- | --- | --- |
 | `artistId` | `String` | Artist identifier and primary key. |
 | `artistName` | `String` | Stored display name for the whitelisted artist. |
-| `addedAt` | `LocalDateTime = LocalDateTime.now()` | Insert timestamp default. |
-| `source` | `String = "firestore"` | Source label default. |
-| `lastSyncedAt` | `LocalDateTime = LocalDateTime.now()` | Sync timestamp default. |
+| `addedAt` / `lastSyncedAt` | `LocalDateTime = LocalDateTime.now()` | Insert / sync timestamps. |
+| `source` | `String = "firestore"` | Source label. |
 | `isFemale` | `Boolean = false` | Used by content filters to block or allow female singers. |
-| `isChasid` | `Boolean = false` | Captured from Firestore and stored (the chassidish-promotion feature that consumed it was removed; the filter no longer threads it). |
-| `displayName` | `String? = null` | The curated clean single-script name — present ONLY on the ~50 split docs whose legacy `artistName` is a dual "English - עברית" dash form. AUTHORITATIVE for the artist row's name (see the display-name split section). |
+| `isChasid` | `Boolean = false` | Stored only; the filter does not read it. |
+| `displayName` | `String? = null` | The curated clean single-script name — present ONLY on split docs whose legacy `artistName` is a dual "English - עברית" dash form. AUTHORITATIVE for the artist row's name (see below). |
 | `altName` | `String? = null` | The same name in the other script — a search alias matched by library artist search, the Artists/KidZone browse pills, and `artistByName`. |
-| `isGenZ` | `Boolean = false` | Captured from Firestore and stored. |
-| `isKids` | `Boolean = false` | Captured from Firestore and stored. |
+| `isGenZ` | `Boolean = false` | Stored only. |
+| `isKids` | `Boolean = false` | Kids-only artists are excluded from the telemetry-ranked rows (`RankedContentGate`). |
 | `isKidZone` | `Boolean = false` | Used by Kid Zone / non-Kid-Zone DAO queries. |
 | `thumbnailUrl` | `@Ignore var String? = null` (body property) | **Transient, NOT a column** (no Room migration): the artist's channel image carried in from the whitelist fetch (mirror/Firestore `thumbnail` field). Consumed by `syncArtistWhitelist` to populate `Artist.thumbnailUrl`; Room ignores it when reading rows back. |
 
 ### DAO methods
-
-The DAO exposes these whitelist-specific operations:
 
 | Operation | Method |
 | --- | --- |
@@ -39,12 +35,10 @@ The DAO exposes these whitelist-specific operations:
 | Suspended lookup by ID | `getWhitelistEntry(artistId: String)` |
 | Suspended list of rows | `getWhitelistEntriesSync()` |
 | Boolean membership test | `isArtistWhitelisted(artistId: String)` |
-| Random IDs | `getRandomWhitelistedArtistIds(limit: Int)` |
 | Missing thumbnail IDs | `getWhitelistedArtistIdsMissingThumb(limit: Int)` |
 | Fill-only thumbnail write (sync) | `updateArtistThumbnailUrl(artistId, thumbnailUrl)` — only when the row has none |
 | Overwriting thumbnail write (fallback resolver) | `replaceArtistThumbnailUrl(artistId, thumbnailUrl)` |
 | Delete all whitelist rows | `clearWhitelist()` |
-| Delete one whitelist row | `removeFromWhitelist(artistId: String)` |
 | Apply curated display names (set-based) | `applyWhitelistDisplayNames()` — renames artist rows to the split docs' `displayName`; idempotent, self-terminating, run after `insertWhitelist` on every full fetch |
 | Curated display name for one artist (sync) | `whitelistDisplayNameSync(artistId)` — the stale-artist YTM refresh prefers it over the channel title |
 
@@ -61,24 +55,28 @@ stale names when the curator corrected a `displayName`); (3) `DisplayNamesBackfi
 by a full fetch whose payload actually carried split names (`whitelistCarriesDisplayNames`, pure +
 tested), so a stale pre-split mirror snapshot cannot burn the one-time backfill.
 
-The DAO also uses `artist_whitelist` in many library queries so local songs, albums, artists, related songs, and search previews are constrained to whitelisted artists.
+Many library DAO queries also JOIN `artist_whitelist`, so local songs, albums, artists, related songs
+and search previews are constrained to whitelisted artists.
 
-## Firestore fetch path
+## Fetch path (content mirror first, Firestore fallback)
 
-`WhitelistFetcher` uses `FirebaseFirestore.getInstance()` and reads:
+Every `WhitelistFetcher` read is `mirrorFirst`: it asks the plain-JSON content mirror (`ZemerContentClient`,
+`content.zemer.io`) first and falls back to the Firebase SDK (`FirebaseFirestore.getInstance()`) only when the
+mirror call throws (network, non-2xx, empty/invalid body, parse error):
 
-| Firestore path | Code-visible purpose |
-| --- | --- |
-| `databasenumber/latest` | `fetchVersion()` reads timestamp field `updatedAt` or field `update` as string/long and converts to `Long`. |
-| `artistsWhitelist` | `fetchWhitelist()` reads all documents and maps each valid document to `ArtistWhitelistEntity`. |
-| `blockedContentIds` | `fetchBlockedIds()` reads all documents; each is one id-level **override** (see "Conditional id overrides"). Read-only — the app never writes/deletes this collection. |
+| Read | Mirror (`ZemerContentClient`) | Firestore fallback |
+| --- | --- | --- |
+| `fetchVersion()` | `version()` → `/whitelist/version` (`gate`) | `databasenumber/latest`: timestamp field `updatedAt` or field `update` as string/long, converted to `Long`. |
+| `fetchWhitelist()` | `whitelist()` → `/whitelist` (throws on an empty list) | `artistsWhitelist`: all documents, each valid one mapped to `ArtistWhitelistEntity`. |
+| `fetchBlockedIds()` | `blockedIds()` → `/blockedContentIds` | `blockedContentIds`: all documents; each is one id-level **override** (see "Conditional id overrides"). Read-only — the app never writes/deletes this collection. |
 
-For each `artistsWhitelist` document, the fetcher accepts artist ID from `id` or `artistId`, artist name from `name` or `artistName`, and boolean flags from `isFemale`, `isChasid`, `isGenZ`, `isKids`, and `isKidZone`. Missing boolean flags default to `false`. Documents missing ID or name are skipped by the `return@forEach` statements.
+For each whitelist document, the fetcher accepts the id from `id` or `artistId`, the name from
+`name` or `artistName`, and the boolean flags `isFemale`/`isChasid`/`isGenZ`/`isKids`/`isKidZone`
+(missing = `false`). Documents missing an id or name are skipped.
 
 ### Artist thumbnails (server-carried, fill-only)
 
-Each whitelist doc also carries a **`thumbnail`** (a yt3/lh3 channel-image URL, resolved once server-side;
-mirrored by `content.zemer.io/whitelist`). The pipeline, end to end:
+Each whitelist doc also carries a **`thumbnail`** (a channel-image URL resolved server-side):
 
 - `fetchWhitelist` sets it on the transient `ArtistWhitelistEntity.thumbnailUrl` (both mirror and
   Firestore paths).
@@ -87,26 +85,27 @@ mirrored by `content.zemer.io/whitelist`). The pipeline, end to end:
   (`AND (thumbnailUrl IS NULL OR thumbnailUrl = '')`): a null/blank server value never wipes anything,
   a device-resolved image is never overwritten, and steady-state syncs touch zero rows (no Room
   invalidation churn). The which-rows logic is the pure, tested `artistThumbnailUpdates(...)`.
-- If many whitelisted artists lack a thumbnail (>= `MISSING_THUMB_BOOTSTRAP_THRESHOLD`, e.g. an app
-  update while the whitelist version is unchanged), the version gate is bypassed once so a full fetch
+- If many whitelisted artists lack a thumbnail (>= `MISSING_THUMB_BOOTSTRAP_THRESHOLD` = 25, e.g. an
+  app update while the whitelist version is unchanged), the version gate is bypassed so a full fetch
   can bootstrap them.
 - The UI (`WhitelistedArtistListItem`/`GridItem`) requests a small crop via `resize()`
   (`ARTIST_AVATAR_PX`) and, on a load **error** (missing or rotted URL), falls back to the shared
-  **`ArtistThumbResolver`** — the ONE on-device resolver (app-wide `Semaphore(4)` bound; definitive
-  answers never retried; transient failures retried after a cooldown; column-targeted
+  **`ArtistThumbResolver`** — the ONE on-device resolver (app-wide `MAX_CONCURRENT` = 4 bound;
+  definitive answers never retried; transient failures retried after a cooldown; column-targeted
   `replaceArtistThumbnailUrl` write). Do not reintroduce per-ViewModel resolvers or a bulk post-sync
-  backfill — both patterns were removed for storming InnerTube and racing the sync transaction.
+  backfill — they storm InnerTube and race the sync transaction.
 
 ## Runtime caches
 
 | Cache | File | Behavior |
 | --- | --- | --- |
-| `WhitelistCache` | `app/src/main/kotlin/com/jtech/zemer/utils/WhitelistCache.kt` | Process-wide `@Volatile Map<String, ArtistWhitelistEntity>` swapped WHOLE by `updateAll` (never mutated in place — the old clear-then-refill let a concurrent reader, notably the offline subset's live-whitelist overlay, see an empty/partial whitelist mid-refresh and briefly serve de-whitelisted content), with `get`, `snapshot` (immutable point-in-time view), and `allowedEntries`. `upsert` is gone. |
-| `WhitelistEntryCache` | `app/src/main/kotlin/com/jtech/zemer/utils/WhitelistFilter.kt` | Private `ConcurrentHashMap` used by filtering to memoize per-artist DAO lookups. |
-| Per-call `artistCache` | `filterWhitelisted` local mutable map | Deduplicates lookup work inside one list filtering call. |
-| `BlockedIdsCache` | `app/src/main/kotlin/com/jtech/zemer/utils/BlockedIdsCache.kt` | Process-wide atomic `@Volatile Map<String, String>` (id → reason) of id-level overrides, with `updateAll`, `isBlocked(id, config)`, and pure `serialize`/`parse`. See "Conditional id overrides". |
+| `WhitelistCache` | `utils/WhitelistCache.kt` | Process-wide immutable map held in a `MutableStateFlow` (exposed as the `entries` `StateFlow`) and swapped WHOLE by `updateAll` — never mutated in place, so a concurrent reader (notably the offline live-whitelist overlay) can never see an empty/partial whitelist mid-refresh and serve de-whitelisted content. Also `get`, `snapshot` (point-in-time view), `allowedEntries(config)` and `allowedEntries(database, config)` (refills from the DAO when empty). |
+| `WhitelistEntryCache` | `utils/WhitelistFilter.kt` | Private `ConcurrentHashMap` memoizing per-artist DAO lookups. |
+| Per-call `artistCache` | `filterWhitelisted` local map | Deduplicates lookups inside one filtering call. |
+| `BlockedIdsCache` | `utils/BlockedIdsCache.kt` | `@Volatile Map<String, String>` (id → reason) of id-level overrides, with `updateAll`, `isBlocked(id, config)`, and pure `serialize`/`parse`. See "Conditional id overrides". |
 
-`WhitelistCache.allowedEntries(config)` filters cached entries through `WhitelistCache.isAllowed`. The only current exclusion in `isAllowed` is: when `config.filtersEnabled` is true and `config.allowFemaleSingers` is false, entries with `isFemale == true` are excluded.
+`WhitelistCache.isAllowed` excludes exactly one thing: female entries when filters are enabled and
+`allowFemaleSingers` is false.
 
 ## Content filter configuration
 
@@ -116,9 +115,11 @@ mirrored by `content.zemer.io/whitelist`). The pipeline, end to end:
 | --- | --- | --- |
 | `filtersEnabled` | `true` | If false, `artistMatchesFilters` allows every artist without whitelist membership. |
 | `allowFemaleSingers` | `false` | If false while filters are enabled, female singers are excluded. |
-| `blockVideos` | `true` | Part of the config state; used outside whitelist membership in content filtering flows. |
+| `blockVideos` | `false` | Not a whitelist-membership input; read by the video gates. |
+| `blockPodcasts` | `false` | The podcast CATEGORY gate: when true (with filters on), `podcastPasses` drops all podcast/episode items. |
 
-`ContentFilterState` keeps the current config in a `MutableStateFlow`, exposes `current`, and provides `update`, `updateFromPreferences`, `updateFromServer`, and `reset` methods.
+`ContentFilterState` holds the current config (`state` flow + `current`), updated via `updateConfig` /
+`updateContentFilters`.
 
 ## Filtering algorithm from `filterWhitelisted`
 
@@ -128,10 +129,13 @@ mirrored by `content.zemer.io/whitelist`). The pipeline, end to end:
 2. If that cache result is empty, it reads `database.getWhitelistEntriesSync()` and refreshes the cache.
 3. It builds `allowedIds` from allowed entries if the allowed list is not empty.
 4. For each `YTItem`, it first drops the item when `BlockedIdsCache.isBlocked(item.id, config)` is true — the conditional id override (see below), checked before the membership decision. Otherwise it evaluates by concrete type:
-   - `SongItem`: checks song artists; empty artist list can fall back to `fallbackArtistId`.
+   - `SongItem`: checks song artists; empty artist list can fall back to `fallbackArtistId`. An episode
+     `SongItem` (`isEpisode`) is instead gated by `podcastPasses` against the podcast channel whitelist.
    - `AlbumItem`: checks album artists; empty artist list can fall back to `fallbackArtistId`.
    - `ArtistItem`: checks the artist ID directly.
    - `PlaylistItem`: checks `author.id`; missing author ID is rejected.
+   - `PodcastItem` / `EpisodeItem`: gated by `podcastPasses` (show id + host channel id) against the podcast
+     channel whitelist, never the artist one; it drops everything when `blockPodcasts` is on.
 5. `requireAllArtists = false` means a song/album is allowed when any listed artist passes. `requireAllArtists = true` requires all listed artists that have IDs to pass and at least one allowed artist to exist.
 6. `artistMatchesFilters` implements the membership decision:
    - If filters are disabled, return allowed.
@@ -140,8 +144,7 @@ mirrored by `content.zemer.io/whitelist`). The pipeline, end to end:
    - Try per-call cache, private process cache, then DAO `getWhitelistEntry`.
    - If no entry exists, reject.
    - If filters are enabled and female singers are disallowed and the entry is female, reject.
-   - Otherwise allow. (The decision is a plain Boolean; the old `ArtistFilterDecision.isChasidish`
-     threading was removed with the chassidish-promotion feature.)
+   - Otherwise allow.
 
 ## Conditional id overrides
 
@@ -152,7 +155,9 @@ the whole channel — and **conditionally**, so they only hide for the users the
 
 ### Data model
 
-The read-only Firestore collection `blockedContentIds` holds one document per overridden id:
+`WhitelistFetcher.fetchBlockedIds()` reads the mirror's `/blockedContentIds` (pre-bucketed by reason,
+disabled entries dropped server-side) with the Firestore `blockedContentIds` collection as fallback —
+one document per overridden id:
 
 | Field | Meaning |
 | --- | --- |
@@ -160,8 +165,8 @@ The read-only Firestore collection `blockedContentIds` holds one document per ov
 | `reason` (or `category`) | Which content-filter setting the block is gated on. `female` → hidden only when `!allowFemaleSingers`; `global` → hidden for everyone. Absent/unknown reasons default to `global` (over-block, never leak). |
 | `disabled: true` (optional) | Soft-delete / template: kept in Firestore but never applied, so an override can be turned off without deleting the document. |
 
-`WhitelistFetcher.fetchBlockedIds()` returns `Map<String, String>` (id → reason), skipping `disabled`
-documents. The app only ever READS this collection (writes are admin-only by the Firestore rules).
+The result is a `Map<String, String>` (id → reason). The app only ever READS this collection (it is
+managed by the separate zemer-admin app).
 
 ### Decision (`BlockedIdsCache.isBlocked(id, config)`)
 
@@ -179,85 +184,45 @@ concurrent reader never sees a half-applied update.
   line via `BlockedIdsCache.serialize`/`parse`) and loaded into the in-memory table at startup in
   `App.kt`, so the blocklist is active offline / before the first sync of the session.
 - **Applied everywhere:** centrally in `filterWhitelisted` (all YouTube/browse/playback surfaces, step 4
-  above) and surgically in `ZemerResultMapper.dropBlocked()` for the raw Zemer engine. The id drop is
+  above), surgically in `ZemerResultMapper.dropBlocked()` for Zemer results, and in the offline read
+  layer (`offline/SubsetReadLayer.kt` `idDropped`) — a filtering-contract change must land in all three.
+  The id drop is
   safe on Zemer results because it is a specific-id drop, **not** the artist-membership whitelist (which
   the app deliberately never runs over Zemer results, as it would clip legitimate Hebrew/community hits).
 - **No-op when empty:** an empty table changes nothing, so the override layer is a pure addition.
 - **Covers follow the filtered tracks, not the curator image:** a community/online playlist's raw
-  `playlist.thumbnail` (YouTube's curator art) bypasses the filter, so
-  `ui/screens/playlist/filteredPlaylistCover(songs)` derives the opened-playlist header cover and the
-  saved-to-Library cover from the first surviving track (`songs` is already `filterWhitelisted`-filtered)
-  — never the curator image. Otherwise a mostly-female playlist shows a female cover even with female
-  blocked.
+  `playlist.thumbnail` (YouTube's curator art) bypasses the filter, so `filteredPlaylistCover(songs,
+  thumbnailOf)` (`ui/screens/playlist/PlaylistHeaderCover.kt`) derives the opened-playlist header cover
+  and the saved-to-Library cover from the first surviving track (`songs` is already
+  `filterWhitelisted`-filtered) — never the curator image, or a mostly-female playlist shows a female
+  cover even with female blocked.
 
 ## Sync integration points
 
-The whitelist appears in these synchronization paths:
-
 | Source file | Whitelist-related behavior |
 | --- | --- |
-| `app/src/main/kotlin/com/jtech/zemer/utils/SyncUtils.kt` | Owns `isSyncingWhitelist`, `whitelistSyncProgress`, `syncArtistWhitelist`, and calls `filterWhitelisted` while syncing liked/library/uploaded songs, uploaded albums, artist subscriptions, playlists, and playlist contents. Also runs `refreshBlockedIds()` (the id-override table) on both sync paths. |
-| `app/src/main/kotlin/com/jtech/zemer/App.kt` | Imports `WhitelistFetcher` and initializes content filter state from preferences. Loads the persisted id-override table (`BlockedIdsCache`) at startup. |
-| `app/src/main/kotlin/com/jtech/zemer/MainActivity.kt` | Launches `syncUtils.syncArtistWhitelist()` from multiple startup / state paths and includes `kid_zone` navigation handling. |
-| `app/src/main/kotlin/com/jtech/zemer/viewmodels/LibraryViewModels.kt` | Calls `syncUtils.syncArtistWhitelist()` from library flows. |
-| `app/src/main/kotlin/com/jtech/zemer/viewmodels/HomeViewModel.kt` | Uses `WhitelistCache`, `ContentFilterState`, `IsraeliArtistRegistry`, and database whitelist methods in home feed filtering. |
-| `app/src/main/kotlin/com/jtech/zemer/offline/SubsetLiveWhitelist.kt` | The offline snapshot's live-whitelist overlay: `SubsetCorpus.withLiveWhitelist(WhitelistCache.snapshot())` runs at corpus load, DROPPING de-whitelisted artists (with every referencing row) and overriding `isFemale` from the live flag — so an admin change reaches offline results on the next app whitelist sync, not the next snapshot download. Paired with a 14-day staleness cap (`subsetSnapshotIsFresh`) and the shared `contentGatePasses`/`idDropped` gates in `offline/SubsetReadLayer.kt` — the THIRD enforcement site of the filtering contract, alongside `filterWhitelisted` and `ZemerResultMapper.dropBlocked`. |
-| `app/src/main/kotlin/com/jtech/zemer/viewmodels/WhitelistedArtistsViewModel.kt` | Drives the whitelisted artists screen. |
-| `app/src/main/kotlin/com/jtech/zemer/viewmodels/KidZoneViewModel.kt` | Drives Kid Zone data. |
+| `utils/SyncUtils.kt` | Owns `syncArtistWhitelist` (+ `isWhitelistSyncing` / `whitelistSyncProgress`) and runs `refreshBlockedIds()` on every sync path. The account syncs (liked/library songs, liked albums, artist and podcast subscriptions) pass remote lists through `filterWhitelisted`; saved playlists reconcile through `filterWhitelistedWithLocalArtists`. |
+| `App.kt` | Initializes content-filter state from preferences and loads the persisted id-override table (`BlockedIdsCache`) at startup. |
+| `MainActivity.kt` | Launches `syncUtils.syncArtistWhitelist()` from several startup / state paths. |
+| `viewmodels/LibraryViewModels.kt`, `WhitelistedArtistsViewModel.kt`, `KidZoneViewModel.kt` | Call `syncUtils.syncArtistWhitelist()` (pull-to-refresh / screen flows). |
+| `viewmodels/HomeViewModel.kt` | Uses `WhitelistCache`, `ContentFilterState`, `IsraeliArtistRegistry`, and the whitelist DAO in home filtering. |
+| `offline/SubsetLiveWhitelist.kt` | The offline snapshot's live-whitelist overlay: `SubsetCorpus.withLiveWhitelist(live)` (`live` = `WhitelistCache.snapshot()` as id → `isFemale`; an empty map is a no-op) runs at corpus load in `OfflineReadProvider`, DROPPING de-whitelisted artists (with every referencing row) and overriding `isFemale` from the live flag — so an admin change reaches offline results on the next app whitelist sync, not the next snapshot download. Paired with a 14-day staleness cap (`subsetSnapshotIsFresh`) and the shared `contentGatePasses`/`idDropped` gates in `offline/SubsetReadLayer.kt` — the THIRD enforcement site of the filtering contract, alongside `filterWhitelisted` and `ZemerResultMapper.dropBlocked`. |
 
 ## UI entry points
 
-| UI route / screen | File | Data role visible from names/imports |
+| UI route / screen | File | Role |
 | --- | --- | --- |
-| `artists` / `WhitelistedArtistsScreen` | `app/src/main/kotlin/com/jtech/zemer/ui/screens/WhitelistedArtistsScreen.kt` | Main artists tab is wired to whitelisted artists. |
-| `kid_zone` / `KidZoneScreen` | `app/src/main/kotlin/com/jtech/zemer/ui/screens/KidZoneScreen.kt` | Kid-zone artist presentation. |
-| Content settings | `app/src/main/kotlin/com/jtech/zemer/ui/screens/settings/ContentSettings.kt` | UI for the content filter preferences (allow female content, block videos, block podcasts). |
-| Onboarding | `app/src/main/kotlin/com/jtech/zemer/ui/screens/OnboardingScreen.kt` | Presents content filter setup and runs `syncArtistWhitelist(forceSync = true)`. |
+| `artists` / `WhitelistedArtistsScreen` | `ui/screens/WhitelistedArtistsScreen.kt` | The Artists tab (whitelisted artists browse). |
+| `kid_zone` / `KidZoneScreen` | `ui/screens/KidZoneScreen.kt` | Kid Zone browse. |
+| Content settings | `ui/screens/settings/ContentSettings.kt` | Content filter preferences (allow female, block videos, block podcasts). |
+| Onboarding | `ui/screens/OnboardingScreen.kt` (`OnboardingFlow`) + `ui/screens/onboarding/` | Content filter setup. |
+| Loading | `ui/screens/LoadingScreen.kt` | Runs the forced `syncArtistWhitelist(forceSync = true)`. |
 
-## Whitelist-related Kotlin files
+## Core files
 
-| File | Lines | Key declarations |
-| --- | ---: | --- |
-| `app/src/main/kotlin/com/jtech/zemer/App.kt` | 412 | class App, val settings, fun sanitizeCookie, val trimmed, val httpClient, val responseText, val json, val visitorData, val clientVersion, val timestamp |
-| `app/src/main/kotlin/com/jtech/zemer/MainActivity.kt` | 2140 | class MainActivity, var pendingIntent, var latestVersionName, var playerConnection, val serviceConnection, var dpadKeyMap, val hatTracker, var pendingServiceStart, fun requestStoragePermissionsIfNeeded, val permissions |
-| `app/src/main/kotlin/com/jtech/zemer/constants/PreferenceKeys.kt` | 554 | val DynamicThemeKey, val DarkModeKey, val PureBlackKey, val DensityScaleKey, val CustomDensityScaleKey, val DefaultOpenTabKey, val BottomNavigationBarEnabledKey, val SlimNavBarKey, val BottomNavigationItemsKey, val GridItemsSizeKey |
-| `app/src/main/kotlin/com/jtech/zemer/db/DatabaseDao.kt` | 1678 | interface DatabaseDao, fun songsByRowIdAsc, fun songsByCreateDateAsc, fun songsByNameAsc, fun songsByPlayTimeAsc, fun songs, val collator, val collator, fun likedSongsByRowIdAsc, fun likedSongsByCreateDateAsc |
-| `app/src/main/kotlin/com/jtech/zemer/db/MusicDatabase.kt` | 590 | class MusicDatabase, val delegate, val openHelper, fun query, fun transaction, fun close, class InternalDatabase, val dao, fun newInstance, val startTime |
-| `app/src/main/kotlin/com/jtech/zemer/db/entities/ArtistWhitelistEntity.kt` | 21 | class ArtistWhitelistEntity, val artistName, val addedAt, val source, val lastSyncedAt, val isFemale, val isChasid, val isGenZ, val isKids, val isKidZone |
-| `app/src/main/kotlin/com/jtech/zemer/di/SyncModule.kt` | 121 | val Context, object SyncModule, fun provideSyncDataStore, fun provideFirebaseFirestore, fun provideUserAuthManager, fun provideDeviceIdGenerator, fun provideMainDataStore, fun provideUserPreferencesRepository, fun provideContentFilterSyncService |
-| `app/src/main/kotlin/com/jtech/zemer/playback/MediaLibrarySessionCallback.kt` | 655 | class MediaLibrarySessionCallback, val databaseLazy, val downloadUtil, val database, val scope, var toggleLike, var toggleStartRadio, var toggleLibrary, val connectionResult, val whitelistedArtistIds |
-| `app/src/main/kotlin/com/jtech/zemer/playback/MusicService.kt` | 1590 | class MusicService, val database, var audioFocusRequest, var lastAudioFocusState, var wasPlayingBeforeAudioFocusLoss, var hasAudioFocus, val scope, val binder, val waitingForNetworkConnection, val isNetworkConnected |
-| `app/src/main/kotlin/com/jtech/zemer/playback/queues/LocalAlbumRadio.kt` | 65 | class LocalAlbumRadio, val albumWithSongs, val startIndex, val database, val endpoint, var continuation, var firstTimeLoaded, val nextResult, val filteredItems, val nextResult |
-| `app/src/main/kotlin/com/jtech/zemer/playback/queues/YouTubeQueue.kt` | 58 | class YouTubeQueue, var endpoint, val database, var continuation, val nextResult, val filteredItems, val nextResult, val filteredItems, fun radio |
-| `app/src/main/kotlin/com/jtech/zemer/sync/ContentFilterSyncService.kt` | 446 | class ContentFilterSyncService, val userPreferencesRepository, val authManager, val serviceScope, val _syncState, val syncState, val _lastSyncResult, val lastSyncResult, var _isApplyingServerPreferences, fun initialize |
-| `app/src/main/kotlin/com/jtech/zemer/sync/UserPreferencesRepository.kt` | 760 | fun ContentFilterConfig, fun com, class UserPreferencesRepository, val firestore, val authManager, val deviceIdGenerator, fun getDocumentId, fun classifyFirebaseError, val lastSyncTimeKey, val deviceIdKey |
-| `app/src/main/kotlin/com/jtech/zemer/sync/models/DevicePreferencesEntity.kt` | 126 | class DeviceContentFilters, val enableContentFilters, val allowFemaleSingers, val blockVideos, val femalePasscodeHash, fun fromConfig, fun toConfig, class DeviceMetadata, val deviceName, val manufacturer |
-| `app/src/main/kotlin/com/jtech/zemer/ui/component/Library.kt` | 410 | fun LibraryArtistListItem, fun WhitelistedArtistListItem, fun LibraryArtistGridItem, fun WhitelistedArtistGridItem, fun LibraryAlbumListItem, fun LibraryAlbumGridItem, fun LibraryPlaylistListItem, fun LibraryPlaylistGridItem |
-| `app/src/main/kotlin/com/jtech/zemer/ui/screens/KidZoneScreen.kt` | 336 | fun KidZoneScreen, val menuState, var viewType, val firstFocus, val searchFocus, val firstArtistFocus, val artists, val searchQuery, val syncProgress, val isSyncing |
-| `app/src/main/kotlin/com/jtech/zemer/ui/screens/NavigationBuilder.kt` | 338 | fun NavGraphBuilder, val videoId, val title, val artist |
-| `app/src/main/kotlin/com/jtech/zemer/ui/screens/OnboardingScreen.kt` | 2077 | class OnboardingStep, class LegalKind, fun NetworkStatusBanner, val context, var isConnected, var isChecking, val newConnectionState, fun OnboardingFlow, val context, val viewModel |
-| `app/src/main/kotlin/com/jtech/zemer/ui/screens/Screens.kt` | 53 | class Screens, val route, object Home, object Artists, object KidZone, object Search, object Library, val MainScreens |
-| `app/src/main/kotlin/com/jtech/zemer/ui/screens/SplashScreen.kt` | 165 | fun SplashScreen, var hasTappedSkip, val composition, val lottieColors, val loopingState |
-| `app/src/main/kotlin/com/jtech/zemer/ui/screens/WhitelistedArtistsScreen.kt` | 404 | fun WhitelistedArtistsScreen, val menuState, var viewType, val firstFocus, val searchFocus, val firstArtistFocus, val artists, val searchQuery, val syncProgress, val isSyncing |
-| `app/src/main/kotlin/com/jtech/zemer/ui/screens/playlist/LocalPlaylistScreen.kt` | 1503 | fun LocalPlaylistScreen, val context, val menuState, val database, val haptic, val playerConnection, val isPlaying, val mediaMetadata, val playlist, val songs |
-| `app/src/main/kotlin/com/jtech/zemer/ui/screens/settings/ContentSettings.kt` | 681 | class ContentSettingsViewModel, val authManager, val webAuthManager, val syncService, val userPreferencesRepository, val authState, val syncState, val syncStatus, fun formatLastSyncTime, val sdf |
-| `app/src/main/kotlin/com/jtech/zemer/utils/ContentFilterConfig.kt` | 108 | class ContentFilterConfig, val filtersEnabled, val allowFemaleSingers, val blockVideos, val femalePasscodeHash, val lastSyncTime, val isSynced, object ContentFilterState, val _state, val state |
-| `app/src/main/kotlin/com/jtech/zemer/utils/IsraeliArtistRegistry.kt` | 51 | object IsraeliArtistRegistry, var cachedIds, val mutex, fun isIsraeli, val snapshot, val ids |
-| `app/src/main/kotlin/com/jtech/zemer/utils/SyncUtils.kt` | 1111 | class WhitelistSyncProgress, val current, val total, val isComplete, class SyncUtils, val databaseLazy, val database, val syncScope, val isSyncingLikedSongs |
-| `app/src/main/kotlin/com/jtech/zemer/utils/UrlValidator.kt` | 82 | object UrlValidator, fun validateAndParseUrl, val trimmedUrl, val urlWithScheme, val httpUrl, fun isValidUrl, fun getQueryParameter, val httpUrl |
-| `app/src/main/kotlin/com/jtech/zemer/utils/WhitelistCache.kt` | — | object WhitelistCache, var memory (@Volatile immutable map), fun updateAll (whole-map swap), fun get, fun snapshot, fun allowedEntries, fun isAllowed |
-| `app/src/main/kotlin/com/jtech/zemer/utils/BlockedIdsCache.kt` | 84 | object BlockedIdsCache, const REASON_FEMALE, const REASON_GLOBAL, fun updateAll, fun isBlocked, fun isEmpty, fun snapshot, fun serialize, fun parse |
-| `app/src/main/kotlin/com/jtech/zemer/utils/WhitelistFetcher.kt` | 72 | object WhitelistFetcher, val firestore, var lastFetchTime, val doc, val updatedAt, val update, val value, val now, val whitelistEntities, val snapshot |
-| `app/src/main/kotlin/com/jtech/zemer/utils/WhitelistFilter.kt` | — | object WhitelistEntryCache, fun isWhitelisted (per item type), fun filterWhitelisted, fun shouldKeepPlaylistSong, fun filterWhitelistedWithLocalArtists, fun podcastPasses, fun artistMatchesFilters (Boolean) |
-| `app/src/main/kotlin/com/jtech/zemer/viewmodels/ArtistViewModel.kt` | 134 | class ArtistViewModel, val database, val artistId, var artistPage, var isLoading, val libraryArtist, val librarySongs, val libraryAlbums, fun fetchArtistsFromYTM, val hideExplicit |
-| `app/src/main/kotlin/com/jtech/zemer/viewmodels/HistoryViewModel.kt` | 108 | class HistoryViewModel, val database, var historySource, val today, val thisMonday, val lastMonday, val historyPage, val events, val date, val daysAgo |
-| `app/src/main/kotlin/com/jtech/zemer/viewmodels/HomeViewModel.kt` | 1537 | class HomeViewModel, val database, val syncUtils, class HomeArtistProfile, val id, val name, val isAmerican, val isIsraeli, val isFemale, val isFamous |
-| `app/src/main/kotlin/com/jtech/zemer/viewmodels/KidZoneViewModel.kt` | 73 | class KidZoneViewModel, val database, val syncUtils, val searchQuery, val syncProgress, val isSyncing, fun sync, val allArtists, val filteredByQuery, val thumbRequests |
-| `app/src/main/kotlin/com/jtech/zemer/viewmodels/LibraryVideosViewModel.kt` | 47 | class LibraryVideosViewModel, val database, val videos, val hideExplicit, val filters, val allowed, val artistIds, fun refresh |
-| `app/src/main/kotlin/com/jtech/zemer/viewmodels/LibraryViewModels.kt` | 462 | class LibrarySongsViewModel, val syncUtils, val allSongs, fun syncLikedSongs, fun syncLibrarySongs, fun syncUploadedSongs, class LibraryArtistsViewModel, val database, val syncUtils, val allArtists |
-| `app/src/main/kotlin/com/jtech/zemer/viewmodels/NewReleaseViewModel.kt` | 110 | class NewReleaseViewModel, val database, val _newReleaseAlbums, val newReleaseAlbums, val _newReleaseSongs, val newReleaseSongs, val isLoading, val error, val hideExplicit, val filtered |
-| `app/src/main/kotlin/com/jtech/zemer/viewmodels/OnboardingViewModel.kt` | 205 | class OnboardingViewModel, val userPreferencesRepository, val authManager, val webAuthManager, val syncService, class UiState, val isCheckingAutoRestore, val hasServerPreferences, val restoredConfig, val contentFiltersAlreadySet |
-| `app/src/main/kotlin/com/jtech/zemer/viewmodels/OnlinePlaylistViewModel.kt` | 167 | class OnlinePlaylistViewModel, val database, val playlistId, val playlist, val playlistSongs, val _isLoading, val isLoading, val _error, val error, val _isLoadingMore |
-| `app/src/main/kotlin/com/jtech/zemer/viewmodels/OnlineSearchSuggestionViewModel.kt` | 129 | class OnlineSearchSuggestionViewModel, val database, val query, val _viewState, val viewState, val filters, val whitelist, val matchingArtists, val result, val hideExplicit |
-| `app/src/main/kotlin/com/jtech/zemer/viewmodels/OnlineSearchViewModel.kt` | 286 | class OnlineSearchViewModel, val database, val query, val initialFilter, val filter, var summaryPage, val viewStateMap, val isSummaryLoading, val summaryError, val filterLoading |
-| `app/src/main/kotlin/com/jtech/zemer/viewmodels/WhitelistedArtistsViewModel.kt` | 82 | class WhitelistedArtistsViewModel, val database, val syncUtils, val searchQuery, val syncProgress, val isSyncing, val allArtists, val filteredByToggle, val entry, val filteredByQuery |
+`db/entities/ArtistWhitelistEntity.kt`, `db/DatabaseDao.kt` (whitelist DAO methods above),
+`utils/WhitelistFetcher.kt` + `utils/ZemerContentClient.kt` (fetch), `utils/WhitelistCache.kt`,
+`utils/WhitelistFilter.kt` (`filterWhitelisted`, `artistMatchesFilters`, `podcastPasses`,
+`filterWhitelistedWithLocalArtists`), `utils/BlockedIdsCache.kt`, `utils/IsraeliArtistRegistry.kt`,
+`utils/ContentFilterConfig.kt`, `utils/SyncUtils.kt` (`syncArtistWhitelist`, `refreshBlockedIds`,
+`artistThumbnailUpdates`, `whitelistCarriesDisplayNames`), `utils/ArtistThumbResolver.kt`.
