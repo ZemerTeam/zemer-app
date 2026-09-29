@@ -6,13 +6,13 @@ export const USER_AGENT_WEB =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:140.0) Gecko/20100101 Firefox/140.0";
 
 export const CLIENTS = [
-  { key: "WEB", clientName: "WEB", clientVersion: "2.20260213.00.00", clientId: "1",
+  { key: "WEB", clientName: "WEB", clientVersion: "2.20260708.00.00", clientId: "1",
     userAgent: USER_AGENT_WEB, loginSupported: false, useSignatureTimestamp: false },
 
-  { key: "WEB_REMIX", clientName: "WEB_REMIX", clientVersion: "1.20260213.01.00", clientId: "67",
+  { key: "WEB_REMIX", clientName: "WEB_REMIX", clientVersion: "1.20260707.12.00", clientId: "67",
     userAgent: USER_AGENT_WEB, loginSupported: true, useSignatureTimestamp: true, useWebPoTokens: true },
 
-  { key: "WEB_CREATOR", clientName: "WEB_CREATOR", clientVersion: "1.20260213.00.00", clientId: "62",
+  { key: "WEB_CREATOR", clientName: "WEB_CREATOR", clientVersion: "1.20260708.06.00", clientId: "62",
     userAgent: USER_AGENT_WEB, loginSupported: true, loginRequired: true, useSignatureTimestamp: true, useWebPoTokens: true },
 
   { key: "TVHTML5_SIMPLY", clientName: "TVHTML5_SIMPLY", clientVersion: "1.0", clientId: "75",

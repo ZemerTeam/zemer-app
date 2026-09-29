@@ -27,7 +27,7 @@ const VIDEO_ID = process.argv[2] || "JTF9fLJvniI";
 const ORIGIN = "https://music.youtube.com";
 const PLAYER_URL = ORIGIN + "/youtubei/v1/player?prettyPrint=false";
 const CLIENT_NAME = "WEB_REMIX";
-const CLIENT_VERSION = "1.20260213.01.00";
+const CLIENT_VERSION = "1.20260707.12.00";
 const CLIENT_ID = 67;
 const UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/132.0.0.0 Safari/537.36";
 const dec = (s) => { try { return s && /%[0-9A-Fa-f]{2}/.test(s) ? decodeURIComponent(s) : s; } catch { return s; } };

@@ -34,9 +34,9 @@ const WEB_UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KH
 
 // clientName/clientVersion/clientId + os fields; flags: web (send web pot+sts in /player), auth (send cookie).
 const ROSTER = [
-  { key: "WEB", clientName: "WEB", clientVersion: "2.20260213.00.00", clientId: 1, ua: WEB_UA, web: 1 },
-  { key: "WEB_REMIX", clientName: "WEB_REMIX", clientVersion: "1.20260213.01.00", clientId: 67, ua: WEB_UA, web: 1, auth: 1 },
-  { key: "WEB_CREATOR", clientName: "WEB_CREATOR", clientVersion: "1.20260213.00.00", clientId: 62, ua: WEB_UA, web: 1, auth: 1 },
+  { key: "WEB", clientName: "WEB", clientVersion: "2.20260708.00.00", clientId: 1, ua: WEB_UA, web: 1 },
+  { key: "WEB_REMIX", clientName: "WEB_REMIX", clientVersion: "1.20260707.12.00", clientId: 67, ua: WEB_UA, web: 1, auth: 1 },
+  { key: "WEB_CREATOR", clientName: "WEB_CREATOR", clientVersion: "1.20260708.06.00", clientId: 62, ua: WEB_UA, web: 1, auth: 1 },
   { key: "TVHTML5", clientName: "TVHTML5", clientVersion: "7.20260213.00.00", clientId: 7, ua: "Mozilla/5.0 (ChromiumStylePlatform) Cobalt/25.lts.30.1034943-gold (unlike Gecko), Unknown_TV_Unknown_0/Unknown", web: 1 },
   { key: "TVHTML5_SIMPLY", clientName: "TVHTML5_SIMPLY", clientVersion: "1.0", clientId: 75, ua: "Mozilla/5.0 (ChromiumStylePlatform) Cobalt/25.lts.30.1034943-gold (unlike Gecko), Unknown_TV_Unknown_0/Unknown", web: 1 },
   { key: "MWEB", clientName: "MWEB", clientVersion: "2.20260708.05.00", clientId: 2, ua: "Mozilla/5.0 (iPad; CPU OS 16_7_10 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1,gzip(gfe)", web: 1, auth: 1 },
