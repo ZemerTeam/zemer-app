@@ -314,7 +314,7 @@ Every tracked non-Kotlin path outside `docs/` is listed. Text files report line 
 | `scripts/ui-audit.sh` | 255 lines | text `.sh` |
 | `scripts/ui-strings-scan.py` | 96 lines | text `.py` |
 | `settings.gradle.kts` | 33 lines | text `.kts` |
-| `tests/INVESTIGATION.md` | 227 lines | text `.md` |
+| `tests/INVESTIGATION.md` | 226 lines | text `.md` |
 | `tests/MWEB-INVESTIGATION.md` | 47 lines | text `.md` |
 | `tests/README.md` | 134 lines | text `.md` |
 | `tests/analyze-player.mjs` | 53 lines | text `.mjs` |

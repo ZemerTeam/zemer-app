@@ -1,7 +1,7 @@
 # tests/ — YouTube Music streaming harness (terminal, hard data)
 
 Node scripts that reproduce the app's streaming pipeline **exactly** (same `/player` request,
-same cipher, same poToken minting - but not yet the app's token slots, see Findings) so playback is
+same cipher, same poToken minting and token slots, see Findings) so playback is
 measured against the live CDN without building the APK.
 
 All scripts run from the repo root or `tests/`. Node >= 20. Deps (`bgutils-js`, `jsdom`,

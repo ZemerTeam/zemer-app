@@ -968,7 +968,7 @@ session; **gitignored**, never commit). Methodology + the symptom-indexed runboo
   (used by `RecognitionResolver`, Android Auto voice search, `AddToPlaylistDialogOnline`):
   `node tests/search/run.mjs [query...]` reports strict-deserialization breaks, parser drops and empty
   results; `node --test tests/search/self-test.mjs` proves the checker (no network). The app sends no
-  visitorData/cookie/auth (`sendVisitorData = false`); the harness still sends visitorData (known drift).
+  visitorData/cookie/auth (`sendVisitorData = false`), and `run.mjs` matches that.
   Keep the strict-field table in `tests/search/schema.mjs` in sync with innertube model nullability.
   Details: `tests/search/README.md`.
 
