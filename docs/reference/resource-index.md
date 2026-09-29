@@ -261,8 +261,8 @@ Tracked Android resource paths under `app/src/**/res`: `210`.
 | `app/src/debug/res/values/app_name.xml` | 4 lines | `resources` | app_name |
 | `app/src/main/res/values/app_name.xml` | 4 lines | `resources` | app_name |
 | `app/src/main/res/values/colors.xml` | 9 lines | `resources` | widget_text_primary, widget_text_secondary, widget_background, widget_album_bg, widget_accent |
-| `app/src/main/res/values/metrolist_strings.xml` | 698 lines | `resources` | pause, replay, resume_playback, nothing_to_resume, crop_album_art, crop_album_art_desc, not_applicable, featured_playlists, home_see_all_empty, artist_not_available, album_not_available, song_not_available, featured_video_songs, video_downloads_in_music, video_downloads_in_music_description, podcast_not_available, local_history, remote_history, unknown_artist, latest_releases, … +544 more |
-| `app/src/main/res/values/strings.xml` | 459 lines | `resources` | home, back_to_top, songs, artists, kid_zone, albums, playlists, n_selected, history, account, quick_picks, forgotten_favorites, keep_listening, today, yesterday, this_week, last_week, search, search_yt_music, search_artists, … +331 more |
+| `app/src/main/res/values/metrolist_strings.xml` | 694 lines | `resources` | pause, replay, resume_playback, nothing_to_resume, crop_album_art, crop_album_art_desc, not_applicable, featured_playlists, home_see_all_empty, artist_not_available, album_not_available, song_not_available, featured_video_songs, video_downloads_in_music, video_downloads_in_music_description, podcast_not_available, local_history, remote_history, unknown_artist, latest_releases, … +544 more |
+| `app/src/main/res/values/strings.xml` | 453 lines | `resources` | home, back_to_top, songs, artists, kid_zone, albums, playlists, n_selected, history, account, quick_picks, forgotten_favorites, keep_listening, today, yesterday, this_week, last_week, search, search_yt_music, search_artists, … +331 more |
 | `app/src/main/res/values/styles.xml` | 26 lines | `resources` | Theme.Zemer, android:windowContentOverlay, android:windowDrawsSystemBarBackgrounds, android:windowMinWidthMinor, android:windowMinWidthMajor, android:windowNoTitle, android:windowBackground, android:enforceNavigationBarContrast, android:statusBarColor, android:navigationBarColor, Theme.Zemer.Transparent, android:windowIsTranslucent, android:backgroundDimEnabled, android:windowAnimationStyle |
 | `app/src/main/res/values/values.xml` | 8 lines | `resources` | media3_notification_play, media3_notification_pause, media3_notification_seek_to_previous, media3_notification_seek_to_next |
 
@@ -292,7 +292,7 @@ Tracked Android resource paths under `app/src/**/res`: `210`.
 | `app/src/main/res/xml/accessibility_service_config.xml` | 9 lines | `accessibility-service` |  |
 | `app/src/main/res/xml/automotive_app_desc.xml` | 4 lines | `automotiveApp` | media |
 | `app/src/main/res/xml/backup_rules.xml` | 12 lines | `full-backup-content` |  |
-| `app/src/main/res/xml/data_extraction_rules.xml` | 29 lines | `data-extraction-rules` |  |
+| `app/src/main/res/xml/data_extraction_rules.xml` | 25 lines | `data-extraction-rules` |  |
 | `app/src/main/res/xml/music_widget_info.xml` | 18 lines | `appwidget-provider` |  |
 | `app/src/main/res/xml/provider_paths.xml` | 12 lines | `paths` | external_files, cache, external_cache |
 

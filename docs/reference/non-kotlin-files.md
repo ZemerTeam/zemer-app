@@ -5,20 +5,20 @@ Every tracked non-Kotlin path outside `docs/` is listed. Text files report line 
 | Path | Size/status | Type metadata |
 | --- | ---: | --- |
 | `.github/workflows/debug-build.yml` | 66 lines | text `.yml` |
-| `.github/workflows/docs-regenerate.yml` | 81 lines | text `.yml` |
+| `.github/workflows/docs-regenerate.yml` | 80 lines | text `.yml` |
 | `.github/workflows/player-monitor.yml` | 196 lines | text `.yml` |
 | `.github/workflows/regression.yml` | 84 lines | text `.yml` |
 | `.github/workflows/release-build.yml` | 166 lines | text `.yml` |
-| `.github/workflows/ui-audit.yml` | 56 lines | text `.yml` |
+| `.github/workflows/ui-audit.yml` | 55 lines | text `.yml` |
 | `.gitignore` | 117 lines | text `[none]` |
 | `.gitmodules` | 3 lines | text `[none]` |
 | `AGENTS.md` | 1013 lines | text `.md` |
 | `LICENSE` | 674 lines | text `[none]` |
 | `README.md` | 9 lines | text `.md` |
 | `app/.gitignore` | 1 lines | text `[none]` |
-| `app/build.gradle.kts` | 298 lines | text `.kts`; plugins `com.android.application, android, kotlin.serialization, hilt, kotlin.ksp, compose.compiler, google.gms.google.services, firebase.crashlytics, rikka.tools.refine` |
-| `app/lint.xml` | 12 lines | text `.xml`; XML root `lint` |
-| `app/proguard-rules.pro` | 255 lines | text `.pro` |
+| `app/build.gradle.kts` | 287 lines | text `.kts`; plugins `com.android.application, android, kotlin.serialization, hilt, kotlin.ksp, compose.compiler, google.gms.google.services, firebase.crashlytics, rikka.tools.refine` |
+| `app/lint.xml` | 11 lines | text `.xml`; XML root `lint` |
+| `app/proguard-rules.pro` | 241 lines | text `.pro` |
 | `app/schemas/com.jtech.zemer.db.InternalDatabase/1.json` | 297 lines | text `.json`; JSON keys `formatVersion, database` |
 | `app/schemas/com.jtech.zemer.db.InternalDatabase/10.json` | 814 lines | text `.json`; JSON keys `formatVersion, database` |
 | `app/schemas/com.jtech.zemer.db.InternalDatabase/11.json` | 796 lines | text `.json`; JSON keys `formatVersion, database` |
@@ -259,15 +259,15 @@ Every tracked non-Kotlin path outside `docs/` is listed. Text files report line 
 | `app/src/main/res/values-v31/styles.xml` | 22 lines | text `.xml`; XML root `resources` |
 | `app/src/main/res/values/app_name.xml` | 4 lines | text `.xml`; XML root `resources` |
 | `app/src/main/res/values/colors.xml` | 9 lines | text `.xml`; XML root `resources` |
-| `app/src/main/res/values/metrolist_strings.xml` | 698 lines | text `.xml`; XML root `resources` |
-| `app/src/main/res/values/strings.xml` | 459 lines | text `.xml`; XML root `resources` |
+| `app/src/main/res/values/metrolist_strings.xml` | 694 lines | text `.xml`; XML root `resources` |
+| `app/src/main/res/values/strings.xml` | 453 lines | text `.xml`; XML root `resources` |
 | `app/src/main/res/values/styles.xml` | 26 lines | text `.xml`; XML root `resources` |
 | `app/src/main/res/values/values.xml` | 8 lines | text `.xml`; XML root `resources` |
 | `app/src/main/res/xml-v25/shortcuts.xml` | 33 lines | text `.xml`; XML root `shortcuts` |
 | `app/src/main/res/xml/accessibility_service_config.xml` | 9 lines | text `.xml`; XML root `accessibility-service` |
 | `app/src/main/res/xml/automotive_app_desc.xml` | 4 lines | text `.xml`; XML root `automotiveApp` |
 | `app/src/main/res/xml/backup_rules.xml` | 12 lines | text `.xml`; XML root `full-backup-content` |
-| `app/src/main/res/xml/data_extraction_rules.xml` | 29 lines | text `.xml`; XML root `data-extraction-rules` |
+| `app/src/main/res/xml/data_extraction_rules.xml` | 25 lines | text `.xml`; XML root `data-extraction-rules` |
 | `app/src/main/res/xml/music_widget_info.xml` | 18 lines | text `.xml`; XML root `appwidget-provider` |
 | `app/src/main/res/xml/provider_paths.xml` | 12 lines | text `.xml`; XML root `paths` |
 | `app/src/test/resources/lyrics/apple-1571752969.expected.lrc` | 51 lines | text `.lrc` |
@@ -296,7 +296,7 @@ Every tracked non-Kotlin path outside `docs/` is listed. Text files report line 
 | `app/universal/release/baselineProfiles/1/app-universal-release.dm` | 9981 bytes | binary `.dm` |
 | `build.gradle.kts` | 37 lines | text `.kts`; plugins `hilt, kotlin.ksp, google.gms.google.services, firebase.crashlytics, rikka.tools.refine` |
 | `cipher` | gitlink/non-file | tracked path is not a regular file in this checkout |
-| `gradle.properties` | 40 lines | text `.properties` |
+| `gradle.properties` | 26 lines | text `.properties` |
 | `gradle/libs.versions.toml` | 150 lines | text `.toml` |
 | `gradle/wrapper/gradle-wrapper.jar` | 45457 bytes | binary `.jar` |
 | `gradle/wrapper/gradle-wrapper.properties` | 8 lines | text `.properties` |
@@ -306,14 +306,14 @@ Every tracked non-Kotlin path outside `docs/` is listed. Text files report line 
 | `innertube/build.gradle.kts` | 18 lines | text `.kts`; plugins `kotlin.serialization, jvm` |
 | `lint.xml` | 6 lines | text `.xml`; XML root `lint` |
 | `scripts/check-16kb-alignment.sh` | 67 lines | text `.sh` |
-| `scripts/check-dead-resources.sh` | 94 lines | text `.sh` |
+| `scripts/check-dead-resources.sh` | 93 lines | text `.sh` |
 | `scripts/check-download-unification.sh` | 53 lines | text `.sh` |
 | `scripts/dead-resources-baseline.txt` | 4 lines | text `.txt` |
 | `scripts/telegram-chats.sh` | 38 lines | text `.sh` |
 | `scripts/ui-audit-baseline.tsv` | 14 lines | text `.tsv` |
 | `scripts/ui-audit.sh` | 255 lines | text `.sh` |
 | `scripts/ui-strings-scan.py` | 96 lines | text `.py` |
-| `settings.gradle.kts` | 54 lines | text `.kts`; plugins `org.gradle.toolchains.foojay-resolver-convention` |
+| `settings.gradle.kts` | 33 lines | text `.kts` |
 | `tests/INVESTIGATION.md` | 227 lines | text `.md` |
 | `tests/MWEB-INVESTIGATION.md` | 47 lines | text `.md` |
 | `tests/README.md` | 134 lines | text `.md` |
@@ -341,18 +341,18 @@ Every tracked non-Kotlin path outside `docs/` is listed. Text files report line 
 | `tests/pot-probe.mjs` | 139 lines | text `.mjs` |
 | `tests/potoken.mjs` | 133 lines | text `.mjs` |
 | `tests/probe-all-ids.mjs` | 126 lines | text `.mjs` |
-| `tests/probe-client-auth.mjs` | 208 lines | text `.mjs` |
+| `tests/probe-client-auth.mjs` | 206 lines | text `.mjs` |
 | `tests/probe-client-detail.mjs` | 156 lines | text `.mjs` |
 | `tests/probe-client-v2.mjs` | 203 lines | text `.mjs` |
 | `tests/probe-client-v3.mjs` | 179 lines | text `.mjs` |
 | `tests/probe-clients.mjs` | 98 lines | text `.mjs` |
 | `tests/probe-extended.mjs` | 221 lines | text `.mjs` |
 | `tests/probe-mweb-app-exact.mjs` | 201 lines | text `.mjs` |
-| `tests/probe-mweb-deobfuscate.mjs` | 200 lines | text `.mjs` |
+| `tests/probe-mweb-deobfuscate.mjs` | 197 lines | text `.mjs` |
 | `tests/probe-mweb-drain.mjs` | 158 lines | text `.mjs` |
-| `tests/probe-mweb-full.mjs` | 171 lines | text `.mjs` |
+| `tests/probe-mweb-full.mjs` | 169 lines | text `.mjs` |
 | `tests/probe-mweb-itag140.mjs` | 116 lines | text `.mjs` |
-| `tests/probe-mweb-nopot.mjs` | 105 lines | text `.mjs` |
+| `tests/probe-mweb-nopot.mjs` | 103 lines | text `.mjs` |
 | `tests/probe-mweb-pervideo.mjs` | 129 lines | text `.mjs` |
 | `tests/probe-mweb-playerjs.mjs` | 46 lines | text `.mjs` |
 | `tests/probe-mweb-pot.mjs` | 59 lines | text `.mjs` |
@@ -361,8 +361,8 @@ Every tracked non-Kotlin path outside `docs/` is listed. Text files report line 
 | `tests/probe-mweb-stream.mjs` | 111 lines | text `.mjs` |
 | `tests/probe-mweb-verdict.mjs` | 156 lines | text `.mjs` |
 | `tests/probe-mweb-wall-absolute.mjs` | 95 lines | text `.mjs` |
-| `tests/probe-mweb.mjs` | 136 lines | text `.mjs` |
-| `tests/probe-proper.mjs` | 202 lines | text `.mjs` |
+| `tests/probe-mweb.mjs` | 132 lines | text `.mjs` |
+| `tests/probe-proper.mjs` | 200 lines | text `.mjs` |
 | `tests/probe-yt-endpoint.mjs` | 203 lines | text `.mjs` |
 | `tests/re-apple.mjs` | 52 lines | text `.mjs` |
 | `tests/re-compare.mjs` | 59 lines | text `.mjs` |
@@ -381,7 +381,7 @@ Every tracked non-Kotlin path outside `docs/` is listed. Text files report line 
 | `tests/run.mjs` | 181 lines | text `.mjs` |
 | `tests/sabr-ab-probe.mjs` | 200 lines | text `.mjs` |
 | `tests/sabr-clients.mjs` | 153 lines | text `.mjs` |
-| `tests/sabr-quality-sweep.mjs` | 203 lines | text `.mjs` |
+| `tests/sabr-quality-sweep.mjs` | 202 lines | text `.mjs` |
 | `tests/sabr-seek.mjs` | 197 lines | text `.mjs` |
 | `tests/sabr-select-compare.mjs` | 75 lines | text `.mjs` |
 | `tests/sabr-stream.mjs` | 167 lines | text `.mjs` |
@@ -425,7 +425,7 @@ Every tracked non-Kotlin path outside `docs/` is listed. Text files report line 
 | `tests/search/verify-album-fix.mjs` | 61 lines | text `.mjs` |
 | `tests/search/whitelist-findable.mjs` | 114 lines | text `.mjs` |
 | `tests/sts-mismatch.mjs` | 125 lines | text `.mjs` |
-| `tests/test-mweb-cipher.mjs` | 142 lines | text `.mjs` |
+| `tests/test-mweb-cipher.mjs` | 137 lines | text `.mjs` |
 | `tests/validate-player-config.mjs` | 202 lines | text `.mjs` |
 | `tests/video-progressive-stream.mjs` | 276 lines | text `.mjs` |
 | `tests/video-qualities.mjs` | 306 lines | text `.mjs` |
