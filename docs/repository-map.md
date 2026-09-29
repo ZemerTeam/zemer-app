@@ -9,36 +9,30 @@
 
 ## Android app configuration
 
+SDK levels, version, JVM target, BuildConfig fields and the (absent) native build are in the generated
+module-facts table of [`app/README.md`](app/README.md). Not listed there:
+
 | Fact | Value |
 | --- | --- |
-| Module | `app` |
-| Android namespace | `com.jtech.zemer` |
-| Application ID | `com.jtech.zemer` |
-| Compile SDK | `36` |
-| Minimum SDK | `26` |
-| Target SDK | `36` |
-| Version code/name | `27` / `27` |
-| Java/Kotlin target | JVM 21 |
-| Compose | Enabled |
-| BuildConfig | Enabled |
-| Room schema output | `app/schemas` |
-| ABI filters | `arm64-v8a`, `armeabi-v7a` |
+| ABI filters | `arm64-v8a`, `armeabi-v7a` (select bundled dependency native libraries only; the app has no native code) |
 | Locale filters | `en`, `iw` |
-| Native build | CMake at `app/src/main/cpp/CMakeLists.txt` unless `USE_PREBUILT_NATIVE=true` |
 
 ## Manifest-declared Android components
 
 | Component type | Declared component / behavior |
 | --- | --- |
 | Application class | `.App` |
-| Main activity | `.MainActivity`, exported, singleTop, fullSensor, handles launcher, voice/search, media search, YouTube/Zemer deep links, and text sharing. |
+| Main activity | `.MainActivity`, exported, `launchMode="singleTask"`, `supportsPictureInPicture="true"`, `configChanges` covering `orientation`, `screenSize`, `smallestScreenSize`, `screenLayout`, `keyboardHidden`; handles launcher/`MUSIC_PLAYER`, `MEDIA_PLAY_FROM_SEARCH`, YouTube (`youtube.com`, `m.`/`www.`/`music.youtube.com`, `youtu.be`, `vnd.youtube`) and Zemer (`music.zemer.io`, `video.zemer.io`) deep links, and `SEND` of `text/plain`. |
+| Resume trampoline | `.ResumePlaybackActivity`, exported, `Theme.NoDisplay`, no history, excluded from recents. |
+| Recognition dialog | `.ui.screens.recognition.RecognizeMusicDialogActivity`, not exported, singleTop, transparent theme, excluded from recents. |
+| Crop activity | `com.yalantis.ucrop.UCropActivity`, `screenOrientation="fullSensor"`. |
 | File provider | `androidx.core.content.FileProvider` with `${applicationId}.FileProvider`. |
+| Shizuku provider | `rikka.shizuku.ShizukuProvider` with `${applicationId}.shizuku`, exported, permission `INTERACT_ACROSS_USERS_FULL`. |
 | Density provider | `com.dpi.DensityScaler`. |
-| Crop activity | `com.yalantis.ucrop.UCropActivity`. |
 | Media service | `.playback.MusicService`, exported, foreground type `mediaPlayback`, handles Media3 session/library and legacy media browser actions. |
-| Download services | `.playback.ExoDownloadService` and `.playback.MediaStoreDownloadService`, foreground type `dataSync`. |
+| Download service | `.playback.MediaStoreDownloadService`, not exported, foreground type `dataSync`. |
 | Accessibility service | `.accessibility.ButtonMapperAccessibilityService`, bound with `android.permission.BIND_ACCESSIBILITY_SERVICE`. |
-| Receivers | `androidx.media3.session.MediaButtonReceiver` and `.widget.MusicWidgetReceiver`. |
+| Receivers | `.utils.updater.InstallReceiver` (action `com.jtech.zemer.INSTALL_STATUS`, not exported), `androidx.media3.session.MediaButtonReceiver`, and `.widget.MusicWidgetReceiver`. |
 | Automotive metadata | `com.google.android.gms.car.application` pointing to `@xml/automotive_app_desc`. |
 
 ## Source module purposes visible from files
@@ -46,28 +40,13 @@
 | Module | Source package(s) | Observable responsibility |
 | --- | --- | --- |
 | `app` | `com.jtech.zemer`, `com.dpi` | Android application, Compose UI, playback, Room database, DataStore preferences, Firebase auth/sync, whitelist filtering, widgets, accessibility, and density scaling. |
-| `innertube` | `com.metrolist.innertube` | Ktor/OkHttp JVM library for YouTube Music InnerTube requests, NewPipe integration, response models, and page parsers. |
+| `innertube` | `com.metrolist.innertube` | Ktor/OkHttp JVM library for YouTube Music InnerTube requests, response models, and page parsers (dependencies: five Ktor artifacts, `okhttp-dnsoverhttps`, JUnit for tests). |
 
-## Latest committed Room schema (`InternalDatabase` schema 32)
+## Latest committed Room schema
 
-| Table | Fields in schema 32 |
-| --- | --- |
-| `song` | `id`, `title`, `duration`, `thumbnailUrl`, `albumId`, `albumName`, `explicit`, `year`, `date`, `dateModified`, `liked`, `likedDate`, `totalPlayTime`, `inLibrary`, `dateDownload`, `isLocal`, `libraryAddToken`, `libraryRemoveToken`, `romanizeLyrics`, `isDownloaded`, `mediaStoreUri`, `isUploaded`, `isVideo` |
-| `artist` | `id`, `name`, `thumbnailUrl`, `channelId`, `lastUpdateTime`, `bookmarkedAt`, `isLocal` |
-| `album` | `id`, `playlistId`, `title`, `year`, `thumbnailUrl`, `themeColor`, `songCount`, `duration`, `explicit`, `lastUpdateTime`, `bookmarkedAt`, `likedDate`, `inLibrary`, `isLocal`, `isUploaded` |
-| `playlist` | `id`, `name`, `browseId`, `createdAt`, `lastUpdateTime`, `isEditable`, `bookmarkedAt`, `remoteSongCount`, `playEndpointParams`, `thumbnailUrl`, `shuffleEndpointParams`, `radioEndpointParams`, `isLocal` |
-| `song_artist_map` | `songId`, `artistId`, `position` |
-| `song_album_map` | `songId`, `albumId`, `index` |
-| `album_artist_map` | `albumId`, `artistId`, `order` |
-| `playlist_song_map` | `id`, `playlistId`, `songId`, `position`, `setVideoId` |
-| `search_history` | `id`, `query` |
-| `format` | `id`, `itag`, `mimeType`, `codecs`, `bitrate`, `sampleRate`, `contentLength`, `loudnessDb`, `playbackUrl`, `streamClient` |
-| `lyrics` | `id`, `lyrics` |
-| `event` | `id`, `songId`, `timestamp`, `playTime` |
-| `related_song_map` | `id`, `songId`, `relatedSongId` |
-| `set_video_id` | `videoId`, `setVideoId` |
-| `playCount` | `song`, `year`, `month`, `count` |
-| `artist_whitelist` | `artistId`, `artistName`, `addedAt`, `source`, `lastSyncedAt`, `isFemale`, `isChasid`, `isGenZ`, `isKids`, `isKidZone` |
+The highest-numbered file under `app/schemas/com.jtech.zemer.db.InternalDatabase/` is the current
+schema; its entities, views, fields, keys and indices are the generated tables in
+[`app/database.md`](app/database.md).
 
 ## File and declaration inventory
 
@@ -75,12 +54,12 @@ The following inventory is generated from repository files outside `.git`, `.gra
 
 ### Counts
 
-- Files counted: `1381`
+- Files counted: `1372`
 - By extension:
   - `.kt`: `887`
   - `.xml`: `192`
   - `.mjs`: `110`
-  - `.md`: `73`
+  - `.md`: `64`
   - `.json`: `50`
   - `.webp`: `15`
   - `.html`: `6`
@@ -118,7 +97,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `.github/workflows/ui-audit.yml` | 56 lines | `.yml` |
 | `.gitignore` | 117 lines | `[none]` |
 | `.gitmodules` | 3 lines | `[none]` |
-| `AGENTS.md` | 2066 lines | `.md` |
+| `AGENTS.md` | 1012 lines | `.md` |
 | `LICENSE` | 674 lines | `[none]` |
 | `README.md` | 9 lines | `.md` |
 | `app/.gitignore` | 1 lines | `[none]` |
@@ -1200,73 +1179,64 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/universal/release/baselineProfiles/0/app-universal-release.dm` | 10017 bytes | `.dm` |
 | `app/universal/release/baselineProfiles/1/app-universal-release.dm` | 9981 bytes | `.dm` |
 | `build.gradle.kts` | 37 lines | `.kts` |
-| `docs/README.md` | 33 lines | `.md` |
-| `docs/app/README.md` | 134 lines | `.md` |
-| `docs/app/database.md` | 583 lines | `.md` |
-| `docs/app/playback.md` | 36 lines | `.md` |
-| `docs/app/preferences-sync-auth.md` | 191 lines | `.md` |
-| `docs/app/viewmodels.md` | 30 lines | `.md` |
+| `docs/README.md` | 44 lines | `.md` |
+| `docs/app/README.md` | 187 lines | `.md` |
+| `docs/app/database.md` | 656 lines | `.md` |
+| `docs/app/playback.md` | 119 lines | `.md` |
+| `docs/app/preferences-sync-auth.md` | 221 lines | `.md` |
+| `docs/app/viewmodels.md` | 130 lines | `.md` |
 | `docs/build-release.md` | 58 lines | `.md` |
-| `docs/fcast/01-architecture.md` | 116 lines | `.md` |
-| `docs/fcast/02-on-demand-native-lib.md` | 134 lines | `.md` |
-| `docs/fcast/03-discovery-and-connection.md` | 253 lines | `.md` |
-| `docs/fcast/04-playback-and-transport.md` | 288 lines | `.md` |
-| `docs/fcast/05-auto-advance.md` | 176 lines | `.md` |
-| `docs/fcast/06-ui.md` | 131 lines | `.md` |
-| `docs/fcast/07-testing-and-troubleshooting.md` | 176 lines | `.md` |
-| `docs/fcast/README.md` | 79 lines | `.md` |
-| `docs/generate.py` | 483 lines | `.py` |
-| `docs/genres/README.md` | 120 lines | `.md` |
-| `docs/home_rows/README.md` | 106 lines | `.md` |
-| `docs/innertube/README.md` | 170 lines | `.md` |
-| `docs/latest_releases/01-architecture-and-data-flow.md` | 94 lines | `.md` |
-| `docs/latest_releases/02-feed-format-and-server.md` | 95 lines | `.md` |
-| `docs/latest_releases/03-runtime-store.md` | 128 lines | `.md` |
-| `docs/latest_releases/04-viewmodel-and-filtering.md` | 121 lines | `.md` |
-| `docs/latest_releases/05-ui.md` | 174 lines | `.md` |
-| `docs/latest_releases/06-test-harness.md` | 127 lines | `.md` |
-| `docs/latest_releases/07-runbook.md` | 110 lines | `.md` |
-| `docs/latest_releases/README.md` | 80 lines | `.md` |
-| `docs/lyrics/README.md` | 185 lines | `.md` |
-| `docs/multi_update/01-architecture.md` | 80 lines | `.md` |
-| `docs/multi_update/02-install-methods.md` | 98 lines | `.md` |
-| `docs/multi_update/03-restart.md` | 70 lines | `.md` |
-| `docs/multi_update/04-wiring.md` | 95 lines | `.md` |
-| `docs/multi_update/05-runbook.md` | 83 lines | `.md` |
-| `docs/multi_update/README.md` | 77 lines | `.md` |
-| `docs/offline/README.md` | 153 lines | `.md` |
-| `docs/podcasts/README.md` | 82 lines | `.md` |
-| `docs/recognize_music/01-architecture-and-pipeline.md` | 92 lines | `.md` |
-| `docs/recognize_music/02-whitelist-guarantee.md` | 100 lines | `.md` |
-| `docs/recognize_music/03-entry-points-and-ui.md` | 72 lines | `.md` |
-| `docs/recognize_music/04-recognition-history.md` | 86 lines | `.md` |
-| `docs/recognize_music/05-widget.md` | 72 lines | `.md` |
-| `docs/recognize_music/06-testing-and-maintenance.md` | 54 lines | `.md` |
-| `docs/recognize_music/README.md` | 71 lines | `.md` |
+| `docs/fcast/01-architecture.md` | 67 lines | `.md` |
+| `docs/fcast/02-on-demand-native-lib.md` | 59 lines | `.md` |
+| `docs/fcast/03-discovery-and-connection.md` | 113 lines | `.md` |
+| `docs/fcast/04-playback-and-transport.md` | 153 lines | `.md` |
+| `docs/fcast/05-auto-advance.md` | 116 lines | `.md` |
+| `docs/fcast/06-ui.md` | 67 lines | `.md` |
+| `docs/fcast/07-testing-and-troubleshooting.md` | 123 lines | `.md` |
+| `docs/fcast/README.md` | 68 lines | `.md` |
+| `docs/generate.py` | 1305 lines | `.py` |
+| `docs/genres/README.md` | 99 lines | `.md` |
+| `docs/home_rows/README.md` | 89 lines | `.md` |
+| `docs/innertube/README.md` | 186 lines | `.md` |
+| `docs/latest_releases/01-architecture-and-data-flow.md` | 80 lines | `.md` |
+| `docs/latest_releases/02-feed-format-and-server.md` | 77 lines | `.md` |
+| `docs/latest_releases/03-runtime-store.md` | 57 lines | `.md` |
+| `docs/latest_releases/04-ui.md` | 58 lines | `.md` |
+| `docs/latest_releases/README.md` | 57 lines | `.md` |
+| `docs/lyrics/README.md` | 193 lines | `.md` |
+| `docs/multi_update/01-architecture.md` | 56 lines | `.md` |
+| `docs/multi_update/02-install-methods.md` | 74 lines | `.md` |
+| `docs/multi_update/03-restart.md` | 41 lines | `.md` |
+| `docs/multi_update/04-wiring.md` | 46 lines | `.md` |
+| `docs/multi_update/05-runbook.md` | 51 lines | `.md` |
+| `docs/multi_update/README.md` | 41 lines | `.md` |
+| `docs/offline/README.md` | 131 lines | `.md` |
+| `docs/podcasts/README.md` | 88 lines | `.md` |
+| `docs/recognize_music/01-architecture-and-pipeline.md` | 65 lines | `.md` |
+| `docs/recognize_music/02-whitelist-guarantee.md` | 69 lines | `.md` |
+| `docs/recognize_music/03-entry-points-and-ui.md` | 80 lines | `.md` |
+| `docs/recognize_music/README.md` | 73 lines | `.md` |
 | `docs/reference/kotlin-files.md` | 900 lines | `.md` |
 | `docs/reference/non-kotlin-files.md` | 434 lines | `.md` |
-| `docs/reference/resource-index.md` | 255 lines | `.md` |
-| `docs/remote_cipher_config/01-why-it-exists.md` | 88 lines | `.md` |
-| `docs/remote_cipher_config/02-file-format.md` | 116 lines | `.md` |
-| `docs/remote_cipher_config/03-runtime-store.md` | 156 lines | `.md` |
-| `docs/remote_cipher_config/04-validation-and-security.md` | 105 lines | `.md` |
-| `docs/remote_cipher_config/05-extraction-and-self-heal.md` | 144 lines | `.md` |
-| `docs/remote_cipher_config/06-harness-and-monitor.md` | 101 lines | `.md` |
-| `docs/remote_cipher_config/07-runbook.md` | 101 lines | `.md` |
-| `docs/remote_cipher_config/README.md` | 112 lines | `.md` |
-| `docs/repository-map.md` | 1493 lines | `.md` |
-| `docs/sabr/README.md` | 543 lines | `.md` |
-| `docs/stations/README.md` | 69 lines | `.md` |
-| `docs/status/README.md` | 122 lines | `.md` |
-| `docs/status/jewishstatus-api.md` | 162 lines | `.md` |
-| `docs/status/yidstatus-api.md` | 238 lines | `.md` |
-| `docs/tracking/README.md` | 348 lines | `.md` |
-| `docs/ui/README.md` | 305 lines | `.md` |
-| `docs/ui/standards.md` | 389 lines | `.md` |
-| `docs/video_quality/README.md` | 134 lines | `.md` |
-| `docs/watchtime/README.md` | 304 lines | `.md` |
-| `docs/whitelist/README.md` | 263 lines | `.md` |
-| `docs/zemer_playlists/README.md` | 110 lines | `.md` |
+| `docs/reference/resource-index.md` | 303 lines | `.md` |
+| `docs/remote_cipher_config/01-concepts-and-format.md` | 135 lines | `.md` |
+| `docs/remote_cipher_config/02-runtime-store.md` | 94 lines | `.md` |
+| `docs/remote_cipher_config/03-extraction-and-self-heal.md` | 102 lines | `.md` |
+| `docs/remote_cipher_config/04-operations.md` | 121 lines | `.md` |
+| `docs/remote_cipher_config/README.md` | 60 lines | `.md` |
+| `docs/repository-map.md` | 1463 lines | `.md` |
+| `docs/sabr/README.md` | 364 lines | `.md` |
+| `docs/stations/README.md` | 67 lines | `.md` |
+| `docs/status/README.md` | 94 lines | `.md` |
+| `docs/status/jewishstatus-api.md` | 71 lines | `.md` |
+| `docs/status/yidstatus-api.md` | 50 lines | `.md` |
+| `docs/tracking/README.md` | 273 lines | `.md` |
+| `docs/ui/README.md` | 585 lines | `.md` |
+| `docs/ui/standards.md` | 402 lines | `.md` |
+| `docs/video_quality/README.md` | 128 lines | `.md` |
+| `docs/watchtime/README.md` | 180 lines | `.md` |
+| `docs/whitelist/README.md` | 228 lines | `.md` |
+| `docs/zemer_playlists/README.md` | 94 lines | `.md` |
 | `gradle.properties` | 40 lines | `.properties` |
 | `gradle/libs.versions.toml` | 150 lines | `.toml` |
 | `gradle/wrapper/gradle-wrapper.jar` | 45457 bytes | `.jar` |
@@ -1373,9 +1343,9 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `scripts/ui-audit.sh` | 248 lines | `.sh` |
 | `scripts/ui-strings-scan.py` | 96 lines | `.py` |
 | `settings.gradle.kts` | 54 lines | `.kts` |
-| `tests/INVESTIGATION.md` | 279 lines | `.md` |
-| `tests/MWEB-INVESTIGATION.md` | 114 lines | `.md` |
-| `tests/README.md` | 175 lines | `.md` |
+| `tests/INVESTIGATION.md` | 227 lines | `.md` |
+| `tests/MWEB-INVESTIGATION.md` | 47 lines | `.md` |
+| `tests/README.md` | 136 lines | `.md` |
 | `tests/analyze-player.mjs` | 53 lines | `.mjs` |
 | `tests/broken-clients.mjs` | 143 lines | `.mjs` |
 | `tests/check-live-player.mjs` | 81 lines | `.mjs` |
@@ -1428,7 +1398,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `tests/re-deep.mjs` | 79 lines | `.mjs` |
 | `tests/re-ios.mjs` | 69 lines | `.mjs` |
 | `tests/re-oauth.mjs` | 116 lines | `.mjs` |
-| `tests/recent-releases/README.md` | 62 lines | `.md` |
+| `tests/recent-releases/README.md` | 45 lines | `.md` |
 | `tests/recent-releases/build-feed.mjs` | 145 lines | `.mjs` |
 | `tests/recent-releases/lib.mjs` | 239 lines | `.mjs` |
 | `tests/recent-releases/probe-dates.mjs` | 80 lines | `.mjs` |
@@ -1449,7 +1419,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `tests/sabr-watchtime.mjs` | 157 lines | `.mjs` |
 | `tests/scan-live-players.mjs` | 124 lines | `.mjs` |
 | `tests/scan-live-players.test.mjs` | 44 lines | `.mjs` |
-| `tests/search/README.md` | 121 lines | `.md` |
+| `tests/search/README.md` | 96 lines | `.md` |
 | `tests/search/album-facet-probe.mjs` | 42 lines | `.mjs` |
 | `tests/search/corpus-ambiguity.mjs` | 15 lines | `.mjs` |
 | `tests/search/corpus-resolve.mjs` | 69 lines | `.mjs` |
