@@ -97,14 +97,6 @@ data class YouTubeClient(
 
 
 
-        /**
-         * Cannot play livestreams and lacks HDR, but can play videos with music and labeled "for children".
-         * <a href=\"https://dumps.tadiphone.dev/dumps/google/barbet\">Google Pixel 9 Pro Fold</a>
-         */
-
-        /**
-         * Internal YT client for an unreleased YT client. May stop working at any time.
-         */
         // yt-dlp-master-exact `visionos` (1.02): the 0.1 build was internal/unreleased and could be
         // retired any time; 1.02 validated whole-song drain against the live CDN (client-fulldownload)
         // and on-device. The previous 0.1 config stays below as [VISIONOS_0_1], the second-chance

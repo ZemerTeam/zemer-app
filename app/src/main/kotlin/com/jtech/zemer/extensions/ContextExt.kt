@@ -130,8 +130,7 @@ private fun Context.openInExternalBrowser(uri: Uri) {
 }
 
 /**
- * Flow-based alternative for UI code.
- * Emit true when sync is enabled and user is logged in.
+ * Emit true when sync is enabled.
  * Safe to use in Composables and Flows.
  */
 @Suppress("unused")
@@ -147,7 +146,6 @@ fun Context.isSyncEnabledFlow(): Flow<Boolean> {
 }
 
 /**
- * Flow-based alternative for UI code.
  * Emit true when user has valid authentication cookie.
  * Safe to use in Composables and Flows.
  */
@@ -170,7 +168,6 @@ fun Context.isInternetConnected(): Boolean {
         val activeNetwork = connectivityManager.activeNetwork ?: return false
         val networkCapabilities = connectivityManager.getNetworkCapabilities(activeNetwork) ?: return false
 
-        // Check if network has internet capability
         if (!networkCapabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)) {
             return false
         }

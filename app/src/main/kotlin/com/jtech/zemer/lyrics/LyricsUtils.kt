@@ -29,8 +29,8 @@ object LyricsUtils {
     fun hasLyricBody(text: String): Boolean = text.lineSequence().count { it.isNotBlank() } >= MIN_LYRIC_LINES
 
     /**
-     * The lyrics with any word tags removed and spacing normalised, for places that show the raw
-     * LRC body (the provider picker preview). Line timestamps are kept.
+     * The lyrics with any word tags removed and spacing normalised, for places that expose the raw
+     * LRC body (the lyrics tag embedded in a download). Line timestamps are kept.
      */
     fun stripWordTags(lyrics: String): String =
         if (!isWordSynced(lyrics)) {

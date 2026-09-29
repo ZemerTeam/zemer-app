@@ -19,7 +19,7 @@ class OggOpusTaggerTest {
 
     private fun le32(v: Int) = byteArrayOf(v.toByte(), (v ushr 8).toByte(), (v ushr 16).toByte(), (v ushr 24).toByte())
 
-    /** One Ogg page wrapping a single packet <= 255*255 bytes, with a correct CRC. */
+    /** One Ogg page wrapping a single packet < 255*255 bytes, with a correct CRC. */
     private fun page(serial: Int, seq: Int, headerType: Int, granule: Long, packet: ByteArray): ByteArray {
         val laces = ArrayList<Int>()
         var rem = packet.size

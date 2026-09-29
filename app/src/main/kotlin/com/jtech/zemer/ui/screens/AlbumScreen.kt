@@ -408,8 +408,8 @@ fun AlbumScreen(
                                         }
                                         wrappedSongs.forEach {
                                             it.isSelected = false
-                                        } // Clear previous selections
-                                        songWrapper.isSelected = true // Select the current item
+                                        }
+                                        songWrapper.isSelected = true
                                     },
                                 ),
                         )

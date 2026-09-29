@@ -298,7 +298,7 @@ class HomeViewModel @Inject constructor(
             }
         }
 
-        // If we have cache, return it immediately and check Firebase in background
+        // If we have cache, return it immediately and check for updates (mirror-first) in background
         if (cachedProfiles.isNotEmpty() && !force) {
             // Background check for updates
             viewModelScope.launch(Dispatchers.IO) {
@@ -307,7 +307,7 @@ class HomeViewModel @Inject constructor(
             return cachedProfiles
         }
 
-        // No cache - must fetch from Firebase (first launch)
+        // No cache (first launch) - must fetch, mirror-first with the Firestore fallback
         return fetchArtistProfilesFromFirebase(cachedProfiles)
     }
 

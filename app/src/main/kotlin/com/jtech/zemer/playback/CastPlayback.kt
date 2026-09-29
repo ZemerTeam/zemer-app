@@ -4,10 +4,8 @@ import org.fcast.sender_sdk.PlaybackState
 
 /**
  * Pure mappings for FCast remote playback state and clock units, extracted so they are unit-testable
- * and so the rest of the app never re-derives them (the previous code matched play state via
- * `state.toString().contains("Playing")` — a stringly-typed check that silently breaks if the SDK
- * enum is ever renamed, and re-implemented the seconds↔milliseconds conversion at five call sites
- * where a single dropped `* 1000` would desync the seek bar).
+ * and so the rest of the app never re-derives them (a stringly-typed play-state match breaks silently
+ * if the SDK enum is renamed; a single dropped `* 1000` desyncs the seek bar).
  *
  * The FCast SDK reports position/duration in **seconds**; the app's player works in **milliseconds**.
  */

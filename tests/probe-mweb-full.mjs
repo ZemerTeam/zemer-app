@@ -100,7 +100,6 @@ async function main() {
   console.log(`\n=== MWEB Stream Test ===`);
   console.log(`Video: ${VIDEO_ID}\n`);
 
-  // Get player response
   console.log('1. Fetching player response...');
   const resp = await getPlayerResponse(VIDEO_ID);
   console.log(`   Status: ${resp.playabilityStatus?.status}`);
@@ -140,7 +139,6 @@ async function main() {
   console.log(`   Signature param: ${sp}`);
   console.log(`   Encrypted sig length: ${sig?.length}`);
 
-  // Get player.js
   console.log('\n3. Fetching player.js...');
   const { js, hash } = await getPlayerJs();
 

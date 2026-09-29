@@ -180,7 +180,7 @@ fun HomeScreen(
     val featuredAlbums = homeUiState.featuredAlbums
     val featuredArtists = homeUiState.featuredArtists
     val featuredVideos = homeUiState.featuredVideos
-    // Featured albums are Zemer-sourced (telemetry-ranked) rather than the scrape fallback: open them via
+    // Featured albums are Zemer-sourced (telemetry-ranked): open them via
     // the Zemer album route so the album screen loads through the server (immune to InnerTube bot-gating).
     val featuredAlbumsAreZemer = homeUiState.featuredAlbumsAreZemer
     // Same for featured playlists: Zemer community playlists open via the server /playlist route.
@@ -193,8 +193,8 @@ fun HomeScreen(
     val zemerStations by zemerStationsViewModel.stations.collectAsState()
     val zemerGenresViewModel: ZemerGenresViewModel = hiltViewModel()
     val homeGenres by zemerGenresViewModel.genres.collectAsState()
-    // The "Music Statuses" row (JewishStatus). Isolated + fail-soft: an outage leaves the list empty
-    // and the section hides. Settings → Appearance owns its toggle.
+    // The "Music Statuses" row (JewishStatus + YidStatus). Isolated + fail-soft: an outage leaves the
+    // list empty and the section hides. Settings → Appearance owns its toggle.
     val zemerStatusesViewModel: ZemerStatusesViewModel = hiltViewModel()
     val statusCreators by zemerStatusesViewModel.creators.collectAsState()
     val statusSeenPostIds by zemerStatusesViewModel.seenPostIds.collectAsState()
@@ -216,7 +216,7 @@ fun HomeScreen(
     val podcastSubscriptionsViewModel: PodcastSubscriptionsHomeViewModel = hiltViewModel()
     val homeNewEpisodes by podcastSubscriptionsViewModel.newEpisodes.collectAsState()
     val homeSubscribedChannels by podcastSubscriptionsViewModel.subscribedChannels.collectAsState()
-    // The Home "Podcast Genres" chips strip, above the Podcasts row. Isolated + fail-soft like the
+    // The Home "Podcast Genres" chips strip, leading the Podcasts tab. Isolated + fail-soft like the
     // music genres strip: an outage leaves the list empty and the strip hides.
     val podcastGenresHomeViewModel: com.jtech.zemer.viewmodels.PodcastGenresHomeViewModel = hiltViewModel()
     val homePodcastGenres by podcastGenresHomeViewModel.genres.collectAsState()
@@ -570,10 +570,10 @@ fun HomeScreen(
             state = lazylistState,
             contentPadding = LocalPlayerAwareWindowInsets.current.asPaddingValues()
         ) {
-                // Content-type selector (Music / Podcasts / Radio / Video) — reuses the Library
-                // ChipsRow. Each tab renders only its own shelves below; Video is dropped when videos
-                // are blocked. See HomeContentTab. A plain item (not a sticky header) so the chips
-                // scroll away with the content instead of staying pinned at the top.
+                // Content-type selector (Music / Podcasts / Radio / Video) — the shared
+                // ContentTabChipsRow. Each tab renders only its own shelves below; Video is relabeled
+                // (never dropped) when videos are blocked. See HomeContentTab. A plain item (not a
+                // sticky header) so the chips scroll away with the content instead of staying pinned.
                 item(key = "home_content_tabs", contentType = "header") {
                     ContentTabChipsRow(
                         chips = homeContentChips,
@@ -690,10 +690,10 @@ fun HomeScreen(
                     }
                 }
 
-                // "Music Statuses" (JewishStatus) — directly under Quick Picks. Hidden by the Appearance
-                // toggle, when the third-party feed is empty/unreachable (fail-soft), OR when videos are
-                // blocked by content filters: statuses are mostly video/media, so the same gate as the
-                // Featured Videos row applies. The tap carries the creator's stable id (storyRoute).
+                // "Music Statuses" (JewishStatus + YidStatus) — directly under Quick Picks. Hidden by the
+                // Appearance toggle, when the third-party feed is empty/unreachable (fail-soft), OR when
+                // videos are blocked by content filters: statuses are mostly video/media. The tap carries
+                // the creator's stable id (storyRoute).
                 if (showHomeStatuses && !blockVideos) {
                     statusCreators.takeIf { it.isNotEmpty() }?.let { creators ->
                         item(key = "statuses_title", contentType = "header") {
@@ -1010,7 +1010,6 @@ fun HomeScreen(
                 }
             }
 
-            // Show featured artists
             if (featuredArtists.isNotEmpty()) {
                 item(key = "featured_artists_title", contentType = "header") {
                     NavigationTitle(
@@ -1038,7 +1037,6 @@ fun HomeScreen(
                 }
             }
 
-            // Show featured albums
             if (featuredAlbums.isNotEmpty()) {
                 item(key = "featured_albums_title", contentType = "header") {
                     NavigationTitle(
@@ -1072,8 +1070,8 @@ fun HomeScreen(
             // Shown to blocked-video users too — the rows play audio-first, so for them each shelf is
             // simply their "video songs" (relabelled, watch/download-video affordances gated off).
 
-            // Featured Videos leads the tab as a full 16:9 hero carousel (moved to the top). It keeps the
-            // same surface/playSource (resolver-default attribution); impressions are now per settled hero.
+            // Featured Videos leads the tab as a full 16:9 hero carousel. It keeps the
+            // same surface/playSource (resolver-default attribution); impressions are per settled hero.
             videoHeroCarousel(
                 row = HomeSeeAllRow.FEATURED_VIDEOS,
                 keyPrefix = "featured_videos",
@@ -1433,7 +1431,7 @@ private fun <T : YTItem> LazyListScope.podcastHomeRow(
 }
 
 /**
- * One video-song home row — Featured / Trending / New all render through this single definition:
+ * One video-song home row — Trending / New both render through this single definition:
  * relabel-aware title from [HomeSeeAllRow.displayTitleRes] + the see-all arrow, strict per-row
  * impressions on [surface], square badge-less video cards (center crop hides the baked-in 16:9 title
  * text, issue #84), audio-first taps declaring [playSource] (null = the resolver default), and

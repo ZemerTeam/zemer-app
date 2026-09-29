@@ -102,12 +102,13 @@ internal suspend fun <T> serverOrOffline(server: suspend () -> T, offline: suspe
 
 /**
  * Entry point for Zemer search — the app's ONLY search engine (the YouTube engine was removed per the
- * handoff greenlight in `~/zemer-fix/handoff-docs/zemer-app-artist-album-innertube-swap.md`). It returns the same
+ * handoff greenlight in `handoff-docs/zemer-app-artist-album-innertube-swap.md`). It returns the same
  * `YTItem`/page types the old YouTube path did, so the search UI is reused verbatim.
  *
  * Queries go to [ZemerSearchClient] (search.zemer.io) first; if the service is unreachable AND the user
  * has downloaded an on-device snapshot, the reproducible endpoints fall back to [OfflineReadProvider]
- * (search / album / home-rows / curated playlists) so browse + search keep working offline. With no
+ * (search / album / artist / home-rows / curated playlists / podcasts / most radio) so browse + search
+ * keep working offline. With no
  * snapshot the call throws, and the ViewModel shows the search-error state with Retry. A rare
  * not-yet-harvested miss (regular-channel-only songs, brand-new releases inside the harvest lag) shows
  * the graceful empty state — the residual the server side is closing via the #108 regular-channel
@@ -170,10 +171,10 @@ class ZemerSearchRepository @Inject constructor(
      * Open an album through the server's `/album` endpoint: the InnerTube album fetch runs on the
      * server (immune to on-device bot-gating/rate limits) and comes back already whitelist-scoped +
      * content-filtered, mapped to the same [AlbumPage] the YouTube path yields so the album screen
-     * and DB persist flow are reused unchanged. [playlistId] is the search card's OP playlist id —
-     * the server's album header doesn't return one. Null = 404 (the album is gone from the
-     * whitelist/corpus) — the caller deletes its stale local copy. Not cached — each open is a
-     * single fetch.
+     * and DB persist flow are reused unchanged. [playlistId] is the search card's OP playlist id
+     * (see [toAlbumPage] for the fallback). Null = 404 (gone from the whitelist/corpus, or fully
+     * blocked under these flags) — the caller decides whether to delete its stale local copy. Not
+     * cached — each open is a single fetch.
      */
     suspend fun album(browseId: String, playlistId: String?, options: ZemerSearchOptions): AlbumPage? =
         serverOrOffline(
@@ -471,7 +472,7 @@ class ZemerSearchRepository @Inject constructor(
     /**
      * Drop all memoized responses so the next call re-hits the server. Without this the session LRU
      * would keep serving a stale (or empty) response — making the "Retry" action a silent no-op — for
-     * the whole process lifetime. Called from the ViewModel's pull-to-refresh / retry path.
+     * the whole process lifetime. Called from the ViewModel's Retry path.
      */
     suspend fun invalidate() = cacheMutex.withLock { cache.clear() }
 

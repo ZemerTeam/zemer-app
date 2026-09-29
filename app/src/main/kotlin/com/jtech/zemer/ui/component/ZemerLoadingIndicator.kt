@@ -20,8 +20,8 @@ import androidx.compose.ui.unit.dp
  *
  * This is deliberately NOT for tiny in-button "working..." states (16-24dp icon-swap spinners): the
  * morphing shape is designed for standalone/section loads, so those keep the standard
- * `CircularProgressIndicator`. Pull-to-refresh uses the expressive `PullToRefreshDefaults.LoadingIndicator`
- * at its own call site (HomeScreen), not this component.
+ * `CircularProgressIndicator`. Pull-to-refresh uses the shared [PullRefreshLoadingIndicator], not this
+ * component.
  *
  * [color] maps to the indicator's `indicatorColor` and defaults to the theme color; pass a value only to
  * override (e.g. a specific container's on-color).

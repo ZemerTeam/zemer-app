@@ -47,9 +47,6 @@ class UserAuthManager @Inject constructor(
     val currentUserEmail: String?
         get() = auth.currentUser?.email
 
-    /**
-     * Flow that emits authentication state changes
-     */
     val authStateFlow: Flow<AuthState> = callbackFlow {
         val listener = FirebaseAuth.AuthStateListener { auth ->
             val user = auth.currentUser
@@ -73,9 +70,6 @@ class UserAuthManager @Inject constructor(
         }
     }
 
-    /**
-     * Sign in with Google ID token
-     */
     suspend fun signInWithGoogle(idToken: String): Result<com.google.firebase.auth.FirebaseUser> {
         return try {
             val firebaseCredential = GoogleAuthProvider.getCredential(idToken, null)
@@ -91,22 +85,15 @@ class UserAuthManager @Inject constructor(
         }
     }
 
-    /**
-     * Sign out the current user
-     */
     suspend fun signOut() {
         try {
             auth.signOut()
             googleSignInClient.signOut().await()
         } catch (e: Exception) {
-            // Log error but don't fail the operation
-            // In a real app, you'd want to log this to a crash reporting service
+            // Best-effort: a sign-out error never fails the caller.
         }
     }
 
-    /**
-     * Get the current user's ID token
-     */
     suspend fun getIdToken(forceRefresh: Boolean = false): Result<String> {
         return try {
             val user = auth.currentUser ?: return Result.failure(Exception("No user signed in"))

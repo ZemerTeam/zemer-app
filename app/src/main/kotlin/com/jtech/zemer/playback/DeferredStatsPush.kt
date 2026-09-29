@@ -5,7 +5,7 @@ import com.metrolist.innertube.models.response.PlayerResponse
 /**
  * Push ONE deferred offline listen as a late playback-stats session — fresh `/player` for the real
  * tracking URLs (their `ei`/`plid`/`vm` tokens are fresh, so there is no expiry problem, which is why
- * deferral works), one fresh `cpn`, then the playback ping (`cmt=0`, `final=0`) and a single `final=1`
+ * deferral works), one fresh `cpn`, then the playback ping (`cmt`=real start, `final=0`) and a single `final=1`
  * watchtime ping carrying the STORED real ranges — nothing re-derived, nothing fabricated.
  *
  * Network I/O is injected ([fetchTracking]/[sendPlayback]/[sendWatchtime], each returning the HTTP

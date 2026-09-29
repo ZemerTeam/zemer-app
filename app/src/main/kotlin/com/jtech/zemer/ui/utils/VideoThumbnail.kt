@@ -10,18 +10,18 @@ import androidx.core.net.toUri
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
-// A small process-wide cache (bounded by bytes) so a poster decoded once - e.g. by a cube PREVIEW face -
-// is reused INSTANTLY by the live face that takes over, with no null/black re-decode gap between them.
+// A small process-wide cache (bounded by bytes) so a poster decoded once is reused INSTANTLY when the
+// same video is shown again, with no null/black re-decode gap.
 private val thumbnailCache = object : LruCache<String, Bitmap>(24 * 1024 * 1024) {
     override fun sizeOf(key: String, value: Bitmap): Int = value.byteCount
 }
 
 /**
- * Decode a poster frame from a local video `content://` uri for previewing it as a still (the grid
- * tiles, the paused viewer). Coil has no video decoder registered in this app, so we pull one frame via
+ * Decode a poster frame from a local video `content://` uri for previewing it as a still (the saved-status
+ * grid tiles). Coil has no video decoder registered in this app, so we pull one frame via
  * [MediaMetadataRetriever] off the main thread. Cached per uri: a uri already decoded returns its bitmap
- * as the initial value (no null frame), so a poster never flashes black when a second site shows the
- * same video; otherwise null until decoded (or on failure).
+ * as the initial value (no null frame), so a poster never flashes black when the same video is shown
+ * again; otherwise null until decoded (or on failure).
  */
 @Composable
 fun rememberVideoThumbnail(uri: String): Bitmap? {

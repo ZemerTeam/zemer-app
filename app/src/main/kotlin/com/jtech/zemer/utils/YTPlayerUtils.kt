@@ -44,7 +44,7 @@ object YTPlayerUtils {
     private val poTokenGenerator = PoTokenGenerator()
 
     // Track videoIds where WEB_REMIX stream URLs 403 on ExoPlayer GET, so the next
-    // resolution falls through to TVHTML5/VISIONOS instead of looping.
+    // resolution falls through to the fallback clients instead of looping.
     private val webRemixFailedIds = java.util.Collections.newSetFromMap(
         java.util.concurrent.ConcurrentHashMap<String, Boolean>()
     )
@@ -63,11 +63,11 @@ object YTPlayerUtils {
     }
 
     // Fire-and-forget scope for the cipher config self-heal triggered when a cipher client fails
-    // stream validation during resolution. Only WEB_REMIX skips HEAD validation (so its bad URL
-    // 403s on ExoPlayer and hits MusicService's handler); WEB_CREATOR / TVHTML5_SIMPLY are validated
-    // here and never reach ExoPlayer, so without this trigger a WEB_REMIX-disabled user would never
-    // self-heal a stale/wrong cipher config. Kept off the resolution coroutine so the (network)
-    // refresh never blocks falling through to the next client.
+    // stream validation during resolution. Only WEB_REMIX and the last fallback skip HEAD validation
+    // (so a bad URL 403s on ExoPlayer and hits MusicService's handler); a validated client's bad URL
+    // never reaches ExoPlayer, so without this trigger its stale/wrong cipher config would never
+    // self-heal. Kept off the resolution coroutine so the (network) refresh never blocks falling
+    // through to the next client.
     private val cipherRefreshScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     /** Client names disabled by the user in Settings → Stream sources. Updated by MusicService. */
@@ -88,7 +88,8 @@ object YTPlayerUtils {
         WEB_CREATOR,
         // The one TV cipher client, governed by the "TVHTML5" stream-source toggle (7.x TVHTML5 and
         // tv_downgraded were both removed as proven dead: 7.x is SABR-only, tv_downgraded 403-walls
-        // even yt-dlp-master-exact — re-add from clients-retired.mjs only if YouTube reverts them).
+        // even yt-dlp-master-exact — clients-retired.mjs keeps the 7.x config; re-add only if YouTube
+        // reverts them).
         TVHTML5_SIMPLY,
     )
 
@@ -230,10 +231,9 @@ object YTPlayerUtils {
         Timber.tag(TAG).d( "PoToken: ${if (poTokenResult != null) "generated" else "unavailable"}")
 
         Timber.tag(TAG).d( "Fetching main player response with client: ${mainClient.clientName}")
-        // Resilient: the chosen main client can fail outright (e.g. ANDROID_CREATOR returns
-        // HTTP 400 with login). Use getOrNull, not getOrThrow, so one bad client never kills the
-        // whole resolution — the stream loop below falls through to the next enabled client, and
-        // metadata is captured from the first client that returns OK.
+        // Resilient: the chosen main client can fail outright. Use getOrNull, not getOrThrow, so
+        // one bad client never kills the whole resolution — the stream loop below falls through to
+        // the next enabled client, and metadata is captured from the first client that returns OK.
         val mainPlayerResponse =
             YouTube.player(
                 videoId, playlistId, mainClient, signatureTimestamp,
@@ -297,10 +297,7 @@ object YTPlayerUtils {
                 if (videoDetails == null) videoDetails = streamPlayerResponse?.videoDetails
                 if (playbackTracking == null) playbackTracking = streamPlayerResponse?.playbackTracking
 
-                // Use the player response as-is. The old NewPipe StreamInfo.getInfo
-                // pre-processing ran a full second extraction for EVERY song (fetch watch
-                // page + decipher all ~18 formats) — slow with the bundled extractor and
-                // redundant. Direct-url clients (VISIONOS) already
+                // Use the player response as-is. Direct-url clients (VISIONOS) already
                 // carry playable URLs; web clients are deciphered per-format by the Zemer
                 // cipher in findUrlOrNull (sig) + transformNParamInUrl (n) below.
                 val responseToUse = streamPlayerResponse
@@ -379,7 +376,7 @@ object YTPlayerUtils {
                 // WEB_REMIX authenticated CDN URLs 403 on HEAD but serve correctly
                 // on the actual byte-range GET that ExoPlayer makes. Skip HEAD validation
                 // for streaming UNLESS this videoId already failed on GET (tracked in
-                // webRemixFailedIds), in which case fall through to TVHTML5/VISIONOS.
+                // webRemixFailedIds), in which case fall through to the fallback clients.
                 // For downloads, always fall through — WEB_REMIX signed URLs don't support
                 // the &range= query-param download pattern.
                 if (client.clientName == "WEB_REMIX" && clientIndex == -1
@@ -403,7 +400,7 @@ object YTPlayerUtils {
                     // reaches ExoPlayer and MusicService's 403 handler never fires. Ask the cipher to
                     // re-fetch its config (rate-limited, off this coroutine); if it changes, the
                     // cipher rebuilds its WebView and the next resolution returns to this client — no
-                    // app restart. This is what covers WEB_CREATOR/TVHTML5/WEB-only users.
+                    // app restart. This is what covers WEB_CREATOR/TVHTML5-only users.
                     if (needsNTransform) {
                         cipherRefreshScope.launch {
                             if (CipherDeobfuscator.onStreamRejected()) clearWebRemixFailures()
@@ -471,7 +468,7 @@ object YTPlayerUtils {
         // n-transform + pot append, no extra network), exactly what tests/video-qualities.mjs proves
         // works per rung, seeded into the URL cache so a quality switch never pays a second
         // round-trip. ONLY when the success client is a real web client (WEB_REMIX/WEB_CREATOR/
-        // TVHTML5/WEB): a non-web fallback's URLs (IOS/IPADOS) 403 past the 1 MiB wall and are never
+        // TVHTML5/WEB): a non-web fallback's URLs 403 past the 1 MiB wall and are never
         // validated here, so seeding a whole ladder of them would make every quality switch fail a
         // minute in. A non-web success leaves the table empty — the switch does a fresh resolution.
         var videoRungUrls: Map<Int, String> = emptyMap()
@@ -602,8 +599,7 @@ object YTPlayerUtils {
         if (preferVideo) {
             // Explicit quality selections (the beyond-720p switcher / quality-aware downloads) pick
             // from the FULL ladder (progressive + adaptive video-only). The user's explicit choice is
-            // not bitrate-capped — the metered cap governs only the automatic pick below, and the
-            // metered gate on the PERSISTED default lives in VideoModeController.effectiveQualityTarget.
+            // not bitrate-capped — the metered cap governs only the automatic pick below.
             if (videoItag != null) {
                 // Deliberately NO fallback to the automatic pick: the itag came from a rendition key
                 // (`video:<id>:q<itag>`) whose cache spans must only ever hold THAT itag's bytes —
@@ -649,10 +645,9 @@ object YTPlayerUtils {
             return null
         }
 
-        // Audio selection. Historically downloads EXCLUDED WebM (bento4 could only tag MP4, and
-        // MediaStore rejects a raw .webm audio entry), pinning them to the lower-quality AAC/m4a.
-        // With the on-device Ogg rewrap + tagger (downloadOpusOk, API 29+) a download can keep
-        // Opus/WebM (itag 251), so webm is allowed and gets the same opus preference as streaming.
+        // Audio selection. A download keeps Opus/WebM (itag 251) only when downloadOpusOk (the
+        // on-device Ogg rewrap + tagger, API 29+ — MediaStore rejects a raw .webm audio entry);
+        // otherwise it is pinned to AAC/m4a. Allowed webm gets the same opus preference as streaming.
         val allowWebm = !forDownload || downloadOpusOk
         val audioFormats = playerResponse.streamingData?.adaptiveFormats
             ?.filter { it.isAudio && it.isOriginal }

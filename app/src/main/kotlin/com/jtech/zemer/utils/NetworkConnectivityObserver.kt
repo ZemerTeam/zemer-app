@@ -76,7 +76,7 @@ class NetworkConnectivityObserver(context: Context) {
             // Check if we have internet capability
             val hasInternet = networkCapabilities?.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) == true
             
-            // For API 23+, also check if connection is validated
+            // Also check if connection is validated
             val isValidated =
                 networkCapabilities?.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED) == true
 

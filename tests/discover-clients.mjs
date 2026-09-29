@@ -1,6 +1,6 @@
-// Discovery sweep: probe InnerTube clients the app does NOT use, to find any that stream a full
+// Discovery sweep: probe candidate InnerTube clients to find any that stream a full
 // song without attestation we can't provide. Classifies each:
-//   EXEMPT WIN  - direct url, no spc gate, whole song (like VISIONOS/ANDROID_VR) -> usable now
+//   EXEMPT WIN  - direct url, no spc gate, whole song (like VISIONOS)             -> usable now
 //   WEB-POT     - spc gate satisfied by our web videoId poToken (like WEB_REMIX)  -> usable now
 //   GATED       - spc but no pot we can mint satisfies it (like IOS)              -> not usable
 //   AUTH/DEAD   - LOGIN_REQUIRED / UNPLAYABLE / 400 (maybe stale version)
@@ -20,7 +20,7 @@ const dec = (s) => { try { return s && /%[0-9A-Fa-f]{2}/.test(s) ? decodeURIComp
 const A = { osName: "Android", osVersion: "14", androidSdkVersion: 34, deviceMake: "Google", deviceModel: "Pixel 8" };
 const I = { osName: "iOS", osVersion: "18.2.22C152", deviceMake: "Apple", deviceModel: "iPhone16,2" };
 
-// [clientName, clientId, clientVersion, deviceFields, userAgent?]  — clients NOT already used by app
+// [clientName, clientId, clientVersion, deviceFields]
 const CANDIDATES = [
   ["TVHTML5_SIMPLY", "75", "1.0", {}],
   ["TVHTML5_UNPLUGGED", "65", `7.${D}.00.00`, {}],

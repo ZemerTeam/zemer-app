@@ -18,14 +18,6 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
- * Thin HTTP client for the deployed Zemer search service (search.zemer.io). One request shape —
- * `GET /search` — feeds every screen; the caller picks `k` (per-category result cap) to suit the
- * summary, a single filter, or the as-you-type dropdown.
- *
- * Content-type is not assumed: the body is read as text and decoded with a lenient,
- * unknown-key-tolerant [Json], so a missing/odd `Content-Type` or a new server field never breaks it.
- */
-/**
  * The lenient reader for every Zemer response. Pulled out of the client so its exact config is
  * unit-testable. `ignoreUnknownKeys` forward-compats new server fields; `isLenient` tolerates an
  * odd/missing content-type; `coerceInputValues` falls an explicit JSON `null` on a non-null defaulted
@@ -39,6 +31,10 @@ internal val zemerResponseJson = Json {
     coerceInputValues = true
 }
 
+/** Apply a name->value param list to a request, replacing the repeated `forEach { parameter(..) }`. */
+private fun HttpRequestBuilder.applyParams(params: List<Pair<String, String>>) =
+    params.forEach { (name, value) -> parameter(name, value) }
+
 /**
  * THE single encoding of the send-always / fail-closed content-flag contract, appended by every
  * request builder ([zemerSearchParameters], [ZemerSearchClient.playlist]/[ZemerSearchClient.album],
@@ -49,10 +45,6 @@ internal val zemerResponseJson = Json {
  * restricts the response to kid-flagged content (the KidZone podcast surfaces), "0" — the value
  * every non-KidZone surface sends explicitly — keeps the normal catalog.
  */
-/** Apply a name->value param list to a request, replacing the repeated `forEach { parameter(..) }`. */
-private fun HttpRequestBuilder.applyParams(params: List<Pair<String, String>>) =
-    params.forEach { (name, value) -> parameter(name, value) }
-
 internal fun zemerContentFlagParameters(
     allowFemale: Boolean,
     blockVideos: Boolean,
@@ -140,6 +132,12 @@ internal fun zemerGenreFacetParameters(
 internal fun resolveZemerUrl(url: String?): String? =
     url?.let { if (it.startsWith("/")) ZemerSearchClient.BASE_URL + it else it }
 
+/**
+ * Thin HTTP client for the deployed Zemer search service (search.zemer.io).
+ *
+ * Content-type is not assumed: the body is read as text and decoded with a lenient,
+ * unknown-key-tolerant [Json], so a missing/odd `Content-Type` or a new server field never breaks it.
+ */
 @Singleton
 class ZemerSearchClient @Inject constructor() {
 
@@ -197,11 +195,11 @@ class ZemerSearchClient @Inject constructor() {
     /**
      * Fetch a single album already scoped to the whitelist + content flags by the server (an entirely
      * blocked album is a 404). The flags are sent explicitly (same fail-closed contract as [search] —
-     * the server is default-OPEN); `kidZone` is always off because the album screen is only reachable
-     * from search, never from inside KidZone. The server fetches the album upstream on a cold cache,
+     * the server is default-OPEN); `kidZone` is always off (the KidZone context rides only the podcast
+     * show/channel routes). The server fetches the album upstream on a cold cache,
      * so this user-initiated one-shot open gets the larger request ceiling. Returns null on `404` —
-     * the album is gone from the whitelist/corpus — a typed signal the caller uses to delete a stale
-     * local copy (an [IOException] message-match would silently rot).
+     * gone from the whitelist/corpus, or fully blocked under these flags — a typed signal the caller
+     * uses to decide on deleting a stale local copy (an [IOException] message-match would silently rot).
      */
     suspend fun album(
         id: String,
@@ -229,9 +227,9 @@ class ZemerSearchClient @Inject constructor() {
 
     /**
      * Fetch an artist's whole catalog, already whitelist-scoped + content-filtered by the server for the
-     * flags sent (same fail-closed, default-OPEN contract as [search]/[album]). `kidZone` is included so a
-     * KidZone-opened artist stays scoped. Returns null on `404` — the artist is filtered out entirely or
-     * absent from the corpus — so the caller can fall back to the InnerTube artist path for it. The server
+     * flags sent (same fail-closed, default-OPEN contract as [search]/[album]). Returns null on `404` —
+     * the artist is filtered out entirely or absent from the corpus — so the screen shows its
+     * not-available state (no InnerTube fallback). The server
      * reads the corpus (no upstream fetch), but the open is user-initiated so it gets the larger ceiling.
      */
     suspend fun artist(
@@ -341,7 +339,7 @@ class ZemerSearchClient @Inject constructor() {
     }
 
     /**
-     * `GET /podcast-genres` — the flat podcast-genre catalog (mirrors `/genres`, minus `kind`). Reuses
+     * `GET /podcast-genres` — the flat podcast-genre catalog (mirrors `/genres`). Reuses
      * the shared genre param builder (id=null + content flags). An empty list is a normal state.
      */
     suspend fun podcastGenres(
@@ -378,11 +376,6 @@ class ZemerSearchClient @Inject constructor() {
     }
 
     /**
-     * Corpus-native radio: the first page of a whitelist-pure continuation seeded by [kind] (`artist` /
-     * `album` / `song`, with [seed] the channelId/browseId/videoId) or `shuffle` (no seed) for Radio mode.
-     * Content flags are sent explicitly (kidZone included), same as the other endpoints.
-     */
-    /**
      * The Zemer Stations catalog (`GET /stations`) — the synchronized-broadcast home row's data. NO
      * content flags are sent: the pools are pre-filtered server-side to the strictest common
      * denominator (handoff §6), so there is nothing left to filter. Clock-dependent — never cached.
@@ -413,6 +406,12 @@ class ZemerSearchClient @Inject constructor() {
         return zemerResponseJson.decodeFromString(ZemerStationTuneInResponse.serializer(), response.bodyAsText())
     }
 
+    /**
+     * Corpus-native radio: the first page of a whitelist-pure continuation seeded by [kind] (`artist` /
+     * `album` / `song` / `playlist` / `genre`, with [seed] the matching id or slug) or `shuffle` (no
+     * seed) for Radio mode. Content flags are sent explicitly (kidZone included), same as the other
+     * endpoints.
+     */
     suspend fun radio(
         kind: String,
         seed: String?,
@@ -583,8 +582,8 @@ class ZemerSearchClient @Inject constructor() {
     }
 
     /**
-     * The telemetry-ranked PODCAST home rows (`GET /podcast-home-rows`) — Top Podcasts + Trending
-     * Episodes, the podcast analogue of [homeRows]. Same fail-closed flag contract; `kidZone=0` is sent
+     * The PODCAST home rows (`GET /podcast-home-rows`) — the curated Featured Podcasts + the
+     * telemetry-ranked Top Podcasts + Trending Episodes, the podcast analogue of [homeRows]. Same fail-closed flag contract; `kidZone=0` is sent
      * (the home tab is never reachable from inside the KidZone tab). Whitelist-pure + content-filtered
      * server-side. The server applies an alphabetical fallback while podcast telemetry is thin, so
      * `topPodcasts` is never empty when the server is reachable.

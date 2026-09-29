@@ -122,8 +122,8 @@ internal fun curatedChipsVisible(albumCount: Int): Boolean = albumCount > 0
  * Detail screen for one hand-curated "Zemer Playlists" entry. Deliberately its OWN small screen —
  * the id is a server slug, not a YouTube playlist id, so it must never route through the
  * YouTube-playlist screen (whose save/like/menu actions all assume a YouTube id). Header + All/
- * Albums/Songs chips (the Latest Releases chip set) + track/album rows; tracks play like any Zemer
- * search result, albums open the album screen through the server path.
+ * Albums/Songs chips (the Latest Releases chip set) + track/album rows; tracks play the visible list
+ * as a ListQueue, albums open the album screen through the server path.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

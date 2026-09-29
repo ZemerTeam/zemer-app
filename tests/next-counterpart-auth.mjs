@@ -1,13 +1,13 @@
-// §9 verification 1 for the unified-video feature: does an AUTHENTICATED next() actually deliver the
+// Unified-video verification: does an AUTHENTICATED next() actually deliver the
 // song↔video counterpart as a playlistPanelVideoWrapperRenderer? Step 2 proved anonymous requests
 // never do; the app's next() runs setLogin=true with a cookie (personal or pooled), so this reproduces
 // the app's EXACT authenticated /next request (WEB_REMIX context, cookie + SAPISIDHASH, visitorData,
 // onBehalfOfUser=dataSyncId) and reports wrapper/counterpart presence.
 //
-//   node tests/next-counterpart-auth.mjs [videoId ...]   # defaults to a couple of ATV song ids
+//   node tests/next-counterpart-auth.mjs [videoId ...]   # defaults to JTF9fLJvniI
 //
 // Needs innertube_cookie.txt at the repo root. Prints, per id: HTTP, wrapper count, and each
-// counterpart (videoId + musicVideoType) — the data the app caches as VideoAvailability.counterpart.
+// counterpart (videoId + musicVideoType) — the data the app caches as VideoAvailability.counterpartVideoId.
 // Capture a positive response body (COUNTERPART_DUMP=1) as the innertube NextCounterpartTest fixture.
 
 import crypto from "node:crypto";

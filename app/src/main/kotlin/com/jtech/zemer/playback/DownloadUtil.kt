@@ -54,9 +54,8 @@ constructor(
 
     companion object {
         /**
-         * Shared URL cache between MusicService and DownloadUtil.
-         * Stores stream URLs and their expiry timestamps.
-         * Using ConcurrentHashMap for thread-safety.
+         * MusicService's stream-URL cache: mediaId -> (URL, expiry timestamp).
+         * Downloads must never write it (a download resolves a different format).
          */
         val sharedUrlCache = ConcurrentHashMap<String, Pair<String, Long>>()
 
@@ -69,13 +68,11 @@ constructor(
         }
     }
 
-    // Use shared cache
     private val songUrlCache get() = sharedUrlCache
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     init {
-        // Initialize audioQuality from preference
         scope.launch {
             audioQualityFlow.collect { quality ->
                 audioQuality = quality
@@ -107,7 +104,7 @@ constructor(
 
     /**
      * Download a video to MediaStore (Movies/Zemer folder)
-     * This downloads the actual video file (mp4), not just audio.
+     * This downloads the actual video file, not just audio.
      */
     fun downloadVideoToMediaStore(
         song: com.jtech.zemer.db.entities.Song,

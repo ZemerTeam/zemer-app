@@ -138,7 +138,6 @@ fun PreferenceEntry(
     }
 }
  
-// ... rest of the file
 @Composable
 fun <T> ListPreference(
     modifier: Modifier = Modifier,

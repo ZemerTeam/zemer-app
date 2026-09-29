@@ -11,7 +11,7 @@ import java.io.File
 /**
  * Runs the REAL on-device Opus download pipeline (framework MediaMuxer WebM->Ogg remux,
  * then the pure-Kotlin OpusTags writer) against a real CDN itag-251 sample bundled as a
- * test asset. Outputs land in the app's external files dir for `adb pull` + ffprobe
+ * test asset. Outputs land in the app's files dir for `adb pull` + ffprobe
  * ground-truthing on the host.
  */
 class OpusDevicePipelineTest {

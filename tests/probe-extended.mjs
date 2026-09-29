@@ -179,7 +179,7 @@ async function main() {
       console.log(`? ${marker} ${result.name} (${result.id}): needs login`);
       loginRequired.push(result);
     } else {
-      // Only log non-working if it's a new ID we haven't seen
+      // Skip bare N/A / ERROR / UNPLAYABLE results that carry no reason
       if (!['N/A', 'ERROR', 'UNPLAYABLE'].includes(result.status) || result.reason) {
         console.log(`✗ ${marker} ${result.name} (${result.id}): ${result.status || 'N/A'}${result.reason ? ' - ' + result.reason : ''}`);
       }

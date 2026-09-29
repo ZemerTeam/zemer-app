@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Test more clients with music.youtube.com endpoint
+// Test more clients with the www.youtube.com endpoint
 
 const TEST_VIDEO_ID = 'dQw4w9WgXcQ';
 

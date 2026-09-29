@@ -300,7 +300,7 @@ fun GridItem(
     title = {
         Text(
             text = title,
-            style = MaterialTheme.typography.bodyMedium,  // Made smaller (was bodyLarge)
+            style = MaterialTheme.typography.bodyMedium,
             fontWeight = FontWeight.Bold,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
@@ -707,7 +707,6 @@ fun PlaylistListItem(
                     stringResource(R.string.liked) -> R.drawable.favorite_border
                     stringResource(R.string.offline) -> R.drawable.offline
                     stringResource(R.string.cached_playlist) -> R.drawable.cached
-                    // R.drawable.backup as placeholder
                     stringResource(R.string.uploaded_playlist) -> R.drawable.backup
                     else -> if (autoPlaylist) R.drawable.trending_up else R.drawable.queue_music
                 }
@@ -780,7 +779,6 @@ fun PlaylistGridItem(
                     stringResource(R.string.liked) -> R.drawable.favorite_border
                     stringResource(R.string.offline) -> R.drawable.offline
                     stringResource(R.string.cached_playlist) -> R.drawable.cached
-                    // R.drawable.backup as placeholder
                     stringResource(R.string.uploaded_playlist) -> R.drawable.backup
                     else -> if (autoPlaylist) R.drawable.trending_up else R.drawable.queue_music
                 }
@@ -986,7 +984,7 @@ fun YouTubeGridItem(
     coroutineScope: CoroutineScope? = null,
     // The per-card video badge is redundant (and steals subtitle width, forcing an ugly
     // "Artist •" / "duration" wrap) in a row that is ALREADY all-videos and labelled as such
-    // (Home Featured Videos, its see-all, the artist Videos section). Pass false there; leave it
+    // (the Home video rows, their see-alls, the artist Videos section). Pass false there; leave it
     // on for mixed contexts like search where the badge distinguishes a video from a song.
     showVideoBadge: Boolean = true,
     badges: @Composable RowScope.() -> Unit = {

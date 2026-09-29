@@ -35,8 +35,8 @@ import com.jtech.zemer.ui.component.Material3MenuItemData
 
 /**
  * The long-press menu for a saved status, in the app's standard bottom-sheet menu style (a creator
- * avatar/name/date header + a [Material3MenuGroup] of actions) instead of a bare dropdown. Currently one
- * action - remove from device. Shown via `menuState.show { SavedStatusMenu(...) }`.
+ * avatar/name/date header + a [Material3MenuGroup] of actions) instead of a bare dropdown. Two actions -
+ * select (multi-select) and remove from device. Shown via `menuState.show { SavedStatusMenu(...) }`.
  */
 @Composable
 fun SavedStatusMenu(

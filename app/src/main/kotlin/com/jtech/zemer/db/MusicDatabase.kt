@@ -456,10 +456,8 @@ val MIGRATION_33_34 =
                 )
             """.trimIndent())
 
-            // Add isEpisode column to song table
             db.execSQL("ALTER TABLE song ADD COLUMN isEpisode INTEGER NOT NULL DEFAULT 0")
 
-            // Add index for isEpisode column
             db.execSQL("CREATE INDEX IF NOT EXISTS index_song_isEpisode ON song(isEpisode)")
 
             // Resume position for long content (podcast episodes). 0 = start from the beginning.
@@ -611,14 +609,12 @@ class Migration16To17 : AutoMigrationSpec {
 
 class Migration18To19 : AutoMigrationSpec {
     override fun onPostMigrate(db: SupportSQLiteDatabase) {
-        // Add explicit column
         db.execSQL("UPDATE song SET explicit = 0 WHERE explicit IS NULL")
     }
 }
 
 class Migration19To20 : AutoMigrationSpec {
     override fun onPostMigrate(db: SupportSQLiteDatabase) {
-        // Add explicit column
         db.execSQL("UPDATE song SET explicit = 0 WHERE explicit IS NULL")
     }
 }
@@ -633,21 +629,17 @@ class Migration20To21 : AutoMigrationSpec
 
 class Migration21To22 : AutoMigrationSpec {
     override fun onPostMigrate(db: SupportSQLiteDatabase) {
-        // Add LibraryTokens
         db.execSQL("ALTER TABLE song ADD COLUMN libraryAddToken TEXT DEFAULT ''")
         db.execSQL("ALTER TABLE song ADD COLUMN libraryRemoveToken TEXT DEFAULT ''")
 
-        // Add romanizeLyrics column
         db.execSQL("ALTER TABLE song ADD COLUMN romanizeLyrics INTEGER NOT NULL DEFAULT 1")
 
-        // Add isDownloaded column
         db.execSQL("ALTER TABLE song ADD COLUMN isDownloaded INTEGER NOT NULL DEFAULT 0")
     }
 }
 
 class Migration22To23: AutoMigrationSpec {
     override fun onPostMigrate(db: SupportSQLiteDatabase) {
-        // Add isUploaded column
         db.execSQL("ALTER TABLE song ADD COLUMN isUploaded INTEGER NOT NULL DEFAULT 0")
         db.execSQL("ALTER TABLE album ADD COLUMN isUploaded INTEGER NOT NULL DEFAULT 0")
     }

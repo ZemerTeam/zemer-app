@@ -12,10 +12,10 @@ import androidx.compose.ui.unit.dp
 
 /**
  * The ONE over-media chrome treatment for controls floating on artwork/video — the theme scrim fill
- * plus an optional hairline white ring that lifts the control off arbitrary frames. [VideoModePill],
- * [VideoQualitySelector] and the [PlayerVideoSurface] buffering ring all render through this so the
- * over-media family cannot drift (per-site copies of the scrim/ring literals are exactly how it
- * would). Content on top follows the over-media idiom: forced white, accent only for selection.
+ * plus an optional hairline white ring that lifts the control off arbitrary frames. [VideoModePill]
+ * and [VideoQualitySelector] both render through this so the over-media family cannot drift (per-site
+ * copies of the scrim/ring literals are exactly how it would). Content on top follows the over-media
+ * idiom: forced white, accent only for selection.
  */
 @Composable
 fun Modifier.overMediaChrome(
@@ -30,7 +30,7 @@ fun Modifier.overMediaChrome(
 /** The standard scrim opacity for interactive over-media pills. */
 const val OverMediaScrimAlpha = 0.55f
 
-/** A lighter scrim for passive over-media chrome (the buffering ring's backing circle). */
+/** A lighter scrim for passive over-media chrome. */
 const val OverMediaPassiveScrimAlpha = 0.45f
 
 private const val OverMediaRingAlpha = 0.15f

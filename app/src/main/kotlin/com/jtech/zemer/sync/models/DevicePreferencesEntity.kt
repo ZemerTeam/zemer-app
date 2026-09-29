@@ -50,9 +50,6 @@ data class DeviceContentFilters(
     }
 }
 
-/**
- * Device information metadata
- */
 @IgnoreExtraProperties
 data class DeviceMetadata(
     val deviceName: String = "",
@@ -91,7 +88,7 @@ data class DevicePreferencesEntity(
     val userEmail: String = "",
     val contentFilters: DeviceContentFilters = DeviceContentFilters(),
     val deviceInfo: DeviceMetadata = DeviceMetadata(),
-    val devices: List<UserDeviceData> = emptyList(), // Array of all user devices
+    val devices: List<UserDeviceData> = emptyList(),
     val createdAt: Date? = null,
     val updatedAt: Date? = null
 ) {

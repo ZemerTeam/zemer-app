@@ -13,7 +13,7 @@ import org.junit.Test
  * COUNTERPART availability.
  *
  * The fixtures here are SYNTHETIC, hand-built to ytmusicapi's documented wrapper shape (an
- * authenticated cookie was unavailable when this was written, see the unified-video step-3 report).
+ * authenticated cookie was unavailable when this was written).
  * They pin the model shape and the pure extraction logic; replace the wrapper fixture with a captured
  * real authenticated response when one is available (the extraction assertions should hold verbatim).
  */

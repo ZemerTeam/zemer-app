@@ -8,8 +8,8 @@ import java.util.ArrayDeque
 
 /**
  * In-memory ring buffer Timber tree. Keeps the last [MAX_ENTRIES] log entries so the
- * Log viewer screen can show them without touching logcat. Planted in [com.jtech.zemer.App]
- * alongside the Crashlytics tree so every Timber call also lands here for live inspection.
+ * Log viewer screen can show them without touching logcat. Planted in [com.jtech.zemer.App] (debug
+ * builds only) alongside the Crashlytics tree so every Timber call also lands here for live inspection.
  *
  * Thread-safe: the buffer is guarded by a synchronized lock. [revision] bumps on every
  * mutation so observers re-read [entries] only when the buffer actually changed, keeping

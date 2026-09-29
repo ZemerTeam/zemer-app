@@ -17,7 +17,7 @@ import java.time.LocalDateTime
  * [MediaMetadata] still carried the since-removed `explicit` field). Deserializing it proves the
  * pinned serialVersionUIDs keep an updating user's on-disk queue restorable: an unpinned edit to
  * any class in the graph changes its computed SUID and fails this test with InvalidClassException
- * - which in production is swallowed by the restore's runCatching and silently drops the queue.
+ * - which in production the restore's runCatching catches and reports, dropping the queue.
  */
 class PersistQueueCompatTest {
     private fun deserialize(bytes: ByteArray): PersistQueue =

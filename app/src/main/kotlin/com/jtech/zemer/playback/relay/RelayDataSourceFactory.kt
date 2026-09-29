@@ -30,8 +30,8 @@ object RelayDataSourceFactory {
         // The relay streams FRESH (cache-free) over the same slow rotating residential-proxy egress as
         // relay downloads. OkHttp's default 10s connect/read timeouts throw SocketTimeoutException on a
         // proxy hiccup or a slow fresh resolve mid-stream, which surfaces as a player error and STOPS
-        // playback — recurring per track in the background reads as "playback keeps stopping". Match the
-        // download client's tolerance so a slow proxy buffers instead of erroring. DIRECT is unaffected.
+        // playback — recurring per track in the background reads as "playback keeps stopping". Generous
+        // timeouts so a slow proxy buffers instead of erroring. DIRECT is unaffected.
         val client = OkHttpClient.Builder()
             .dns(ResilientDns())
             .connectTimeout(30, TimeUnit.SECONDS)

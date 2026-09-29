@@ -251,7 +251,7 @@ fun OnlineSearchResult(
                 }
                 .onKeyEvent { event ->
                     when {
-                        // KeyDown only (the app's D-pad convention, e.g. KidZoneScreen) and never
+                        // KeyDown only (the app's D-pad convention, e.g. ArtistSearchField) and never
                         // auto-repeats: one press = one activation = one telemetry click. Consuming
                         // the KeyDown also stops clickable's internal KeyUp-onClick from doubling it.
                         event.type == KeyEventType.KeyDown &&
@@ -474,11 +474,6 @@ fun OnlineSearchResult(
 }
 
 /**
- * Telemetry `click.kind` (spec §3.4): the tapped item's category as displayed. SongItems on the
- * Videos chip are videos; PlaylistItems on the Community chip are community playlists — elsewhere
- * the app can't reliably tell, so the base category is sent.
- */
-/**
  * The lazy-list item keys, defined once because they are read twice: by the list itself and by the
  * impression map that translates a visible key back into a videoId. Duplicated string templates
  * would let a key change compile cleanly and silently stop all impression reporting on this screen.
@@ -487,6 +482,7 @@ private fun summaryItemKey(sectionTitle: String, id: String, index: Int) = "$sec
 
 private fun filteredItemKey(id: String) = "filtered_$id"
 
+/** Telemetry `click.kind` (spec §3.4): the tapped item's category as displayed. */
 private fun clickKind(item: YTItem, filterValue: String?): String = when (item) {
     // Per-item flag, not the chip: a video row in the All summary's Videos section is displayed
     // (and badged) as a video there too, so it reports "video" on either surface.

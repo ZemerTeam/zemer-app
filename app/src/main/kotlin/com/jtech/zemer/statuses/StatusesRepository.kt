@@ -39,7 +39,7 @@ import javax.inject.Singleton
  *  - screen open / re-entry re-fetches a family whose cache is older than [STALE_MS];
  *  - pull-to-refresh forces both (`refreshCreators(force = true)`);
  *  - opening a creator re-fetches THAT creator's posts immediately ([refreshPosts]).
- * An all-empty / failed fetch keeps the previous cache (never blanks the row). The source config is
+ * A failed fetch keeps the previous cache (never blanks the row). The source config is
  * refreshed (version-gated) on the same path, non-blocking, and applies to subsequent loads.
  */
 @Singleton

@@ -31,8 +31,8 @@ class CastAwarePlayer(
      * Station broadcast transport mask (handoff par. 5: play/stop only). While a [StationQueue] is
      * the active queue, every skip/seek command disappears from the SESSION's available commands, so
      * the media notification, Android Auto and Bluetooth AVRCP all drop their skip/scrub affordances
-     * in one place. Set by MusicService's currentQueue setter; queried on every notification/state
-     * rebuild, so no explicit invalidation is needed.
+     * in one place. Set by MusicService's currentQueue setter, which then calls
+     * [notifyStationMaskChanged].
      */
     @Volatile
     var maskTransportForStation = false
@@ -86,9 +86,6 @@ class CastAwarePlayer(
         }
     }
 
-    // While casting, present the receiver's play state so external surfaces show the correct play/pause
-    // icon instead of the paused local player's. Kept mutually consistent (READY + playWhenReady) so
-    // however the session derives isPlaying, it agrees.
     override fun getAvailableCommands(): Player.Commands =
         if (maskTransportForStation) {
             super.getAvailableCommands().buildUpon()
@@ -112,6 +109,9 @@ class CastAwarePlayer(
     override fun isCommandAvailable(command: Int): Boolean =
         if (maskTransportForStation) getAvailableCommands().contains(command) else super.isCommandAvailable(command)
 
+    // While casting, present the receiver's play state so external surfaces show the correct play/pause
+    // icon instead of the paused local player's. Kept mutually consistent (READY + playWhenReady) so
+    // however the session derives isPlaying, it agrees.
     override fun getPlayWhenReady(): Boolean = if (casting) remotePlaying else super.getPlayWhenReady()
     override fun getPlaybackState(): Int = if (casting) Player.STATE_READY else super.getPlaybackState()
     override fun isPlaying(): Boolean = if (casting) remotePlaying else super.isPlaying()

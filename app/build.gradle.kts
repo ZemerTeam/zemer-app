@@ -150,17 +150,6 @@ android {
         generateLocaleConfig = true
     }
 
-    // ABI splits disabled - builds single universal APK
-    // Enable if you want smaller per-architecture APKs for distribution
-    // splits {
-    //     abi {
-    //         isEnable = true
-    //         reset()
-    //         include("arm64-v8a", "armeabi-v7a")
-    //         isUniversalApk = true
-    //     }
-    // }
-
 
     packaging {
         jniLibs {
@@ -262,7 +251,7 @@ dependencies {
 
     implementation(libs.ktor.client.core)
     implementation(libs.ktor.serialization.json)
-    // Music recognition: standalone ktor client (CIO) talking to the Shazam discovery endpoint
+    // CIO engine for the standalone ktor clients (Zemer servers, tracking, recognition, updater, …)
     implementation(libs.ktor.client.cio)
     implementation(libs.ktor.client.content.negotiation)
     // Gzip for the content mirror (ZemerContentClient): the /whitelist payload is ~432 KB raw / ~70 KB gzipped.

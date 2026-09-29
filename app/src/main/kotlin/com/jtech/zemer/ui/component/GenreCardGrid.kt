@@ -29,7 +29,7 @@ fun GenreCardGrid(
     modifier: Modifier = Modifier,
     title: String? = null,
     iconOverride: ((String) -> Int)? = null,
-    // True for every section AFTER the first: adds the larger between-section gap above the title
+    // False for every section AFTER the first: adds the larger between-section gap above the title
     // (the first section's gap to the top bar is the screen's [GenreCatalogTopSpacing] spacer).
     firstInList: Boolean = true,
 ) {

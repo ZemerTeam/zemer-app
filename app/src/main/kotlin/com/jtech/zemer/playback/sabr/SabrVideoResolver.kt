@@ -20,7 +20,7 @@ import java.io.File
  * Dual-track (video + audio) SABR resolution — the video counterpart of [SabrPlayerResolver]. Fetches the
  * `/player` for the first ENABLED SABR-usable client that exposes SABR inputs, PINS the exact video itag
  * for the requested quality via `preferredVideoFormatId` (field 17, proven in `tests/sabr-video.mjs`) plus
- * the best audio, registers a shared [SabrVideoStream], and returns the `sabrvideo://<id>` uri + the full
+ * the best audio, builds an unregistered [SabrVideoStream], and returns the `sabrvideo://<id>` uri + the full
  * quality ladder (so the in-player switcher offers the SAME rungs the DIRECT path does). Playback wraps
  * the video with the paired `sabraudio://<id>` in a `MergingMediaSource`. Isolated from DIRECT/RELAY.
  */
@@ -203,7 +203,7 @@ object SabrVideoResolver {
             val audioPick = (if (webm) built.audioWebm else built.audioMp4)
                 ?: run {
                     // No container-matched audio in the response — fall back to the streaming pick
-                    // (the mux classifies a mismatch as INCOMPATIBLE, same as before this gate).
+                    // (the mux classifies a mismatch as INCOMPATIBLE).
                     Timber.tag(TAG).w("SABR video download: no ${if (webm) "webm" else "mp4"} audio for $videoId, falling back to the streaming pick")
                     AudioPick(built.config.audioFormat, if (webm) "audio/webm" else "audio/mp4")
                 }

@@ -2,12 +2,7 @@ package com.jtech.zemer.search
 
 import com.metrolist.innertube.models.AlbumItem
 
-// The nav-route builders for Zemer-served items. The old SearchProvider enum (ZEMER/YOUTUBE) is gone
-// with the YouTube search engine (removal greenlit in
-// ~/zemer-fix/handoff-docs/zemer-app-artist-album-innertube-swap.md): every consumer passed ZEMER
-// literally, so the two-branch route pickers collapsed to these plain functions. Surfaces that still
-// render InnerTube-sourced items (browse / new releases) navigate via raw route strings and
-// never used these helpers.
+// The nav-route builders for Zemer-served items.
 
 /**
  * The `online_playlist` nav route for a Zemer-served playlist. `?zemer=true` opens it through the

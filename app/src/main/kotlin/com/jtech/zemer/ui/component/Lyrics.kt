@@ -150,7 +150,7 @@ fun Lyrics(
     LocalMenuState.current
     val density = LocalDensity.current
     val context = LocalContext.current
-    val configuration = LocalConfiguration.current // Get configuration
+    val configuration = LocalConfiguration.current
 
     val lyricsTextPosition by rememberEnumPreference(LyricsTextPositionKey, LyricsPosition.CENTER)
     val changeLyrics by rememberPreference(LyricsClickKey, true)
@@ -263,11 +263,10 @@ fun Lyrics(
     // State for multi-selection
     var isSelectionModeActive by rememberSaveable { mutableStateOf(false) }
     val selectedIndices = remember { mutableStateListOf<Int>() }
-    var showMaxSelectionToast by remember { mutableStateOf(false) } // State for showing max selection toast
+    var showMaxSelectionToast by remember { mutableStateOf(false) }
 
     val lazyListState = rememberLazyListState()
     
-    // Professional animation states for smooth Metrolist-style transitions
     var isAnimating by remember { mutableStateOf(false) }
 
     // Handle back button press - close selection mode instead of exiting screen
@@ -276,7 +275,6 @@ fun Lyrics(
         selectedIndices.clear()
     }
 
-    // Define max selection limit
     val maxSelectionLimit = 5
 
     // Show toast when max selection is reached
@@ -342,7 +340,7 @@ fun Lyrics(
 
                 if (!isSynced) return@LaunchedEffect
         
-        // Smooth page animation without sudden jumps - direct animation to center
+        // Smooth page animation without sudden jumps - direct animation to the active-line anchor
         suspend fun performSmoothPageScroll(targetIndex: Int, duration: Int = 1500) {
             if (isAnimating) return // Prevent multiple animations
             
@@ -351,7 +349,7 @@ fun Lyrics(
             try {
                 val itemInfo = lazyListState.layoutInfo.visibleItemsInfo.firstOrNull { it.index == targetIndex }
                 if (itemInfo != null) {
-                    // Item is visible, animate directly to center without sudden jumps
+                    // Item is visible, animate directly to the anchor without sudden jumps
                     val viewportHeight = lazyListState.layoutInfo.viewportEndOffset - lazyListState.layoutInfo.viewportStartOffset
                     // Anchor the active line in the upper part of the pane (not dead centre) so more of what
                     // comes next is readable below it; the top content padding matches this fraction.
@@ -388,13 +386,12 @@ fun Lyrics(
         } else if (currentLineIndex != -1) {
             deferredCurrentLineIndex = currentLineIndex
             if (isSeeking) {
-                // Fast scroll for seeking to center the target line (300ms)
+                // Fast scroll for seeking to anchor the target line (500ms)
                 val seekCenterIndex = kotlin.math.max(0, currentLineIndex - 1)
                 performSmoothPageScroll(seekCenterIndex, 500) // Fast seek duration
             } else if ((lastPreviewTime == 0L || currentLineIndex != previousLineIndex) && scrollLyrics) {
                 // Auto-scroll when lyrics settings allow it
                 if (currentLineIndex != previousLineIndex) {
-                    // Calculate which line should be at the top to center the active group
                     val centerTargetIndex = currentLineIndex
                     performSmoothPageScroll(centerTargetIndex, 1500) // Auto scroll duration
                 }
@@ -506,9 +503,8 @@ fun Lyrics(
                                         }
                                     }
                                 } else if (isSynced && changeLyrics && !isStationBroadcast) {
-                                    // Professional seek action with smooth animation
                                     playerConnection.seekTo(item.time)
-                                    // Smooth slow scroll when clicking on lyrics (3 seconds)
+                                    // Smooth slow scroll when clicking on lyrics (1.5 seconds)
                                     scope.launch {
                                         // First scroll to the clicked item without animation
                                         lazyListState.scrollToItem(index = index)
@@ -527,7 +523,7 @@ fun Lyrics(
                                             if (kotlin.math.abs(offset) > 10) { // Only animate if not already centered
                                                 lazyListState.animateScrollBy(
                                                     value = offset.toFloat(),
-                                                    animationSpec = tween(durationMillis = 1500) // Reduced to half speed
+                                                    animationSpec = tween(durationMillis = 1500)
                                                 )
                                             }
                                         }
@@ -608,7 +604,7 @@ fun Lyrics(
                         }
                         Text(
                             text = lineText,
-                            style = MaterialTheme.typography.headlineSmall, // Uniform size for all lines matching latest enh version
+                            style = MaterialTheme.typography.headlineSmall, // Uniform size for all lines
                             color = if (index == displayedCurrentLineIndex && isSynced) {
                                 textColor // Full color for active line
                             } else {
@@ -641,7 +637,7 @@ fun Lyrics(
                         horizontalArrangement = Arrangement.spacedBy(12.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        // Close button (circular, right side of share)
+                        // Close button (circular, before share)
                         Box(
                             modifier = Modifier
                                 .size(48.dp) // Larger for better touch target
@@ -713,7 +709,6 @@ fun Lyrics(
                 }
             }
         }
-        // Removed the more button from bottom - it's now in the top header
     }
 
     if (showProgressDialog) {
@@ -726,7 +721,7 @@ fun Lyrics(
     }
 
     if (showShareDialog && shareDialogData != null) {
-        val (lyricsText, songTitle, artists) = shareDialogData!! // Renamed 'lyrics' to 'lyricsText' for clarity
+        val (lyricsText, songTitle, artists) = shareDialogData!!
         DefaultDialog(
             onDismiss = { showShareDialog = false },
             horizontalAlignment = Alignment.Start,
@@ -765,7 +760,7 @@ fun Lyrics(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Icon(
-                        painter = painterResource(id = R.drawable.share), // Use new share icon
+                        painter = painterResource(id = R.drawable.share),
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.primary
                     )
@@ -790,7 +785,7 @@ fun Lyrics(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Icon(
-                        painter = painterResource(id = R.drawable.share), // Use new share icon
+                        painter = painterResource(id = R.drawable.share),
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.primary
                     )
@@ -996,7 +991,7 @@ fun Lyrics(
                 }
             },
         )
-        } // إغلاق else block
+        }
     }
 }
 

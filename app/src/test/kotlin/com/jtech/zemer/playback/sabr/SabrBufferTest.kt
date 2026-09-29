@@ -59,7 +59,7 @@ class SabrBufferTest {
     @Test
     fun `write past declared length is ignored, never corrupts or crashes`() {
         val buf = buf(2)
-        buf.writeAt(0, bytes(1, 2, 3, 4), 0, 4) // len exceeds buffer -> ignored
+        buf.writeAt(0, bytes(1, 2, 3, 4), 0, 4) // len exceeds buffer -> clamped to the in-range prefix
         buf.writeAt(0, bytes(1, 2), 0, 2)
         assertEquals(2L, buf.available())
     }

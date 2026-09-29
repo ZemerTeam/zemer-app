@@ -88,7 +88,7 @@ import kotlin.math.abs
 fun Thumbnail(
     @Suppress("unused") sliderPositionProvider: () -> Long?,
     modifier: Modifier = Modifier,
-    isPlayerExpanded: Boolean = true, // Add parameter to control swipe based on player state
+    isPlayerExpanded: Boolean = true,
     showVideo: Boolean = false, // render the shared player's video surface in the current item's art slot
     onEnterFullscreen: () -> Unit = {},
     showVideoToggle: Boolean = false, // overlay the Song/Video pill on the current item's art slot (= videoModeAvailable)
@@ -129,7 +129,6 @@ fun Thumbnail(
         PlayerBackgroundStyle.GRADIENT -> Color.White
     }
     
-    // Grid state
     val thumbnailLazyGridState = rememberLazyGridState()
     
     // Create a playlist using correct shuffle-aware logic
@@ -506,7 +505,6 @@ fun Thumbnail(
  * Custom SnapLayoutInfoProvider idea belongs to OuterTune
  */
 
-// SnapLayoutInfoProvider
 @ExperimentalFoundationApi
 fun SnapLayoutInfoProvider(
     lazyGridState: LazyGridState,

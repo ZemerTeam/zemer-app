@@ -5,7 +5,6 @@
 # For more details, see
 #   http://developer.android.com/guide/developing/tools/proguard.html
 
-# WebView JavaScript interfaces - MUST keep @JavascriptInterface methods
 -keepclassmembers class com.jtech.zemer.utils.sabr.EjsNTransformSolver$SolverWebView {
     @android.webkit.JavascriptInterface public *;
 }
@@ -18,7 +17,6 @@
 -keep class com.jtech.zemer.utils.cipher.CipherWebView { *; }
 -keep class com.jtech.zemer.utils.cipher.PlayerJsFetcher { *; }
 
-# Keep entire cipher and sabr packages (critical for stream playback)
 -keep class com.jtech.zemer.utils.cipher.** { *; }
 -keep class com.jtech.zemer.utils.sabr.** { *; }
 
@@ -27,14 +25,6 @@
     void resume(...);
     void resumeWithException(...);
 }
-
-# Uncomment this to preserve the line number information for
-# debugging stack traces.
-#-keepattributes SourceFile,LineNumberTable
-
-# If you keep the line number information, uncomment this to
-# hide the original source file name.
-#-renamesourcefileattribute SourceFile
 
 ## Kotlin Serialization
 # Keep `Companion` object fields of serializable classes.
@@ -69,10 +59,7 @@
     public static boolean isLoggable(java.lang.String, int);
     public static int v(...);
     public static int d(...);
-    ## Leave in release builds
-    #public static int i(...);
-    #public static int w(...);
-    #public static int e(...);
+    # i/w/e are deliberately left in release builds
 }
 
 ## Strip Timber logging in release
@@ -109,7 +96,6 @@
 -keep class com.yalantis.ucrop** { *; }
 -keep interface com.yalantis.ucrop** { *; }
 
-## Native Cover Art Library (Bento4 JNI)
 -keep class com.jtech.zemer.utils.CoverArtNative { *; }
 
 ## Firebase and Auth Rules (for release build sync)

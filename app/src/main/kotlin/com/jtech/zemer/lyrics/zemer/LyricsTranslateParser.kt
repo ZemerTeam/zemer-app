@@ -5,7 +5,7 @@ package com.jtech.zemer.lyrics.zemer
  * carries the ORIGINAL-language text in `<div class="translate__text ..." lang="xx" id="song-body">`
  * (translations live on separate pages and are never fetched); the body nests further divs, so the extent is
  * found by depth-aware div scanning, not a lazy match. A Cloudflare challenge page has no `#song-body`
- * and parses to null, which the provider chain treats like any dead source (next provider).
+ * and parses to null, which the resolver's source walk treats like any dead source (next source).
  */
 object LyricsTranslateParser {
     private val OPEN = Regex("""<div class="translate__text[^"]*"[^>]*lang="[^"]*"[^>]*id="song-body">""")

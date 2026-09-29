@@ -88,7 +88,7 @@ fun PlaylistHeaderShimmer(modifier: Modifier = Modifier) {
 /**
  * The playlist-header transport pair — filled Play + outlined Shuffle, equal weights. ONE copy for
  * every playlist-detail screen; either action can be null to hide its button (the online screen
- * shows Shuffle only when the playlist has a shuffle endpoint).
+ * hides Shuffle for a YouTube playlist without a shuffle endpoint).
  */
 @Composable
 fun PlaylistPlayShuffleButtons(

@@ -42,9 +42,7 @@ fun zemerCuratedPlaylistRuntimeLabel(totalDurationSec: Int?): String? =
  * (runtime hidden when unknown). Rendered with the shared [YouTubeGridItem] so it matches every other
  * Home card; the click target navigates to the curated detail screen — never a YouTube-playlist path.
  *
- * [showRuntime] is off on the compact Home-row card (fixed 128dp wide), where even the hours form of
- * the runtime overflows the two subtitle lines and truncates — there the sub-label is the song count
- * alone. The wider "See all" grid keeps the full label.
+ * [showRuntime] = false drops the runtime, leaving the song count as the whole sub-label.
  */
 @Composable
 fun ZemerCuratedPlaylistGridItem(

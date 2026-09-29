@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Comprehensive scan of client IDs 1-150 with auth
+// Comprehensive scan of client IDs 1-130 with auth
 
 import { createHash } from 'crypto';
 

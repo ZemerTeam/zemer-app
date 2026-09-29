@@ -11,9 +11,9 @@ import java.util.Base64
  * dependencies - fully JVM-testable.
  *
  * An Ogg Opus stream is a sequence of pages. The 2nd packet is the `OpusTags` comment
- * header. Replacing it changes its byte length, so every page from that packet onward is
- * re-paginated: segments repacked into <=255-lacing-value pages, page sequence numbers
- * renumbered, and each page's CRC recomputed (Ogg CRC-32, poly 0x04C11DB7, non-reflected).
+ * header. Replacing it changes its byte length, so that packet is re-paginated (segments
+ * repacked into <=255-lacing-value pages) and every page from it onward is renumbered with
+ * its CRC recomputed (Ogg CRC-32, poly 0x04C11DB7, non-reflected).
  * Cover art rides the standard `METADATA_BLOCK_PICTURE` comment (base64 of a FLAC picture
  * block), the de-facto tag players read for .opus art.
  */

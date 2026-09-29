@@ -183,7 +183,7 @@ fun AppearanceSettings(
     var showRestartDialog by rememberSaveable { mutableStateOf(false) }
     var showCustomDensityDialog by rememberSaveable { mutableStateOf(false) }
 
-    // Check SharedPreferences first for onboarding density value, then fallback to DataStore
+    // DataStore value, defaulting to the onboarding density value in SharedPreferences
     val sharedPreferences = remember { context.getSharedPreferences("metrolist_settings", Context.MODE_PRIVATE) }
     val prefDensityScale = remember(sharedPreferences) {
         sharedPreferences.getFloat("density_scale_factor", 1.0f)
@@ -241,7 +241,7 @@ fun AppearanceSettings(
         defaultValue = GridItemSize.BIG
     )
 
-    // Check SharedPreferences first for onboarding bottom nav value, then fallback to DataStore
+    // DataStore value, defaulting to the onboarding bottom nav value in SharedPreferences
     val prefBottomNavEnabled = remember(sharedPreferences) {
         sharedPreferences.getBoolean("bottomNavigationBarEnabled", false)
     }
@@ -260,7 +260,7 @@ fun AppearanceSettings(
         defaultValue = true
     )
 
-    // Check SharedPreferences first for onboarding bottom nav items, then fallback to DataStore
+    // DataStore value, defaulting to the onboarding bottom nav items in SharedPreferences
     val prefBottomNavItems = remember(sharedPreferences) {
         sharedPreferences.getString("bottomNavigationItems", null)
     }
@@ -815,7 +815,7 @@ fun AppearanceSettings(
                         checked = bottomNavEnabled,
                         onCheckedChange = { enabled ->
                             onBottomNavEnabledChange(enabled)
-                            // Reset to default when toggling
+                            // Reset to default when disabling
                             if (!enabled) {
                                 onBottomNavigationItemsChange("home,search,library")
                             }
@@ -1026,7 +1026,7 @@ fun AppearanceSettings(
     }
 
     // Bottom Navigation Customization Dialog. House dialog style throughout: DefaultDialog's own
-    // title/button slots, the ListPreference row look (control + bodyLarge label), and ONLY theme
+    // title/button slots, the SwitchPreference row look (bodyLarge label + switch), and ONLY theme
     // tokens - no pureBlack conditionals (the scheme blacks the dialog surface itself) and no
     // hardcoded colors.
     if (showBottomNavCustomizationDialog) {

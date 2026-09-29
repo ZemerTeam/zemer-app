@@ -4,7 +4,7 @@
 <!-- Do not add new features here -->
 <!-- Try to re-use strings here, but be careful on its usage e.g. verb vs noun -->
 <!-- "InnerTune" is replaced with "Zemer" -->
-<!-- Translators: Do not modify this file for translations, use InnerTune's Weblate instead. -->
+<!-- Translators: Do not modify this file for translations. -->
 
 <resources xmlns:tools="http://schemas.android.com/tools">
     <!-- Bottom navigation -->
@@ -34,8 +34,6 @@
     <string name="this_week">This week</string>
     <string name="last_week">Last week</string>
 
-    <!-- Stats -->
-
     <!-- Search -->
     <string name="search">Search</string>
     <string name="search_yt_music">Search Zemer...</string>
@@ -59,10 +57,6 @@
     <string name="library_artist_empty">Library artists will show up here</string>
     <string name="library_album_empty">Library albums will show up here</string>
     <string name="kid_zone_empty">No kids artists available</string>
-
-    <!-- Artist screen -->
-
-    <!-- Album screen -->
 
     <!-- Playlist -->
     <string name="liked_songs">Liked songs</string>

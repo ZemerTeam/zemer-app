@@ -6,8 +6,8 @@ import java.nio.ByteBuffer
 
 /**
  * Pure-Kotlin MP4/M4A metadata writer: copies an input file to an output path while
- * replacing `moov.udta` with a fresh iTunes-style tag set (cover art + title / artist /
- * album / year). No Android or native dependencies - fully JVM-testable.
+ * replacing `moov.udta` with a fresh iTunes-style tag set (every [Tags] field, cover art
+ * included). No Android or native dependencies - fully JVM-testable.
  *
  * Correctness hinges on chunk offsets: `stco`/`co64` entries are ABSOLUTE file offsets
  * into `mdat`. Rewriting `moov` changes its size, which shifts every byte after it, so

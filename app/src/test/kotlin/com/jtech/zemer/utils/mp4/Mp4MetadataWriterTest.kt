@@ -49,7 +49,7 @@ class Mp4MetadataWriterTest {
         box("trak", box("mdia", box("minf", box("stbl", offsetTable)))),
     )
 
-    /** Assemble a file from boxes; returns (file, mdat payload). */
+    /** Assemble a file from boxes. */
     private fun fileOf(vararg boxes: ByteArray): File {
         val f = tmp.newFile()
         f.writeBytes(boxes.reduce { a, b -> a + b })

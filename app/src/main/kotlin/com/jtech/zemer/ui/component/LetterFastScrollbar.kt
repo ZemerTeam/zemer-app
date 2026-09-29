@@ -39,7 +39,7 @@ import androidx.compose.ui.zIndex
 import kotlin.math.roundToInt
 
 /**
- * Fast scroller for a long alphabetically-sorted list (the Artists tab), in the Material 3 /
+ * Fast scroller for a long alphabetically-sorted list (the browse screens), in the Material 3 /
  * Contacts idiom: a thin rounded thumb hugging the trailing edge — faint while idle so it is
  * always discoverable, brighter while the list moves, accent-colored while dragged. Dragging the
  * thumb scrubs the whole list and floats a large bubble with the current index letter
@@ -131,7 +131,7 @@ fun LetterFastScrollbar(
                 .width(trackWidth)
                 .height(thumbHeight + grabSlop * 2)
                 .pointerInput(itemCount) {
-                    // A key change mid-gesture (the artists flow updating while a finger is down)
+                    // A key change mid-gesture (the browse list updating while a finger is down)
                     // cancels this coroutine WITHOUT running onDragCancel, so the reset must also
                     // live in a finally — else the bubble stays frozen until the next touch.
                     try {

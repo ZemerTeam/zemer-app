@@ -136,7 +136,7 @@ export function artistReleases(json) {
 }
 
 // Parse the discography grid returned by the artist "Albums"/"Singles" more endpoint
-// (InnerTube.artistItems -> gridRenderer). Items are in the order YouTube returns them.
+// (a gridRenderer). Items are in the order YouTube returns them.
 export function artistItemsGrid(json) {
   const grid =
     json?.contents?.singleColumnBrowseResultsRenderer?.tabs?.[0]?.tabRenderer?.content

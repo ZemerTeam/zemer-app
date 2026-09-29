@@ -39,7 +39,6 @@ class YouTubeQueue(
         endpoint = nextResult.endpoint
         continuation = nextResult.continuation
 
-        // Filter by whitelist before converting to MediaItems
         val filteredItems = nextResult.items.filterWhitelisted(database).filterIsInstance<SongItem>()
 
         return Queue.Status(
@@ -59,7 +58,6 @@ class YouTubeQueue(
         endpoint = nextResult.endpoint
         continuation = nextResult.continuation
 
-        // Filter by whitelist before converting to MediaItems
         val filteredItems = nextResult.items.filterWhitelisted(database).filterIsInstance<SongItem>()
 
         return filteredItems.map { it.toMediaItem() }

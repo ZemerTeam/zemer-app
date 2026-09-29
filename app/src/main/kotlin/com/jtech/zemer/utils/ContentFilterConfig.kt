@@ -31,9 +31,6 @@ object ContentFilterState {
             _state.value = value
         }
 
-    /**
-     * Update content filter configuration
-     */
     fun updateConfig(
         filtersEnabled: Boolean? = null,
         allowFemaleSingers: Boolean? = null,
@@ -74,9 +71,6 @@ object ContentFilterState {
         )
     }
 
-    /**
-     * Check if any content filters are active
-     */
     val hasActiveFilters: Boolean
         get() = current.filtersEnabled && (
             current.allowFemaleSingers.not() ||

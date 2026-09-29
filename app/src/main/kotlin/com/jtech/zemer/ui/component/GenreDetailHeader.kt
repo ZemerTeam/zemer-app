@@ -38,7 +38,7 @@ import com.jtech.zemer.ui.theme.HeaderFontFamily
  *  3. the big genre [title] in the app's display face.
  *
  * [action] is an optional slot below the title for a page-specific control — the music page passes its
- * gold "Play genre radio" pill; the podcast page passes none (podcasts have no genre radio). Content-
+ * accent Play pill (genre radio); the podcast page passes none (podcasts have no genre radio). Content-
  * free of counts by design (a number reads as small; the page should read as complete).
  */
 @Composable

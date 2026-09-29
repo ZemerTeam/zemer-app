@@ -3,7 +3,7 @@ package com.jtech.zemer.lyrics.zemer
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
-/** The one entity unescape both page parsers share (it was duplicated per parser). */
+/** The one entity unescape the lyrics parsers share. */
 class HtmlEntitiesTest {
     @Test
     fun `named and numeric entities`() {
