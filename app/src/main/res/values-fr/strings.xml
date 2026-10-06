@@ -1,3 +1,35 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="this_week">Cette semaine</string>
+    <string name="last_week">La semaine dernière</string>
+    <string name="search">Rechercher</string>
+    <string name="search_yt_music">Rechercher Dans Zemer...</string>
+    <string name="search_artists">Rechercher des artistes…</string>
+    <string name="filter_library">Bibliothèque</string>
+    <string name="filter_liked">Aimé</string>
+    <string name="filter_downloaded">Téléchargé</string>
+    <string name="filter_all">Tout</string>
+    <string name="filter_songs">Chansons</string>
+    <string name="filter_videos">Vidéos</string>
+    <string name="filter_albums">Albums</string>
+    <string name="filter_artists">Artistes</string>
+    <string name="filter_playlists">Playlists</string>
+    <string name="filter_community_playlists">Playlists de la communauté</string>
+    <string name="filter_featured_playlists">Playlists en vedette</string>
+    <string name="no_results_found">Aucun résultat trouvé</string>
+    <string name="download_complete">Téléchargement terminé</string>
+    <string name="library_artist_empty">Les artistes de la bibliothèque apparaîtront ici</string>
+    <string name="library_album_empty">Les albums de la bibliothèque apparaîtront ici</string>
+    <string name="kid_zone_empty">Aucun artiste pour enfants disponible</string>
+    <string name="liked_songs">Titres aimés</string>
+    <string name="downloaded_songs">Chansons téléchargées</string>
+    <string name="playlist_is_empty">La playlist est vide</string>
+    <string name="remove_download_playlist_confirm">Voulez-vous vraiment supprimer tous les morceaux de la playlist « %s » du stockage des morceaux téléchargés ?</string>
+    <string name="delete_playlist_confirm">Voulez-vous vraiment supprimer la playlist « %s » ?</string>
+    <string name="retry">Réessayer</string>
+    <string name="radio">Radio</string>
+    <string name="shuffle">Aléatoire</string>
+    <string name="reset">Réinitialiser</string>
+    <string name="details">Détails</string>
+    <string name="edit">Modifier</string>
 </resources>
