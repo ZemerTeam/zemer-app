@@ -64,7 +64,6 @@
     <string name="delete">מחיקה</string>
     <string name="remove_from_history">הסר מההיסטוריה</string>
     <string name="remove_from_playlist">הסר מהפלייליסט</string>
-    <string name="search_online">חיפוש באינטרנט</string>
     <string name="advanced">מתקדם</string>
     <string name="tempo_and_pitch">קצב וגובה צליל</string>
     <string name="sort_by_create_date">תאריך הוספה</string>
@@ -85,7 +84,6 @@
     <string name="file_size">גודל קובץ</string>
     <string name="unknown">לא ידוע</string>
     <string name="copied">הועתק ללוח</string>
-    <string name="search_lyrics">חיפוש מילות שיר</string>
     <string name="edit_song">ערוך שיר</string>
     <string name="song_title">כותרת שיר</string>
     <string name="song_artists">אמני שיר</string>
@@ -176,7 +174,6 @@
     <string name="login">התחברות</string>
     <string name="system_default">ברירת מחדל מערכת</string>
     <string name="player_and_audio">נגן ושמע</string>
-    <string name="general">כללי</string>
     <string name="audio_quality">איכות שמע</string>
     <string name="audio_quality_auto">אוטומטי</string>
     <string name="audio_quality_high">גבוה</string>
@@ -222,7 +219,6 @@
     <string name="new_version_available">גירסה חדשה זמינה</string>
     <string name="content_filters">סינון תוכן</string>
     <string name="allow_female_singers">אפשר זמרות</string>
-    <string name="enable_personal_filters">הפעלת מסננים אישיים</string>
     <string name="radio_mode">מצב רדיו</string>
     <string name="sign_out_description">התנתק מהחשבון</string>
     <string name="onboarding_agree_label">קראתי והסכמתי לתנאי השירות ומדיניות הפרטיות</string>
@@ -264,4 +260,9 @@
     <string name="search_empty_title">לא נמצאו תוצאות</string>
     <string name="search_retry">חיפוש מחדש</string>
     <string name="setting_up_library_title">מכין את הספרייה…</string>
+    <string name="lyrics_provider_selection">בחירת ספק</string>
+    <string name="lyrics_provider_selection_desc">בחר איזה ספק מילות שיר מופעל</string>
+    <string name="lyrics_provider_priority">עדיפות לספק מילות השיר</string>
+    <string name="lyrics_provider_priority_desc">גרור כדי לסדר מחדש ספקים לפי העדפה. מיקום גבוה יותר -&gt; עדיפות גבוהה יותר.</string>
+    <string name="restart">הפעלה מחדש</string>
 </resources>
