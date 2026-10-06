@@ -1,6 +1,6 @@
 # Android resource index
 
-Tracked Android resource paths under `app/src/**/res`: `210`.
+Tracked Android resource paths under `app/src/**/res`: `214`.
 
 ## `drawable` (167 paths)
 
@@ -266,12 +266,26 @@ Tracked Android resource paths under `app/src/**/res`: `210`.
 | `app/src/main/res/values/styles.xml` | 26 lines | `resources` | Theme.Zemer, android:windowContentOverlay, android:windowDrawsSystemBarBackgrounds, android:windowMinWidthMinor, android:windowMinWidthMajor, android:windowNoTitle, android:windowBackground, android:enforceNavigationBarContrast, android:statusBarColor, android:navigationBarColor, Theme.Zemer.Transparent, android:windowIsTranslucent, android:backgroundDimEnabled, android:windowAnimationStyle |
 | `app/src/main/res/values/values.xml` | 8 lines | `resources` | media3_notification_play, media3_notification_pause, media3_notification_seek_to_previous, media3_notification_seek_to_next |
 
+## `values-fr` (2 paths)
+
+| Path | Lines/bytes | XML root | Resource names / metadata |
+| --- | ---: | --- | --- |
+| `app/src/main/res/values-fr/metrolist_strings.xml` | 160 lines | `resources` | crop_album_art, not_applicable, local_history, remote_history, liked, offline, cached_playlist, uploaded_playlist, sync_playlist, sync_disabled, please_wait, share_lyrics, share_as_text, share_as_image, share_selected, customize_colors, more_options, text_color, secondary_text_color, background_color, … +121 more |
+| `app/src/main/res/values-fr/strings.xml` | 225 lines | `resources` | this_week, last_week, search, search_yt_music, search_artists, filter_library, filter_liked, filter_downloaded, filter_all, filter_songs, filter_videos, filter_albums, filter_artists, filter_playlists, filter_community_playlists, filter_featured_playlists, no_results_found, download_complete, library_artist_empty, library_album_empty, … +166 more |
+
 ## `values-iw` (2 paths)
 
 | Path | Lines/bytes | XML root | Resource names / metadata |
 | --- | ---: | --- | --- |
-| `app/src/main/res/values-iw/metrolist_strings.xml` | 30 lines | `resources` | background_color, local_history, remote_history, unknown_artist, liked, offline, my_top, cached_playlist, sync_playlist, sync_disabled, elements_selected, allows_for_sync_witch_youtube, generating_image, please_wait, share_lyrics, share_as_text, share_as_image, max_selection_limit, share_selected, customize_colors, … +7 more |
-| `app/src/main/res/values-iw/strings.xml` | 267 lines | `resources` | songs, history, home, artists, albums, playlists, n_selected, account, quick_picks, forgotten_favorites, keep_listening, today, yesterday, this_week, last_week, search, search_yt_music, filter_library, filter_liked, filter_downloaded, … +204 more |
+| `app/src/main/res/values-iw/metrolist_strings.xml` | 134 lines | `resources` | background_color, local_history, remote_history, unknown_artist, liked, offline, my_top, cached_playlist, sync_playlist, sync_disabled, elements_selected, allows_for_sync_witch_youtube, generating_image, please_wait, share_lyrics, share_as_text, share_as_image, max_selection_limit, share_selected, customize_colors, … +103 more |
+| `app/src/main/res/values-iw/strings.xml` | 268 lines | `resources` | songs, history, home, artists, albums, playlists, n_selected, account, quick_picks, forgotten_favorites, keep_listening, today, yesterday, this_week, last_week, search, search_yt_music, filter_library, filter_liked, filter_downloaded, … +205 more |
+
+## `values-ji` (2 paths)
+
+| Path | Lines/bytes | XML root | Resource names / metadata |
+| --- | ---: | --- | --- |
+| `app/src/main/res/values-ji/metrolist_strings.xml` | 3 lines | `resources` |  |
+| `app/src/main/res/values-ji/strings.xml` | 3 lines | `resources` |  |
 
 ## `values-night` (1 paths)
 

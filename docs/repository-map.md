@@ -54,10 +54,10 @@ The following inventory is generated from repository files outside `.git`, `.gra
 
 ### Counts
 
-- Files counted: `1372`
+- Files counted: `1376`
 - By extension:
   - `.kt`: `887`
-  - `.xml`: `192`
+  - `.xml`: `196`
   - `.mjs`: `110`
   - `.md`: `64`
   - `.json`: `50`
@@ -947,8 +947,12 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/main/res/raw/loading_dots_blue.lottie` | 1221 bytes | `.lottie` |
 | `app/src/main/res/raw/welcome.lottie` | 2138 bytes | `.lottie` |
 | `app/src/main/res/resources.properties` | 1 lines | `.properties` |
-| `app/src/main/res/values-iw/metrolist_strings.xml` | 30 lines | `.xml` |
-| `app/src/main/res/values-iw/strings.xml` | 267 lines | `.xml` |
+| `app/src/main/res/values-fr/metrolist_strings.xml` | 160 lines | `.xml` |
+| `app/src/main/res/values-fr/strings.xml` | 225 lines | `.xml` |
+| `app/src/main/res/values-iw/metrolist_strings.xml` | 134 lines | `.xml` |
+| `app/src/main/res/values-iw/strings.xml` | 268 lines | `.xml` |
+| `app/src/main/res/values-ji/metrolist_strings.xml` | 3 lines | `.xml` |
+| `app/src/main/res/values-ji/strings.xml` | 3 lines | `.xml` |
 | `app/src/main/res/values-night/colors.xml` | 6 lines | `.xml` |
 | `app/src/main/res/values-v31/styles.xml` | 22 lines | `.xml` |
 | `app/src/main/res/values/app_name.xml` | 4 lines | `.xml` |
@@ -1217,14 +1221,14 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `docs/recognize_music/03-entry-points-and-ui.md` | 80 lines | `.md` |
 | `docs/recognize_music/README.md` | 73 lines | `.md` |
 | `docs/reference/kotlin-files.md` | 900 lines | `.md` |
-| `docs/reference/non-kotlin-files.md` | 434 lines | `.md` |
-| `docs/reference/resource-index.md` | 303 lines | `.md` |
+| `docs/reference/non-kotlin-files.md` | 438 lines | `.md` |
+| `docs/reference/resource-index.md` | 317 lines | `.md` |
 | `docs/remote_cipher_config/01-concepts-and-format.md` | 135 lines | `.md` |
 | `docs/remote_cipher_config/02-runtime-store.md` | 94 lines | `.md` |
 | `docs/remote_cipher_config/03-extraction-and-self-heal.md` | 102 lines | `.md` |
 | `docs/remote_cipher_config/04-operations.md` | 121 lines | `.md` |
 | `docs/remote_cipher_config/README.md` | 60 lines | `.md` |
-| `docs/repository-map.md` | 1463 lines | `.md` |
+| `docs/repository-map.md` | 1467 lines | `.md` |
 | `docs/sabr/README.md` | 370 lines | `.md` |
 | `docs/stations/README.md` | 67 lines | `.md` |
 | `docs/status/README.md` | 93 lines | `.md` |
