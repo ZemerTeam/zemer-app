@@ -24,9 +24,14 @@ export const CLIENTS = [
     osName: "visionOS", osVersion: "26.5.23O471", deviceMake: "Apple", deviceModel: "RealityDevice17,1",
     loginSupported: false, useSignatureTimestamp: false },
 
-  { key: "VISIONOS_0_1", clientName: "VISIONOS", clientVersion: "0.1", clientId: "101",
-    userAgent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Safari/605.1.15",
-    osName: "visionOS", osVersion: "1.3.21O771", deviceMake: "Apple", deviceModel: "RealityDevice14,1",
+  { key: "VISIONOS_1_03", clientName: "VISIONOS", clientVersion: "1.03", clientId: "101",
+    userAgent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 15_7_3) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.0 Safari/605.1.15",
+    osName: "visionOS", osVersion: "26.5.23O471", deviceMake: "Apple", deviceModel: "RealityDevice17,1",
+    loginSupported: false, useSignatureTimestamp: false },
+
+  { key: "VISIONOS_1_01", clientName: "VISIONOS", clientVersion: "1.01", clientId: "101",
+    userAgent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 15_7_3) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.0 Safari/605.1.15",
+    osName: "visionOS", osVersion: "26.5.23O471", deviceMake: "Apple", deviceModel: "RealityDevice17,1",
     loginSupported: false, useSignatureTimestamp: false },
 
 ];

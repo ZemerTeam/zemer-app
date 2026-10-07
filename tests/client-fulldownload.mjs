@@ -19,7 +19,7 @@ const kb = (n) => `${(n / 1024).toFixed(0)}KB`;
 // order as YTPlayerUtils.kt. Override with
 // CLIENTS=WEB_REMIX,TVHTML5,... to test a subset.
 const TEST = process.env.CLIENTS?.split(",").map((s) => s.trim()).filter(Boolean) || [
-  "WEB_REMIX", "VISIONOS", "VISIONOS_0_1", "WEB_CREATOR", "TVHTML5_SIMPLY",
+  "WEB_REMIX", "VISIONOS", "VISIONOS_1_03", "VISIONOS_1_01", "WEB_CREATOR", "TVHTML5_SIMPLY",
 ];
 
 function sapisidHash(cookie) {

@@ -117,16 +117,16 @@ of playability: IOS passed it yet 403s past 1 MiB.
 
 | client | full song? | needs |
 |---|---|---|
-| **VISIONOS (1.02) + VISIONOS_0_1** | yes | nothing - direct url, no pot/cipher/BotGuard (the most reliable fallback) |
+| **VISIONOS (1.02, plus 1.03 / 1.01)** | yes | nothing - direct url, no pot/cipher/BotGuard (the most reliable fallback) |
 | **WEB_REMIX / WEB_CREATOR** | yes | videoId-bound pot + sig/n cipher |
 | **TVHTML5_SIMPLY** (clientId 75) | yes | videoId-bound pot + sig/n cipher; the "TVHTML5" toggle governs it |
 
 App order: `MAIN_CLIENT` (`WEB_REMIX`) then `YTPlayerUtils.ALL_FALLBACK_CLIENTS`:
-`WEB_REMIX -> VISIONOS -> VISIONOS_0_1 -> WEB_CREATOR -> TVHTML5_SIMPLY` (user-disabled families are
+`WEB_REMIX -> VISIONOS -> VISIONOS_1_03 -> VISIONOS_1_01 -> WEB_CREATOR -> TVHTML5_SIMPLY` (user-disabled families are
 filtered out into `STREAM_FALLBACK_CLIENTS`).
 
 Proven-dead clients were removed from the app; their defs + verdicts live in `clients-retired.mjs` so the
-probes still run: the ANDROID_VR family (pre-1.65 variants are version-bot-gated; 1.65.10 resolves a URL
+probes still run: VISIONOS 0.1 (the version is rejected with HTTP 400 on /player), the ANDROID_VR family (pre-1.65 variants are version-bot-gated; 1.65.10 resolves a URL
 but 403s after 0 bytes), MOBILE/ANDROID (400 with auth, SABR-only without), IOS/IPADOS
 (403 past the wall), ANDROID_CREATOR, TVHTML5_SIMPLY_EMBEDDED_PLAYER (server-killed), the 7.x TVHTML5
 (SABR-only). WEB is dropped as a stream fallback (SABR-only) but its def stays in `clients.mjs`

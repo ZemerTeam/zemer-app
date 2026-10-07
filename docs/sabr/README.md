@@ -33,7 +33,6 @@ can mint** (the WebView BotGuard pot) are in the roster:
 |---|---|---|
 | **WEB_REMIX** (main client) | yes | yes (tried first) |
 | **VISIONOS** | yes (direct client, no url-pot) | yes |
-| VISIONOS_0_1 | yes (harness) | no (DIRECT fallback only) |
 | **TVHTML5_SIMPLY** | yes | yes |
 | IOS / IPADOS / WEB_CREATOR / ANDROID_VR | no - server-side throttle to ~60s on most content (needs native attestation a WebView can't produce) | **no** |
 | WEB (desktop) | no - needs browser-grade attestation | no |
