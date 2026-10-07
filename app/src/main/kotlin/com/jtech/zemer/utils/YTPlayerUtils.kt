@@ -76,8 +76,9 @@ object YTPlayerUtils {
     private val MAIN_CLIENT: YouTubeClient = WEB_REMIX
 
     private val ALL_FALLBACK_CLIENTS: Array<YouTubeClient> = arrayOf(
-        // VISIONOS first: its CDN URL has no `spc` gate, so it streams the whole song with no
-        // poToken and no cipher (HEAD 200) — the most reliable fallback, ahead of the
+        // VISIONOS first: it streams the whole song with no poToken and no cipher (its audio URLs
+        // carry `spc` since 2026-10, yet still drain past the 1 MiB wall; 0.1 is HTTP 400 on
+        // /player from the same IPs) — the most reliable fallback, ahead of the
         // TVHTML5 client. (The proven-dead clients were removed: the ANDROID_VR family (incl. the
         // last-living 1.65.10) 403s after 0 bytes on a whole-song drain; the pre-1.65 VR
         // variants were also version-bot-gated; MOBILE 400s authenticated / SABR-only anonymous; WEB,
