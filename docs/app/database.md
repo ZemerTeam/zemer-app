@@ -14,7 +14,7 @@
 | View count in schema 36 | `3` |
 | Schema files tracked | `36` |
 | DAO file | `app/src/main/kotlin/com/jtech/zemer/db/DatabaseDao.kt` |
-| DAO `fun` declarations found by parser | `228` (`192` distinct names) |
+| DAO `fun` declarations found by parser | `229` (`193` distinct names) |
 
 <!-- /generated:db-facts -->
 
@@ -24,13 +24,13 @@
 
 | Annotation | Count |
 | --- | ---: |
-| `@Query` | 157 |
-| `@Transaction` | 110 |
+| `@Query` | 158 |
+| `@Transaction` | 111 |
 | `@Insert` | 16 |
 | `@Delete` | 11 |
 | `@Upsert` | 7 |
 | `@Update` | 7 |
-| `@RewriteQueriesToDropUnusedColumns` | 1 |
+| `@RewriteQueriesToDropUnusedColumns` | 2 |
 | `@RawQuery` | 1 |
 
 <!-- /generated:dao-annotations -->
@@ -443,7 +443,8 @@ Every `fun` in `db/DatabaseDao.kt` in source order (overloads repeat the name). 
 | `artistSongs` | `artistId: String, sortType: ArtistSongSortType, descending: Boolean` | `(inferred)` |
 | `artistSongsPreview` | `artistId: String, previewSize: Int = 3` | `Flow<List<Song>>` |
 | `quickPicks` | `now: Long = System.currentTimeMillis()` | `Flow<List<Song>>` |
-| `mostPlayedSongsStats` | `fromTimeStamp: Long, limit: Int = 6, offset: Int = 0, toTimeStamp: Long? = LocalDateTime.now().toInstant(ZoneOffset.UTC).toEpochMilli()` | `Flow<List<SongWithStats>>` |
+| `songPlayStats` | `fromTimeStamp: Long` | `Flow<List<SongPlayStats>>` |
+| `artistPlayStats` | `fromTimeStamp: Long` | `Flow<List<Artist>>` |
 | `mostPlayedSongs` | `fromTimeStamp: Long, limit: Int = 6, offset: Int = 0, toTimeStamp: Long? = LocalDateTime.now().toInstant(ZoneOffset.UTC).toEpochMilli()` | `Flow<List<Song>>` |
 | `mostPlayedArtists` | `fromTimeStamp: Long, limit: Int = 6, offset: Int = 0, toTimeStamp: Long? = LocalDateTime.now().toInstant(ZoneOffset.UTC).toEpochMilli()` | `Flow<List<Artist>>` |
 | `mostPlayedAlbums` | `fromTimeStamp: Long, limit: Int = 6, offset: Int = 0, toTimeStamp: Long? = LocalDateTime.now().toInstant(ZoneOffset.UTC).toEpochMilli()` | `Flow<List<Album>>` |

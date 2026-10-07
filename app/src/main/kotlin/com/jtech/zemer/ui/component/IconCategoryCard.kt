@@ -31,14 +31,15 @@ import androidx.compose.ui.unit.dp
  * tiles all render through this so their color, shape and typography can never drift apart again. Carries
  * the mandatory D-pad focus treatment (`.focusBorder()` before the clickable, per docs/ui/standards.md
  * §11) that a bespoke card is exactly how a screen forgets. The caller supplies the icon, labels and
- * destination plus a [modifier] carrying any layout weight/size.
+ * destination plus a [modifier] carrying any layout weight/size. A null [onClick] makes it a read-only
+ * stat tile (the Stats summary): no click target and no focus stop for a tile that does nothing.
  */
 @Composable
 fun IconCategoryCard(
     @DrawableRes iconRes: Int,
     title: String,
     subtitle: String,
-    onClick: () -> Unit,
+    onClick: (() -> Unit)?,
     modifier: Modifier = Modifier,
 ) {
     Card(
@@ -51,8 +52,7 @@ fun IconCategoryCard(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .focusBorder()
-                .clickable(onClick = onClick)
+                .then(if (onClick != null) Modifier.focusBorder().clickable(onClick = onClick) else Modifier)
                 // Tighter horizontal inset than vertical so short labels ("Videos"/"Status") keep their
                 // full text room when three tiles share a narrow (small-screen) row.
                 .padding(horizontal = 10.dp, vertical = 16.dp),

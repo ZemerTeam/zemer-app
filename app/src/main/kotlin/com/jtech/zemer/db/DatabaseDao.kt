@@ -47,7 +47,7 @@ import com.jtech.zemer.db.entities.Song
 import com.jtech.zemer.db.entities.SongAlbumMap
 import com.jtech.zemer.db.entities.SongArtistMap
 import com.jtech.zemer.db.entities.SongEntity
-import com.jtech.zemer.db.entities.SongWithStats
+import com.jtech.zemer.db.entities.SongPlayStats
 import com.jtech.zemer.extensions.reversed
 import com.jtech.zemer.extensions.toSQLiteQuery
 import com.jtech.zemer.models.MediaMetadata
@@ -257,39 +257,49 @@ interface DatabaseDao {
     fun quickPicks(now: Long = System.currentTimeMillis()): Flow<List<Song>>
 
 
+    /**
+     * Every whitelisted song played since [fromTimeStamp] (episodes excluded), with its play count and
+     * listening time, ranked by plays then time. One grouped pass over `event` (indexed on songId and
+     * timestamp).
+     */
+    @Transaction
+    @RewriteQueriesToDropUnusedColumns
+    @Query(
+        """
+        SELECT song.*, s.plays AS plays, s.timeListened AS timeListened
+        FROM song
+        JOIN (SELECT songId, COUNT(*) AS plays, SUM(playTime) AS timeListened
+              FROM event
+              WHERE timestamp > :fromTimeStamp
+              GROUP BY songId) AS s ON s.songId = song.id
+        WHERE song.isEpisode = 0
+          AND song.id IN (SELECT songId FROM song_artist_map WHERE artistId IN (SELECT artistId FROM artist_whitelist))
+        ORDER BY s.plays DESC, s.timeListened DESC
+        """,
+    )
+    fun songPlayStats(fromTimeStamp: Long): Flow<List<SongPlayStats>>
+
+    /**
+     * Every whitelisted artist with a song played since [fromTimeStamp] (episodes excluded), as an
+     * [Artist] whose songCount is the play count and timeListened the listening time, ranked by plays
+     * then time. A play counts for every artist credited on the song.
+     */
     @Transaction
     @Query(
         """
-             SELECT song.id, song.title, song.thumbnailUrl,
-               (SELECT COUNT(1)
-                FROM event
-                WHERE songId = song.id
-                  AND timestamp > :fromTimeStamp AND timestamp <= :toTimeStamp) AS songCountListened,
-               (SELECT SUM(event.playTime)
-                FROM event
-                WHERE songId = song.id
-                  AND timestamp > :fromTimeStamp AND timestamp <= :toTimeStamp) AS timeListened
-        FROM song
-        JOIN (SELECT event.songId AS songId
-                     FROM event JOIN song s ON s.id = event.songId
-                     WHERE event.timestamp > :fromTimeStamp
-                     AND event.timestamp <= :toTimeStamp
-                     AND s.isEpisode = 0
-                     GROUP BY event.songId
-                     ORDER BY SUM(event.playTime) DESC
-                     LIMIT :limit)
-        ON song.id = songId
-        WHERE song.id IN (SELECT songId FROM song_artist_map WHERE artistId IN (SELECT artistId FROM artist_whitelist))
-        LIMIT :limit
-        OFFSET :offset
-    """,
+        SELECT artist.*, a.plays AS songCount, a.timeListened AS timeListened
+        FROM artist
+        JOIN (SELECT sam.artistId AS artistId, COUNT(*) AS plays, SUM(event.playTime) AS timeListened
+              FROM event
+              JOIN song_artist_map sam ON sam.songId = event.songId
+              JOIN song ON song.id = event.songId
+              WHERE event.timestamp > :fromTimeStamp AND song.isEpisode = 0
+              GROUP BY sam.artistId) AS a ON a.artistId = artist.id
+        WHERE artist.id IN (SELECT artistId FROM artist_whitelist)
+        ORDER BY a.plays DESC, a.timeListened DESC
+        """,
     )
-    fun mostPlayedSongsStats(
-        fromTimeStamp: Long,
-        limit: Int = 6,
-        offset: Int = 0,
-        toTimeStamp: Long? = LocalDateTime.now().toInstant(ZoneOffset.UTC).toEpochMilli(),
-    ): Flow<List<SongWithStats>>
+    fun artistPlayStats(fromTimeStamp: Long): Flow<List<Artist>>
 
     @Transaction
     @RewriteQueriesToDropUnusedColumns
