@@ -689,7 +689,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/main/kotlin/com/jtech/zemer/utils/WhitelistCache.kt` | 52 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/utils/WhitelistFetcher.kt` | 229 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/utils/WhitelistFilter.kt` | 330 lines | `.kt` |
-| `app/src/main/kotlin/com/jtech/zemer/utils/YTPlayerUtils.kt` | 791 lines | `.kt` |
+| `app/src/main/kotlin/com/jtech/zemer/utils/YTPlayerUtils.kt` | 793 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/utils/ZemerContentClient.kt` | 257 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/utils/markdown/LiteMarkdown.kt` | 199 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/utils/mp4/AudioRemux.kt` | 94 lines | `.kt` |
@@ -1229,7 +1229,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `docs/remote_cipher_config/04-operations.md` | 121 lines | `.md` |
 | `docs/remote_cipher_config/README.md` | 60 lines | `.md` |
 | `docs/repository-map.md` | 1467 lines | `.md` |
-| `docs/sabr/README.md` | 370 lines | `.md` |
+| `docs/sabr/README.md` | 369 lines | `.md` |
 | `docs/stations/README.md` | 67 lines | `.md` |
 | `docs/status/README.md` | 93 lines | `.md` |
 | `docs/status/jewishstatus-api.md` | 71 lines | `.md` |
@@ -1290,7 +1290,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `innertube/src/main/kotlin/com/metrolist/innertube/models/Thumbnails.kt` | 15 lines | `.kt` |
 | `innertube/src/main/kotlin/com/metrolist/innertube/models/TwoColumnBrowseResultsRenderer.kt` | 26 lines | `.kt` |
 | `innertube/src/main/kotlin/com/metrolist/innertube/models/YTItem.kt` | 131 lines | `.kt` |
-| `innertube/src/main/kotlin/com/metrolist/innertube/models/YouTubeClient.kt` | 133 lines | `.kt` |
+| `innertube/src/main/kotlin/com/metrolist/innertube/models/YouTubeClient.kt` | 124 lines | `.kt` |
 | `innertube/src/main/kotlin/com/metrolist/innertube/models/YouTubeDataPage.kt` | 183 lines | `.kt` |
 | `innertube/src/main/kotlin/com/metrolist/innertube/models/YouTubeLocale.kt` | 9 lines | `.kt` |
 | `innertube/src/main/kotlin/com/metrolist/innertube/models/body/AccountMenuBody.kt` | 11 lines | `.kt` |
@@ -1356,8 +1356,8 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `tests/cipher-check.mjs` | 86 lines | `.mjs` |
 | `tests/cipher.mjs` | 205 lines | `.mjs` |
 | `tests/client-fulldownload.mjs` | 117 lines | `.mjs` |
-| `tests/clients-retired.mjs` | 86 lines | `.mjs` |
-| `tests/clients.mjs` | 35 lines | `.mjs` |
+| `tests/clients-retired.mjs` | 95 lines | `.mjs` |
+| `tests/clients.mjs` | 40 lines | `.mjs` |
 | `tests/config-covers.mjs` | 24 lines | `.mjs` |
 | `tests/cred.mjs` | 82 lines | `.mjs` |
 | `tests/derive-player-config.mjs` | 89 lines | `.mjs` |
