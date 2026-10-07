@@ -18,7 +18,8 @@ import com.zemer.cipher.potoken.PoTokenGenerator
 import com.zemer.cipher.potoken.PoTokenResult
 import com.metrolist.innertube.models.YouTubeClient
 import com.metrolist.innertube.models.YouTubeClient.Companion.VISIONOS
-import com.metrolist.innertube.models.YouTubeClient.Companion.VISIONOS_0_1
+import com.metrolist.innertube.models.YouTubeClient.Companion.VISIONOS_1_01
+import com.metrolist.innertube.models.YouTubeClient.Companion.VISIONOS_1_03
 import com.metrolist.innertube.models.YouTubeClient.Companion.TVHTML5_SIMPLY
 import com.metrolist.innertube.models.YouTubeClient.Companion.WEB_CREATOR
 import com.metrolist.innertube.models.YouTubeClient.Companion.WEB_REMIX
@@ -76,15 +77,17 @@ object YTPlayerUtils {
     private val MAIN_CLIENT: YouTubeClient = WEB_REMIX
 
     private val ALL_FALLBACK_CLIENTS: Array<YouTubeClient> = arrayOf(
-        // VISIONOS first: its CDN URL has no `spc` gate, so it streams the whole song with no
-        // poToken and no cipher (HEAD 200) — the most reliable fallback, ahead of the
-        // TVHTML5 client. (The proven-dead clients were removed: the ANDROID_VR family (incl. the
+        // VISIONOS first: it streams the whole song with no poToken and no cipher (its audio URLs
+        // carry `spc` since 2026-10, yet still drain past the 1 MiB wall) — the most reliable
+        // fallback, ahead of the TVHTML5 client. (The proven-dead clients were removed: the ANDROID_VR family (incl. the
         // last-living 1.65.10) 403s after 0 bytes on a whole-song drain; the pre-1.65 VR
         // variants were also version-bot-gated; MOBILE 400s authenticated / SABR-only anonymous; WEB,
         // IOS and IPADOS are SABR-only or 403-wall past the 1 MiB free window.)
         VISIONOS,
-        // The previous visionOS config as its second chance behind the current 1.02.
-        VISIONOS_0_1,
+        // Sibling visionOS builds: a second chance if YouTube retires 1.02 alone (same clientName,
+        // so the one "VisionOS" stream-source toggle governs all three).
+        VISIONOS_1_03,
+        VISIONOS_1_01,
         WEB_CREATOR,
         // The one TV cipher client, governed by the "TVHTML5" stream-source toggle (7.x TVHTML5 and
         // tv_downgraded were both removed as proven dead: 7.x is SABR-only, tv_downgraded 403-walls

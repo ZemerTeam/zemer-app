@@ -327,8 +327,8 @@ Every tracked non-Kotlin path outside `docs/` is listed. Text files report line 
 | `tests/cipher-check.mjs` | 86 lines | text `.mjs` |
 | `tests/cipher.mjs` | 205 lines | text `.mjs` |
 | `tests/client-fulldownload.mjs` | 117 lines | text `.mjs` |
-| `tests/clients-retired.mjs` | 86 lines | text `.mjs` |
-| `tests/clients.mjs` | 35 lines | text `.mjs` |
+| `tests/clients-retired.mjs` | 95 lines | text `.mjs` |
+| `tests/clients.mjs` | 40 lines | text `.mjs` |
 | `tests/config-covers.mjs` | 24 lines | text `.mjs` |
 | `tests/cred.mjs` | 82 lines | text `.mjs` |
 | `tests/derive-player-config.mjs` | 89 lines | text `.mjs` |
@@ -392,7 +392,7 @@ Every tracked non-Kotlin path outside `docs/` is listed. Text files report line 
 | `tests/sabr-video-clients.mjs` | 166 lines | text `.mjs` |
 | `tests/sabr-video.mjs` | 207 lines | text `.mjs` |
 | `tests/sabr-watchtime.mjs` | 157 lines | text `.mjs` |
-| `tests/scan-live-players.mjs` | 124 lines | text `.mjs` |
+| `tests/scan-live-players.mjs` | 126 lines | text `.mjs` |
 | `tests/scan-live-players.test.mjs` | 44 lines | text `.mjs` |
 | `tests/search/README.md` | 96 lines | text `.md` |
 | `tests/search/album-facet-probe.mjs` | 42 lines | text `.mjs` |

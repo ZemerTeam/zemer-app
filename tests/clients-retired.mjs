@@ -15,6 +15,9 @@
 //                          past the 1-MiB wall under every pot binding; SABR is capped by
 //                          STREAM_PROTECTION_STATUS=2 after a free window (retired 2026-09,
 //                          tests/MWEB-INVESTIGATION.md).
+//   VISIONOS 0.1 ......... HTTP 400 "Precondition check failed" on /player, anon and authed, for
+//                          every video (2026-10-07). The VERSION is what is rejected: 0.1 with the
+//                          1.02 device/os/UA still 400s, 1.02 with the 0.1 device/os/UA is 200.
 //   TVHTML5_SIMPLY_EMBEDDED_PLAYER ... server-killed ("YouTube is no longer supported in this
 //                          application or device").
 // Do NOT move these back into clients.mjs — that file mirrors the app's live registry.
@@ -66,7 +69,7 @@ export const RETIRED = [
   // The last-living VR build (1.65.10, eureka UA) cleared the bot gate the older variants hit, but a
   // whole-song drain (client-fulldownload) showed it 403s after 0 bytes - it can resolve a URL but
   // delivers none of the media, so it was removed from the app's fallback chain (2026-08-25). The
-  // surviving fallbacks (VISIONOS/VISIONOS_0_1/WEB_CREATOR/TVHTML5_SIMPLY) drain whole songs.
+  // surviving fallbacks (VISIONOS/WEB_CREATOR/TVHTML5_SIMPLY) drain whole songs.
   { key: "ANDROID_VR_1_65_10", clientName: "ANDROID_VR", clientVersion: "1.65.10", clientId: "28",
     userAgent: "com.google.android.apps.youtube.vr.oculus/1.65.10 (Linux; U; Android 12L; eureka-user Build/SQ3A.220605.009.A1) gzip",
     osName: "Android", osVersion: "12L", deviceMake: "Oculus", deviceModel: "Quest 3", androidSdkVersion: "32",
@@ -76,6 +79,12 @@ export const RETIRED = [
   { key: "MWEB", clientName: "MWEB", clientVersion: "2.20260708.05.00", clientId: "2",
     userAgent: "Mozilla/5.0 (iPad; CPU OS 16_7_10 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1,gzip(gfe)",
     loginSupported: true, loginRequired: true, useSignatureTimestamp: true, useWebPoTokens: true },
+
+  // The pre-1.02 visionOS build: the version itself is rejected (see the header), retired 2026-10-07.
+  { key: "VISIONOS_0_1", clientName: "VISIONOS", clientVersion: "0.1", clientId: "101",
+    userAgent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Safari/605.1.15",
+    osName: "visionOS", osVersion: "1.3.21O771", deviceMake: "Apple", deviceModel: "RealityDevice14,1",
+    loginSupported: false, useSignatureTimestamp: false },
 
   { key: "TVHTML5_SIMPLY_EMBEDDED_PLAYER", clientName: "TVHTML5_SIMPLY_EMBEDDED_PLAYER", clientVersion: "2.0", clientId: "85",
     userAgent: "Mozilla/5.0 (PlayStation; PlayStation 4/12.02) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.4 Safari/605.1.15",

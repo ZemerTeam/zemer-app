@@ -99,8 +99,8 @@ data class YouTubeClient(
 
         // yt-dlp-master-exact `visionos` (1.02): the 0.1 build was internal/unreleased and could be
         // retired any time; 1.02 validated whole-song drain against the live CDN (client-fulldownload)
-        // and on-device. The previous 0.1 config stays below as [VISIONOS_0_1], the second-chance
-        // fallback (same clientName, so the one "VisionOS" stream-source toggle governs both).
+        // and on-device. The old 0.1 build was retired 2026-10-07 (HTTP 400 "Precondition check
+        // failed" on /player); see tests/clients-retired.mjs.
         val VISIONOS = YouTubeClient(
             clientName = "VISIONOS",
             clientVersion = "1.02",
@@ -114,20 +114,11 @@ data class YouTubeClient(
             useSignatureTimestamp = false
         )
 
-        // The pre-1.02 visionOS config (still streaming whole songs as of 2026-08-15); kept as the
-        // second-chance fallback behind [VISIONOS].
-        val VISIONOS_0_1 = YouTubeClient(
-            clientName = "VISIONOS",
-            clientVersion = "0.1",
-            clientId = "101",
-            userAgent = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Safari/605.1.15",
-            osName = "visionOS",
-            osVersion = "1.3.21O771",
-            deviceMake = "Apple",
-            deviceModel = "RealityDevice14,1",
-            loginSupported = false,
-            useSignatureTimestamp = false
-        )
+        // Sibling builds of [VISIONOS], same device/os/UA. YouTube retires visionOS versions one at
+        // a time (0.1 went while 1.02 kept working), so these are second chances behind 1.02. Both
+        // whole-song drained 2026-10-07 (client-fulldownload); 1.0 and 1.1 are 404 on /player.
+        val VISIONOS_1_03 = VISIONOS.copy(clientVersion = "1.03")
+        val VISIONOS_1_01 = VISIONOS.copy(clientVersion = "1.01")
 
     }
 }

@@ -100,7 +100,9 @@ async function main() {
   for (const d of distinct) {
     if (covered.has(d.hash)) continue;
     const { md5, sts } = await playerIdentity(d.hash);
-    if (md5 && covered.has(md5)) continue; // covered via its md5 alias
+    // An md5-only match is NOT covered: devices look the player up by its URL hash
+    // (PlayerJsFetcher -> getHardcodedConfig) and never consult the md5. Report it as unknown
+    // so it gets its own alias entry (the 2026-10-06 f2999a12 outage).
     unknown.push({ hash: d.hash, count: d.count, md5, sts });
   }
 
