@@ -265,4 +265,6 @@
     <string name="lyrics_provider_priority">עדיפות לספק מילות השיר</string>
     <string name="lyrics_provider_priority_desc">גרור כדי לסדר מחדש ספקים לפי העדפה. מיקום גבוה יותר -&gt; עדיפות גבוהה יותר.</string>
     <string name="restart">הפעלה מחדש</string>
+    <string name="back_to_top">חזרה למעלה</string>
+    <string name="kid_zone">ילדים</string>
 </resources>
