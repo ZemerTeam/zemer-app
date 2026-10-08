@@ -21,3 +21,10 @@ fun joinByBullet(vararg str: String?) =
         .filterNot {
             it.isNullOrEmpty()
         }.joinToString(separator = " • ")
+
+/**
+ * Wraps [text] in Unicode first-strong isolates (FSI ... PDI) so its direction never reorders the
+ * text around it: a Hebrew artist name followed by "1 time" would otherwise flip the whole line
+ * into an RTL run and scramble the English parts.
+ */
+fun bidiIsolate(text: String): String = if (text.isEmpty()) text else "\u2068$text\u2069"

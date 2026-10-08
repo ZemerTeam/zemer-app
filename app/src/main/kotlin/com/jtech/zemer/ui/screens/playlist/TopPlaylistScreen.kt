@@ -46,7 +46,6 @@ import com.jtech.zemer.LocalDownloadUtil
 import com.jtech.zemer.LocalPlayerAwareWindowInsets
 import com.jtech.zemer.LocalPlayerConnection
 import com.jtech.zemer.R
-import com.jtech.zemer.constants.MyTopFilter
 import com.jtech.zemer.db.entities.Song
 import com.jtech.zemer.extensions.toMediaItem
 import com.jtech.zemer.playback.queues.ListQueue
@@ -238,15 +237,7 @@ fun TopPlaylistScreen(
                                     viewModel.topPeriod.value = it
                                 },
                                 onSortDescendingChange = {},
-                                sortTypeText = { sortType ->
-                                    when (sortType) {
-                                        MyTopFilter.ALL_TIME -> R.string.all_time
-                                        MyTopFilter.DAY -> R.string.past_24_hours
-                                        MyTopFilter.WEEK -> R.string.past_week
-                                        MyTopFilter.MONTH -> R.string.past_month
-                                        MyTopFilter.YEAR -> R.string.past_year
-                                    }
-                                },
+                                sortTypeText = { it.labelRes },
                                 modifier = Modifier.weight(1f),
                                 showDescending = false,
                             )

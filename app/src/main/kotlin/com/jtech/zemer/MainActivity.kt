@@ -68,8 +68,6 @@ import androidx.compose.material3.ModalDrawerSheet
 import androidx.compose.material3.ModalNavigationDrawer
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
-import androidx.compose.material3.NavigationDrawerItem
-import androidx.compose.material3.NavigationDrawerItemDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SearchBarDefaults
 import androidx.compose.material3.Snackbar
@@ -225,7 +223,7 @@ import com.jtech.zemer.playback.MusicService
 import com.jtech.zemer.playback.MusicService.MusicBinder
 import com.jtech.zemer.playback.PlayerConnection
 import com.jtech.zemer.playback.queues.YouTubeQueue
-import com.jtech.zemer.ui.component.bringIntoViewOnFocus
+import com.jtech.zemer.ui.component.DrawerEntry
 import com.jtech.zemer.ui.component.AccountSettingsDialog
 import com.jtech.zemer.ui.component.BottomSheetMenu
 import com.jtech.zemer.ui.component.BottomSheetPage
@@ -1434,7 +1432,7 @@ class MainActivity : ComponentActivity() {
                                         hasVisitorToken -> MaterialTheme.colorScheme.tertiary
                                         else -> MaterialTheme.colorScheme.outline
                                     }
-                                    NavigationDrawerItem(
+                                    DrawerEntry(
                                         label = {
                                             Column(verticalArrangement = Arrangement.Center) {
                                                 Text(stringResource(R.string.account))
@@ -1479,20 +1477,17 @@ class MainActivity : ComponentActivity() {
                                             }
                                         },
                                         selected = false,
+                                        canFocus = drawerState.isOpen,
                                         onClick = {
                                             coroutineScope.launch { drawerState.close() }
                                             showAccountDialog = true
                                         },
-                                        modifier = Modifier
-                                            .padding(NavigationDrawerItemDefaults.ItemPadding)
-                                            .focusProperties { canFocus = drawerState.isOpen }
-                                            .bringIntoViewOnFocus()
                                     )
                                     } // end if (not RELAY): Account entry hidden in login-less relay mode
                                     navigationItems.fastForEachIndexed { index, screen ->
                                         val isSelected =
                                             navBackStackEntry?.destination?.hierarchy?.any { it.route == screen.route } == true
-                                        NavigationDrawerItem(
+                                        DrawerEntry(
                                             label = {
                                                 Text(
                                                     text = stringResource(screen.titleId),
@@ -1509,6 +1504,7 @@ class MainActivity : ComponentActivity() {
                                                 )
                                             },
                                             selected = isSelected,
+                                            canFocus = drawerState.isOpen,
                                             onClick = {
                                                 coroutineScope.launch { drawerState.close() }
                                                 if (screen.route == Screens.Search.route) {
@@ -1529,24 +1525,14 @@ class MainActivity : ComponentActivity() {
                                                     }
                                                 }
                                             },
-                                            modifier = Modifier
-                                                .padding(NavigationDrawerItemDefaults.ItemPadding)
-                                                .focusProperties { canFocus = drawerState.isOpen }
-                                                .bringIntoViewOnFocus()
-                                                .then(
-                                                    if (index == 0) Modifier.focusRequester(drawerFocusRequester) else Modifier
-                                                )
+                                            modifier = if (index == 0) Modifier.focusRequester(drawerFocusRequester) else Modifier
                                     )
                                 }
-                                NavigationDrawerItem(
-                                    label = { Text(stringResource(R.string.radio_mode)) },
-                                    icon = {
-                                        Icon(
-                                            painter = painterResource(R.drawable.radio),
-                                            contentDescription = null
-                                        )
-                                    },
+                                DrawerEntry(
+                                    label = R.string.radio_mode,
+                                    icon = R.drawable.radio,
                                     selected = false,
+                                    canFocus = drawerState.isOpen,
                                     onClick = {
                                         coroutineScope.launch { drawerState.close() }
                                         navController.navigate(Screens.Home.route) {
@@ -1557,33 +1543,31 @@ class MainActivity : ComponentActivity() {
                                         navController.getBackStackEntry(Screens.Home.route)
                                             .savedStateHandle["shuffleNow"] = true
                                     },
-                                    modifier = Modifier
-                                        .padding(NavigationDrawerItemDefaults.ItemPadding)
-                                        .focusProperties { canFocus = drawerState.isOpen }
-                                        .bringIntoViewOnFocus()
                                 )
-                                NavigationDrawerItem(
-                                    label = { Text(stringResource(R.string.settings)) },
-                                    icon = {
-                                        Icon(
-                                            painter = painterResource(R.drawable.settings),
-                                            contentDescription = null
-                                            )
-                                        },
-                                        selected = navBackStackEntry?.destination?.route == "settings",
-                                        onClick = {
-                                            coroutineScope.launch { drawerState.close() }
-                                            navController.navigate("settings") {
-                                                popUpTo(navController.graph.startDestinationId) { saveState = true }
-                                                launchSingleTop = true
-                                                restoreState = true
-                                            }
-                                        },
-                                        modifier = Modifier
-                                            .padding(NavigationDrawerItemDefaults.ItemPadding)
-                                            .focusProperties { canFocus = drawerState.isOpen }
-                                            .bringIntoViewOnFocus()
-                                    )
+                                DrawerEntry(
+                                    label = R.string.stats,
+                                    icon = R.drawable.stats,
+                                    selected = navBackStackEntry?.destination?.route == "stats",
+                                    canFocus = drawerState.isOpen,
+                                    onClick = {
+                                        coroutineScope.launch { drawerState.close() }
+                                        navController.navigate("stats") { launchSingleTop = true }
+                                    },
+                                )
+                                DrawerEntry(
+                                    label = R.string.settings,
+                                    icon = R.drawable.settings,
+                                    selected = navBackStackEntry?.destination?.route == "settings",
+                                    canFocus = drawerState.isOpen,
+                                    onClick = {
+                                        coroutineScope.launch { drawerState.close() }
+                                        navController.navigate("settings") {
+                                            popUpTo(navController.graph.startDestinationId) { saveState = true }
+                                            launchSingleTop = true
+                                            restoreState = true
+                                        }
+                                    },
+                                )
                                     } // end drawer scroll column
                                 }
                             }
@@ -1706,6 +1690,11 @@ class MainActivity : ComponentActivity() {
                                                             icon = R.drawable.history,
                                                             contentDescription = stringResource(R.string.history),
                                                             onClick = { navController.navigate("history") },
+                                                        )
+                                                        TopAppBarActionButton(
+                                                            icon = R.drawable.stats,
+                                                            contentDescription = stringResource(R.string.stats),
+                                                            onClick = { navController.navigate("stats") },
                                                         )
                                                     }
                                                     TopAppBarActionButton(

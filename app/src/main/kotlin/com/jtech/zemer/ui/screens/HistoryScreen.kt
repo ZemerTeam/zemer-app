@@ -4,6 +4,7 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.asPaddingValues
@@ -51,6 +52,8 @@ import com.jtech.zemer.models.toMediaMetadata
 import com.jtech.zemer.playback.queues.ListQueue
 import com.jtech.zemer.playback.queues.ZemerRadioQueue
 import com.jtech.zemer.ui.component.ChipsRow
+import com.jtech.zemer.ui.component.ChipsRowBottomPadding
+import com.jtech.zemer.ui.component.ChipsRowTopPadding
 import com.jtech.zemer.ui.component.HideOnScrollFAB
 import com.jtech.zemer.ui.component.IconButton
 import com.jtech.zemer.ui.component.LocalMenuState
@@ -199,7 +202,8 @@ fun HistoryScreen(
                         if (it == HistorySource.REMOTE){
                             viewModel.fetchRemoteHistory()
                         }
-                    }
+                    },
+                    modifier = Modifier.padding(top = ChipsRowTopPadding, bottom = ChipsRowBottomPadding),
                 )
             }
 

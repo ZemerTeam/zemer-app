@@ -15,8 +15,8 @@
 | BuildConfig fields visible in Gradle | `ARCHITECTURE`, `COMMIT_HASH`, `RUN_NUMBER`, `GOOGLE_TOKEN_EXCHANGE_URL`, `CONTENT_MIRROR_URL`, `ZEMER_LYRICS_BASE_URL` |
 | Room schema directory | `app/schemas` |
 | Native build | None (no `app/src/main/cpp`, no `externalNativeBuild`) |
-| Tracked app paths | `1082` |
-| Tracked app Kotlin files | `799` (`608` in `src/main`, `190` in `src/test`, `1` in `src/androidTest`) |
+| Tracked app paths | `1091` |
+| Tracked app Kotlin files | `808` (`614` in `src/main`, `192` in `src/test`, `2` in `src/androidTest`) |
 | Tracked app resource paths | `214` |
 | Tracked app asset paths | `0` in `src/main` (`3` test fixtures under `src/androidTest/assets`) |
 | Tracked app Room schema files | `36` |
@@ -57,7 +57,7 @@
 | `com.jtech.zemer.auth` | 3 |
 | `com.jtech.zemer.constants` | 6 |
 | `com.jtech.zemer.db` | 4 |
-| `com.jtech.zemer.db.entities` | 32 |
+| `com.jtech.zemer.db.entities` | 33 |
 | `com.jtech.zemer.di` | 7 |
 | `com.jtech.zemer.extensions` | 10 |
 | `com.jtech.zemer.latestreleases` | 8 |
@@ -76,16 +76,17 @@
 | `com.jtech.zemer.recognition.shazam` | 2 |
 | `com.jtech.zemer.repositories` | 1 |
 | `com.jtech.zemer.search` | 10 |
+| `com.jtech.zemer.stats` | 1 |
 | `com.jtech.zemer.statuses` | 14 |
 | `com.jtech.zemer.sync` | 4 |
 | `com.jtech.zemer.sync.models` | 1 |
 | `com.jtech.zemer.tracking` | 10 |
-| `com.jtech.zemer.ui.component` | 82 |
+| `com.jtech.zemer.ui.component` | 84 |
 | `com.jtech.zemer.ui.component.lyrics` | 1 |
 | `com.jtech.zemer.ui.component.shimmer` | 6 |
 | `com.jtech.zemer.ui.menu` | 23 |
 | `com.jtech.zemer.ui.player` | 18 |
-| `com.jtech.zemer.ui.screens` | 29 |
+| `com.jtech.zemer.ui.screens` | 30 |
 | `com.jtech.zemer.ui.screens.artist` | 2 |
 | `com.jtech.zemer.ui.screens.library` | 8 |
 | `com.jtech.zemer.ui.screens.onboarding` | 8 |
@@ -102,7 +103,7 @@
 | `com.jtech.zemer.utils.mp4` | 2 |
 | `com.jtech.zemer.utils.ogg` | 1 |
 | `com.jtech.zemer.utils.updater` | 7 |
-| `com.jtech.zemer.viewmodels` | 51 |
+| `com.jtech.zemer.viewmodels` | 52 |
 | `com.jtech.zemer.widget` | 2 |
 
 <!-- /generated:app-packages -->
@@ -119,7 +120,7 @@
 | `com/jtech/zemer/auth` | 3 |
 | `com/jtech/zemer/constants` | 6 |
 | `com/jtech/zemer/db` | 4 |
-| `com/jtech/zemer/db/entities` | 32 |
+| `com/jtech/zemer/db/entities` | 33 |
 | `com/jtech/zemer/di` | 7 |
 | `com/jtech/zemer/extensions` | 10 |
 | `com/jtech/zemer/latestreleases` | 8 |
@@ -138,16 +139,17 @@
 | `com/jtech/zemer/recognition/shazam` | 2 |
 | `com/jtech/zemer/repositories` | 1 |
 | `com/jtech/zemer/search` | 10 |
+| `com/jtech/zemer/stats` | 1 |
 | `com/jtech/zemer/statuses` | 14 |
 | `com/jtech/zemer/sync` | 4 |
 | `com/jtech/zemer/sync/models` | 1 |
 | `com/jtech/zemer/tracking` | 10 |
-| `com/jtech/zemer/ui/component` | 82 |
+| `com/jtech/zemer/ui/component` | 84 |
 | `com/jtech/zemer/ui/component/lyrics` | 1 |
 | `com/jtech/zemer/ui/component/shimmer` | 6 |
 | `com/jtech/zemer/ui/menu` | 23 |
 | `com/jtech/zemer/ui/player` | 18 |
-| `com/jtech/zemer/ui/screens` | 29 |
+| `com/jtech/zemer/ui/screens` | 30 |
 | `com/jtech/zemer/ui/screens/artist` | 2 |
 | `com/jtech/zemer/ui/screens/library` | 8 |
 | `com/jtech/zemer/ui/screens/onboarding` | 8 |
@@ -164,7 +166,7 @@
 | `com/jtech/zemer/utils/mp4` | 2 |
 | `com/jtech/zemer/utils/ogg` | 1 |
 | `com/jtech/zemer/utils/updater` | 7 |
-| `com/jtech/zemer/viewmodels` | 51 |
+| `com/jtech/zemer/viewmodels` | 52 |
 | `com/jtech/zemer/widget` | 2 |
 
 <!-- /generated:app-directories -->

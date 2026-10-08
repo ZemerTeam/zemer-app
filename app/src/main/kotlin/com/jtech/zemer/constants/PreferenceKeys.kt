@@ -402,6 +402,17 @@ enum class MyTopFilter {
 
             ALL_TIME -> 0
         }
+
+    /** The period's display label, shared by the My top playlist and the Stats screen. */
+    @get:StringRes
+    val labelRes: Int
+        get() = when (this) {
+            ALL_TIME -> R.string.all_time
+            DAY -> R.string.past_24_hours
+            WEEK -> R.string.past_week
+            MONTH -> R.string.past_month
+            YEAR -> R.string.past_year
+        }
 }
 
 enum class QuickPicks {

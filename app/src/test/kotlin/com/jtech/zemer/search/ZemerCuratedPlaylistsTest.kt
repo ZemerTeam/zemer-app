@@ -1,7 +1,7 @@
 package com.jtech.zemer.search
 
-import com.jtech.zemer.ui.component.ZemerRuntimeLabel
-import com.jtech.zemer.ui.component.zemerCuratedPlaylistRuntime
+import com.jtech.zemer.ui.component.RuntimeLabel
+import com.jtech.zemer.ui.component.runtimeOf
 import com.jtech.zemer.utils.ContentFilterConfig
 import com.jtech.zemer.viewmodels.zemerOptionsStillCurrent
 import org.junit.Assert.assertEquals
@@ -176,12 +176,12 @@ class ZemerCuratedPlaylistsTest {
 
     @Test
     fun `runtime label - null hides, short reads in minutes, two hours and up reads in rounded hours`() {
-        assertNull(zemerCuratedPlaylistRuntime(null))
+        assertNull(runtimeOf(null))
         // Sub-minute rounds up to 1 minute, never "0 minutes".
-        assertEquals(ZemerRuntimeLabel(1, isHours = false), zemerCuratedPlaylistRuntime(30))
-        assertEquals(ZemerRuntimeLabel(119, isHours = false), zemerCuratedPlaylistRuntime(119 * 60))
-        assertEquals(ZemerRuntimeLabel(2, isHours = true), zemerCuratedPlaylistRuntime(120 * 60))
+        assertEquals(RuntimeLabel(1, isHours = false), runtimeOf(30))
+        assertEquals(RuntimeLabel(119, isHours = false), runtimeOf(119 * 60))
+        assertEquals(RuntimeLabel(2, isHours = true), runtimeOf(120 * 60))
         // The truncation case: 145601s must read "40 hours", not "2426 minutes".
-        assertEquals(ZemerRuntimeLabel(40, isHours = true), zemerCuratedPlaylistRuntime(145601))
+        assertEquals(RuntimeLabel(40, isHours = true), runtimeOf(145601))
     }
 }

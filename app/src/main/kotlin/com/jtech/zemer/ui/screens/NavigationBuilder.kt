@@ -130,6 +130,9 @@ fun NavGraphBuilder.navigationBuilder(
     composable("latest_releases") {
         LatestReleasesScreen(navController, scrollBehavior)
     }
+    composable("stats") {
+        StatsScreen(navController, scrollBehavior)
+    }
     composable("statuses") {
         StatusesScreen(navController, scrollBehavior)
     }

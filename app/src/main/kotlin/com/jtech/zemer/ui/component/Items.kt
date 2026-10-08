@@ -352,6 +352,10 @@ fun SongListItem(
     isPlaying: Boolean = false,
     isSwipeable: Boolean = true,
     trailingContent: @Composable RowScope.() -> Unit = {},
+    subtitle: String = joinByBullet(
+        song.artists.joinToString { it.name },
+        makeTimeString(song.song.duration * 1000L)
+    ),
 ) {
     val swipeEnabled by rememberPreference(SwipeToSongKey, defaultValue = false)
 
@@ -361,10 +365,7 @@ fun SongListItem(
             // Episodes carry long titles; decided by type HERE so every caller (library tabs,
             // auto-playlists, history) gets the glide without a per-call-site flag to forget.
             titleMarquee = song.song.isEpisode,
-            subtitle = joinByBullet(
-                song.artists.joinToString { it.name },
-                makeTimeString(song.song.duration * 1000L)
-            ),
+            subtitle = subtitle,
             badges = badges,
             thumbnailContent = {
                 ItemThumbnail(
@@ -481,9 +482,10 @@ fun ArtistListItem(
         }
     },
     trailingContent: @Composable RowScope.() -> Unit = {},
+    subtitle: String = pluralStringResource(R.plurals.n_song, artist.songCount, artist.songCount),
 ) = ListItem(
     title = artist.artist.name,
-    subtitle = pluralStringResource(R.plurals.n_song, artist.songCount, artist.songCount),
+    subtitle = subtitle,
     badges = badges,
     thumbnailContent = {
         AsyncImage(
@@ -494,6 +496,9 @@ fun ArtistListItem(
                 .networkCachePolicy(coil3.request.CachePolicy.ENABLED)
                 .build(),
             contentDescription = null,
+            // Artist art is often a wide channel banner; crop it to fill the circle instead of
+            // letterboxing it into a squashed oval.
+            contentScale = ContentScale.Crop,
             modifier = Modifier
                 .size(ListThumbnailSize)
                 .clip(CircleShape),
@@ -573,13 +578,14 @@ fun AlbumListItem(
     isActive: Boolean = false,
     isPlaying: Boolean = false,
     trailingContent: @Composable RowScope.() -> Unit = {},
-) = ListItem(
-    title = album.album.title,
-    subtitle = joinByBullet(
+    subtitle: String = joinByBullet(
         album.artists.joinToString { it.name },
         pluralStringResource(R.plurals.n_song, album.album.songCount, album.album.songCount),
         album.album.year?.toString()
     ),
+) = ListItem(
+    title = album.album.title,
+    subtitle = subtitle,
     badges = badges,
     thumbnailContent = {
         ItemThumbnail(

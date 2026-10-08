@@ -181,7 +181,7 @@ data class ChartRankMetrics(val rankWidth: Dp, val markerSlot: Dp, val total: Dp
  * The marker is also sized against the translated `NEW`/`RE` labels, whichever is widest.
  */
 @Composable
-fun rememberChartRankMetrics(maxRank: Int, maxDelta: Int): ChartRankMetrics {
+fun rememberChartRankMetrics(maxRank: Int, maxDelta: Int, withMarkers: Boolean = true): ChartRankMetrics {
     val measurer = rememberTextMeasurer()
     val density = LocalDensity.current
     val rankStyle = MaterialTheme.typography.titleMedium.copy(fontFeatureSettings = "tnum")
@@ -189,13 +189,15 @@ fun rememberChartRankMetrics(maxRank: Int, maxDelta: Int): ChartRankMetrics {
     val newLabel = stringResource(R.string.chart_new)
     val reLabel = stringResource(R.string.chart_reentry)
 
-    return remember(measurer, density, rankStyle, markerStyle, newLabel, reLabel, maxRank, maxDelta) {
+    return remember(measurer, density, rankStyle, markerStyle, newLabel, reLabel, maxRank, maxDelta, withMarkers) {
         // Tabular figures make every digit the same width, so one wide digit stands in for any.
         fun widest(value: Int) = "8".repeat(value.coerceAtLeast(1).toString().length)
         fun widthOf(text: String, style: TextStyle) =
             with(density) { measurer.measure(text, style).size.width.toDp() }
 
         val rankWidth = widthOf(widest(maxRank), rankStyle) + SLOT_MARGIN
+        // A plain ranking (the Stats screen) never draws a marker, so it reserves no marker slot.
+        if (!withMarkers) return@remember ChartRankMetrics(rankWidth, markerSlot = 0.dp, total = rankWidth)
         val markerWidth = maxOf(
             widthOf(newLabel, markerStyle),
             widthOf(reLabel, markerStyle),
