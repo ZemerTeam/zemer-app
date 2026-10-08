@@ -407,7 +407,7 @@ Every tracked Kotlin file is listed with hard metadata extracted from the file t
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/GenreScreen.kt` | 486 | `com.jtech.zemer.ui.screens` | yes | 91 | 22 | androidx.compose, androidx.hilt, androidx.navigation, kotlinx.coroutines |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/GenreSectionScreen.kt` | 76 | `com.jtech.zemer.ui.screens` | yes | 20 | 3 | androidx.compose, androidx.hilt, androidx.navigation |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/GenresScreen.kt` | 102 | `com.jtech.zemer.ui.screens` | yes | 26 | 4 | androidx.compose, androidx.hilt, androidx.navigation |
-| `app/src/main/kotlin/com/jtech/zemer/ui/screens/HistoryScreen.kt` | 407 | `com.jtech.zemer.ui.screens` | yes | 69 | 25 | androidx.activity, androidx.compose, androidx.hilt, androidx.navigation, java.time |
+| `app/src/main/kotlin/com/jtech/zemer/ui/screens/HistoryScreen.kt` | 411 | `com.jtech.zemer.ui.screens` | yes | 72 | 25 | androidx.activity, androidx.compose, androidx.hilt, androidx.navigation, java.time |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/HomeContentTab.kt` | 23 | `com.jtech.zemer.ui.screens` | no | 0 | 3 |  |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/HomeContinueListeningRow.kt` | 106 | `com.jtech.zemer.ui.screens` | yes | 33 | 4 | androidx.compose, coil3.compose |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/HomeGenresRow.kt` | 118 | `com.jtech.zemer.ui.screens` | yes | 31 | 8 | androidx.compose, androidx.navigation |

@@ -248,7 +248,7 @@ Every `@Composable fun` per UI file (extension receivers dropped, so `BoxScope.X
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/GenreScreen.kt` | 486 | GenreScreen, GenreTrackRow, GenreHeaderShimmer |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/GenreSectionScreen.kt` | 76 | GenreSectionScreen |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/GenresScreen.kt` | 102 | GenresScreen |
-| `app/src/main/kotlin/com/jtech/zemer/ui/screens/HistoryScreen.kt` | 407 | HistoryScreen |
+| `app/src/main/kotlin/com/jtech/zemer/ui/screens/HistoryScreen.kt` | 411 | HistoryScreen |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/HomeContinueListeningRow.kt` | 106 | HomeContinueListeningRow, ContinueListeningCard |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/HomeGenresRow.kt` | 118 | HomeGenreChipsStrip, HomeGenresRow, HomePodcastGenresRow |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/HomeScreen.kt` | 1521 | HomeScreen, rememberRowImpressionIds |
@@ -479,7 +479,7 @@ Key declarations are the first 12 `class`/`object`/`interface`/`fun`/`val`/`var`
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/GenreScreen.kt` | 486 | val TRACKLIST_PREFETCH_ROWS, fun shouldPrefetchNearEnd, fun GenreScreen, val menuState, val playerConnection, val isPlaying, val mediaMetadata, val state, val lazyListState, val showTopBarTitle, val loaded, val showSongMenu, … (+10 more) |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/GenreSectionScreen.kt` | 76 | fun GenreSectionScreen, val state, val uiState |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/GenresScreen.kt` | 102 | fun GenresScreen, val state, val uiState, val genres |
-| `app/src/main/kotlin/com/jtech/zemer/ui/screens/HistoryScreen.kt` | 407 | fun HistoryScreen, val context, val menuState, val haptic, val playerConnection, val isPlaying, val mediaMetadata, var selection, var isSearching, var query, val focusRequester, val historySource, … (+13 more) |
+| `app/src/main/kotlin/com/jtech/zemer/ui/screens/HistoryScreen.kt` | 411 | fun HistoryScreen, val context, val menuState, val haptic, val playerConnection, val isPlaying, val mediaMetadata, var selection, var isSearching, var query, val focusRequester, val historySource, … (+13 more) |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/HomeContentTab.kt` | 23 | class HomeContentTab, fun visibleHomeTabs, fun effectiveHomeTab |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/HomeContinueListeningRow.kt` | 106 | fun HomeContinueListeningRow, fun ContinueListeningCard, val durationMs, val timeLeft |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/HomeGenresRow.kt` | 118 | fun HomeGenreChipsStrip, val listState, val decay, val flingBehavior, fun HomeGenresRow, val chips, fun HomePodcastGenresRow, val chips |

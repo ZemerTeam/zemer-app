@@ -547,7 +547,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/GenreScreen.kt` | 486 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/GenreSectionScreen.kt` | 76 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/GenresScreen.kt` | 102 lines | `.kt` |
-| `app/src/main/kotlin/com/jtech/zemer/ui/screens/HistoryScreen.kt` | 407 lines | `.kt` |
+| `app/src/main/kotlin/com/jtech/zemer/ui/screens/HistoryScreen.kt` | 411 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/HomeContentTab.kt` | 23 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/HomeContinueListeningRow.kt` | 106 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/HomeGenresRow.kt` | 118 lines | `.kt` |
