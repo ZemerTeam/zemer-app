@@ -25,7 +25,7 @@
 | Annotation | Count |
 | --- | ---: |
 | `@Query` | 158 |
-| `@Transaction` | 111 |
+| `@Transaction` | 110 |
 | `@Insert` | 16 |
 | `@Delete` | 11 |
 | `@Upsert` | 7 |
@@ -444,7 +444,7 @@ Every `fun` in `db/DatabaseDao.kt` in source order (overloads repeat the name). 
 | `artistSongsPreview` | `artistId: String, previewSize: Int = 3` | `Flow<List<Song>>` |
 | `quickPicks` | `now: Long = System.currentTimeMillis()` | `Flow<List<Song>>` |
 | `songPlayStats` | `fromTimeStamp: Long` | `Flow<List<SongPlayStats>>` |
-| `artistPlayStats` | `fromTimeStamp: Long` | `Flow<List<Artist>>` |
+| `artistPlayStats` | `fromTimeStamp: Long` | `Flow<List<ArtistPlayStats>>` |
 | `mostPlayedSongs` | `fromTimeStamp: Long, limit: Int = 6, offset: Int = 0, toTimeStamp: Long? = LocalDateTime.now().toInstant(ZoneOffset.UTC).toEpochMilli()` | `Flow<List<Song>>` |
 | `mostPlayedArtists` | `fromTimeStamp: Long, limit: Int = 6, offset: Int = 0, toTimeStamp: Long? = LocalDateTime.now().toInstant(ZoneOffset.UTC).toEpochMilli()` | `Flow<List<Artist>>` |
 | `mostPlayedAlbums` | `fromTimeStamp: Long, limit: Int = 6, offset: Int = 0, toTimeStamp: Long? = LocalDateTime.now().toInstant(ZoneOffset.UTC).toEpochMilli()` | `Flow<List<Album>>` |

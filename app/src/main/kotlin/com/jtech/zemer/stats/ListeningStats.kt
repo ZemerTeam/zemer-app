@@ -1,6 +1,6 @@
 package com.jtech.zemer.stats
 
-import com.jtech.zemer.db.entities.Artist
+import com.jtech.zemer.db.entities.ArtistPlayStats
 import com.jtech.zemer.db.entities.SongPlayStats
 
 /** The window's headline numbers. */
@@ -10,10 +10,10 @@ data class StatsSummary(val timeListenedMs: Long, val plays: Int, val songs: Int
 data class ListeningStats(
     val summary: StatsSummary,
     val songs: List<SongPlayStats>,
-    val artists: List<Artist>,
+    val artists: List<ArtistPlayStats>,
 )
 
-fun buildListeningStats(songs: List<SongPlayStats>, artists: List<Artist>) = ListeningStats(
+fun buildListeningStats(songs: List<SongPlayStats>, artists: List<ArtistPlayStats>) = ListeningStats(
     summary = StatsSummary(
         timeListenedMs = songs.sumOf { it.timeListened },
         plays = songs.sumOf { it.plays },

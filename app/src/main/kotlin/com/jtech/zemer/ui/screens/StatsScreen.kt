@@ -22,6 +22,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -98,6 +99,9 @@ fun StatsScreen(
     var category by rememberSaveable { mutableStateOf(StatsCategory.SONGS) }
     val lazyListState = rememberLazyListState()
     val title = stringResource(R.string.stats)
+    val rankMetrics = rememberRankMetrics(
+        if (category == StatsCategory.SONGS) stats?.songs?.size ?: 0 else stats?.artists?.size ?: 0,
+    )
 
     Box(modifier = Modifier.fillMaxSize()) {
         LazyColumn(
@@ -145,6 +149,7 @@ fun StatsScreen(
                         title = title,
                         currentMediaId = mediaMetadata?.id,
                         isPlaying = isPlaying,
+                        metrics = rankMetrics,
                     )
                 }
             }
@@ -173,7 +178,7 @@ fun StatsScreen(
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun StatsSummaryTiles(summary: StatsSummary) {
-    val numbers = NumberFormat.getIntegerInstance()
+    val numbers = remember { NumberFormat.getIntegerInstance() }
     FlowRow(
         modifier = Modifier
             .fillMaxWidth()
@@ -202,21 +207,23 @@ private fun LazyListScope.rankedItems(
     title: String,
     currentMediaId: String?,
     isPlaying: Boolean,
+    metrics: ChartRankMetrics,
 ) {
     when (category) {
         StatsCategory.SONGS -> itemsIndexed(stats.songs, key = { _, it -> "song_${it.song.id}" }) { index, stat ->
-            SongStatRow(stats.songs, index, stat, navController, title, currentMediaId, isPlaying, Modifier.animateItem())
+            SongStatRow(stats.songs, index, stat, navController, title, currentMediaId, isPlaying, metrics, Modifier.animateItem())
         }
 
-        StatsCategory.ARTISTS -> itemsIndexed(stats.artists, key = { _, it -> "artist_${it.id}" }) { index, artist ->
+        StatsCategory.ARTISTS -> itemsIndexed(stats.artists, key = { _, it -> "artist_${it.artist.id}" }) { index, stat ->
+            val artist = remember(stat) { stat.asArtist() }
             val menuState = LocalMenuState.current
             val haptic = LocalHapticFeedback.current
             val coroutineScope = rememberCoroutineScope()
             val showMenu = { menuState.show { ArtistMenu(artist, coroutineScope, menuState::dismiss) } }
-            RankedRow(index + 1, stats.artists.size, Modifier.animateItem()) {
+            RankedRow(index + 1, metrics, Modifier.animateItem()) {
                 ArtistListItem(
                     artist = artist,
-                    subtitle = playsAndTime(artist.songCount, artist.timeListened?.toLong()),
+                    subtitle = playsAndTime(stat.plays, stat.timeListened),
                     trailingContent = { MoreVertMenuButton(onClick = showMenu) },
                     modifier = Modifier
                         .weight(1f)
@@ -243,6 +250,7 @@ private fun SongStatRow(
     title: String,
     currentMediaId: String?,
     isPlaying: Boolean,
+    metrics: ChartRankMetrics,
     modifier: Modifier,
 ) {
     val playerConnection = LocalPlayerConnection.current ?: return
@@ -250,7 +258,7 @@ private fun SongStatRow(
     val haptic = LocalHapticFeedback.current
     val isActive = stat.song.id == currentMediaId
     val showMenu = { menuState.show { SongMenu(originalSong = stat.song, navController = navController, onDismiss = menuState::dismiss) } }
-    RankedRow(index + 1, songs.size, modifier) {
+    RankedRow(index + 1, metrics, modifier) {
         SongListItem(
             song = stat.song,
             subtitle = joinByBullet(bidiIsolate(stat.song.artists.joinToString { it.name }), playsAndTime(stat.plays, stat.timeListened)),
@@ -280,13 +288,17 @@ private fun SongStatRow(
 
 /** A list row behind the chart rank column, so every row's artwork lines up down the list. */
 @Composable
-private fun RankedRow(rank: Int, count: Int, modifier: Modifier, content: @Composable RowScope.() -> Unit) {
-    val metrics: ChartRankMetrics = rememberChartRankMetrics(maxRank = count, maxDelta = 0, withMarkers = false)
+private fun RankedRow(rank: Int, metrics: ChartRankMetrics, modifier: Modifier, content: @Composable RowScope.() -> Unit) {
     Row(verticalAlignment = Alignment.CenterVertically, modifier = modifier) {
         ChartRankCell(rank = rank, movement = null, metrics = metrics)
         content()
     }
 }
+
+/** One rank column width per list length, shared by every row of that list. */
+@Composable
+private fun rememberRankMetrics(count: Int): ChartRankMetrics =
+    rememberChartRankMetrics(maxRank = count, maxDelta = 0, withMarkers = false)
 
 @Composable
 private fun playsAndTime(plays: Int, timeListenedMs: Long?): String =

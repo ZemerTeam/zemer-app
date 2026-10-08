@@ -263,7 +263,7 @@ Every `@Composable fun` per UI file (extension receivers dropped, so `BoxScope.X
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/PodcastGenreScreen.kt` | 132 | PodcastGenreScreen |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/PodcastGenresScreen.kt` | 95 | PodcastGenresScreen |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/SplashScreen.kt` | 166 | SplashScreen |
-| `app/src/main/kotlin/com/jtech/zemer/ui/screens/StatsScreen.kt` | 296 | StatsScreen, StatsSummaryTiles, StatTile, SongStatRow, RankedRow, playsAndTime, durationLabel |
+| `app/src/main/kotlin/com/jtech/zemer/ui/screens/StatsScreen.kt` | 308 | StatsScreen, StatsSummaryTiles, StatTile, SongStatRow, RankedRow, rememberRankMetrics, playsAndTime, durationLabel |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/VideoHeroCarousel.kt` | 224 | VideoHeroCarouselItem, LaunchedEffectImpression |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/WhitelistedArtistsScreen.kt` | 112 | WhitelistedArtistsScreen, ArtistBrowseScreenContent |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/WhitelistedPodcastsScreen.kt` | 341 | WhitelistedPodcastsScreen, PodcastSectionHeader, SubscribedPodcastCard, NewEpisodeCard, PodcastLibraryHeaderSections, SubscribedChannelsSection, NewEpisodesSection |
@@ -500,7 +500,7 @@ Key declarations are the first 12 `class`/`object`/`interface`/`fun`/`val`/`var`
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/PodcastGenresScreen.kt` | 95 | fun PodcastGenresScreen, val state, val uiState |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/Screens.kt` | 67 | class Screens, val titleId, val iconIdInactive, val iconIdActive, val route, object Home, object Artists, object Podcasts, object KidZone, object Search, object Library, val MainScreens, … (+1 more) |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/SplashScreen.kt` | 166 | fun SplashScreen, var hasTappedSkip, val composition, val lottieColors, val loopingState |
-| `app/src/main/kotlin/com/jtech/zemer/ui/screens/StatsScreen.kt` | 296 | class StatsCategory, val STATS_PERIODS, fun StatsScreen, val context, val playerConnection, val isPlaying, val mediaMetadata, val period, val stats, var category, val lazyListState, val title, … (+20 more) |
+| `app/src/main/kotlin/com/jtech/zemer/ui/screens/StatsScreen.kt` | 308 | class StatsCategory, val STATS_PERIODS, fun StatsScreen, val context, val playerConnection, val isPlaying, val mediaMetadata, val period, val stats, var category, val lazyListState, val title, … (+22 more) |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/VideoHeroCarousel.kt` | 224 | fun LazyListScope, val carouselKey, val carouselState, val onScreen, val screenWidthDp, val heroW, val heroH, val video, fun CarouselItemScope, val itemShape, val preparing, val showActive, … (+2 more) |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/WhitelistedArtistsScreen.kt` | 112 | fun WhitelistedArtistsScreen, fun ArtistBrowseScreenContent, val menuState, var viewType, val coroutineScope, val displayedArtists |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/WhitelistedPodcastsScreen.kt` | 341 | fun WhitelistedPodcastsScreen, val playerConnection, val menuState, var viewType, val podcasts, val searchQuery, val subscribedPodcasts, val newEpisodes, val isLoadingNewEpisodes, val hasHeaderSections, fun PodcastSectionHeader, fun SubscribedPodcastCard, … (+4 more) |

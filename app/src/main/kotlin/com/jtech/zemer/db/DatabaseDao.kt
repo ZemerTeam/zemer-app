@@ -27,6 +27,7 @@ import com.jtech.zemer.db.entities.AlbumEntity
 import com.jtech.zemer.db.entities.AlbumWithSongs
 import com.jtech.zemer.db.entities.Artist
 import com.jtech.zemer.db.entities.ArtistEntity
+import com.jtech.zemer.db.entities.ArtistPlayStats
 import com.jtech.zemer.db.entities.ArtistWhitelistEntity
 import com.jtech.zemer.db.entities.RecognitionHistoryEntity
 import com.jtech.zemer.db.entities.PodcastEntity
@@ -274,20 +275,19 @@ interface DatabaseDao {
               GROUP BY songId) AS s ON s.songId = song.id
         WHERE song.isEpisode = 0
           AND song.id IN (SELECT songId FROM song_artist_map WHERE artistId IN (SELECT artistId FROM artist_whitelist))
-        ORDER BY s.plays DESC, s.timeListened DESC
+        ORDER BY s.plays DESC, s.timeListened DESC, song.id
         """,
     )
     fun songPlayStats(fromTimeStamp: Long): Flow<List<SongPlayStats>>
 
     /**
-     * Every whitelisted artist with a song played since [fromTimeStamp] (episodes excluded), as an
-     * [Artist] whose songCount is the play count and timeListened the listening time, ranked by plays
-     * then time. A play counts for every artist credited on the song.
+     * Every whitelisted artist with a song played since [fromTimeStamp] (episodes excluded), with its
+     * play count and listening time, ranked by plays then time. A play counts for every artist credited
+     * on the song.
      */
-    @Transaction
     @Query(
         """
-        SELECT artist.*, a.plays AS songCount, a.timeListened AS timeListened
+        SELECT artist.*, a.plays AS plays, a.timeListened AS timeListened
         FROM artist
         JOIN (SELECT sam.artistId AS artistId, COUNT(*) AS plays, SUM(event.playTime) AS timeListened
               FROM event
@@ -296,10 +296,10 @@ interface DatabaseDao {
               WHERE event.timestamp > :fromTimeStamp AND song.isEpisode = 0
               GROUP BY sam.artistId) AS a ON a.artistId = artist.id
         WHERE artist.id IN (SELECT artistId FROM artist_whitelist)
-        ORDER BY a.plays DESC, a.timeListened DESC
+        ORDER BY a.plays DESC, a.timeListened DESC, artist.id
         """,
     )
-    fun artistPlayStats(fromTimeStamp: Long): Flow<List<Artist>>
+    fun artistPlayStats(fromTimeStamp: Long): Flow<List<ArtistPlayStats>>
 
     @Transaction
     @RewriteQueriesToDropUnusedColumns

@@ -1,7 +1,7 @@
 package com.jtech.zemer.stats
 
-import com.jtech.zemer.db.entities.Artist
 import com.jtech.zemer.db.entities.ArtistEntity
+import com.jtech.zemer.db.entities.ArtistPlayStats
 import com.jtech.zemer.db.entities.Song
 import com.jtech.zemer.db.entities.SongEntity
 import com.jtech.zemer.db.entities.SongPlayStats
@@ -12,7 +12,7 @@ class ListeningStatsTest {
     private fun song(id: String, plays: Int, ms: Long) =
         SongPlayStats(Song(song = SongEntity(id = id, title = id), artists = emptyList()), plays, ms)
 
-    private fun artist(id: String) = Artist(artist = ArtistEntity(id = id, name = id), songCount = 1)
+    private fun artist(id: String) = ArtistPlayStats(ArtistEntity(id = id, name = id), plays = 1, timeListened = 1_000)
 
     @Test
     fun `summary totals the ranked songs and counts the artists`() {

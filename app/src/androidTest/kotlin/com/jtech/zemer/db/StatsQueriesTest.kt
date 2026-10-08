@@ -75,8 +75,24 @@ class StatsQueriesTest {
 
         val artists = db.artistPlayStats(MyTopFilter.WEEK.toTimeMillis()).first()
 
-        assertEquals(listOf("UCa", "UCb"), artists.map { it.id })
-        assertEquals(listOf(4, 2), artists.map { it.songCount })
-        assertEquals(listOf(240_000, 660_000), artists.map { it.timeListened })
+        assertEquals(listOf("UCa", "UCb"), artists.map { it.artist.id })
+        assertEquals(listOf(4, 2), artists.map { it.plays })
+        assertEquals(listOf(240_000L, 660_000L), artists.map { it.timeListened })
+    }
+
+    @Test
+    fun listeningTimeBeyondIntRangeDoesNotOverflow() = runBlocking {
+        val hour = 3_600_000L
+        repeat(700) { play("often", hour, daysAgo = 2) } // 700 h > Int.MAX_VALUE ms
+
+        assertEquals(700 * hour, db.artistPlayStats(0).first().single().timeListened)
+        assertEquals(700 * hour, db.songPlayStats(0).first().single().timeListened)
+    }
+
+    @Test
+    fun tiedRowsHaveAStableOrder() = runBlocking {
+        listOf("long", "often").forEach { play(it, 60_000) }
+
+        assertEquals(listOf("long", "often"), db.songPlayStats(0).first().map { it.song.id })
     }
 }
