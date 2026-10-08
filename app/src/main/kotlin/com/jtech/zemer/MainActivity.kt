@@ -1691,6 +1691,11 @@ class MainActivity : ComponentActivity() {
                                                             contentDescription = stringResource(R.string.history),
                                                             onClick = { navController.navigate("history") },
                                                         )
+                                                        TopAppBarActionButton(
+                                                            icon = R.drawable.stats,
+                                                            contentDescription = stringResource(R.string.stats),
+                                                            onClick = { navController.navigate("stats") },
+                                                        )
                                                     }
                                                     TopAppBarActionButton(
                                                         icon = R.drawable.search,
