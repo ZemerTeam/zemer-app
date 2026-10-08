@@ -954,10 +954,10 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/main/res/raw/loading_dots_blue.lottie` | 1221 bytes | `.lottie` |
 | `app/src/main/res/raw/welcome.lottie` | 2138 bytes | `.lottie` |
 | `app/src/main/res/resources.properties` | 1 lines | `.properties` |
-| `app/src/main/res/values-fr/metrolist_strings.xml` | 160 lines | `.xml` |
-| `app/src/main/res/values-fr/strings.xml` | 225 lines | `.xml` |
+| `app/src/main/res/values-fr/metrolist_strings.xml` | 202 lines | `.xml` |
+| `app/src/main/res/values-fr/strings.xml` | 390 lines | `.xml` |
 | `app/src/main/res/values-iw/metrolist_strings.xml` | 134 lines | `.xml` |
-| `app/src/main/res/values-iw/strings.xml` | 268 lines | `.xml` |
+| `app/src/main/res/values-iw/strings.xml` | 270 lines | `.xml` |
 | `app/src/main/res/values-ji/metrolist_strings.xml` | 3 lines | `.xml` |
 | `app/src/main/res/values-ji/strings.xml` | 3 lines | `.xml` |
 | `app/src/main/res/values-night/colors.xml` | 6 lines | `.xml` |
