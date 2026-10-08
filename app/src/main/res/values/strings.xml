@@ -450,8 +450,4 @@
     <string name="update_error_storage">Not enough free storage to save the update.</string>
     <string name="update_error_corrupt">The downloaded file was incomplete or damaged. Try again.</string>
     <string name="update_error_unknown">The download failed. Try again.</string>
-    <string name="stats">Stats</string>
-    <string name="listening_time">Listening time</string>
-    <string name="plays">Plays</string>
-    <string name="stats_empty">Nothing played in this period yet</string>
 </resources>
