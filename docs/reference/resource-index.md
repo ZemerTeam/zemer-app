@@ -270,7 +270,7 @@ Tracked Android resource paths under `app/src/**/res`: `214`.
 
 | Path | Lines/bytes | XML root | Resource names / metadata |
 | --- | ---: | --- | --- |
-| `app/src/main/res/values-fr/metrolist_strings.xml` | 202 lines | `resources` | crop_album_art, not_applicable, local_history, remote_history, liked, offline, cached_playlist, uploaded_playlist, sync_playlist, sync_disabled, please_wait, share_lyrics, share_as_text, share_as_image, share_selected, customize_colors, more_options, text_color, secondary_text_color, background_color, … +155 more |
+| `app/src/main/res/values-fr/metrolist_strings.xml` | 244 lines | `resources` | crop_album_art, not_applicable, local_history, remote_history, liked, offline, cached_playlist, uploaded_playlist, sync_playlist, sync_disabled, please_wait, share_lyrics, share_as_text, share_as_image, share_selected, customize_colors, more_options, text_color, secondary_text_color, background_color, … +193 more |
 | `app/src/main/res/values-fr/strings.xml` | 390 lines | `resources` | this_week, last_week, search, search_yt_music, search_artists, filter_library, filter_liked, filter_downloaded, filter_all, filter_songs, filter_videos, filter_albums, filter_artists, filter_playlists, filter_community_playlists, filter_featured_playlists, no_results_found, download_complete, library_artist_empty, library_album_empty, … +331 more |
 
 ## `values-iw` (2 paths)
