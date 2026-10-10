@@ -31,6 +31,7 @@ import com.jtech.zemer.extensions.toast
 import com.google.firebase.crashlytics.FirebaseCrashlytics
 import com.jtech.zemer.utils.ContentFilterConfig
 import com.jtech.zemer.utils.CrashReportingTree
+import com.jtech.zemer.utils.HomeAppAlias
 import com.jtech.zemer.utils.BlockedIdsCache
 import com.jtech.zemer.statuses.StatusSourcesCache
 import com.jtech.zemer.statuses.parseStatusSourcesConfig
@@ -118,6 +119,11 @@ class App : Application(), SingletonImageLoader.Factory {
         applicationScope.launch(Dispatchers.IO) {
             delay(5000)
             runCatching { offlineSubsetSyncer.maybeSync() }
+        }
+
+        // A ROM shipping the launcher marker file gets Zemer as its home app (HomeAppAlias).
+        applicationScope.launch(Dispatchers.IO) {
+            runCatching { HomeAppAlias.applyManaged(this@App) }.onFailure { reportException(it) }
         }
 
         // Initialize cipher library for WEB_REMIX streaming

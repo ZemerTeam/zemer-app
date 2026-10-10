@@ -183,6 +183,20 @@
                 android:resource="@xml/shortcuts" />
         </activity>
 
+        <!-- Opt-in home-screen (launcher) role, toggled from Settings > Appearance (HomeAppAlias), forced on by a ROM launcher marker. Disabled by default. -->
+        <activity-alias
+            android:name=".HomeLauncher"
+            android:targetActivity=".MainActivity"
+            android:enabled="false"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+
+                <category android:name="android.intent.category.HOME" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </activity-alias>
+
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.FileProvider"
