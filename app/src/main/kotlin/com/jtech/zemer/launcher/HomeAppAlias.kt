@@ -1,11 +1,10 @@
-package com.jtech.zemer.utils
+package com.jtech.zemer.launcher
 
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.provider.Settings
-import com.jtech.zemer.MainActivity
 import timber.log.Timber
 import java.io.File
 
@@ -14,18 +13,27 @@ import java.io.File
  * enabled/disabled at runtime. The component state IS the setting, so there is no preference to drift.
  */
 object HomeAppAlias {
-    /** A ROM that ships either file makes Zemer its launcher: the alias is forced on and the toggle is locked. */
-    private val MANAGED_MARKERS = listOf(File("/system/etc/.zlauncher"), File("/data/system/.zlauncher"))
+    /** Must match the manifest's `.HomeLauncher` alias (resolved against the `com.jtech.zemer` namespace). */
+    private const val ALIAS_CLASS = "com.jtech.zemer.HomeLauncher"
+
+    /**
+     * Any of these files makes Zemer the launcher: the alias is forced on and the toggle is locked.
+     * Only existence is checked, never the contents.
+     */
+    val MANAGED_MARKERS = listOf(
+        File("/system/etc/.zlauncher"),
+        File("/data/system/.zlauncher"),
+        File("/data/local/tmp/.zlauncher"),
+    )
 
     fun isManaged(markers: List<File> = MANAGED_MARKERS): Boolean = markers.any { it.exists() }
 
-    /** Called at app start: re-enables the alias on a managed ROM (also undoes a manual `pm disable`). */
+    /** At app start and boot: re-enables the alias on a managed device (also undoes a manual `pm disable`). */
     fun applyManaged(context: Context) {
         if (isManaged() && !isEnabled(context)) setEnabled(context, true)
     }
 
-    private fun component(context: Context) =
-        ComponentName(context, MainActivity::class.java.name.substringBeforeLast('.') + ".HomeLauncher")
+    private fun component(context: Context) = ComponentName(context, ALIAS_CLASS)
 
     fun isEnabled(context: Context): Boolean =
         context.packageManager.getComponentEnabledSetting(component(context)) ==
@@ -38,6 +46,12 @@ object HomeAppAlias {
             PackageManager.DONT_KILL_APP,
         )
     }
+
+    /** True when the system's current default home resolves to Zemer. */
+    fun isDefaultHome(context: Context): Boolean =
+        context.packageManager
+            .resolveActivity(Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME), PackageManager.MATCH_DEFAULT_ONLY)
+            ?.activityInfo?.packageName == context.packageName
 
     /** Opens the system default-home picker so the user can choose Zemer; some ROMs don't have it. */
     fun openHomePicker(context: Context) {

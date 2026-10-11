@@ -1,4 +1,4 @@
-package com.jtech.zemer.utils
+package com.jtech.zemer.launcher
 
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -14,5 +14,13 @@ class HomeAppAliasTest {
         assertTrue(HomeAppAlias.isManaged(listOf(missing, marker)))
         marker.delete()
         assertFalse(HomeAppAlias.isManaged(listOf(missing, marker)))
+    }
+
+    @Test
+    fun everyMarkerIsAnAbsoluteDotFileNamedZlauncher() {
+        HomeAppAlias.MANAGED_MARKERS.forEach {
+            assertTrue(it.isAbsolute)
+            assertTrue(it.name == ".zlauncher")
+        }
     }
 }

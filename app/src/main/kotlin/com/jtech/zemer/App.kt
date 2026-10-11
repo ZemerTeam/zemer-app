@@ -31,7 +31,7 @@ import com.jtech.zemer.extensions.toast
 import com.google.firebase.crashlytics.FirebaseCrashlytics
 import com.jtech.zemer.utils.ContentFilterConfig
 import com.jtech.zemer.utils.CrashReportingTree
-import com.jtech.zemer.utils.HomeAppAlias
+import com.jtech.zemer.launcher.HomeAppAlias
 import com.jtech.zemer.utils.BlockedIdsCache
 import com.jtech.zemer.statuses.StatusSourcesCache
 import com.jtech.zemer.statuses.parseStatusSourcesConfig
