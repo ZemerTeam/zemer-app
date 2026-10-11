@@ -1,7 +1,8 @@
 package com.jtech.zemer
 
 import kotlinx.coroutines.flow.MutableSharedFlow
-import com.jtech.zemer.launcher.HomeLauncherBehavior
+import com.jtech.zemer.launcher.HomeButtonEffect
+import com.jtech.zemer.launcher.HomeLauncherBackGuard
 import android.annotation.SuppressLint
 import android.app.PendingIntent
 import android.content.ComponentName
@@ -339,7 +340,7 @@ class MainActivity : ComponentActivity() {
 
     private lateinit var navController: NavHostController
     private var pendingIntent: Intent? = null
-    /** Home-button presses while Zemer is the default home app (see [HomeLauncherBehavior]). */
+    /** Home-button presses while Zemer is the default home app (see [HomeButtonEffect]). */
     private val homePresses = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
     private var latestVersionName by mutableStateOf(BuildConfig.VERSION_NAME)
 
@@ -816,7 +817,8 @@ class MainActivity : ComponentActivity() {
                         }
 
                         val navController = rememberNavController()
-                        HomeLauncherBehavior(navController, homePresses)
+                        // Composed before the NavHost and the other BackHandlers so they all keep priority.
+                        HomeLauncherBackGuard(navController)
                         val navBackStackEntry by navController.currentBackStackEntryAsState()
                         val (previousTab, setPreviousTab) = rememberSaveable { mutableStateOf("home") }
                         val drawerState = rememberDrawerState(DrawerValue.Closed)
@@ -1259,6 +1261,12 @@ class MainActivity : ComponentActivity() {
                             topAppBarScrollBehavior.state.resetHeightOffset()
                             searchBarFocusRequester.requestFocus()
                         }
+                    }
+
+                    HomeButtonEffect(navController, homePresses) {
+                        if (playerBottomSheetState.isExpanded) playerBottomSheetState.collapseSoft()
+                        if (active) onActiveChange(false)
+                        drawerState.close()
                     }
 
                     LaunchedEffect(playerConnection, floatingMiniPlayerAllowed) {

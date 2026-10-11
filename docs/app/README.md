@@ -15,8 +15,8 @@
 | BuildConfig fields visible in Gradle | `ARCHITECTURE`, `COMMIT_HASH`, `RUN_NUMBER`, `GOOGLE_TOKEN_EXCHANGE_URL`, `CONTENT_MIRROR_URL`, `ZEMER_LYRICS_BASE_URL` |
 | Room schema directory | `app/schemas` |
 | Native build | None (no `app/src/main/cpp`, no `externalNativeBuild`) |
-| Tracked app paths | `1101` |
-| Tracked app Kotlin files | `818` (`621` in `src/main`, `195` in `src/test`, `2` in `src/androidTest`) |
+| Tracked app paths | `1102` |
+| Tracked app Kotlin files | `819` (`621` in `src/main`, `196` in `src/test`, `2` in `src/androidTest`) |
 | Tracked app resource paths | `214` |
 | Tracked app asset paths | `0` in `src/main` (`3` test fixtures under `src/androidTest/assets`) |
 | Tracked app Room schema files | `36` |
@@ -39,7 +39,7 @@
 | `provider` | `androidx.core.content.FileProvider` | `false` |
 | `provider` | `rikka.shizuku.ShizukuProvider` | `true` |
 | `provider` | `com.dpi.DensityScaler` | `false` |
-| `receiver` | `.launcher.HomeAppBootReceiver` | `true` |
+| `receiver` | `.launcher.HomeAppBootReceiver` | `false` |
 | `receiver` | `.utils.updater.InstallReceiver` | `false` |
 | `receiver` | `androidx.media3.session.MediaButtonReceiver` | `true` |
 | `receiver` | `.widget.MusicWidgetReceiver` | `true` |
