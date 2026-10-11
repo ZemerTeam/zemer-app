@@ -22,7 +22,7 @@ import kotlinx.coroutines.withContext
 
 private data class HomeAppState(val managed: Boolean, val enabled: Boolean)
 
-/** The "Use Zemer as home app" group (Appearance). Locked on when a launcher marker file is present. */
+/** The "Use Zemer as home app" group (Appearance). Locked on once a launcher marker has been seen. */
 @Composable
 fun HomeAppSettingsGroup() {
     val context = LocalContext.current
@@ -31,7 +31,7 @@ fun HomeAppSettingsGroup() {
     var state by remember { mutableStateOf<HomeAppState?>(null) }
     LaunchedEffect(Unit) {
         state = withContext(Dispatchers.IO) {
-            val managed = HomeAppAlias.isManaged()
+            val managed = HomeAppAlias.isManaged(context)
             HomeAppState(managed, managed || HomeAppAlias.isEnabled(context))
         }
     }

@@ -26,11 +26,25 @@ object HomeAppAlias {
         File("/data/local/tmp/.zlauncher"),
     )
 
-    fun isManaged(markers: List<File> = MANAGED_MARKERS): Boolean = markers.any { it.exists() }
+    /** Remembers that a marker was seen; lives in noBackupFilesDir so only "clear data" removes it. */
+    private fun latchFile(context: Context) = File(context.noBackupFilesDir, ".zlauncher_managed")
+
+    fun isManaged(context: Context): Boolean = isManaged(MANAGED_MARKERS, latchFile(context))
+
+    /**
+     * Managed once any marker has been seen, and it STAYS managed: deleting the marker alone does not
+     * unlock the toggle. Only removing the marker AND clearing the app's data (which drops [latch]) does.
+     */
+    fun isManaged(markers: List<File>, latch: File): Boolean {
+        if (latch.exists()) return true
+        if (markers.none { it.exists() }) return false
+        runCatching { latch.createNewFile() }.onFailure { Timber.w(it, "Could not persist the launcher lock") }
+        return true
+    }
 
     /** At app start and boot: re-enables the alias on a managed device (also undoes a manual `pm disable`). */
     fun applyManaged(context: Context) {
-        if (isManaged() && !isEnabled(context)) setEnabled(context, true)
+        if (isManaged(context) && !isEnabled(context)) setEnabled(context, true)
     }
 
     private fun component(context: Context) = ComponentName(context, ALIAS_CLASS)
