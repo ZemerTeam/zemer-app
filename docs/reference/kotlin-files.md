@@ -2,7 +2,7 @@
 
 Every tracked Kotlin file is listed with hard metadata extracted from the file text: line count, package, whether it declares any `@Composable`, import count, top-level declaration count (`Decls` - a high value flags a god-file), and the external import roots it depends on. Declaration counting is regex-based (after stripping comments and string literals). For the actual declaration names, read the file or use your editor's outline - they are not duplicated here.
 
-## `app` Kotlin files (816)
+## `app` Kotlin files (818)
 
 | File | Lines | Package | Compose | Imports | Decls | External import roots |
 | --- | ---: | --- | --- | ---: | ---: | --- |
@@ -14,7 +14,7 @@ Every tracked Kotlin file is listed with hard metadata extracted from the file t
 | `app/src/main/kotlin/com/dpi/DensityMath.kt` | 25 | `com.dpi` | no | 1 | 3 | kotlin.math |
 | `app/src/main/kotlin/com/dpi/DensityScaler.kt` | 80 | `com.dpi` | no | 4 | 13 | android.app, android.content, timber.log |
 | `app/src/main/kotlin/com/jtech/zemer/App.kt` | 413 | `com.jtech.zemer` | no | 61 | 29 | android.app, android.content, android.os, android.util, android.webkit, androidx.datastore, coil3.ImageLoader, coil3.PlatformContext, coil3.SingletonImageLoader, coil3.disk, coil3.network, coil3.request, coil3.svg, com.google, com.zemer, dagger.hilt, java.util, javax.inject, kotlinx.coroutines, okhttp3.Dispatcher, okhttp3.OkHttpClient, timber.log |
-| `app/src/main/kotlin/com/jtech/zemer/MainActivity.kt` | 2481 | `com.jtech.zemer` | no | 318 | 252 | android.annotation, android.app, android.content, android.os, android.view, androidx.activity, androidx.compose, androidx.core, androidx.datastore, androidx.hilt, androidx.lifecycle, androidx.media3, androidx.navigation, coil3.compose, coil3.imageLoader, coil3.request, coil3.toBitmap, com.google, com.valentinilk, dagger.hilt, java.net, java.util, javax.inject, kotlin.time, kotlinx.coroutines, timber.log |
+| `app/src/main/kotlin/com/jtech/zemer/MainActivity.kt` | 2487 | `com.jtech.zemer` | no | 320 | 253 | android.annotation, android.app, android.content, android.os, android.view, androidx.activity, androidx.compose, androidx.core, androidx.datastore, androidx.hilt, androidx.lifecycle, androidx.media3, androidx.navigation, coil3.compose, coil3.imageLoader, coil3.request, coil3.toBitmap, com.google, com.valentinilk, dagger.hilt, java.net, java.util, javax.inject, kotlin.time, kotlinx.coroutines, timber.log |
 | `app/src/main/kotlin/com/jtech/zemer/ResumePlaybackActivity.kt` | 25 | `com.jtech.zemer` | no | 5 | 3 | android.app, android.content, android.os |
 | `app/src/main/kotlin/com/jtech/zemer/accessibility/ButtonMapperAccessibilityService.kt` | 45 | `com.jtech.zemer.accessibility` | no | 7 | 6 | android.accessibilityservice, android.annotation, android.view |
 | `app/src/main/kotlin/com/jtech/zemer/auth/AuthState.kt` | 33 | `com.jtech.zemer.auth` | no | 0 | 13 |  |
@@ -88,6 +88,9 @@ Every tracked Kotlin file is listed with hard metadata extracted from the file t
 | `app/src/main/kotlin/com/jtech/zemer/latestreleases/LatestReleasePlayback.kt` | 133 | `com.jtech.zemer.latestreleases` | no | 16 | 14 | android.content, androidx.navigation, kotlinx.coroutines |
 | `app/src/main/kotlin/com/jtech/zemer/latestreleases/LatestReleasesStore.kt` | 256 | `com.jtech.zemer.latestreleases` | no | 17 | 65 | android.content, io.ktor, java.io, kotlinx.coroutines, kotlinx.serialization, timber.log |
 | `app/src/main/kotlin/com/jtech/zemer/latestreleases/LatestReleasesVisibility.kt` | 25 | `com.jtech.zemer.latestreleases` | no | 6 | 1 | kotlinx.coroutines |
+| `app/src/main/kotlin/com/jtech/zemer/launcher/HomeAppAlias.kt` | 62 | `com.jtech.zemer.launcher` | no | 7 | 10 | android.content, android.provider, java.io, timber.log |
+| `app/src/main/kotlin/com/jtech/zemer/launcher/HomeAppBootReceiver.kt` | 17 | `com.jtech.zemer.launcher` | no | 4 | 2 | android.content |
+| `app/src/main/kotlin/com/jtech/zemer/launcher/HomeLauncherBehavior.kt` | 53 | `com.jtech.zemer.launcher` | yes | 16 | 5 | androidx.activity, androidx.compose, androidx.lifecycle, androidx.navigation, kotlinx.coroutines |
 | `app/src/main/kotlin/com/jtech/zemer/lyrics/LineExtras.kt` | 72 | `com.jtech.zemer.lyrics` | no | 2 | 18 |  |
 | `app/src/main/kotlin/com/jtech/zemer/lyrics/LineExtrasStore.kt` | 138 | `com.jtech.zemer.lyrics` | no | 19 | 39 | android.content, dagger.hilt, java.io, javax.inject, kotlinx.coroutines, kotlinx.serialization, timber.log |
 | `app/src/main/kotlin/com/jtech/zemer/lyrics/LyricsChainWalk.kt` | 38 | `com.jtech.zemer.lyrics` | no | 3 | 8 | kotlinx.coroutines |
@@ -477,7 +480,7 @@ Every tracked Kotlin file is listed with hard metadata extracted from the file t
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/settings/ContentSettings.kt` | 663 | `com.jtech.zemer.ui.screens.settings` | yes | 92 | 68 | android.content, android.os, android.provider, androidx.activity, androidx.compose, androidx.core, androidx.hilt, androidx.navigation, com.google, dagger.hilt, java.text, java.util, javax.inject, kotlinx.coroutines |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/settings/DonateScreen.kt` | 174 | `com.jtech.zemer.ui.screens.settings` | yes | 49 | 12 | android.view, androidx.compose, androidx.hilt, androidx.lifecycle, androidx.navigation, com.stripe |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/settings/GeneralSettings.kt` | 82 | `com.jtech.zemer.ui.screens.settings` | yes | 29 | 4 | android.content, android.net, android.os, android.provider, androidx.compose, androidx.navigation |
-| `app/src/main/kotlin/com/jtech/zemer/ui/screens/settings/HomeAppSettings.kt` | 44 | `com.jtech.zemer.ui.screens.settings` | yes | 14 | 4 | androidx.compose |
+| `app/src/main/kotlin/com/jtech/zemer/ui/screens/settings/HomeAppSettings.kt` | 63 | `com.jtech.zemer.ui.screens.settings` | yes | 19 | 9 | androidx.compose, kotlinx.coroutines |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/settings/LogViewerScreen.kt` | 378 | `com.jtech.zemer.ui.screens.settings` | yes | 73 | 30 | androidx.compose, androidx.navigation, java.text, java.time, java.util, kotlinx.coroutines |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/settings/LyricsProviderDialogs.kt` | 92 | `com.jtech.zemer.ui.screens.settings` | yes | 23 | 13 | androidx.compose |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/settings/OfflineSearchSettings.kt` | 140 | `com.jtech.zemer.ui.screens.settings` | yes | 41 | 9 | android.text, androidx.compose, androidx.hilt, androidx.lifecycle, androidx.navigation |
@@ -534,7 +537,6 @@ Every tracked Kotlin file is listed with hard metadata extracted from the file t
 | `app/src/main/kotlin/com/jtech/zemer/utils/DeviceIdGenerator.kt` | 171 | `com.jtech.zemer.utils` | no | 15 | 29 | android.content, android.os, android.provider, android.util, androidx.datastore, dagger.hilt, java.util, javax.inject, kotlinx.coroutines |
 | `app/src/main/kotlin/com/jtech/zemer/utils/EnvironmentPaths.kt` | 25 | `com.jtech.zemer.utils` | no | 4 | 6 | android.net, android.os, android.provider, java.io |
 | `app/src/main/kotlin/com/jtech/zemer/utils/FutureUtils.kt` | 43 | `com.jtech.zemer.utils` | no | 8 | 3 | androidx.concurrent, com.google, java.util, kotlin.coroutines, kotlinx.coroutines |
-| `app/src/main/kotlin/com/jtech/zemer/utils/HomeAppAlias.kt` | 48 | `com.jtech.zemer.utils` | no | 8 | 8 | android.content, android.provider, java.io, timber.log |
 | `app/src/main/kotlin/com/jtech/zemer/utils/IsraeliArtistRegistry.kt` | 71 | `com.jtech.zemer.utils` | no | 5 | 11 | com.google, kotlinx.coroutines, timber.log |
 | `app/src/main/kotlin/com/jtech/zemer/utils/LogBufferTree.kt` | 71 | `com.jtech.zemer.utils` | no | 5 | 15 | android.util, java.util, kotlinx.coroutines, timber.log |
 | `app/src/main/kotlin/com/jtech/zemer/utils/LogExport.kt` | 113 | `com.jtech.zemer.utils` | no | 11 | 19 | android.content, androidx.core, java.io, java.text, java.time, java.util |
@@ -638,6 +640,7 @@ Every tracked Kotlin file is listed with hard metadata extracted from the file t
 | `app/src/test/kotlin/com/jtech/zemer/latestreleases/LatestReleasePlaybackTest.kt` | 127 | `com.jtech.zemer.latestreleases` | no | 6 | 9 | org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/latestreleases/LatestReleasesStoreTest.kt` | 120 | `com.jtech.zemer.latestreleases` | no | 8 | 8 | java.io, java.nio, kotlinx.coroutines, org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/latestreleases/LatestReleasesVisibilityTest.kt` | 117 | `com.jtech.zemer.latestreleases` | no | 17 | 21 | java.util, kotlinx.coroutines, org.junit |
+| `app/src/test/kotlin/com/jtech/zemer/launcher/HomeAppAliasTest.kt` | 26 | `com.jtech.zemer.launcher` | no | 4 | 5 | java.io, org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/lyrics/LineExtrasStoreTest.kt` | 108 | `com.jtech.zemer.lyrics` | no | 17 | 19 | kotlinx.coroutines, org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/lyrics/LineExtrasTest.kt` | 83 | `com.jtech.zemer.lyrics` | no | 7 | 13 | org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/lyrics/LyricsChainWalkTest.kt` | 111 | `com.jtech.zemer.lyrics` | no | 12 | 32 | androidx.datastore, java.util, kotlinx.coroutines, org.junit |
@@ -796,7 +799,6 @@ Every tracked Kotlin file is listed with hard metadata extracted from the file t
 | `app/src/test/kotlin/com/jtech/zemer/utils/BlockedIdsCacheTest.kt` | 62 | `com.jtech.zemer.utils` | no | 5 | 7 | org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/utils/BottomNavItemsTest.kt` | 46 | `com.jtech.zemer.utils` | no | 2 | 8 | org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/utils/CrashReportingTreeTest.kt` | 64 | `com.jtech.zemer.utils` | no | 6 | 6 | org.junit, timber.log |
-| `app/src/test/kotlin/com/jtech/zemer/utils/HomeAppAliasTest.kt` | 18 | `com.jtech.zemer.utils` | no | 4 | 4 | java.io, org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/utils/IsraeliArtistRegistryTest.kt` | 37 | `com.jtech.zemer.utils` | no | 6 | 4 | kotlinx.coroutines, org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/utils/LogBufferTreeTest.kt` | 77 | `com.jtech.zemer.utils` | no | 6 | 7 | org.junit, timber.log |
 | `app/src/test/kotlin/com/jtech/zemer/utils/LogExportTest.kt` | 100 | `com.jtech.zemer.utils` | no | 6 | 21 | java.time, org.junit |

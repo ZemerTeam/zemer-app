@@ -1,5 +1,7 @@
 package com.jtech.zemer
 
+import kotlinx.coroutines.flow.MutableSharedFlow
+import com.jtech.zemer.launcher.HomeLauncherBehavior
 import android.annotation.SuppressLint
 import android.app.PendingIntent
 import android.content.ComponentName
@@ -337,6 +339,8 @@ class MainActivity : ComponentActivity() {
 
     private lateinit var navController: NavHostController
     private var pendingIntent: Intent? = null
+    /** Home-button presses while Zemer is the default home app (see [HomeLauncherBehavior]). */
+    private val homePresses = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
     private var latestVersionName by mutableStateOf(BuildConfig.VERSION_NAME)
 
     private var playerConnection by mutableStateOf<PlayerConnection?>(null)
@@ -509,6 +513,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
+        if (intent.hasCategory(Intent.CATEGORY_HOME)) homePresses.tryEmit(Unit)
         if (::navController.isInitialized) {
             handleDeepLinkIntent(intent, navController)
         } else {
@@ -811,6 +816,7 @@ class MainActivity : ComponentActivity() {
                         }
 
                         val navController = rememberNavController()
+                        HomeLauncherBehavior(navController, homePresses)
                         val navBackStackEntry by navController.currentBackStackEntryAsState()
                         val (previousTab, setPreviousTab) = rememberSaveable { mutableStateOf("home") }
                         val drawerState = rememberDrawerState(DrawerValue.Closed)
