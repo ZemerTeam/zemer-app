@@ -42,20 +42,34 @@ object HomeAppAlias {
         return true
     }
 
-    /** At app start and boot: re-enables the alias on a managed device (also undoes a manual `pm disable`). */
+    /**
+     * At app start and boot: on a managed device re-enables the alias (also undoes a manual `pm disable`).
+     * The boot receiver ships ENABLED so a ROM-preinstalled Zemer becomes home on its first boot, and is
+     * switched off here on unmanaged devices, so a normal install never starts Zemer at boot.
+     */
     fun applyManaged(context: Context) {
-        if (isManaged(context) && !isEnabled(context)) setEnabled(context, true)
+        val managed = isManaged(context)
+        if (managed && !isEnabled(context)) setEnabled(context, true)
+        val receiver = ComponentName(context, HomeAppBootReceiver::class.java)
+        if (isComponentEnabled(context, receiver, manifestDefault = true) != managed) setComponent(context, receiver, managed)
     }
 
     private fun component(context: Context) = ComponentName(context, ALIAS_CLASS)
 
-    fun isEnabled(context: Context): Boolean =
-        context.packageManager.getComponentEnabledSetting(component(context)) ==
-            PackageManager.COMPONENT_ENABLED_STATE_ENABLED
+    fun isEnabled(context: Context): Boolean = isComponentEnabled(context, component(context), manifestDefault = false)
 
-    fun setEnabled(context: Context, enabled: Boolean) {
+    fun setEnabled(context: Context, enabled: Boolean) = setComponent(context, component(context), enabled)
+
+    private fun isComponentEnabled(context: Context, component: ComponentName, manifestDefault: Boolean): Boolean =
+        when (context.packageManager.getComponentEnabledSetting(component)) {
+            PackageManager.COMPONENT_ENABLED_STATE_ENABLED -> true
+            PackageManager.COMPONENT_ENABLED_STATE_DEFAULT -> manifestDefault
+            else -> false
+        }
+
+    private fun setComponent(context: Context, component: ComponentName, enabled: Boolean) {
         context.packageManager.setComponentEnabledSetting(
-            component(context),
+            component,
             if (enabled) PackageManager.COMPONENT_ENABLED_STATE_ENABLED else PackageManager.COMPONENT_ENABLED_STATE_DISABLED,
             PackageManager.DONT_KILL_APP,
         )

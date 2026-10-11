@@ -6,8 +6,11 @@ import android.content.Intent
 import com.jtech.zemer.utils.reportException
 
 /**
- * Applies the launcher marker at boot, so a preinstalled Zemer on a managed ROM is a home app before it
- * has ever been opened (App.onCreate only runs once something starts the process).
+ * Applies the launcher marker at boot, so a ROM-preinstalled Zemer is a home app on its first boot before it
+ * has ever been opened (the platform's FallbackHome keeps polling for a real home and picks it up).
+ * System apps are never in the "stopped" state, so they get BOOT_COMPLETED; a user-installed, never-opened
+ * app does not (it becomes home on first open instead). [HomeAppAlias.applyManaged] disables this receiver
+ * on unmanaged devices, so normal installs are not started at boot.
  */
 class HomeAppBootReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {

@@ -7,26 +7,34 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.navigation.NavHostController
-import com.jtech.zemer.ui.screens.Screens
+import androidx.navigation.compose.currentBackStackEntryAsState
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
+/** Pure launcher decisions (JVM-tested in HomeLauncherRulesTest). */
+object HomeLauncherRules {
+    /** Never yank the user out of an in-progress sign-in. */
+    private val HOME_PRESS_IGNORED_ROUTES = setOf("login", "login_gate")
+
+    /** Only the Back that would finish the home activity (nothing left to pop) is swallowed. */
+    fun swallowBack(isDefaultHome: Boolean, hasPreviousEntry: Boolean): Boolean = isDefaultHome && !hasPreviousEntry
+
+    fun handleHomePress(currentRoute: String?): Boolean = currentRoute != null && currentRoute !in HOME_PRESS_IGNORED_ROUTES
+}
+
 /**
- * Launcher manners while Zemer is the default home app:
- * - Back at the root does nothing (it would otherwise finish the home activity and bounce the launcher);
- * - a Home press ([homePresses], fed by MainActivity.onNewIntent) returns to the Home screen.
- *
- * Compose it BEFORE the NavHost and the other BackHandlers so they keep priority: this only catches
- * the Back that nothing else wanted.
+ * While Zemer is the default home app, Back at the root does nothing (it would finish the home activity
+ * and bounce the launcher). Gated on the back stack, so Back on inner screens is never affected.
  */
 @Composable
-fun HomeLauncherBehavior(navController: NavHostController, homePresses: Flow<Unit>) {
+fun HomeLauncherBackGuard(navController: NavHostController) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var isDefaultHome by remember { mutableStateOf(false) }
@@ -39,15 +47,23 @@ fun HomeLauncherBehavior(navController: NavHostController, homePresses: Flow<Uni
         onPauseOrDispose { job.cancel() }
     }
 
-    BackHandler(enabled = isDefaultHome) { /* a launcher has nowhere to go back to */ }
+    val entry by navController.currentBackStackEntryAsState()
+    val hasPreviousEntry = entry != null && navController.previousBackStackEntry != null
+    BackHandler(enabled = HomeLauncherRules.swallowBack(isDefaultHome, hasPreviousEntry)) { /* nowhere to go back to */ }
+}
 
-    LaunchedEffect(navController) {
+/**
+ * A Home press ([homePresses], fed by MainActivity.onNewIntent) runs [closeOverlays] (player sheet, drawer,
+ * search) and returns to the start screen, like a launcher's Home button.
+ */
+@Composable
+fun HomeButtonEffect(navController: NavHostController, homePresses: Flow<Unit>, closeOverlays: suspend () -> Unit) {
+    val latestCloseOverlays by rememberUpdatedState(closeOverlays)
+    LaunchedEffect(navController, homePresses) {
         homePresses.collect {
-            if (navController.currentDestination == null) return@collect // graph not set yet
-            navController.navigate(Screens.Home.route) {
-                popUpTo(navController.graph.startDestinationId) { inclusive = false }
-                launchSingleTop = true
-            }
+            if (!HomeLauncherRules.handleHomePress(navController.currentDestination?.route)) return@collect
+            latestCloseOverlays()
+            navController.popBackStack(navController.graph.startDestinationId, inclusive = false)
         }
     }
 }
