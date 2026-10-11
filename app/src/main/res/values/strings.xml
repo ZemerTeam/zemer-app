@@ -101,6 +101,7 @@
     <string name="home_app_toggle">Use Zemer as home app</string>
     <string name="home_app_toggle_desc">Lets you pick Zemer as your home screen</string>
     <string name="home_app_toggle_managed">Set by your device</string>
+    <string name="home_app_picker_unavailable">Choose Zemer as the home app in your phone\'s settings (Apps, Default apps)</string>
     <string name="delete">Delete</string>
     <string name="remove_from_history">Remove from history</string>
     <string name="remove_from_playlist">Remove from playlist</string>

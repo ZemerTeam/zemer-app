@@ -1,9 +1,11 @@
 package com.jtech.zemer.launcher
 
+import android.app.role.RoleManager
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.os.Build
 import android.provider.Settings
 import timber.log.Timber
 import java.io.File
@@ -81,10 +83,20 @@ object HomeAppAlias {
             .resolveActivity(Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME), PackageManager.MATCH_DEFAULT_ONLY)
             ?.activityInfo?.packageName == context.packageName
 
-    /** Opens the system default-home picker so the user can choose Zemer; some ROMs don't have it. */
-    fun openHomePicker(context: Context) {
+    /** Opens the system default-home picker so the user can choose Zemer. False when the ROM has none. */
+    fun openHomePicker(context: Context): Boolean =
         runCatching {
             context.startActivity(Intent(Settings.ACTION_HOME_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
-        }.onFailure { Timber.w(it, "No home settings screen on this device") }
+        }.onFailure { Timber.w(it, "No home settings screen on this device") }.isSuccess
+
+    /**
+     * The API 29+ "set default home app" role request, the fallback when [openHomePicker] fails. It must be
+     * launched FOR RESULT (the role dialog rejects a caller it cannot identify). Null when unavailable.
+     */
+    fun homeRoleRequestIntent(context: Context): Intent? {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return null
+        val roles = context.getSystemService(RoleManager::class.java) ?: return null
+        if (!roles.isRoleAvailable(RoleManager.ROLE_HOME) || roles.isRoleHeld(RoleManager.ROLE_HOME)) return null
+        return roles.createRequestRoleIntent(RoleManager.ROLE_HOME)
     }
 }

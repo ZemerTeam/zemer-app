@@ -88,7 +88,7 @@ Every tracked Kotlin file is listed with hard metadata extracted from the file t
 | `app/src/main/kotlin/com/jtech/zemer/latestreleases/LatestReleasePlayback.kt` | 133 | `com.jtech.zemer.latestreleases` | no | 16 | 14 | android.content, androidx.navigation, kotlinx.coroutines |
 | `app/src/main/kotlin/com/jtech/zemer/latestreleases/LatestReleasesStore.kt` | 256 | `com.jtech.zemer.latestreleases` | no | 17 | 65 | android.content, io.ktor, java.io, kotlinx.coroutines, kotlinx.serialization, timber.log |
 | `app/src/main/kotlin/com/jtech/zemer/latestreleases/LatestReleasesVisibility.kt` | 25 | `com.jtech.zemer.latestreleases` | no | 6 | 1 | kotlinx.coroutines |
-| `app/src/main/kotlin/com/jtech/zemer/launcher/HomeAppAlias.kt` | 90 | `com.jtech.zemer.launcher` | no | 7 | 16 | android.content, android.provider, java.io, timber.log |
+| `app/src/main/kotlin/com/jtech/zemer/launcher/HomeAppAlias.kt` | 102 | `com.jtech.zemer.launcher` | no | 9 | 18 | android.app, android.content, android.os, android.provider, java.io, timber.log |
 | `app/src/main/kotlin/com/jtech/zemer/launcher/HomeAppBootReceiver.kt` | 20 | `com.jtech.zemer.launcher` | no | 4 | 2 | android.content |
 | `app/src/main/kotlin/com/jtech/zemer/launcher/HomeLauncherBehavior.kt` | 69 | `com.jtech.zemer.launcher` | yes | 17 | 13 | androidx.activity, androidx.compose, androidx.lifecycle, androidx.navigation, kotlinx.coroutines |
 | `app/src/main/kotlin/com/jtech/zemer/lyrics/LineExtras.kt` | 72 | `com.jtech.zemer.lyrics` | no | 2 | 18 |  |
@@ -480,7 +480,7 @@ Every tracked Kotlin file is listed with hard metadata extracted from the file t
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/settings/ContentSettings.kt` | 663 | `com.jtech.zemer.ui.screens.settings` | yes | 92 | 68 | android.content, android.os, android.provider, androidx.activity, androidx.compose, androidx.core, androidx.hilt, androidx.navigation, com.google, dagger.hilt, java.text, java.util, javax.inject, kotlinx.coroutines |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/settings/DonateScreen.kt` | 174 | `com.jtech.zemer.ui.screens.settings` | yes | 49 | 12 | android.view, androidx.compose, androidx.hilt, androidx.lifecycle, androidx.navigation, com.stripe |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/settings/GeneralSettings.kt` | 82 | `com.jtech.zemer.ui.screens.settings` | yes | 29 | 4 | android.content, android.net, android.os, android.provider, androidx.compose, androidx.navigation |
-| `app/src/main/kotlin/com/jtech/zemer/ui/screens/settings/HomeAppSettings.kt` | 67 | `com.jtech.zemer.ui.screens.settings` | yes | 20 | 9 | androidx.compose, kotlinx.coroutines |
+| `app/src/main/kotlin/com/jtech/zemer/ui/screens/settings/HomeAppSettings.kt` | 76 | `com.jtech.zemer.ui.screens.settings` | yes | 23 | 11 | androidx.activity, androidx.compose, kotlinx.coroutines |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/settings/LogViewerScreen.kt` | 378 | `com.jtech.zemer.ui.screens.settings` | yes | 73 | 30 | androidx.compose, androidx.navigation, java.text, java.time, java.util, kotlinx.coroutines |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/settings/LyricsProviderDialogs.kt` | 92 | `com.jtech.zemer.ui.screens.settings` | yes | 23 | 13 | androidx.compose |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/settings/OfflineSearchSettings.kt` | 140 | `com.jtech.zemer.ui.screens.settings` | yes | 41 | 9 | android.text, androidx.compose, androidx.hilt, androidx.lifecycle, androidx.navigation |

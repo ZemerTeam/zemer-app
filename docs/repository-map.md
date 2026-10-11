@@ -54,12 +54,12 @@ The following inventory is generated from repository files outside `.git`, `.gra
 
 ### Counts
 
-- Files counted: `1402`
+- Files counted: `1396`
 - By extension:
   - `.kt`: `907`
   - `.xml`: `196`
   - `.mjs`: `110`
-  - `.md`: `70`
+  - `.md`: `64`
   - `.json`: `50`
   - `.webp`: `15`
   - `.html`: `6`
@@ -228,7 +228,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/main/kotlin/com/jtech/zemer/latestreleases/LatestReleasePlayback.kt` | 133 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/latestreleases/LatestReleasesStore.kt` | 256 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/latestreleases/LatestReleasesVisibility.kt` | 25 lines | `.kt` |
-| `app/src/main/kotlin/com/jtech/zemer/launcher/HomeAppAlias.kt` | 90 lines | `.kt` |
+| `app/src/main/kotlin/com/jtech/zemer/launcher/HomeAppAlias.kt` | 102 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/launcher/HomeAppBootReceiver.kt` | 20 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/launcher/HomeLauncherBehavior.kt` | 69 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/lyrics/LineExtras.kt` | 72 lines | `.kt` |
@@ -620,7 +620,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/settings/ContentSettings.kt` | 663 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/settings/DonateScreen.kt` | 174 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/settings/GeneralSettings.kt` | 82 lines | `.kt` |
-| `app/src/main/kotlin/com/jtech/zemer/ui/screens/settings/HomeAppSettings.kt` | 67 lines | `.kt` |
+| `app/src/main/kotlin/com/jtech/zemer/ui/screens/settings/HomeAppSettings.kt` | 76 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/settings/LogViewerScreen.kt` | 378 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/settings/LyricsProviderDialogs.kt` | 92 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/settings/OfflineSearchSettings.kt` | 140 lines | `.kt` |
@@ -972,7 +972,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/main/res/values/app_name.xml` | 4 lines | `.xml` |
 | `app/src/main/res/values/colors.xml` | 9 lines | `.xml` |
 | `app/src/main/res/values/metrolist_strings.xml` | 700 lines | `.xml` |
-| `app/src/main/res/values/strings.xml` | 469 lines | `.xml` |
+| `app/src/main/res/values/strings.xml` | 470 lines | `.xml` |
 | `app/src/main/res/values/styles.xml` | 26 lines | `.xml` |
 | `app/src/main/res/values/values.xml` | 8 lines | `.xml` |
 | `app/src/main/res/xml-v25/shortcuts.xml` | 33 lines | `.xml` |
@@ -1205,8 +1205,6 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `build.gradle.kts` | 37 lines | `.kts` |
 | `docs/README.md` | 44 lines | `.md` |
 | `docs/app/README.md` | 194 lines | `.md` |
-| `docs/app/README.md` | 194 lines | `.md` |
-| `docs/app/README.md` | 194 lines | `.md` |
 | `docs/app/database.md` | 657 lines | `.md` |
 | `docs/app/playback.md` | 119 lines | `.md` |
 | `docs/app/preferences-sync-auth.md` | 220 lines | `.md` |
@@ -1243,8 +1241,6 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `docs/recognize_music/03-entry-points-and-ui.md` | 80 lines | `.md` |
 | `docs/recognize_music/README.md` | 73 lines | `.md` |
 | `docs/reference/kotlin-files.md` | 920 lines | `.md` |
-| `docs/reference/kotlin-files.md` | 920 lines | `.md` |
-| `docs/reference/kotlin-files.md` | 920 lines | `.md` |
 | `docs/reference/non-kotlin-files.md` | 438 lines | `.md` |
 | `docs/reference/resource-index.md` | 317 lines | `.md` |
 | `docs/remote_cipher_config/01-concepts-and-format.md` | 135 lines | `.md` |
@@ -1252,9 +1248,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `docs/remote_cipher_config/03-extraction-and-self-heal.md` | 102 lines | `.md` |
 | `docs/remote_cipher_config/04-operations.md` | 121 lines | `.md` |
 | `docs/remote_cipher_config/README.md` | 60 lines | `.md` |
-| `docs/repository-map.md` | 1493 lines | `.md` |
-| `docs/repository-map.md` | 1493 lines | `.md` |
-| `docs/repository-map.md` | 1493 lines | `.md` |
+| `docs/repository-map.md` | 1487 lines | `.md` |
 | `docs/sabr/README.md` | 369 lines | `.md` |
 | `docs/stations/README.md` | 67 lines | `.md` |
 | `docs/status/README.md` | 93 lines | `.md` |
