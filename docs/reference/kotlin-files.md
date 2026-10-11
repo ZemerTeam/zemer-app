@@ -88,7 +88,7 @@ Every tracked Kotlin file is listed with hard metadata extracted from the file t
 | `app/src/main/kotlin/com/jtech/zemer/latestreleases/LatestReleasePlayback.kt` | 133 | `com.jtech.zemer.latestreleases` | no | 16 | 14 | android.content, androidx.navigation, kotlinx.coroutines |
 | `app/src/main/kotlin/com/jtech/zemer/latestreleases/LatestReleasesStore.kt` | 256 | `com.jtech.zemer.latestreleases` | no | 17 | 65 | android.content, io.ktor, java.io, kotlinx.coroutines, kotlinx.serialization, timber.log |
 | `app/src/main/kotlin/com/jtech/zemer/latestreleases/LatestReleasesVisibility.kt` | 25 | `com.jtech.zemer.latestreleases` | no | 6 | 1 | kotlinx.coroutines |
-| `app/src/main/kotlin/com/jtech/zemer/launcher/HomeAppAlias.kt` | 62 | `com.jtech.zemer.launcher` | no | 7 | 10 | android.content, android.provider, java.io, timber.log |
+| `app/src/main/kotlin/com/jtech/zemer/launcher/HomeAppAlias.kt` | 76 | `com.jtech.zemer.launcher` | no | 7 | 12 | android.content, android.provider, java.io, timber.log |
 | `app/src/main/kotlin/com/jtech/zemer/launcher/HomeAppBootReceiver.kt` | 17 | `com.jtech.zemer.launcher` | no | 4 | 2 | android.content |
 | `app/src/main/kotlin/com/jtech/zemer/launcher/HomeLauncherBehavior.kt` | 53 | `com.jtech.zemer.launcher` | yes | 16 | 5 | androidx.activity, androidx.compose, androidx.lifecycle, androidx.navigation, kotlinx.coroutines |
 | `app/src/main/kotlin/com/jtech/zemer/lyrics/LineExtras.kt` | 72 | `com.jtech.zemer.lyrics` | no | 2 | 18 |  |
@@ -637,7 +637,7 @@ Every tracked Kotlin file is listed with hard metadata extracted from the file t
 | `app/src/test/kotlin/com/jtech/zemer/latestreleases/LatestReleasePlaybackTest.kt` | 127 | `com.jtech.zemer.latestreleases` | no | 6 | 9 | org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/latestreleases/LatestReleasesStoreTest.kt` | 120 | `com.jtech.zemer.latestreleases` | no | 8 | 8 | java.io, java.nio, kotlinx.coroutines, org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/latestreleases/LatestReleasesVisibilityTest.kt` | 117 | `com.jtech.zemer.latestreleases` | no | 17 | 21 | java.util, kotlinx.coroutines, org.junit |
-| `app/src/test/kotlin/com/jtech/zemer/launcher/HomeAppAliasTest.kt` | 26 | `com.jtech.zemer.launcher` | no | 4 | 5 | java.io, org.junit |
+| `app/src/test/kotlin/com/jtech/zemer/launcher/HomeAppAliasTest.kt` | 54 | `com.jtech.zemer.launcher` | no | 5 | 10 | java.io, java.nio, org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/lyrics/LineExtrasStoreTest.kt` | 108 | `com.jtech.zemer.lyrics` | no | 17 | 19 | kotlinx.coroutines, org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/lyrics/LineExtrasTest.kt` | 83 | `com.jtech.zemer.lyrics` | no | 7 | 13 | org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/lyrics/LyricsChainWalkTest.kt` | 111 | `com.jtech.zemer.lyrics` | no | 12 | 32 | androidx.datastore, java.util, kotlinx.coroutines, org.junit |

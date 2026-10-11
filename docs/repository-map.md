@@ -228,7 +228,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/main/kotlin/com/jtech/zemer/latestreleases/LatestReleasePlayback.kt` | 133 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/latestreleases/LatestReleasesStore.kt` | 256 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/latestreleases/LatestReleasesVisibility.kt` | 25 lines | `.kt` |
-| `app/src/main/kotlin/com/jtech/zemer/launcher/HomeAppAlias.kt` | 62 lines | `.kt` |
+| `app/src/main/kotlin/com/jtech/zemer/launcher/HomeAppAlias.kt` | 76 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/launcher/HomeAppBootReceiver.kt` | 17 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/launcher/HomeLauncherBehavior.kt` | 53 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/lyrics/LineExtras.kt` | 72 lines | `.kt` |
@@ -990,7 +990,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/test/kotlin/com/jtech/zemer/latestreleases/LatestReleasePlaybackTest.kt` | 127 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/latestreleases/LatestReleasesStoreTest.kt` | 120 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/latestreleases/LatestReleasesVisibilityTest.kt` | 117 lines | `.kt` |
-| `app/src/test/kotlin/com/jtech/zemer/launcher/HomeAppAliasTest.kt` | 26 lines | `.kt` |
+| `app/src/test/kotlin/com/jtech/zemer/launcher/HomeAppAliasTest.kt` | 54 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/lyrics/LineExtrasStoreTest.kt` | 108 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/lyrics/LineExtrasTest.kt` | 83 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/lyrics/LyricsChainWalkTest.kt` | 111 lines | `.kt` |

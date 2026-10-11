@@ -4,16 +4,44 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.File
+import java.nio.file.Files
 
-/** The launcher marker decides managed mode by existence only (its contents are never read). */
+/** Launcher lock: a marker locks it, and only "marker gone + app data cleared" unlocks it. */
 class HomeAppAliasTest {
+    private val dir = Files.createTempDirectory("zlauncher").toFile()
+    private val marker = File(dir, ".zlauncher")
+    private val missing = File(dir, "absent")
+    private val latch = File(dir, "latch") // stands in for the file in noBackupFilesDir
+
     @Test
-    fun managedWhenAnyMarkerExists() {
-        val marker = File.createTempFile("zlauncher", null)
-        val missing = File(marker.parentFile, "absent-zlauncher")
-        assertTrue(HomeAppAlias.isManaged(listOf(missing, marker)))
+    fun noMarkerIsUnmanaged() {
+        assertFalse(HomeAppAlias.isManaged(listOf(missing), latch))
+        assertFalse(latch.exists())
+    }
+
+    @Test
+    fun anyMarkerLocksAndStaysLockedAfterItIsRemoved() {
+        marker.createNewFile()
+        assertTrue(HomeAppAlias.isManaged(listOf(missing, marker), latch))
         marker.delete()
-        assertFalse(HomeAppAlias.isManaged(listOf(missing, marker)))
+        assertTrue(HomeAppAlias.isManaged(listOf(missing, marker), latch))
+    }
+
+    @Test
+    fun clearingDataWithTheMarkerGoneUnlocks() {
+        marker.createNewFile()
+        HomeAppAlias.isManaged(listOf(marker), latch)
+        marker.delete()
+        latch.delete() // "clear data"
+        assertFalse(HomeAppAlias.isManaged(listOf(marker), latch))
+    }
+
+    @Test
+    fun clearingDataWithTheMarkerStillThereStaysLocked() {
+        marker.createNewFile()
+        HomeAppAlias.isManaged(listOf(marker), latch)
+        latch.delete() // "clear data" only
+        assertTrue(HomeAppAlias.isManaged(listOf(marker), latch))
     }
 
     @Test
