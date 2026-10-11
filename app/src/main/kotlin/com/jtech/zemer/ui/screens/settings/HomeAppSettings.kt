@@ -1,5 +1,7 @@
 package com.jtech.zemer.ui.screens.settings
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -15,6 +17,7 @@ import androidx.compose.ui.res.stringResource
 import com.jtech.zemer.R
 import com.jtech.zemer.launcher.HomeAppAlias
 import com.jtech.zemer.ui.component.SettingsCardGroup
+import com.jtech.zemer.extensions.toast
 import com.jtech.zemer.ui.component.SwitchPreference
 import com.jtech.zemer.utils.reportException
 import kotlinx.coroutines.Dispatchers
@@ -30,6 +33,7 @@ fun HomeAppSettingsGroup() {
     val scope = rememberCoroutineScope()
     // File stats + a PackageManager call: read off the main thread; the group appears once known.
     var state by remember { mutableStateOf<HomeAppState?>(null) }
+    val roleRequest = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) {}
     LaunchedEffect(Unit) {
         state = withContext(Dispatchers.IO) {
             val managed = HomeAppAlias.isManaged(context)
@@ -54,7 +58,12 @@ fun HomeAppSettingsGroup() {
                             runCatching { withContext(Dispatchers.IO) { HomeAppAlias.setEnabled(context, on) } }
                                 .onSuccess {
                                     state = current.copy(enabled = on)
-                                    if (on) HomeAppAlias.openHomePicker(context)
+                                    if (on && !HomeAppAlias.openHomePicker(context)) {
+                                        // No picker on this ROM: ask for the home role, else say where to set it.
+                                        val opened = HomeAppAlias.homeRoleRequestIntent(context)
+                                            ?.let { runCatching { roleRequest.launch(it) }.isSuccess } == true
+                                        if (!opened) context.toast(R.string.home_app_picker_unavailable, long = true)
+                                    }
                                 }
                                 .onFailure { reportException(it) }
                         }

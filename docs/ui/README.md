@@ -307,7 +307,7 @@ Every `@Composable fun` per UI file (extension receivers dropped, so `BoxScope.X
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/settings/ButtonSetupScreen.kt` | 374 | ButtonSetupScreen, ListeningOverlay, CompletedCard, AssignmentRow, DpadDirectionIcon, PrimingOverlay, AccessibilityPermissionRequired |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/settings/ContentSettings.kt` | 663 | ContentSettings, SyncStatusCard |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/settings/GeneralSettings.kt` | 82 | GeneralSettings |
-| `app/src/main/kotlin/com/jtech/zemer/ui/screens/settings/HomeAppSettings.kt` | 67 | HomeAppSettingsGroup |
+| `app/src/main/kotlin/com/jtech/zemer/ui/screens/settings/HomeAppSettings.kt` | 76 | HomeAppSettingsGroup |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/settings/LogViewerScreen.kt` | 378 | LogViewerScreen, ExportRangeDialog, ExportDateTimePicker |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/settings/LyricsProviderDialogs.kt` | 92 | LyricsProviderSelectionDialog, LyricsProviderPriorityDialog |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/settings/OfflineSearchSettings.kt` | 140 | OfflineSearchSettings |
@@ -548,7 +548,7 @@ Key declarations are the first 12 `class`/`object`/`interface`/`fun`/`val`/`var`
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/settings/ButtonSetupScreen.kt` | 374 | fun ButtonSetupScreen, val viewModel, val accessibilityEnabled, val context, val focusManager, val uiState, val scrollState, val currentStep, val showOverlay, val step, fun ListeningOverlay, fun CompletedCard, … (+5 more) |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/settings/ContentSettings.kt` | 663 | class ContentSettingsViewModel, val authManager, val webAuthManager, val syncService, val userPreferencesRepository, val authState, val syncState, val syncStatus, fun signInWithGoogle, fun signInAnonymously, fun signOut, fun performManualSync, … (+56 more) |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/settings/GeneralSettings.kt` | 82 | fun GeneralSettings, val context, val intent, val intent |
-| `app/src/main/kotlin/com/jtech/zemer/ui/screens/settings/HomeAppSettings.kt` | 67 | class HomeAppState, val managed, val enabled, fun HomeAppSettingsGroup, val context, val scope, var state, val managed, val current |
+| `app/src/main/kotlin/com/jtech/zemer/ui/screens/settings/HomeAppSettings.kt` | 76 | class HomeAppState, val managed, val enabled, fun HomeAppSettingsGroup, val context, val scope, var state, val roleRequest, val managed, val current, val opened |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/settings/LogViewerScreen.kt` | 378 | fun LogViewerScreen, val backFocus, val firstFocus, val context, val coroutineScope, val snackbarHostState, val debugLogging, val onDebugLoggingChange, val revision, val entries, var filterText, var showExportRangePicker, … (+18 more) |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/settings/LyricsProviderDialogs.kt` | 92 | class LyricsProviderToggle, val ids, val title, val description, val enabled, val onEnabledChange, fun LyricsProviderSelectionDialog, fun LyricsProviderPriorityDialog, val enabledIds, val byFirstId, val rows, val items, … (+1 more) |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/settings/OfflineSearchSettings.kt` | 140 | fun OfflineSearchSettings, val context, val status, val enabled, val _, val backFocus, val firstFocus, val statusDescription, val lastUpdated |
