@@ -15,8 +15,8 @@
 | BuildConfig fields visible in Gradle | `ARCHITECTURE`, `COMMIT_HASH`, `RUN_NUMBER`, `GOOGLE_TOKEN_EXCHANGE_URL`, `CONTENT_MIRROR_URL`, `ZEMER_LYRICS_BASE_URL` |
 | Room schema directory | `app/schemas` |
 | Native build | None (no `app/src/main/cpp`, no `externalNativeBuild`) |
-| Tracked app paths | `1091` |
-| Tracked app Kotlin files | `808` (`614` in `src/main`, `192` in `src/test`, `2` in `src/androidTest`) |
+| Tracked app paths | `1097` |
+| Tracked app Kotlin files | `814` (`618` in `src/main`, `194` in `src/test`, `2` in `src/androidTest`) |
 | Tracked app resource paths | `214` |
 | Tracked app asset paths | `0` in `src/main` (`3` test fixtures under `src/androidTest/assets`) |
 | Tracked app Room schema files | `36` |
@@ -39,6 +39,7 @@
 | `provider` | `androidx.core.content.FileProvider` | `false` |
 | `provider` | `rikka.shizuku.ShizukuProvider` | `true` |
 | `provider` | `com.dpi.DensityScaler` | `false` |
+| `receiver` | `.launcher.HomeAppBootReceiver` | `false` |
 | `receiver` | `.utils.updater.InstallReceiver` | `false` |
 | `receiver` | `androidx.media3.session.MediaButtonReceiver` | `true` |
 | `receiver` | `.widget.MusicWidgetReceiver` | `true` |
@@ -61,6 +62,7 @@
 | `com.jtech.zemer.di` | 7 |
 | `com.jtech.zemer.extensions` | 10 |
 | `com.jtech.zemer.latestreleases` | 8 |
+| `com.jtech.zemer.launcher` | 3 |
 | `com.jtech.zemer.lyrics` | 13 |
 | `com.jtech.zemer.lyrics.lrclib` | 3 |
 | `com.jtech.zemer.lyrics.simpmusic` | 3 |
@@ -94,7 +96,7 @@
 | `com.jtech.zemer.ui.screens.podcast` | 1 |
 | `com.jtech.zemer.ui.screens.recognition` | 2 |
 | `com.jtech.zemer.ui.screens.search` | 3 |
-| `com.jtech.zemer.ui.screens.settings` | 18 |
+| `com.jtech.zemer.ui.screens.settings` | 19 |
 | `com.jtech.zemer.ui.screens.statuses` | 4 |
 | `com.jtech.zemer.ui.theme` | 7 |
 | `com.jtech.zemer.ui.utils` | 20 |
@@ -124,6 +126,7 @@
 | `com/jtech/zemer/di` | 7 |
 | `com/jtech/zemer/extensions` | 10 |
 | `com/jtech/zemer/latestreleases` | 8 |
+| `com/jtech/zemer/launcher` | 3 |
 | `com/jtech/zemer/lyrics` | 13 |
 | `com/jtech/zemer/lyrics/lrclib` | 3 |
 | `com/jtech/zemer/lyrics/simpmusic` | 3 |
@@ -157,7 +160,7 @@
 | `com/jtech/zemer/ui/screens/podcast` | 1 |
 | `com/jtech/zemer/ui/screens/recognition` | 2 |
 | `com/jtech/zemer/ui/screens/search` | 3 |
-| `com/jtech/zemer/ui/screens/settings` | 18 |
+| `com/jtech/zemer/ui/screens/settings` | 19 |
 | `com/jtech/zemer/ui/screens/statuses` | 4 |
 | `com/jtech/zemer/ui/theme` | 7 |
 | `com/jtech/zemer/ui/utils` | 20 |
