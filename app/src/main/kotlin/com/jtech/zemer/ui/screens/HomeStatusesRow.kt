@@ -10,7 +10,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -36,7 +38,15 @@ fun HomeStatusesRow(
     val ordered = remember(creators, seenPostIds, contentFilter) {
         creators.sortedByUnseenFirst(seenPostIds, contentFilter)
     }
+    // A keyed LazyRow keeps its current first item anchored when a new one is inserted before it, so a
+    // pinned creator landing after the row rendered would sit off-screen to the left. While the row is at
+    // its start, follow a new leader back to index 0.
+    val listState = rememberLazyListState()
+    LaunchedEffect(ordered.firstOrNull()?.id) {
+        if (listState.firstVisibleItemIndex <= 1) listState.scrollToItem(0)
+    }
     LazyRow(
+        state = listState,
         contentPadding = WindowInsets.systemBars.only(WindowInsetsSides.Horizontal)
             .add(WindowInsets(left = 12.dp, right = 12.dp))
             .asPaddingValues(),

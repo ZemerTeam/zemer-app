@@ -1,7 +1,10 @@
 package com.jtech.zemer.tracking
 
 import android.content.Context
+import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.stringSetPreferencesKey
 import com.jtech.zemer.BuildConfig
 import com.jtech.zemer.constants.TrackingDeviceIdKey
 import com.jtech.zemer.utils.dataStore
@@ -16,6 +19,8 @@ import kotlinx.coroutines.launch
 import kotlinx.serialization.json.JsonObject
 import timber.log.Timber
 import java.io.File
+import java.time.LocalDate
+import java.time.ZoneOffset
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 
@@ -47,7 +52,11 @@ object Tracker {
 
     private var queue: TrackingQueue? = null
     private var uploader = TrackingUploader()
-    private var deviceId: String? = null
+    @Volatile private var deviceId: String? = null
+    private var store: DataStore<Preferences>? = null
+
+    /** The telemetry device id once [initialize] has loaded it (also seeds the Music Status ad rotation). */
+    val deviceIdOrNull: String? get() = deviceId
     private var appVer: String = BuildConfig.VERSION_NAME
 
     private var inFlight = false
@@ -59,6 +68,7 @@ object Tracker {
     fun initialize(context: Context) {
         if (ready.isCompleted) return
         val appContext = context.applicationContext
+        store = appContext.dataStore
         scope.launch {
             if (ready.isCompleted) return@launch
             queue = TrackingQueue(File(appContext.filesDir, QUEUE_FILE))
@@ -92,6 +102,34 @@ object Tracker {
     }
 
     fun action(kind: String, id: String) = enqueue { TrackingEvents.action(now(), kind, id) }
+
+    /**
+     * A Music Status post stayed on screen [onScreenMs]; reported once per post per UTC day (persisted, so
+     * replays and restarts never inflate views) and only past 1 s ([statusViewSecs]).
+     */
+    fun statusView(id: String, onScreenMs: Long, durationSeconds: Int?) {
+        val secs = statusViewSecs(onScreenMs, durationSeconds) ?: return
+        val t = now()
+        val day = LocalDate.now(ZoneOffset.UTC).toString()
+        scope.launch {
+            ready.await()
+            val prefsStore = store ?: return@launch
+            var fresh = false
+            runCatching {
+                prefsStore.edit { prefs ->
+                    fresh = false
+                    recordDailyStatusView(prefs[STATUS_VIEWS_SENT_KEY].orEmpty(), id, day)?.let {
+                        prefs[STATUS_VIEWS_SENT_KEY] = it
+                        fresh = true
+                    }
+                }
+            }
+            if (fresh) enqueue { TrackingEvents.status(t, "view", id, secs) }
+        }
+    }
+
+    /** The Sponsored link button of Music Status post [id] was tapped. */
+    fun statusTap(id: String) = enqueue { TrackingEvents.status(now(), "tap", id) }
 
     /**
      * One rendered row/screen: the videoIds actually on screen, on [surface].
@@ -288,6 +326,7 @@ object Tracker {
 
     private const val TAG = "Zemer_Tracker"
     private const val QUEUE_FILE = "tracking/events.jsonl"
+    private val STATUS_VIEWS_SENT_KEY = stringSetPreferencesKey("status_views_sent")
     private const val FLUSH_THRESHOLD = 20
     private const val TIMER_FLUSH_MS = 60_000L
     private const val STREAM_INFO_MAX = 300

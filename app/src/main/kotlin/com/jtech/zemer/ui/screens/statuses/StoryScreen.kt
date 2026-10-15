@@ -113,6 +113,7 @@ import com.jtech.zemer.statuses.resumePos
 import com.jtech.zemer.statuses.statusAvatarUrl
 import com.jtech.zemer.statuses.statusDateGroups
 import com.jtech.zemer.statuses.statusMediaUrl
+import com.jtech.zemer.statuses.withoutSponsoredLabel
 import com.jtech.zemer.ui.theme.HeaderFontFamily
 import com.jtech.zemer.viewmodels.StoryViewModel
 import kotlinx.coroutines.launch
@@ -375,64 +376,71 @@ fun StoryScreen(
 
         // WhatsApp "seen": mark the status viewed as soon as it is shown (persisted; mutes the ring).
         viewModel.markSeen(post.id)
-
-        progress = 0f
-        videoRendered = false // hold the cover until THIS status's video draws its first frame
-        exoPlayer.stop()
-
-        if (post.kind == "video" && post.mediaPath != null) {
-            val uri = statusMediaUrl(post.mediaPath) ?: return@LaunchedEffect
-            exoPlayer.setMediaItem(MediaItem.fromUri(uri))
-            exoPlayer.prepare()
-            exoPlayer.play()
-            var lastPos = -1L
-            var stalledMs = 0f
-            var prevFrame = 0L
-            while (true) {
-                // Drive on the DISPLAY frame clock (not a fixed 80ms tick) so the bar is perfectly smooth.
-                withFrameNanos { now ->
-                    val dt = if (prevFrame == 0L) 0f else (now - prevFrame) / 1_000_000f
-                    prevFrame = now
-                    val pos = exoPlayer.currentPosition
-                    // Stall detector: accrue real time only while playback is INTENDED (playWhenReady) and
-                    // the position is not advancing; the dt cap ignores background gaps (frame clock pauses
-                    // when off-screen, then resumes with a huge dt). Reset the moment position advances.
-                    if (exoPlayer.playWhenReady && pos <= lastPos) {
-                        if (dt in 0f..100f) stalledMs += dt
-                    } else {
-                        stalledMs = 0f
-                    }
-                    lastPos = pos
-                }
-                val dur = exoPlayer.duration
-                if (dur > 0L) progress = (exoPlayer.currentPosition.toFloat() / dur).coerceIn(0f, 1f)
-                val ended = exoPlayer.playbackState == Player.STATE_ENDED
-                val failed = exoPlayer.playerError != null // bad/expired URL: sets playerError, never ENDs
-                if (ended || failed || stalledMs >= VIDEO_STALL_TIMEOUT_MS || progress >= 0.99f) break
-            }
+        // Time on screen for the exact view count, reported however the status ends (finished, tapped
+        // past, swiped away or the viewer closed); the view rule and duration cap live in the tracker.
+        val viewedCreator = creators.getOrNull(postsCreatorIdx)
+        val shownAt = android.os.SystemClock.elapsedRealtime()
+        try {
+            progress = 0f
+            videoRendered = false // hold the cover until THIS status's video draws its first frame
             exoPlayer.stop()
-        } else {
-            // Image/text: hold the API-provided duration (the site defaults to 7s). Advance real elapsed
-            // time on the display frame clock for a perfectly smooth bar; the dt cap freezes it while
-            // backgrounded (frame clock pauses) and the `paused` check freezes it during a press-hold.
-            val durationMs = (post.durationSeconds ?: 7) * 1000f
-            var elapsed = 0f
-            var prevFrame = 0L
-            while (elapsed < durationMs) {
-                withFrameNanos { now ->
-                    val dt = if (prevFrame == 0L) 0f else (now - prevFrame) / 1_000_000f
-                    prevFrame = now
-                    if (!paused && !captionExpanded && dt in 0f..100f) elapsed += dt
+
+            if (post.kind == "video" && post.mediaPath != null) {
+                val uri = statusMediaUrl(post.mediaPath) ?: return@LaunchedEffect
+                exoPlayer.setMediaItem(MediaItem.fromUri(uri))
+                exoPlayer.prepare()
+                exoPlayer.play()
+                var lastPos = -1L
+                var stalledMs = 0f
+                var prevFrame = 0L
+                while (true) {
+                    // Drive on the DISPLAY frame clock (not a fixed 80ms tick) so the bar is perfectly smooth.
+                    withFrameNanos { now ->
+                        val dt = if (prevFrame == 0L) 0f else (now - prevFrame) / 1_000_000f
+                        prevFrame = now
+                        val pos = exoPlayer.currentPosition
+                        // Stall detector: accrue real time only while playback is INTENDED (playWhenReady) and
+                        // the position is not advancing; the dt cap ignores background gaps (frame clock pauses
+                        // when off-screen, then resumes with a huge dt). Reset the moment position advances.
+                        if (exoPlayer.playWhenReady && pos <= lastPos) {
+                            if (dt in 0f..100f) stalledMs += dt
+                        } else {
+                            stalledMs = 0f
+                        }
+                        lastPos = pos
+                    }
+                    val dur = exoPlayer.duration
+                    if (dur > 0L) progress = (exoPlayer.currentPosition.toFloat() / dur).coerceIn(0f, 1f)
+                    val ended = exoPlayer.playbackState == Player.STATE_ENDED
+                    val failed = exoPlayer.playerError != null // bad/expired URL: sets playerError, never ENDs
+                    if (ended || failed || stalledMs >= VIDEO_STALL_TIMEOUT_MS || progress >= 0.99f) break
                 }
-                progress = (elapsed / durationMs).coerceIn(0f, 1f)
+                exoPlayer.stop()
+            } else {
+                // Image/text: hold the API-provided duration (the site defaults to 7s). Advance real elapsed
+                // time on the display frame clock for a perfectly smooth bar; the dt cap freezes it while
+                // backgrounded (frame clock pauses) and the `paused` check freezes it during a press-hold.
+                val durationMs = (post.durationSeconds ?: 7) * 1000f
+                var elapsed = 0f
+                var prevFrame = 0L
+                while (elapsed < durationMs) {
+                    withFrameNanos { now ->
+                        val dt = if (prevFrame == 0L) 0f else (now - prevFrame) / 1_000_000f
+                        prevFrame = now
+                        if (!paused && !captionExpanded && dt in 0f..100f) elapsed += dt
+                    }
+                    progress = (elapsed / durationMs).coerceIn(0f, 1f)
+                }
             }
+        } finally {
+            viewedCreator?.let { viewModel.onPostViewed(it, post, android.os.SystemClock.elapsedRealtime() - shownAt) }
         }
         advance()
     }
 
     val creator = creators.getOrNull(creatorIdx)
     val currentPost = posts?.getOrNull(postIdx)
-    val hasCaption = currentPost?.kind != "text" && !currentPost?.caption.isNullOrBlank()
+    val hasCaption = currentPost?.kind != "text" && !currentPost?.withoutSponsoredLabel(currentPost.caption).isNullOrBlank()
     // The "jump to date" affordance shows only when the creator posted on more than one date.
     val canJumpDate = posts != null && dateGroups.size > 1
 
@@ -524,7 +532,7 @@ fun StoryScreen(
                         val parsedBg = post.textBgColor?.let {
                             runCatching { Color(android.graphics.Color.parseColor(it)) }.getOrNull()
                         }
-                        val body = post.textBody ?: post.caption ?: ""
+                        val body = post.withoutSponsoredLabel(post.textBody ?: post.caption).orEmpty()
                         val textColor = if (parsedBg != null) Color.White else colorScheme.onSurfaceVariant
                         // Links are readable on either backdrop: white (underlined) over a colored bg, the
                         // theme accent over the neutral themed surface.
@@ -566,6 +574,7 @@ fun StoryScreen(
             segmentCount = if (posts == null) 0 else windowEnd - windowStart + 1,
             currentSegment = postIdx - windowStart,
             progress = if (posts == null) 0f else progress,
+            badge = if (currentPost?.sponsored == true) stringResource(R.string.status_sponsored) else null,
         )
 
         // Whether the save FAB (bottom-right) is currently shown - the caption reserves space on its right
@@ -591,7 +600,10 @@ fun StoryScreen(
                 ?.takeIf { it.isNotBlank() }
             val showCopy = copyableText != null && !showDateSheet
             val showJump = canJumpDate && !showDateSheet
-            if (showCopy || showJump) {
+            // A sponsored post's advertiser link (opened like any status link; fail-soft when filtered).
+            val sponsoredPost = currentPost?.takeIf { it.sponsored && it.link != null }
+            val showLink = sponsoredPost != null && !showDateSheet
+            if (showCopy || showJump || showLink) {
                 // Both controls share one explicit height so the icon-only copy button lines up exactly
                 // with the jump-to-date pill.
                 val pillHeight = 36.dp
@@ -606,39 +618,32 @@ fun StoryScreen(
                             modifier = Modifier.height(pillHeight).aspectRatio(1f),
                         )
                     }
+                    if (showLink && sponsoredPost != null) {
+                        StatusPill(
+                            icon = R.drawable.link,
+                            text = stringResource(R.string.status_open_link),
+                            height = pillHeight,
+                            onClick = {
+                                creator?.let { viewModel.onSponsoredLinkTapped(it, sponsoredPost) }
+                                sponsoredPost.link?.let(context::openStatusLink)
+                            },
+                        )
+                    }
                     if (showJump) {
-                        // A themed pill rather than a translucent white chip, at high opacity so it stays
-                        // legible over the media.
-                        Row(
-                            Modifier
-                                .height(pillHeight)
-                                .clip(RoundedCornerShape(50))
-                                .background(colorScheme.secondaryContainer.copy(alpha = 0.9f))
-                                .clickable { showDateSheet = true }
-                                .padding(horizontal = 14.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Icon(
-                                painter = painterResource(R.drawable.expand_less),
-                                contentDescription = null,
-                                tint = colorScheme.onSecondaryContainer,
-                                modifier = Modifier.size(18.dp),
-                            )
-                            Spacer(Modifier.width(4.dp))
-                            Text(
-                                text = stringResource(R.string.jump_to_date),
-                                color = colorScheme.onSecondaryContainer,
-                                style = MaterialTheme.typography.labelLarge,
-                                fontWeight = FontWeight.SemiBold,
-                            )
-                        }
+                        StatusPill(
+                            icon = R.drawable.expand_less,
+                            text = stringResource(R.string.jump_to_date),
+                            height = pillHeight,
+                            onClick = { showDateSheet = true },
+                        )
                     }
                 }
             }
             if (hasCaption) {
                 val cap = currentPost?.caption ?: ""
                 ExpandableStatusCaption(
-                    caption = cap,
+                    // The Sponsored badge in the header replaces the server's caption label line.
+                    caption = currentPost?.withoutSponsoredLabel(cap).orEmpty(),
                     expanded = captionExpanded,
                     onExpandedChange = { captionExpanded = it },
                     onCopy = { context.copyToClipboard(context.getString(R.string.statuses), cap) },
@@ -918,6 +923,40 @@ private fun StatusDateCard(group: StatusDateGroup, selected: Boolean, onClick: (
             text = pluralStringResource(R.plurals.n_status_post, group.count, group.count),
             color = if (selected) colorScheme.onPrimaryContainer else colorScheme.onSurfaceVariant,
             style = MaterialTheme.typography.labelSmall,
+        )
+    }
+}
+
+/** One themed pill of the viewer's bottom row (jump to date, a sponsored link), legible over the media. */
+@Composable
+private fun StatusPill(
+    icon: Int,
+    text: String,
+    height: androidx.compose.ui.unit.Dp,
+    onClick: () -> Unit,
+) {
+    val colorScheme = MaterialTheme.colorScheme
+    Row(
+        Modifier
+            .height(height)
+            .clip(RoundedCornerShape(50))
+            .background(colorScheme.secondaryContainer.copy(alpha = 0.9f))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 14.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(
+            painter = painterResource(icon),
+            contentDescription = null,
+            tint = colorScheme.onSecondaryContainer,
+            modifier = Modifier.size(18.dp),
+        )
+        Spacer(Modifier.width(4.dp))
+        Text(
+            text = text,
+            color = colorScheme.onSecondaryContainer,
+            style = MaterialTheme.typography.labelLarge,
+            fontWeight = FontWeight.SemiBold,
         )
     }
 }

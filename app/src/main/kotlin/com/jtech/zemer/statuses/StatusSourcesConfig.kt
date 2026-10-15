@@ -56,6 +56,10 @@ data class StatusProvider(
     val categoryIds: List<String> = emptyList(),
     val musicKeywords: List<String> = emptyList(),
     val enabled: Boolean = true,
+    /** Display name (the See-all section title of a [pinned] provider); falls back to [id]. */
+    val name: String = id,
+    /** A pinned provider's creators always lead the Home row and the See-all, whatever their read state. */
+    val pinned: Boolean = false,
 ) {
     /** The per-type filter list an enabled provider needs (non-empty) to fetch anything. */
     val filterList: List<String>
@@ -112,6 +116,8 @@ fun parseStatusSourcesConfig(text: String?): StatusSourcesConfig? {
                 categoryIds = o.optJSONArray("categoryIds").toStringList(),
                 musicKeywords = o.optJSONArray("musicKeywords").toStringList(),
                 enabled = true,
+                name = o.optStringOrNull("name") ?: id,
+                pinned = o.optBoolean("pinned", false),
             ).takeIf { it.filterList.isNotEmpty() } // an enabled provider with no filter is misconfigured -> skip
         }
         StatusSourcesConfig(version, usable)

@@ -6,7 +6,7 @@ recommendations. The authoritative wire spec is the handoff doc
 
 ## TL;DR
 
-Six events — `open`, `search`, `play`, `click`, `action`, `impression` — batched into a durable on-disk
+Seven events — `open`, `search`, `play`, `click`, `action`, `impression`, `status` — batched into a durable on-disk
 queue and POSTed fire-and-forget. Identity is ONE random UUID (`TrackingDeviceIdKey` in DataStore),
 nothing else: no account data, no device identifiers, no location. Product decisions: track everything
 including KidZone, no opt-out, one `search` event per executed query, offline plays queue and upload late.
@@ -67,6 +67,13 @@ rather than poison-pilling the queue. Losing events is fine. Breaking playback i
   in-player swap on the same session) are tracked identically.
 - **`impression`** — `TrackImpressionsByKey` (`ImpressionReporter.kt`) on the instrumented rows; see
   below for the definition and surface list (both are contracts).
+- **`status`** — the Music Status viewer (`StoryScreen` -> `StoryViewModel.onPostViewed` /
+  `onSponsoredLinkTapped`), PINNED (Zemer-owned) creators only. `view`: when a post leaves the screen
+  after >= 1 s, `secs` = whole seconds on screen capped at its duration (`statusViewSecs`), at most once
+  per post per device per UTC day (`recordDailyStatusView` over the persisted `status_views_sent` set,
+  so replays and restarts never inflate `views`). `tap`: the Sponsored "Open link" pill. Wire:
+  `{"type":"status","t":…,"kind":"view","id":"<post id>","secs":12}` / `{…,"kind":"tap","id":…}`.
+  Contract: `handoff-docs/zemer-app-sponsored-status-request.md`.
 - **`action`** — central chokepoints only: the four entity `toggleLike()`s (`favorite`/`unfavorite`);
   `MediaStoreDownloadManager` (`download`, fired AFTER the already-downloading/completed no-op check so
   a re-tap that enqueues nothing reports nothing, and only with `fromUser = true` — retries, self-repair

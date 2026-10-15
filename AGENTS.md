@@ -460,6 +460,14 @@ config are in `docs/status/`. The feature is **fail-soft and isolated**; the rul
   auto-skipped. `StoryViewModel.contentFilter` starts **null** and the driver waits for the real
   DataStore value - a guessed default re-ran the driver and restarted playback. The See-all gear opens
   `settings/appearance?scrollTo=status`.
+- **A PINNED provider leads, always** (config `pinned`, Zemer's own provider today): its creators carry
+  `pinnedSection` and sort first in `sortedByUnseenFirst` (provider order, read ring unchanged), get
+  their own top See-all section under the provider `name`, and count as primary in
+  `mergeStatusCreators` (never displaced by a namesake). Only pinned creators report exact `status`
+  views/taps (once per post per device per UTC day). **Sponsored posts** (`sponsored`/`advertiser`/
+  `link`) show a header badge + an "Open link" pill and rotate per device per UTC day
+  (`rotateSponsored`, applied in `StoryViewModel` with the content filter); ads are labeled server-side
+  for old builds. Landscape video switches to FIT (`statusVideoResizeMode`). Detail: `docs/status/README.md`.
 - **Media URLs are source-agnostic** (`statusMediaUrl`/`statusAvatarUrl`): a full `http(s)` URL passes
   through (YidStatus), a relative path gets the R2 prefix (JewishStatus).
 - Third-party platforms get no handoff doc (`docs/status/` instead); only the Zemer-side source config
@@ -608,7 +616,7 @@ Full detail (shards, layers, tests): `docs/offline/README.md`. Invariants:
 
 ### Tracking (anonymous usage telemetry)
 
-Six events (`open`/`search`/`play`/`click`/`action`/`impression`) POSTed to `tracking.zemer.io`; full
+Seven events (`open`/`search`/`play`/`click`/`action`/`impression`/`status`) POSTed to `tracking.zemer.io`; full
 detail in `docs/tracking/README.md`. Rules that must not regress:
 
 - **Telemetry may never break the app**: every `Tracker` entry point is a fire-and-forget `scope.launch`;

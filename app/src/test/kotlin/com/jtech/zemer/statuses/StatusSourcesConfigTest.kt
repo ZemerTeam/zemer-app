@@ -1,6 +1,7 @@
 package com.jtech.zemer.statuses
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -152,5 +153,20 @@ class StatusSourcesConfigTest {
         StatusSourcesCache.update(older) // ignored
         assertEquals(100L, StatusSourcesCache.syncedVersion)
         assertEquals(listOf("yid-status"), StatusSourcesCache.current().providers.map { it.id })
+    }
+
+    // --- Pinned provider (additive) ---
+
+    @Test
+    fun `pinned and name parse, defaulting to unpinned and the id`() {
+        val pinned = """{"id":"zemer","type":"supabase-category","name":"Zemer","baseUrl":"https://z","apiKey":"zemer","enabled":true,"categoryIds":["zemer"],"pinned":true}"""
+        val config = parseStatusSourcesConfig(doc(pinned, descriptor(id = "jewish-status"), version = 5))!!
+        val (zemer, jewish) = config.providers
+        assertEquals("zemer", zemer.id)
+        assertTrue(zemer.pinned)
+        assertEquals("Zemer", zemer.name)
+        // Absent on older descriptors -> unpinned, name falls back to the id.
+        assertFalse(jewish.pinned)
+        assertEquals("jewish-status", jewish.name)
     }
 }

@@ -552,6 +552,8 @@
     <string name="search_status_hint">Search creators</string>
     <string name="status_source_jewishstatus">JewishStatus</string>
     <string name="status_source_yidstatus">YidStatus</string>
+    <string name="status_sponsored">Sponsored</string>
+    <string name="status_open_link">Open link</string>
     <plurals name="n_status_post">
         <item quantity="one">%d post</item>
         <item quantity="other">%d posts</item>

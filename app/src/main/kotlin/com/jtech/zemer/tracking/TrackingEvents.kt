@@ -116,6 +116,18 @@ internal object TrackingEvents {
      * filtered and chunked by [impressionChunks]; [surface] is omitted when it doesn't match the
      * server's slug alphabet, which stores absent/invalid as NULL while still counting the ids.
      */
+    /**
+     * A Music Status post was viewed ([kind] `view`, with [secs] on screen) or its Sponsored link tapped
+     * (`tap`, no secs). Contract: handoff-docs/zemer-app-sponsored-status-request.md §3.
+     */
+    fun status(t: Long, kind: String, id: String, secs: Int? = null): JsonObject = buildJsonObject {
+        put("type", "status")
+        put("t", t)
+        put("kind", kind)
+        put("id", id)
+        if (secs != null) put("secs", secs)
+    }
+
     fun impression(t: Long, ids: List<String>, surface: String?): JsonObject = buildJsonObject {
         put("type", "impression")
         put("t", t)
@@ -205,6 +217,26 @@ internal fun capImpressionRows(batch: List<String>, max: Int = MAX_IMPRESSION_RO
     // takeWhile drops the event that crossed the limit; keep at least one so a single oversized
     // event (impossible at 50 ids/event today) can never stall the queue forever.
     return kept.ifEmpty { batch.take(1) }
+}
+
+/**
+ * Seconds a status post counts as viewed: null under 1 s on screen (not a view), else the whole seconds
+ * on screen capped at the post's [durationSeconds] when known.
+ */
+internal fun statusViewSecs(onScreenMs: Long, durationSeconds: Int?): Int? {
+    if (onScreenMs < 1_000L) return null
+    val secs = (onScreenMs / 1_000L).toInt()
+    return durationSeconds?.takeIf { it > 0 }?.let { secs.coerceAtMost(it) } ?: secs
+}
+
+/**
+ * The once-per-post-per-UTC-day view rule over the persisted `"<utcDate>|<postId>"` keys: returns the set
+ * to persist (other days pruned) when [id] is new for [utcDate], or null when it was already reported.
+ */
+internal fun recordDailyStatusView(sent: Set<String>, id: String, utcDate: String): Set<String>? {
+    val key = "$utcDate|$id"
+    if (key in sent) return null
+    return sent.filterTo(HashSet()) { it.startsWith("$utcDate|") } + key
 }
 
 /** The `action` kinds the server accepts. */

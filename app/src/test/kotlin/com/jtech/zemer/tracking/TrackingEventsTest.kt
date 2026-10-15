@@ -210,4 +210,39 @@ class TrackingEventsTest {
         // Java's UUID.randomUUID().toString() is lowercase canonical — must always pass.
         assertEquals(true, isCanonicalUuid(java.util.UUID.randomUUID().toString()))
     }
+
+    @Test
+    fun `status view and tap events match the contract exactly`() {
+        assertEquals(
+            """{"type":"status","t":1792100000000,"kind":"view","id":"6f09e1c3-eb41-4522-ac3e-e75b5aac6dd3","secs":12}""",
+            TrackingEvents.status(1792100000000L, "view", "6f09e1c3-eb41-4522-ac3e-e75b5aac6dd3", 12).toString(),
+        )
+        assertEquals(
+            """{"type":"status","t":1,"kind":"tap","id":"ad"}""",
+            TrackingEvents.status(1, "tap", "ad").toString(),
+        )
+    }
+
+    @Test
+    fun `a status view needs 1 s on screen and is capped at the post duration`() {
+        assertEquals(null, statusViewSecs(999L, 30))
+        assertEquals(1, statusViewSecs(1_000L, 30))
+        assertEquals(12, statusViewSecs(12_700L, 30))
+        assertEquals(7, statusViewSecs(60_000L, 7))
+        // Unknown duration -> uncapped.
+        assertEquals(60, statusViewSecs(60_000L, null))
+    }
+
+    @Test
+    fun `a status view is reported once per post per UTC day, older days pruned`() {
+        val first = recordDailyStatusView(emptySet(), "p1", "2026-10-15")!!
+        assertEquals(setOf("2026-10-15|p1"), first)
+        // A replay the same day -> nothing to send.
+        assertEquals(null, recordDailyStatusView(first, "p1", "2026-10-15"))
+        // Another post the same day -> sent, both remembered.
+        val second = recordDailyStatusView(first, "p2", "2026-10-15")!!
+        assertEquals(setOf("2026-10-15|p1", "2026-10-15|p2"), second)
+        // The next UTC day -> sent again, yesterday's keys pruned.
+        assertEquals(setOf("2026-10-16|p1"), recordDailyStatusView(second, "p1", "2026-10-16"))
+    }
 }

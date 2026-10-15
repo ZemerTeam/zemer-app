@@ -198,6 +198,7 @@ class StatusesRepository @Inject constructor(
                 val list = runCatching { fetchStatusCreators(provider.baseUrl, provider.apiKey, provider.categoryIds) }
                     .onFailure { reportException(it) }
                     .getOrNull()
+                    ?.map { it.withProvider(provider) }
                 if (list != null) {
                     anySuccess = true
                     list.forEach { c -> if (byId.putIfAbsent(c.id, c) == null) providerByCreator[c.id] = provider }
@@ -257,6 +258,7 @@ class StatusesRepository @Inject constructor(
                 val feed = runCatching { fetchYidStatusFeed(provider.baseUrl, provider.apiKey, provider.musicKeywords) }
                     .onFailure { reportException(it) }
                     .getOrNull()
+                    ?.let { it.copy(creators = it.creators.map { c -> c.withProvider(provider) }) }
                 if (feed != null) {
                     anySuccess = true
                     feed.creators.forEach { c -> if (byId.putIfAbsent(c.id, c) == null) providerByCreator[c.id] = provider }
@@ -291,3 +293,7 @@ class StatusesRepository @Inject constructor(
         _creators.value = mergeStatusCreators(jewishCache ?: emptyList(), yidCache?.creators ?: emptyList())
     }
 }
+
+/** Tag a creator with its provider's pin (see [StatusCreator.pinnedSection]). */
+private fun StatusCreator.withProvider(provider: StatusProvider) =
+    if (provider.pinned) copy(pinnedSection = provider.name) else this

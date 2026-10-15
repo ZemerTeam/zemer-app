@@ -4,6 +4,8 @@ import android.view.ViewGroup
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.media3.common.Player
+import androidx.media3.common.VideoSize
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.PlayerView
@@ -16,7 +18,8 @@ import androidx.media3.ui.PlayerView
  * Fill mode is ZOOM (fill the surface, crop the overflow), the WhatsApp/Instagram-stories behavior: a
  * tall/portrait status video fills the whole screen instead of being letterboxed into a thin strip that
  * left a black band for the caption/FAB to sit on. The overlays (segment bars, header, caption, FAB)
- * then sit ON the video with their own scrims.
+ * then sit ON the video with their own scrims. A video WIDER than the surface (a landscape post) switches
+ * to FIT instead, so it is letterboxed rather than cropped to its middle ([statusVideoResizeMode]).
  */
 @Composable
 fun StatusVideoSurface(
@@ -34,6 +37,19 @@ fun StatusVideoSurface(
                 controllerAutoShow = false
                 setShowBuffering(PlayerView.SHOW_BUFFERING_NEVER)
                 resizeMode = AspectRatioFrameLayout.RESIZE_MODE_ZOOM
+                val view = this
+                // Kept in the view's tag so onRelease detaches it from the (longer-lived) player.
+                tag = object : Player.Listener {
+                    override fun onVideoSizeChanged(videoSize: VideoSize) {
+                        val metrics = view.resources.displayMetrics
+                        view.resizeMode = statusVideoResizeMode(
+                            videoWidth = videoSize.width * videoSize.pixelWidthHeightRatio,
+                            videoHeight = videoSize.height.toFloat(),
+                            surfaceWidth = (view.width.takeIf { it > 0 } ?: metrics.widthPixels).toFloat(),
+                            surfaceHeight = (view.height.takeIf { it > 0 } ?: metrics.heightPixels).toFloat(),
+                        )
+                    }
+                }.also(player::addListener)
                 layoutParams = ViewGroup.LayoutParams(
                     ViewGroup.LayoutParams.MATCH_PARENT,
                     ViewGroup.LayoutParams.MATCH_PARENT,
@@ -42,5 +58,25 @@ fun StatusVideoSurface(
             }
         },
         modifier = modifier,
+        onRelease = { view -> (view.tag as? Player.Listener)?.let(player::removeListener) },
     )
+}
+
+/**
+ * FIT for square/landscape media wider (by aspect) than the surface, else the stories ZOOM fill. Portrait
+ * media always ZOOMs: a 9:16 post is still "wider" than a 9:20 phone and must not be letterboxed.
+ * Unknown size -> ZOOM.
+ */
+internal fun statusVideoResizeMode(
+    videoWidth: Float,
+    videoHeight: Float,
+    surfaceWidth: Float,
+    surfaceHeight: Float,
+): Int {
+    if (videoWidth <= 0f || videoHeight <= 0f || surfaceWidth <= 0f || surfaceHeight <= 0f) {
+        return AspectRatioFrameLayout.RESIZE_MODE_ZOOM
+    }
+    val videoAspect = videoWidth / videoHeight
+    return if (videoAspect >= 1f && videoAspect > surfaceWidth / surfaceHeight) AspectRatioFrameLayout.RESIZE_MODE_FIT
+    else AspectRatioFrameLayout.RESIZE_MODE_ZOOM
 }
