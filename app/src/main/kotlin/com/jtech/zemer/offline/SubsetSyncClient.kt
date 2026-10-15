@@ -1,6 +1,7 @@
 package com.jtech.zemer.offline
 
 import io.ktor.client.HttpClient
+import com.jtech.zemer.utils.zemerAppMarker
 import io.ktor.client.engine.cio.CIO
 import io.ktor.client.plugins.HttpTimeout
 import io.ktor.client.request.get
@@ -24,11 +25,12 @@ import javax.inject.Singleton
 @Singleton
 class SubsetSyncClient @Inject constructor() {
 
-    private val client = HttpClient(CIO) {
+    internal val client = HttpClient(CIO) {
         install(HttpTimeout) {
             requestTimeoutMillis = SHARD_TIMEOUT_MS
             connectTimeoutMillis = CONNECT_TIMEOUT_MS
         }
+        zemerAppMarker()
     }
 
     private val json = Json { ignoreUnknownKeys = true }

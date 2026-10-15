@@ -1,5 +1,6 @@
 package com.jtech.zemer.statuses
 
+import com.jtech.zemer.utils.withZemerAppMarker
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -263,25 +264,27 @@ internal fun parsePosts(arr: JSONArray): List<StatusPost> =
         )
     }
 
+// One opener for both verbs: timeouts, the PostgREST auth headers and the app-version marker (sent only
+// when the provider is served via a Zemer host - the own provider and the content.zemer.io proxies).
+internal fun openStatusConnection(url: String, key: String): HttpURLConnection =
+    (URL(url).openConnection() as HttpURLConnection).apply {
+        connectTimeout = TIMEOUT_MS
+        readTimeout = TIMEOUT_MS
+        setRequestProperty("apikey", key)
+        setRequestProperty("Authorization", "Bearer $key")
+    }.withZemerAppMarker()
+
 private fun postJson(url: String, body: String, key: String): String {
-    val conn = URL(url).openConnection() as HttpURLConnection
+    val conn = openStatusConnection(url, key)
     conn.requestMethod = "POST"
-    conn.connectTimeout = TIMEOUT_MS
-    conn.readTimeout = TIMEOUT_MS
     conn.setRequestProperty("Content-Type", "application/json")
-    conn.setRequestProperty("apikey", key)
-    conn.setRequestProperty("Authorization", "Bearer $key")
     conn.doOutput = true
     conn.outputStream.use { it.write(body.toByteArray()) }
     return conn.inputStream.use { it.reader().readText() }
 }
 
 private fun getJson(url: String, key: String): String {
-    val conn = URL(url).openConnection() as HttpURLConnection
-    conn.connectTimeout = TIMEOUT_MS
-    conn.readTimeout = TIMEOUT_MS
-    conn.setRequestProperty("apikey", key)
-    conn.setRequestProperty("Authorization", "Bearer $key")
+    val conn = openStatusConnection(url, key)
     return conn.inputStream.use { it.reader().readText() }
 }
 

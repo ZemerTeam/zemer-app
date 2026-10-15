@@ -164,6 +164,10 @@ import coil3.request.crossfade
 import coil3.toBitmap
 import com.google.firebase.auth.FirebaseAuth
 import com.dpi.DensityScaler
+import com.jtech.zemer.appgate.AppGate
+import com.jtech.zemer.ui.screens.GraceUpdatePrompt
+import com.jtech.zemer.ui.screens.UpdateRequiredScreen
+import com.jtech.zemer.ui.screens.rememberAppGate
 import com.jtech.zemer.constants.AppBarHeight
 import com.jtech.zemer.constants.HomeContentTabKey
 import com.jtech.zemer.extensions.cookieHasSession
@@ -189,7 +193,6 @@ import com.jtech.zemer.constants.DynamicThemeKey
 import com.jtech.zemer.constants.SelectedThemeColorKey
 import com.jtech.zemer.constants.FloatingMiniPlayerKey
 import com.jtech.zemer.constants.InnerTubeCookieKey
-import com.jtech.zemer.constants.InstallerTypeKey
 import com.jtech.zemer.constants.LastWhitelistVersionKey
 import com.jtech.zemer.constants.MiniPlayerBottomSpacing
 import com.jtech.zemer.constants.MiniPlayerHeight
@@ -286,9 +289,6 @@ import com.jtech.zemer.utils.hasNotificationPermission
 import com.jtech.zemer.utils.removeBottomNavItem
 import com.jtech.zemer.utils.rememberEnumPreference
 import com.jtech.zemer.utils.rememberPreference
-import com.jtech.zemer.utils.updater.InstallResult
-import com.jtech.zemer.utils.updater.InstallerType
-import com.jtech.zemer.utils.updater.rememberApkInstallController
 import com.jtech.zemer.utils.reportException
 import com.jtech.zemer.utils.setAppLocale
 import com.jtech.zemer.utils.tryStartForegroundService
@@ -308,7 +308,6 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
@@ -747,6 +746,14 @@ class MainActivity : ComponentActivity() {
                         val lifecycleOwner = LocalLifecycleOwner.current
 
                         
+                        // Server-driven version gate: below minVersion nothing else renders (not even
+                        // onboarding); a grace period shows a once-a-day prompt below.
+                        val appGate = rememberAppGate()
+                        if (appGate is AppGate.Blocked) {
+                            UpdateRequiredScreen(appGate)
+                            return@BoxWithConstraints
+                        }
+
                         // Show onboarding first (before splash screen)
                         if (!onboardingComplete) {
                             OnboardingFlow(
@@ -934,10 +941,6 @@ class MainActivity : ComponentActivity() {
                         var pendingUpdateVersion by rememberSaveable { mutableStateOf<String?>(null) }
                         var pendingUpdateNotes by rememberSaveable { mutableStateOf<String?>(null) }
                         var pendingUpdateIsNightly by rememberSaveable { mutableStateOf(false) }
-                        var downloadState by remember { mutableStateOf<com.jtech.zemer.utils.UpdateChecker.DownloadState>(com.jtech.zemer.utils.UpdateChecker.DownloadState.Idle) }
-                        var installError by remember { mutableStateOf<String?>(null) }
-                        var downloadJob by remember { mutableStateOf<kotlinx.coroutines.Job?>(null) }
-                        val updateScope = rememberCoroutineScope()
                         val snackbarHostState = remember { SnackbarHostState() }
 
                         // Collected, not read once: the startup check finishes after the first
@@ -972,64 +975,15 @@ class MainActivity : ComponentActivity() {
                             }
                         }
 
-                        // Auto-install when download completes, honoring the chosen install method.
-                        // Shared controller gates the Standard installer's permission and shows the
-                        // silent-install heads-up — same behaviour as the Updater screen.
-                        val (installerTypeOrdinal) = rememberPreference(InstallerTypeKey, defaultValue = InstallerType.NATIVE.ordinal)
-                        val installController = rememberApkInstallController(InstallerType.fromOrdinal(installerTypeOrdinal)) { result ->
-                            when (result) {
-                                is InstallResult.Success -> {
-                                    downloadState = com.jtech.zemer.utils.UpdateChecker.DownloadState.Idle
-                                    installError = null
-                                }
-                                is InstallResult.RequiresUserAction -> Unit // system installer UI takes over
-                                is InstallResult.Error -> installError = result.message
-                            }
-                        }
-                        LaunchedEffect(downloadState) {
-                            val downloaded = downloadState as? com.jtech.zemer.utils.UpdateChecker.DownloadState.Downloaded ?: return@LaunchedEffect
-                            installError = null
-                            installController.install(downloaded.apkFile)
-                        }
-
                         if (showUpdateDialog && pendingUpdateVersion != null) {
-                            com.jtech.zemer.ui.component.UpdateDownloadDialog(
-                                currentVersion = BuildConfig.VERSION_NAME,
+                            com.jtech.zemer.ui.component.UpdateDownloadFlow(
                                 latestVersion = pendingUpdateVersion!!,
                                 isNightly = pendingUpdateIsNightly,
                                 notes = pendingUpdateNotes,
-                                downloadState = downloadState,
-                                isInstalling = installController.isInstalling,
-                                installError = installError,
-                                installerType = InstallerType.fromOrdinal(installerTypeOrdinal),
-                                onDownload = {
-                                    downloadState = com.jtech.zemer.utils.UpdateChecker.DownloadState.Downloading(0f)
-                                    installError = null
-                                    downloadJob = updateScope.launch {
-                                        com.jtech.zemer.utils.UpdateChecker.downloadUpdate(this@MainActivity, pendingUpdateIsNightly).collect { state ->
-                                            downloadState = state
-                                        }
-                                    }
-                                },
-                                onCancelDownload = {
-                                    // Wait for the cancelled download to finish its cleanup (delete
-                                    // its part file) before returning to Idle, so a retry can start
-                                    // clean and the teardown can never touch the retry's files.
-                                    val job = downloadJob
-                                    downloadJob = null
-                                    updateScope.launch {
-                                        job?.cancelAndJoin()
-                                        downloadState = com.jtech.zemer.utils.UpdateChecker.DownloadState.Idle
-                                    }
-                                },
-                                onInstall = { apk -> installController.install(apk) },
-                                onDismiss = {
-                                    showUpdateDialog = false
-                                    downloadState = com.jtech.zemer.utils.UpdateChecker.DownloadState.Idle
-                                    installError = null
-                                },
+                                onDismiss = { showUpdateDialog = false },
                             )
                         }
+                        if (appGate is AppGate.Grace) GraceUpdatePrompt(appGate)
 
                         val (defaultOpenTab) = rememberEnumPreference(DefaultOpenTabKey, defaultValue = NavigationTab.HOME)
                         val tabOpenedFromShortcut = remember {

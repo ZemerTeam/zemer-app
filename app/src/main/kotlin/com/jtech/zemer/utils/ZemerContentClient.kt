@@ -45,7 +45,7 @@ object ZemerContentClient {
         coerceInputValues = true
     }
 
-    private val client: HttpClient by lazy {
+    internal val client: HttpClient by lazy {
         HttpClient(CIO) {
             install(HttpTimeout) {
                 connectTimeoutMillis = CONNECT_TIMEOUT_MS
@@ -53,6 +53,7 @@ object ZemerContentClient {
             }
             // Gzip: the whitelist is ~432 KB raw / ~70 KB gzipped, so this is the main speed lever.
             install(ContentEncoding) { gzip() }
+            zemerAppMarker()
         }
     }
 
@@ -160,6 +161,9 @@ object ZemerContentClient {
      * raw text here so the parse/validate/fail-soft logic lives in one place (the `statuses` package).
      */
     suspend fun statusSourcesRaw(): String = getText("/status-sources", SMALL_TIMEOUT_MS)
+
+    /** `/app-config` → the raw version-gate JSON, parsed by [com.jtech.zemer.appgate.parseAppConfig]. */
+    suspend fun appConfigRaw(): String = getText("/app-config", SMALL_TIMEOUT_MS)
 
     private const val CONNECT_TIMEOUT_MS = 3_000L
     private const val DEFAULT_TIMEOUT_MS = 4_000L

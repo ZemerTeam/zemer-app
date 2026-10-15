@@ -450,4 +450,10 @@
     <string name="update_error_storage">Not enough free storage to save the update.</string>
     <string name="update_error_corrupt">The downloaded file was incomplete or damaged. Try again.</string>
     <string name="update_error_unknown">The download failed. Try again.</string>
+    <!-- Server-driven app version gate -->
+    <string name="app_update_required_title">Update required</string>
+    <string name="app_update_required_message">This version of Zemer is no longer supported. Update to keep listening.</string>
+    <string name="app_update_grace_title">Please update by %1$s</string>
+    <string name="app_update_grace_message">This version of Zemer stops working on %1$s. Update now to keep listening.</string>
+    <string name="app_update_check_failed">Could not reach the update server. Try again later.</string>
 </resources>

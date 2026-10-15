@@ -132,6 +132,24 @@ Player configs live in **one JSON file**, `cipher/library/src/main/assets/player
 - Release notes = `/changelog?since=<installed sha>` (newest first, capped at `MAX_CHANGELOG_ENTRIES`, entries ≤ `BuildConfig.RUN_NUMBER` dropped client-side since a mirror lacking the installed build returns its whole history), falling back to `/api.commitMessage`; a notes failure never blocks the update.
 - App↔mirror contract changes travel as handoff-doc edits, never as edits to the `zemer-nightly` repo.
 
+### The version marker + server-driven version gate (`utils/ZemerAppMarker.kt`, `appgate/`)
+
+Servers can only refuse old installs if requests say which version sent them. Rules:
+- **Every request the app's own HTTP code makes to `search.zemer.io` / `content.zemer.io` carries
+  `X-Zemer-App: <versionCode>`**, applied ONCE PER CLIENT, never per call: Ktor clients install
+  `zemerAppMarker()` (search, content mirror, subset sync, the shared `LyricsHttp`), `HttpURLConnection` goes
+  through `withZemerAppMarker()` (`openStatusConnection`), OkHttp adds `ZemerAppMarkerInterceptor` (YidStatus
+  feed). It is host-gated (`ZemerAppMarker.appliesTo`), so a shared client never sends it to a third party.
+  A new client that talks to a Zemer API host must install it; `ZemerAppMarkerTest` probes the real clients.
+  Images/media, tracking, stream and update hosts don't need it (server-exempt).
+- **The gate is FAIL OPEN.** `AppConfigStore` restores the last good `content.zemer.io/app-config`, then
+  fetches on cold start and every 24 h; an unreachable / non-2xx / unparseable response keeps the last good
+  config (or none) and never creates a gate. The decision is the pure, tested `appGate`
+  (`AppConfigTest`): below `minVersion` -> `UpdateRequiredScreen` (full-screen, rendered before onboarding;
+  Back exits); below `latestVersion` before `graceUntil` -> `GraceUpdatePrompt` (dismissible, once per local
+  day); else nothing. Both use the shared `UpdateDownloadFlow` (the startup prompt's dialog, extracted),
+  falling back to the config's `updateUrl`, and ignore the "check for updates" preference.
+
 ### Accounts: personal vs anonymous (pooled) - `SAPISID` ≠ logged in
 
 A **personal** Google login sets **`dataSyncId`**. The **anonymous** login signs into a **shared, pooled** account whose cookie **does** carry `SAPISID` but whose `dataSyncId` is deliberately cleared (`App.kt` / `LoginGateScreen` - it breaks the pooled player request). So `parseCookieString(cookie).containsKey("SAPISID")` / `Context.isUserLoggedInFlow()` are **true for anonymous** and must **never** gate remote *account* reads/writes - that leaks the pooled account's library/likes/subscriptions to every anonymous user. Use the reactive `*Flow` helpers; don't reintroduce blocking `runBlocking` login checks.
@@ -200,6 +218,7 @@ Every entry is the ONE implementation; files are under `ui/component/` unless st
 - **Status viewers** (live `StoryScreen` and saved `SavedStatusScreen` must not drift): `StatusStoryTopOverlay`, `ExpandableStatusCaption`, `StatusCopyButton`, `StatusVideoSurface`, `StatusLoadingIndicator`, plus `ui/utils/CubeFace.kt` `cubeFace`.
 - **Drawer + rankings:** `DrawerEntry` (every nav-drawer row in `MainActivity`: drawer padding, focusable only while the drawer is open, scrolled into view on focus). `ChartRankCell` + `rememberChartRankMetrics` (the fixed-width rank column of a ranked list; `withMarkers = false` for a plain ranking like Stats, so no empty movement slot is reserved). `RuntimeLabel.kt` `runtimeLabel` (a duration as "164 minutes" / "40 hours"; curated playlist cards and Stats).
 - **Player:** `ui/player/VideoModePill.kt` `VideoModePill` - the one Song/Video toggle (see §Video mode).
+- **Updates:** `UpdateDownloadFlow` - the whole update download/install flow around `UpdateDownloadDialog` (startup prompt + version gate); never re-wire its state per caller.
 - **Onboarding:** `OnboardingStepHeader`, `OnboardingStepTitle` / `AppNameTitle` (both `onSurface`, never the accent), `OnboardingActionButton.kt` (`OnboardingActionButton` / `OnboardingPrimaryButton` / `OnboardingTextButton`, one shape, no per-screen overrides), `OnboardingChoiceCard.kt` (`OnboardingChoiceCard` + `onboardingCardColors`: `secondaryContainer` active / `surfaceContainer` otherwise, two tones below the button's `surfaceContainerHighest`), `OnboardingInfoCard` (the one shell for filter toggles, permission and sign-in cards), `OnboardingStatusPill`.
 - **Loading + heroes:** `ZemerLoadingIndicator.kt` - `ZemerLoadingIndicator` (CONTAINED expressive content spinner; **R25**) + `ZemerLoadingSection` (centered full-width loading block); `MediaLoadingSpinner.kt` - `MediaLoadingSpinner` (BARE neutral over-media spinner; **R26**) + `PreparingOverlay` (scrim + spinner while a tapped item resolves); `HeroTitleOverlay`; `CarouselHeroFrame` (whole carousel-hero frame, shared by Latest Releases and Featured Videos).
 - **Marquee:** `Marquee.kt` `gentleMarquee(focused)` - pass the row's D-pad focus state; its spec `gentleMarqueeParams` (JVM-tested) must keep focus-LOSS at `iterations = 0` (else the glide replays on every row the cursor leaves). `ListItem`/`GridItem` (`Items.kt`) expose it as `titleMarquee` (GridItem wraps the title slot - slot content must not add its own); `GridItem` `centerContent` is opt-in (browse tiles only).

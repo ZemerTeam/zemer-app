@@ -5,6 +5,7 @@ import io.ktor.client.engine.cio.CIO
 import io.ktor.client.plugins.HttpTimeout
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.serialization.kotlinx.json.json
+import com.jtech.zemer.utils.zemerAppMarker
 import kotlinx.serialization.json.Json
 
 /**
@@ -20,6 +21,8 @@ object LyricsHttp {
             install(ContentNegotiation) { json(json) }
             install(HttpTimeout) { requestTimeoutMillis = 15_000; connectTimeoutMillis = 10_000; socketTimeoutMillis = 15_000 }
             expectSuccess = false
+            // Host-gated: only the Zemer resolver/extras/submit calls carry it, never LRCLIB/SimpMusic.
+            zemerAppMarker()
         }
     }
 }
