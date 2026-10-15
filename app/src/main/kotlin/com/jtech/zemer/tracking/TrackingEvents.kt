@@ -110,13 +110,6 @@ internal object TrackingEvents {
     }
 
     /**
-     * The videoIds of one rendered row/screen — what the app SHOWED, the denominator the ranking
-     * side's exposure dampener divides plays by (contract:
-     * `docs/tracking/README.md` §impressions — SETTLED, server-side shipped). [ids] must already be
-     * filtered and chunked by [impressionChunks]; [surface] is omitted when it doesn't match the
-     * server's slug alphabet, which stores absent/invalid as NULL while still counting the ids.
-     */
-    /**
      * A Music Status post was viewed ([kind] `view`, with [secs] on screen) or its Sponsored link tapped
      * (`tap`, no secs). Contract: handoff-docs/zemer-app-sponsored-status-request.md §3.
      */
@@ -128,6 +121,13 @@ internal object TrackingEvents {
         if (secs != null) put("secs", secs)
     }
 
+    /**
+     * The videoIds of one rendered row/screen — what the app SHOWED, the denominator the ranking
+     * side's exposure dampener divides plays by (contract:
+     * `docs/tracking/README.md` §impressions — SETTLED, server-side shipped). [ids] must already be
+     * filtered and chunked by [impressionChunks]; [surface] is omitted when it doesn't match the
+     * server's slug alphabet, which stores absent/invalid as NULL while still counting the ids.
+     */
     fun impression(t: Long, ids: List<String>, surface: String?): JsonObject = buildJsonObject {
         put("type", "impression")
         put("t", t)

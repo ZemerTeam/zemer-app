@@ -87,6 +87,7 @@ import com.jtech.zemer.ui.component.StatusLoadingIndicator
 import com.jtech.zemer.ui.component.StatusStoryTopOverlay
 import com.jtech.zemer.ui.component.StatusVideoSurface
 import com.jtech.zemer.ui.component.ZemerFab
+import com.jtech.zemer.ui.component.focusBorder
 import com.jtech.zemer.ui.utils.ForceLightStatusBarIcons
 import com.jtech.zemer.ui.utils.PauseMusicWhileActive
 import com.jtech.zemer.ui.utils.cubeFace
@@ -319,8 +320,12 @@ fun StoryScreen(
         launch {
             val fresh = viewModel.refreshPosts(id)
             if (fresh.isNotEmpty() && fresh != currentPosts) {
+                // Stay on the SAME status: a refresh may reorder (a new sponsored post re-rotates the ad
+                // slots), so re-find the current one by id rather than keeping a now-different index.
+                val currentId = currentPosts?.getOrNull(postIdx)?.id
                 currentPosts = fresh
-                postIdx = postIdx.coerceIn(0, fresh.lastIndex)
+                postIdx = fresh.indexOfFirst { it.id == currentId }.takeIf { it >= 0 }
+                    ?: postIdx.coerceIn(0, fresh.lastIndex)
                 floorIndex = floorIndex.coerceIn(0, fresh.lastIndex)
             }
         }
@@ -376,10 +381,13 @@ fun StoryScreen(
 
         // WhatsApp "seen": mark the status viewed as soon as it is shown (persisted; mutes the ring).
         viewModel.markSeen(post.id)
-        // Time on screen for the exact view count, reported however the status ends (finished, tapped
-        // past, swiped away or the viewer closed); the view rule and duration cap live in the tracker.
+        // Visible time for the exact view count, reported however the status ends (finished, tapped past,
+        // swiped away or the viewer closed). Accrued on the frame clock (paused while backgrounded) and,
+        // for a video, only once its first frame drew - a video that never rendered is never a view. The
+        // view rule and duration cap live in the tracker.
         val viewedCreator = creators.getOrNull(postsCreatorIdx)
-        val shownAt = android.os.SystemClock.elapsedRealtime()
+        var onScreenMs = 0f
+        var videoDurationMs: Long? = null
         try {
             progress = 0f
             videoRendered = false // hold the cover until THIS status's video draws its first frame
@@ -398,6 +406,7 @@ fun StoryScreen(
                     withFrameNanos { now ->
                         val dt = if (prevFrame == 0L) 0f else (now - prevFrame) / 1_000_000f
                         prevFrame = now
+                        if (videoRendered && dt in 0f..100f) onScreenMs += dt
                         val pos = exoPlayer.currentPosition
                         // Stall detector: accrue real time only while playback is INTENDED (playWhenReady) and
                         // the position is not advancing; the dt cap ignores background gaps (frame clock pauses
@@ -410,6 +419,7 @@ fun StoryScreen(
                         lastPos = pos
                     }
                     val dur = exoPlayer.duration
+                    if (dur > 0L) videoDurationMs = dur
                     if (dur > 0L) progress = (exoPlayer.currentPosition.toFloat() / dur).coerceIn(0f, 1f)
                     val ended = exoPlayer.playbackState == Player.STATE_ENDED
                     val failed = exoPlayer.playerError != null // bad/expired URL: sets playerError, never ENDs
@@ -427,13 +437,14 @@ fun StoryScreen(
                     withFrameNanos { now ->
                         val dt = if (prevFrame == 0L) 0f else (now - prevFrame) / 1_000_000f
                         prevFrame = now
+                        if (dt in 0f..100f) onScreenMs += dt
                         if (!paused && !captionExpanded && dt in 0f..100f) elapsed += dt
                     }
                     progress = (elapsed / durationMs).coerceIn(0f, 1f)
                 }
             }
         } finally {
-            viewedCreator?.let { viewModel.onPostViewed(it, post, android.os.SystemClock.elapsedRealtime() - shownAt) }
+            viewedCreator?.let { viewModel.onPostViewed(it, post, onScreenMs.toLong(), videoDurationMs) }
         }
         advance()
     }
@@ -939,7 +950,7 @@ private fun StatusPill(
     Row(
         Modifier
             .height(height)
-            .clip(RoundedCornerShape(50))
+            .focusBorder(RoundedCornerShape(50))
             .background(colorScheme.secondaryContainer.copy(alpha = 0.9f))
             .clickable(onClick = onClick)
             .padding(horizontal = 14.dp),

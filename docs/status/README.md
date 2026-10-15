@@ -77,8 +77,8 @@ still comes straight from the third parties. Contract:
   creators carry `StatusCreator.pinnedSection` (= the provider name) and ALWAYS lead the Home row and the
   See-all (`sortedByUnseenFirst`: pinned in provider order, then unseen-first); their ring keeps its
   seen/unseen look, only the position is fixed. The See-all gives each pinned provider its own top
-  section titled with its name, and `mergeStatusCreators` treats a pinned creator as primary so a
-  same-named creator can never displace it. Today this is Zemer's own provider (`zemer`, served by the
+  section titled with its name, and `mergeStatusCreators` puts pinned creators first and lets them claim
+  their names, so a same-named creator on any platform is dropped (never shown beside or instead of them). Today this is Zemer's own provider (`zemer`, served by the
   content mirror in the JewishStatus shape).
 - **Persistence.** `StatusSourcesConfigKey` (raw JSON) + `StatusSourcesVersionKey` (the effective
   version), reloaded in `App.kt`; `StatusSourcesCache.update()` never installs an older version, so the
@@ -97,8 +97,10 @@ server-side, which only serves an ad inside its window). Every ad is already lab
 - **Rotation:** `rotateSponsored(seed = telemetry device id + UTC date)` shuffles ads among their own
   slots within a posting date; normal posts keep their chronological slots. Applied in `StoryViewModel`
   with the content filter so every viewer path sees one order.
-- **Exact views:** for PINNED creators only, a post that stayed on screen >= 1 s reports
-  `{"type":"status","kind":"view","id","secs"}` (secs capped at its duration), once per post per device
+- **Exact views:** for PINNED creators only, a post with >= 1 s of VISIBLE time (frame clock, so
+  backgrounded time never counts; a video only after its first frame, so a video that never rendered is
+  never a view) reports
+  `{"type":"status","kind":"view","id","secs"}` (secs capped at its duration, else the player's), once per post per device
   per UTC day (persisted `status_views_sent`, `recordDailyStatusView`); the Open-link pill reports
   `kind":"tap"`. See `docs/tracking/README.md`.
 - **Landscape media:** `StatusVideoSurface` switches ZOOM -> FIT for a square/landscape video wider than the surface

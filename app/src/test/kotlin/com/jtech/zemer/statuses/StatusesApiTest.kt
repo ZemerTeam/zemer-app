@@ -233,8 +233,8 @@ class StatusesApiTest {
         val pinnedFeed = creator("zemer", "z1", pinned = "Zemer", source = StatusSource.YID_STATUS)
             .copy(displayName = "Zemer")
         val jewishNamesake = creator("j1", "j").copy(displayName = "zemer")
-        val merged = mergeStatusCreators(listOf(jewishNamesake), listOf(pinnedFeed))
-        assertEquals("zemer", merged.first().id)
+        // A pinned creator from the SECONDARY list leads and its primary namesake is dropped (never two).
+        assertEquals(listOf("zemer"), mergeStatusCreators(listOf(jewishNamesake), listOf(pinnedFeed)).map { it.id })
         // And from the primary side a same-named secondary creator is dropped as before.
         val yidNamesake = creator("y1", "y", source = StatusSource.YID_STATUS).copy(displayName = "ZEMER")
         val pinnedPrimary = pinnedFeed.copy(source = StatusSource.JEWISH_STATUS)
@@ -266,6 +266,9 @@ class StatusesApiTest {
         assertEquals("Buy\nhttps://acme.example", ad.withoutSponsoredLabel(ad.caption))
         assertEquals("Hi", ad2.withoutSponsoredLabel("Hi\n\nSponsored · Beta"))
         assertEquals("Meh", meh.withoutSponsoredLabel("Meh"))
+        // No advertiser: the server's bare "Sponsored ·" line is still recognized.
+        val anon = ad.copy(advertiser = null)
+        assertEquals("Buy", anon.withoutSponsoredLabel("Sponsored ·\nBuy"))
     }
 
     private fun post(id: String, postedAt: String, sponsored: Boolean = false) = StatusPost(

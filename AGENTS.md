@@ -462,8 +462,8 @@ config are in `docs/status/`. The feature is **fail-soft and isolated**; the rul
   `settings/appearance?scrollTo=status`.
 - **A PINNED provider leads, always** (config `pinned`, Zemer's own provider today): its creators carry
   `pinnedSection` and sort first in `sortedByUnseenFirst` (provider order, read ring unchanged), get
-  their own top See-all section under the provider `name`, and count as primary in
-  `mergeStatusCreators` (never displaced by a namesake). Only pinned creators report exact `status`
+  their own top See-all section under the provider `name`, and claim their names first in
+  `mergeStatusCreators` (a namesake on any platform is dropped). Only pinned creators report exact `status`
   views/taps (once per post per device per UTC day). **Sponsored posts** (`sponsored`/`advertiser`/
   `link`) show a header badge + an "Open link" pill and rotate per device per UTC day
   (`rotateSponsored`, applied in `StoryViewModel` with the content filter); ads are labeled server-side

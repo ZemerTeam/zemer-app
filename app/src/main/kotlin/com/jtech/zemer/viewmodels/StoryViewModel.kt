@@ -91,12 +91,14 @@ class StoryViewModel @Inject constructor(
             .rotateSponsored("${Tracker.deviceIdOrNull.orEmpty()}|${LocalDate.now(ZoneOffset.UTC)}")
 
     /**
-     * A post left the screen after [onScreenMs]. Exact view counts are reported for PINNED (Zemer-owned)
-     * creators only - other providers' post ids are theirs. Capped at the post's play length.
+     * A post left the screen after [onScreenMs] of visible time. Exact view counts are reported for PINNED
+     * (Zemer-owned) creators only - other providers' post ids are theirs. Capped at the post's play length
+     * (the API duration, else the player's [videoDurationMs] for a video, else the still default).
      */
-    fun onPostViewed(creator: StatusCreator, post: StatusPost, onScreenMs: Long) {
+    fun onPostViewed(creator: StatusCreator, post: StatusPost, onScreenMs: Long, videoDurationMs: Long?) {
         if (creator.pinnedSection == null) return
-        val duration = post.durationSeconds ?: if (post.kind == "video") null else DEFAULT_STILL_SECONDS
+        val duration = post.durationSeconds
+            ?: if (post.kind == "video") videoDurationMs?.let { (it / 1000).toInt() } else DEFAULT_STILL_SECONDS
         Tracker.statusView(post.id, onScreenMs, duration)
     }
 

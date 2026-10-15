@@ -13,7 +13,11 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.jtech.zemer.statuses.StatusContentFilter
@@ -39,11 +43,16 @@ fun HomeStatusesRow(
         creators.sortedByUnseenFirst(seenPostIds, contentFilter)
     }
     // A keyed LazyRow keeps its current first item anchored when a new one is inserted before it, so a
-    // pinned creator landing after the row rendered would sit off-screen to the left. While the row is at
-    // its start, follow a new leader back to index 0.
+    // pinned creator landing after the row rendered would sit off-screen to the left. Follow a NEWLY
+    // arrived pinned leader back to index 0 (only while the row is at its start), once: the saved
+    // leader keeps a re-entry or a read-state reorder from yanking a scrolled row.
     val listState = rememberLazyListState()
-    LaunchedEffect(ordered.firstOrNull()?.id) {
+    val pinnedLeader = ordered.firstOrNull()?.takeIf { it.pinnedSection != null }?.id
+    var followedLeader by rememberSaveable { mutableStateOf<String?>(null) }
+    LaunchedEffect(pinnedLeader) {
+        if (pinnedLeader == null || pinnedLeader == followedLeader) return@LaunchedEffect
         if (listState.firstVisibleItemIndex <= 1) listState.scrollToItem(0)
+        followedLeader = pinnedLeader
     }
     LazyRow(
         state = listState,

@@ -38,17 +38,24 @@ fun StatusVideoSurface(
                 setShowBuffering(PlayerView.SHOW_BUFFERING_NEVER)
                 resizeMode = AspectRatioFrameLayout.RESIZE_MODE_ZOOM
                 val view = this
+                fun applyFit(videoSize: VideoSize) {
+                    val metrics = view.resources.displayMetrics
+                    view.resizeMode = statusVideoResizeMode(
+                        videoWidth = videoSize.width * videoSize.pixelWidthHeightRatio,
+                        videoHeight = videoSize.height.toFloat(),
+                        surfaceWidth = (view.width.takeIf { it > 0 } ?: metrics.widthPixels).toFloat(),
+                        surfaceHeight = (view.height.takeIf { it > 0 } ?: metrics.heightPixels).toFloat(),
+                    )
+                }
+                // Seed from a size the player already knows (a view recreated mid-video), re-decide on a
+                // new video and on a surface resize (rotation, foldable, window change).
+                applyFit(player.videoSize)
+                addOnLayoutChangeListener { _, left, top, right, bottom, oldLeft, oldTop, oldRight, oldBottom ->
+                    if (right - left != oldRight - oldLeft || bottom - top != oldBottom - oldTop) applyFit(player.videoSize)
+                }
                 // Kept in the view's tag so onRelease detaches it from the (longer-lived) player.
                 tag = object : Player.Listener {
-                    override fun onVideoSizeChanged(videoSize: VideoSize) {
-                        val metrics = view.resources.displayMetrics
-                        view.resizeMode = statusVideoResizeMode(
-                            videoWidth = videoSize.width * videoSize.pixelWidthHeightRatio,
-                            videoHeight = videoSize.height.toFloat(),
-                            surfaceWidth = (view.width.takeIf { it > 0 } ?: metrics.widthPixels).toFloat(),
-                            surfaceHeight = (view.height.takeIf { it > 0 } ?: metrics.heightPixels).toFloat(),
-                        )
-                    }
+                    override fun onVideoSizeChanged(videoSize: VideoSize) = applyFit(videoSize)
                 }.also(player::addListener)
                 layoutParams = ViewGroup.LayoutParams(
                     ViewGroup.LayoutParams.MATCH_PARENT,

@@ -76,7 +76,7 @@ fun StatusPost.sponsoredLabel(): String? = if (sponsored) "Sponsored · ${advert
 /** [text] without the server's sponsored label line, for a viewer that shows its own Sponsored badge. */
 fun StatusPost.withoutSponsoredLabel(text: String?): String? {
     val label = sponsoredLabel() ?: return text
-    return text?.lines()?.filterNot { it.trim() == label }?.joinToString("\n")?.trim()
+    return text?.lines()?.filterNot { it.trim() == label.trim() }?.joinToString("\n")?.trim()
 }
 
 /**
@@ -149,19 +149,20 @@ fun List<StatusCreator>.sortedByUnseenFirst(
  * Merge two platforms' creators, dropping cross-platform DUPLICATES (the same real creator appears on
  * both with different ids). Matched by a normalized name (case/spacing/punctuation-insensitive). The
  * [primary] platform wins a tie - it is kept in full; a [secondary] creator is included only when its
- * name is not already present. A PINNED creator always counts as primary, so a same-named creator can
- * never displace it. The Home row is uniform over the result; the See-all groups by `source`.
+ * name is not already present. PINNED creators (from either list) come first and claim their names, so
+ * a same-named creator on any platform is dropped rather than shown beside or instead of them. The Home
+ * row is uniform over the result; the See-all groups by `source`.
  */
 fun mergeStatusCreators(
-    primaryList: List<StatusCreator>,
-    secondaryList: List<StatusCreator>,
+    primary: List<StatusCreator>,
+    secondary: List<StatusCreator>,
 ): List<StatusCreator> {
-    val (pinnedSecondary, secondary) = secondaryList.partition { it.pinnedSection != null }
-    val primary = pinnedSecondary + primaryList
-    val seenNames = HashSet<String>()
     val out = ArrayList<StatusCreator>(primary.size + secondary.size)
-    for (c in primary) { seenNames.add(statusNameKey(c)); out.add(c) }
-    for (c in secondary) if (seenNames.add(statusNameKey(c))) out.add(c)
+    (primary + secondary).filterTo(out) { it.pinnedSection != null }
+    val seenNames = out.mapTo(HashSet(), ::statusNameKey)
+    val pinnedNames = HashSet(seenNames)
+    for (c in primary) if (c.pinnedSection == null && statusNameKey(c) !in pinnedNames) { seenNames.add(statusNameKey(c)); out.add(c) }
+    for (c in secondary) if (c.pinnedSection == null && seenNames.add(statusNameKey(c))) out.add(c)
     return out
 }
 
