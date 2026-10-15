@@ -103,6 +103,9 @@ val BlockedContentIdsKey = stringPreferencesKey("blockedContentIds")
 // fresh config the feature simply stays hidden until the first successful sync.
 val StatusSourcesConfigKey = stringPreferencesKey("statusSourcesConfig")
 val StatusSourcesVersionKey = longPreferencesKey("statusSourcesVersion")
+// Last good `content.zemer.io/app-config` (raw JSON) and the local day the grace update prompt last showed.
+val AppConfigKey = stringPreferencesKey("appConfig")
+val AppUpdateGraceShownDayKey = stringPreferencesKey("appUpdateGraceShownDay")
 val CheckForUpdatesKey = booleanPreferencesKey("checkForUpdates")
 val NightlyUpdatesKey = booleanPreferencesKey("nightlyUpdates") // opt-in nightly update channel
 // Last nightly build announced via the startup snackbar, so each nightly is announced only once.

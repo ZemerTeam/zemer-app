@@ -1,6 +1,7 @@
 package com.jtech.zemer.statuses
 
 import okhttp3.MediaType.Companion.toMediaType
+import com.jtech.zemer.utils.ZemerAppMarkerInterceptor
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
@@ -128,6 +129,7 @@ private val yidHttpClient by lazy {
     OkHttpClient.Builder()
         .connectTimeout(15, TimeUnit.SECONDS)
         .readTimeout(45, TimeUnit.SECONDS)
+        .addInterceptor(ZemerAppMarkerInterceptor) // the feed is fetched via content.zemer.io
         .build()
 }
 private val JSON_MEDIA_TYPE = "application/json".toMediaType()

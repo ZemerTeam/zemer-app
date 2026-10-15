@@ -1,6 +1,7 @@
 package com.jtech.zemer.search
 
 import io.ktor.client.HttpClient
+import com.jtech.zemer.utils.zemerAppMarker
 import io.ktor.client.engine.cio.CIO
 import timber.log.Timber
 import io.ktor.client.plugins.HttpTimeout
@@ -141,11 +142,12 @@ internal fun resolveZemerUrl(url: String?): String? =
 @Singleton
 class ZemerSearchClient @Inject constructor() {
 
-    private val client = HttpClient(CIO) {
+    internal val client = HttpClient(CIO) {
         install(HttpTimeout) {
             requestTimeoutMillis = REQUEST_TIMEOUT_MS
             connectTimeoutMillis = CONNECT_TIMEOUT_MS
         }
+        zemerAppMarker()
     }
 
     suspend fun search(

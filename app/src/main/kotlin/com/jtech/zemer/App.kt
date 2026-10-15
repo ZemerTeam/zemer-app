@@ -25,6 +25,7 @@ import com.jtech.zemer.tracking.Tracker
 import com.jtech.zemer.tracking.TrackingLifecycle
 import com.metrolist.innertube.YouTube
 import com.metrolist.innertube.models.YouTubeLocale
+import com.jtech.zemer.appgate.AppConfigStore
 import com.jtech.zemer.constants.*
 import com.jtech.zemer.di.ApplicationScope
 import com.jtech.zemer.extensions.toast
@@ -183,6 +184,9 @@ class App : Application(), SingletonImageLoader.Factory {
                 }
             }
         }
+
+        // Server-driven version gate (content.zemer.io/app-config): last good config, refreshed now + daily.
+        applicationScope.launch(Dispatchers.IO) { AppConfigStore.run(this@App) }
 
         applicationScope.launch {
             initializeSettings()
