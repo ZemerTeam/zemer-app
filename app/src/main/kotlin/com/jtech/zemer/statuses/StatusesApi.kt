@@ -9,6 +9,8 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URL
+import java.time.ZoneId
+import kotlin.random.Random
 
 /**
  * Self-contained client for JewishStatus.com — a platform of Jewish/kosher music creators posting
@@ -44,6 +46,9 @@ data class StatusCreator(
     // nothing regresses when kinds could not be resolved.
     val recentPostKinds: List<String> = emptyList(),
     val source: StatusSource = StatusSource.JEWISH_STATUS,
+    // The provider name when the creator comes from a PINNED provider (it leads the row and gets its own
+    // See-all section under this title); null for every unpinned creator.
+    val pinnedSection: String? = null,
 )
 
 data class StatusPost(
@@ -59,7 +64,40 @@ data class StatusPost(
     val viewCount: Int = 0,
     val downloadCount: Int = 0,
     val source: StatusSource = StatusSource.JEWISH_STATUS,
+    // Present only on paid posts (Zemer's own provider): the advertiser and its optional link.
+    val sponsored: Boolean = false,
+    val advertiser: String? = null,
+    val link: String? = null,
 )
+
+/** The label the server prefixes to an ad's caption (and appends to an ad's text body). */
+fun StatusPost.sponsoredLabel(): String? = if (sponsored) "Sponsored · ${advertiser.orEmpty()}" else null
+
+/** [text] without the server's sponsored label line, for a viewer that shows its own Sponsored badge. */
+fun StatusPost.withoutSponsoredLabel(text: String?): String? {
+    val label = sponsoredLabel() ?: return text
+    return text?.lines()?.filterNot { it.trim() == label.trim() }?.joinToString("\n")?.trim()
+}
+
+/**
+ * Order a creator's sponsored posts by a per-device, per-day shuffle ([seed] = device id + UTC date) so no
+ * advertiser always plays first. Non-sponsored posts keep their chronological slots; the ads swap only
+ * among their own slots WITHIN one posting date, so the date windows stay contiguous.
+ */
+fun List<StatusPost>.rotateSponsored(seed: String, zone: ZoneId = ZoneId.systemDefault()): List<StatusPost> {
+    if (none { it.sponsored }) return this
+    val random = Random(seed.hashCode())
+    val out = toMutableList()
+    indices.groupBy { statusLocalDate(this[it].postedAt, zone) }.values.forEach { group ->
+        val slots = group.filter { this[it].sponsored }
+        val ads = slots.map { this[it] }.sortedBy { it.id }.shuffled(random)
+        slots.forEachIndexed { k, i -> out[i] = ads[k] }
+    }
+    return out
+}
+
+/** How long an image/text status holds when the API gives no duration (the site's default). */
+const val STATUS_STILL_SECONDS = 7
 
 /** The user's Music Status content filter (Settings -> Appearance): which status KINDS to hide. */
 data class StatusContentFilter(
@@ -106,22 +144,34 @@ fun StatusCreator.caughtUpOnLatest(seenPostIds: Set<String>, filter: StatusConte
 fun List<StatusCreator>.sortedByUnseenFirst(
     seenPostIds: Set<String>,
     filter: StatusContentFilter,
-): List<StatusCreator> = sortedBy { it.caughtUpOnLatest(seenPostIds, filter) }
+): List<StatusCreator> =
+    // Pinned creators lead in their provider order whatever their read state (stable sort; they keep their
+    // own read ring); only the unpinned rest sink when caught up.
+    sortedWith(compareBy({ it.pinnedSection == null }, { it.pinnedSection == null && it.caughtUpOnLatest(seenPostIds, filter) }))
 
 /**
  * Merge two platforms' creators, dropping cross-platform DUPLICATES (the same real creator appears on
  * both with different ids). Matched by a normalized name (case/spacing/punctuation-insensitive). The
  * [primary] platform wins a tie - it is kept in full; a [secondary] creator is included only when its
- * name is not already present. The Home row is uniform over the result; the See-all groups by `source`.
+ * name is not already present. PINNED creators (from either list) come first and claim their names, so
+ * a same-named creator on any platform is dropped rather than shown beside or instead of them. The Home
+ * row is uniform over the result; the See-all groups by `source`.
  */
 fun mergeStatusCreators(
     primary: List<StatusCreator>,
     secondary: List<StatusCreator>,
 ): List<StatusCreator> {
-    val seenNames = HashSet<String>()
     val out = ArrayList<StatusCreator>(primary.size + secondary.size)
-    for (c in primary) { seenNames.add(statusNameKey(c)); out.add(c) }
-    for (c in secondary) if (seenNames.add(statusNameKey(c))) out.add(c)
+    val seenNames = HashSet<String>()
+    val seenIds = HashSet<String>()
+    // One pinned creator per id and per name, even when two pinned providers return the same creator
+    // (a duplicate id would crash the keyed Home row / See-all grid).
+    for (c in primary + secondary) {
+        if (c.pinnedSection != null && seenIds.add(c.id) && seenNames.add(statusNameKey(c))) out.add(c)
+    }
+    val pinnedNames = HashSet(seenNames)
+    for (c in primary) if (c.pinnedSection == null && statusNameKey(c) !in pinnedNames) { seenNames.add(statusNameKey(c)); out.add(c) }
+    for (c in secondary) if (c.pinnedSection == null && seenNames.add(statusNameKey(c))) out.add(c)
     return out
 }
 
@@ -260,6 +310,9 @@ internal fun parsePosts(arr: JSONArray): List<StatusPost> =
             postedAt = o.optString("posted_at"),
             viewCount = o.optInt("view_count", 0),
             downloadCount = o.optInt("download_count", 0),
+            sponsored = o.optBoolean("sponsored", false),
+            advertiser = o.optStringOrNull("advertiser"),
+            link = o.optStringOrNull("link"),
         )
     }
 

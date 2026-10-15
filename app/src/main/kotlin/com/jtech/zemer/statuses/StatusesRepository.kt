@@ -198,13 +198,15 @@ class StatusesRepository @Inject constructor(
                 val list = runCatching { fetchStatusCreators(provider.baseUrl, provider.apiKey, provider.categoryIds) }
                     .onFailure { reportException(it) }
                     .getOrNull()
+                    ?.map { it.withProvider(provider) }
                 if (list != null) {
                     anySuccess = true
                     list.forEach { c -> if (byId.putIfAbsent(c.id, c) == null) providerByCreator[c.id] = provider }
                 } else {
                     // Fail-soft PER provider: keep THIS provider's previously-loaded creators so one
                     // source's outage never blanks its rows while its siblings refresh.
-                    jewishCache?.filter { providerByCreator[it.id]?.id == provider.id }?.forEach { c ->
+                    jewishCache?.filter { providerByCreator[it.id]?.id == provider.id }?.forEach { cached ->
+                        val c = cached.withProvider(provider) // re-stamp: the config may have changed the pin
                         if (byId.putIfAbsent(c.id, c) == null) providerByCreator[c.id] = provider
                     }
                 }
@@ -257,6 +259,7 @@ class StatusesRepository @Inject constructor(
                 val feed = runCatching { fetchYidStatusFeed(provider.baseUrl, provider.apiKey, provider.musicKeywords) }
                     .onFailure { reportException(it) }
                     .getOrNull()
+                    ?.let { it.copy(creators = it.creators.map { c -> c.withProvider(provider) }) }
                 if (feed != null) {
                     anySuccess = true
                     feed.creators.forEach { c -> if (byId.putIfAbsent(c.id, c) == null) providerByCreator[c.id] = provider }
@@ -267,7 +270,8 @@ class StatusesRepository @Inject constructor(
                 } else {
                     // Fail-soft PER provider: keep THIS provider's previously-loaded creators (their posts
                     // are still in postsCache) so one source's outage never blanks its rows.
-                    yidCache?.creators?.filter { providerByCreator[it.id]?.id == provider.id }?.forEach { c ->
+                    yidCache?.creators?.filter { providerByCreator[it.id]?.id == provider.id }?.forEach { cached ->
+                        val c = cached.withProvider(provider) // re-stamp: the config may have changed the pin
                         if (byId.putIfAbsent(c.id, c) == null) providerByCreator[c.id] = provider
                     }
                 }
@@ -291,3 +295,7 @@ class StatusesRepository @Inject constructor(
         _creators.value = mergeStatusCreators(jewishCache ?: emptyList(), yidCache?.creators ?: emptyList())
     }
 }
+
+/** Tag a creator with its provider's pin (see [StatusCreator.pinnedSection]). */
+private fun StatusCreator.withProvider(provider: StatusProvider) =
+    copy(pinnedSection = provider.name.takeIf { provider.pinned })

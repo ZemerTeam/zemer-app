@@ -46,8 +46,9 @@ import com.jtech.zemer.viewmodels.ZemerStatusesViewModel
 
 /**
  * The "See all" screen for the Home "Music Status" row. A search field (filtering ALL sources) sits on
- * top, then the creators grouped into SEPARATE sections by platform (JewishStatus, YidStatus) - the Home
- * row is uniform, this screen shows the split. Reuses the shared [ZemerStatusesViewModel] state (same
+ * top, then the creators grouped into SEPARATE sections by platform (a pinned provider such as Zemer
+ * first under its own name, then JewishStatus, YidStatus) - the Home row is uniform, this screen shows
+ * the split. Reuses the shared [ZemerStatusesViewModel] state (same
  * creators + seen the row shows), so it is instant from Home and self-populates if entered cold.
  * Fully-viewed creators sink to the end within each section, matching the row.
  */
@@ -64,6 +65,12 @@ fun StatusesScreen(
     var query by rememberSaveable { mutableStateOf("") }
     val searchFocus = remember { FocusRequester() }
 
+    // A pinned provider (Zemer's own) gets its own section(s) on top, titled with the provider name.
+    val pinned = remember(creators, seenPostIds, query, contentFilter) {
+        creators.filter { it.pinnedSection != null && it.matches(query) }
+            .sortedByUnseenFirst(seenPostIds, contentFilter)
+            .groupBy { it.pinnedSection!! }
+    }
     val jewish = remember(creators, seenPostIds, query, contentFilter) {
         creators.filterSourceAndQuery(StatusSource.JEWISH_STATUS, query).sortedByUnseenFirst(seenPostIds, contentFilter)
     }
@@ -74,6 +81,8 @@ fun StatusesScreen(
     LaunchedEffect(Unit) { viewModel.refresh() }
 
     fun open(creator: StatusCreator) = navController.navigate(storyRoute(creator.id))
+    val jewishTitle = stringResource(R.string.status_source_jewishstatus)
+    val yidTitle = stringResource(R.string.status_source_yidstatus)
 
     Box(modifier = Modifier.fillMaxSize()) {
         LazyVerticalGrid(
@@ -90,8 +99,9 @@ fun StatusesScreen(
                     modifier = Modifier.padding(top = 8.dp), // sit a bit lower under the app bar
                 )
             }
-            statusSection(R.string.status_source_jewishstatus, jewish, seenPostIds, contentFilter, ::open)
-            statusSection(R.string.status_source_yidstatus, yid, seenPostIds, contentFilter, ::open)
+            pinned.forEach { (title, group) -> statusSection("pinned_$title", title, group, seenPostIds, contentFilter, ::open) }
+            statusSection("source_jewish", jewishTitle, jewish, seenPostIds, contentFilter, ::open)
+            statusSection("source_yid", yidTitle, yid, seenPostIds, contentFilter, ::open)
         }
     }
 
@@ -111,20 +121,24 @@ fun StatusesScreen(
     )
 }
 
+private fun StatusCreator.matches(query: String) =
+    query.isBlank() || displayName.contains(query.trim(), ignoreCase = true)
+
 private fun List<StatusCreator>.filterSourceAndQuery(source: StatusSource, query: String) =
-    filter { it.source == source && (query.isBlank() || it.displayName.contains(query.trim(), ignoreCase = true)) }
+    filter { it.source == source && it.pinnedSection == null && it.matches(query) }
 
 /** One platform section: the shared Home-row section title (only when it has matches) then its circles. */
 private fun androidx.compose.foundation.lazy.grid.LazyGridScope.statusSection(
-    titleRes: Int,
+    key: String,
+    title: String,
     creators: List<StatusCreator>,
     seenPostIds: Set<String>,
     contentFilter: StatusContentFilter,
     onOpen: (StatusCreator) -> Unit,
 ) {
     if (creators.isEmpty()) return
-    item(span = { GridItemSpan(maxLineSpan) }, key = "header_$titleRes") {
-        NavigationTitle(title = stringResource(titleRes))
+    item(span = { GridItemSpan(maxLineSpan) }, key = "header_$key") {
+        NavigationTitle(title = title)
     }
     items(items = creators, key = { it.id }) { creator ->
         Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.TopCenter) {

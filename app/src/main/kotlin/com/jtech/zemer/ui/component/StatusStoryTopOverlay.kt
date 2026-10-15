@@ -31,6 +31,7 @@ import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import coil3.compose.AsyncImage
@@ -54,7 +55,8 @@ private val statusTextShadow = Shadow(
  * so they present identically. There is deliberately NO
  * "Music Status" app-bar title row - it only stole vertical space from the (now full-bleed) media; the
  * creator avatar/name identifies the content the stories way. [currentSegment] is the active segment
- * (0-based) and [progress] fills it; earlier segments are full, later ones empty.
+ * (0-based) and [progress] fills it; earlier segments are full, later ones empty. [badge] (e.g.
+ * "Sponsored") renders as a small pill beside the creator name when set.
  */
 @Composable
 fun StatusStoryTopOverlay(
@@ -66,6 +68,7 @@ fun StatusStoryTopOverlay(
     currentSegment: Int,
     progress: Float,
     modifier: Modifier = Modifier,
+    badge: String? = null,
 ) {
     val colorScheme = MaterialTheme.colorScheme
     // A single LINEAR fade from dark at the top to transparent at the bottom. Linear = one constant
@@ -135,13 +138,33 @@ fun StatusStoryTopOverlay(
                 Spacer(Modifier.width(10.dp))
 
                 Column(Modifier.weight(1f)) {
-                    Text(
-                        text = creatorName,
-                        color = Color.White,
-                        style = MaterialTheme.typography.titleSmall.copy(shadow = statusTextShadow),
-                        fontFamily = HeaderFontFamily,
-                        fontWeight = FontWeight.SemiBold,
-                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        // The name yields (one line, ellipsized) so the badge - an ad's only disclosure
+                        // once its caption label is stripped - always keeps its full width.
+                        Text(
+                            text = creatorName,
+                            color = Color.White,
+                            style = MaterialTheme.typography.titleSmall.copy(shadow = statusTextShadow),
+                            fontFamily = HeaderFontFamily,
+                            fontWeight = FontWeight.SemiBold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f, fill = false),
+                        )
+                        if (badge != null) {
+                            Spacer(Modifier.width(8.dp))
+                            Text(
+                                text = badge,
+                                color = colorScheme.onSecondaryContainer,
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.SemiBold,
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(50))
+                                    .background(colorScheme.secondaryContainer.copy(alpha = 0.9f))
+                                    .padding(horizontal = 8.dp, vertical = 2.dp),
+                            )
+                        }
+                    }
                     if (!subtitle.isNullOrEmpty()) {
                         Text(
                             // Solid white (not dimmed) so the date reads over bright media too — the

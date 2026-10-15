@@ -13,6 +13,9 @@ import com.jtech.zemer.statuses.StatusDownloadManager
 import com.jtech.zemer.statuses.StatusPost
 import com.jtech.zemer.statuses.StatusesRepository
 import com.jtech.zemer.statuses.applyStatusFilter
+import com.jtech.zemer.statuses.STATUS_STILL_SECONDS
+import com.jtech.zemer.statuses.rotateSponsored
+import com.jtech.zemer.tracking.Tracker
 import com.jtech.zemer.utils.dataStore
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -24,7 +27,10 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import java.time.LocalDate
+import java.time.ZoneOffset
 import javax.inject.Inject
+
 
 /**
  * The full-screen story viewer's ViewModel. Reads the SAME shared [StatusesRepository] state the Home
@@ -77,8 +83,31 @@ class StoryViewModel @Inject constructor(
             }
             .stateIn(viewModelScope, SharingStarted.Eagerly, null)
 
+    // Sponsored posts rotate per device per UTC day (seed = telemetry device id + date); every accessor
+    // below applies it with the filter, so driver, cube preview and resume math see ONE order. The seed is
+    // fixed once per viewer (a device id landing late or UTC midnight passing mid-viewer must not reorder
+    // what the preview face already showed).
+    private val rotationSeed by lazy { "${Tracker.deviceIdOrNull.orEmpty()}|${LocalDate.now(ZoneOffset.UTC)}" }
+
     private fun List<StatusPost>.filtered(): List<StatusPost> =
-        contentFilter.value?.let { applyStatusFilter(it) } ?: this
+        (contentFilter.value?.let { applyStatusFilter(it) } ?: this).rotateSponsored(rotationSeed)
+
+    /**
+     * A post left the screen after [onScreenMs] of visible time. Exact view counts are reported for PINNED
+     * (Zemer-owned) creators only - other providers' post ids are theirs. Capped at the post's play length
+     * (the API duration, else the player's [videoDurationMs] for a video, else the still default).
+     */
+    fun onPostViewed(creator: StatusCreator, post: StatusPost, onScreenMs: Long, videoDurationMs: Long?) {
+        if (creator.pinnedSection == null) return
+        val duration = post.durationSeconds
+            ?: if (post.kind == "video") videoDurationMs?.let { (it / 1000).toInt() } else STATUS_STILL_SECONDS
+        Tracker.statusView(post.id, onScreenMs, duration)
+    }
+
+    /** The Sponsored "Open link" button was tapped (reported for pinned creators, like [onPostViewed]). */
+    fun onSponsoredLinkTapped(creator: StatusCreator, post: StatusPost) {
+        if (creator.pinnedSection != null) Tracker.statusTap(post.id)
+    }
 
     private val _loadAttempted = MutableStateFlow(false)
     val loadAttempted: StateFlow<Boolean> = _loadAttempted.asStateFlow()

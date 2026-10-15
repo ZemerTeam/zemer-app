@@ -102,4 +102,26 @@ class StatusTimelineTest {
         assertEquals("Aug 1 · 1:05 PM", formatPostedAt("2026-08-01T13:05:00+00:00", utc))
         assertEquals("", formatPostedAt("nonsense", utc))
     }
+
+    @Test
+    fun `a refresh keeps the viewer on the same post by id, else clamps the old index`() {
+        val a = post("a", "2026-10-15T08:00:00Z")
+        val b = post("b", "2026-10-15T09:00:00Z")
+        val c = post("c", "2026-10-15T10:00:00Z")
+        // Reordered (an ad re-rotation): still on b.
+        assertEquals(0, indexAfterRefresh(listOf(b, a, c), "b", 1))
+        // The current post vanished: the old index, clamped into the new list.
+        assertEquals(1, indexAfterRefresh(listOf(a, c), "b", 5))
+        assertEquals(0, indexAfterRefresh(listOf(a), null, 0))
+    }
+
+    @Test
+    fun `the Home row follows only a newly arrived pinned leader, only at its start`() {
+        assertEquals(true, shouldFollowPinnedLeader("zemer", null, 1))
+        assertEquals(true, shouldFollowPinnedLeader("zemer", "old", 0))
+        // Already followed (re-entry, read-state reorder), scrolled away, or no pinned leader: stay put.
+        assertEquals(false, shouldFollowPinnedLeader("zemer", "zemer", 1))
+        assertEquals(false, shouldFollowPinnedLeader("zemer", null, 4))
+        assertEquals(false, shouldFollowPinnedLeader(null, null, 0))
+    }
 }

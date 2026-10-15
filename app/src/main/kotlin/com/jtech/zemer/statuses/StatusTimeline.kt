@@ -55,6 +55,13 @@ fun resumePos(
 }
 
 /**
+ * The status to stay on after a refresh replaced the list: the SAME post by id (a refresh may reorder,
+ * e.g. a new sponsored post re-rotates the ad slots), else the old index clamped into the new list.
+ */
+fun indexAfterRefresh(fresh: List<StatusPost>, currentId: String?, oldIndex: Int): Int =
+    fresh.indexOfFirst { it.id == currentId }.takeIf { it >= 0 } ?: oldIndex.coerceIn(0, fresh.lastIndex.coerceAtLeast(0))
+
+/**
  * Group a creator's posts (sorted oldest-first, so a date's posts are contiguous) by local date, in
  * chronological order - the data behind the "jump to date" sheet.
  */
@@ -74,3 +81,11 @@ fun statusDateGroups(
     }
     return groups
 }
+
+/**
+ * Whether the Home status row should scroll back to index 0 for [pinnedLeader]: only a NEWLY arrived
+ * pinned leader (not the one already followed, so a re-entry or reorder never yanks a scrolled row), and
+ * only while the row is still at its start (a keyed row keeps the old first item anchored at index 1).
+ */
+fun shouldFollowPinnedLeader(pinnedLeader: String?, followedLeader: String?, firstVisibleIndex: Int): Boolean =
+    pinnedLeader != null && pinnedLeader != followedLeader && firstVisibleIndex <= 1

@@ -203,4 +203,116 @@ class StatusesApiTest {
         val ordered = listOf(a, b, d).sortedByUnseenFirst(setOf("b2", "a1"), showAll)
         assertEquals(listOf("a", "d", "b"), ordered.map { it.id })
     }
+
+    // --- Pinned provider + Sponsored posts ---
+
+    private fun creator(id: String, vararg ids: String, pinned: String? = null, source: StatusSource = StatusSource.JEWISH_STATUS) =
+        StatusCreator(
+            id = id, slug = id, displayName = id, avatarPath = null,
+            recentPostIds = ids.toList(), source = source, pinnedSection = pinned,
+        )
+
+    @Test
+    fun `sortedByUnseenFirst keeps pinned creators first even when fully seen`() {
+        val zemer = creator("zemer", "z1", pinned = "Zemer")
+        val a = creator("a", "a1")
+        val b = creator("b", "b1")
+        // Zemer watched (z1 seen), b caught up: pinned still leads, the rest unseen-first.
+        val ordered = listOf(a, b, zemer).sortedByUnseenFirst(setOf("z1", "b1"), showAll)
+        assertEquals(listOf("zemer", "a", "b"), ordered.map { it.id })
+        // Two pinned creators keep their provider (input) order, even when the first is caught up.
+        val other = creator("other", "o1", pinned = "Other")
+        assertEquals(
+            listOf("zemer", "other", "a"),
+            listOf(a, zemer, other).sortedByUnseenFirst(emptySet(), showAll).map { it.id },
+        )
+        assertEquals(
+            listOf("zemer", "other", "a"),
+            listOf(a, zemer, other).sortedByUnseenFirst(setOf("z1"), showAll).map { it.id },
+        )
+    }
+
+    @Test
+    fun `mergeStatusCreators never lets a same-named creator displace a pinned one`() {
+        val pinnedFeed = creator("zemer", "z1", pinned = "Zemer", source = StatusSource.YID_STATUS)
+            .copy(displayName = "Zemer")
+        val jewishNamesake = creator("j1", "j").copy(displayName = "zemer")
+        // A pinned creator from the SECONDARY list leads and its primary namesake is dropped (never two).
+        assertEquals(listOf("zemer"), mergeStatusCreators(listOf(jewishNamesake), listOf(pinnedFeed)).map { it.id })
+        // And from the primary side a same-named secondary creator is dropped as before.
+        val yidNamesake = creator("y1", "y", source = StatusSource.YID_STATUS).copy(displayName = "ZEMER")
+        val pinnedPrimary = pinnedFeed.copy(source = StatusSource.JEWISH_STATUS)
+        assertEquals(listOf("zemer"), mergeStatusCreators(listOf(pinnedPrimary), listOf(yidNamesake)).map { it.id })
+    }
+
+    @Test
+    fun `mergeStatusCreators emits one pinned creator even when both families pin it`() {
+        val fromJewish = creator("zemer", "z1", pinned = "Zemer").copy(displayName = "Zemer")
+        val fromYid = fromJewish.copy(source = StatusSource.YID_STATUS)
+        val merged = mergeStatusCreators(listOf(fromJewish, creator("a", "a1")), listOf(fromYid))
+        assertEquals(listOf("zemer", "a"), merged.map { it.id })
+    }
+
+    @Test
+    fun `parsePosts reads the additive sponsored fields, absent on normal posts`() {
+        val json = """
+            [
+              {"id":"meh","kind":"video","media_path":"https://m/v.mp4","caption":"Meh","posted_at":"2026-10-15T19:20:00Z"},
+              {"id":"ad","kind":"image","media_path":"https://m/a.jpg","caption":"Sponsored · Acme\nBuy\nhttps://acme.example",
+               "posted_at":"2026-10-15T20:00:00Z","sponsored":true,"advertiser":"Acme","link":"https://acme.example",
+               "ends_at":"2026-10-16T20:00:00Z"},
+              {"id":"ad2","kind":"text","text_body":"Hi","posted_at":"2026-10-15T21:00:00Z","sponsored":true,
+               "advertiser":"Beta","link":null}
+            ]
+        """.trimIndent()
+        val (meh, ad, ad2) = parsePosts(JSONArray(json))
+        assertFalse(meh.sponsored)
+        assertNull(meh.advertiser)
+        assertNull(meh.link)
+        assertNull(meh.sponsoredLabel())
+        assertTrue(ad.sponsored)
+        assertEquals("Acme", ad.advertiser)
+        assertEquals("https://acme.example", ad.link)
+        assertNull(ad2.link)
+        // The badge replaces the server's leading caption label; a normal post's text is untouched.
+        assertEquals("Buy\nhttps://acme.example", ad.withoutSponsoredLabel(ad.caption))
+        assertEquals("Hi", ad2.withoutSponsoredLabel("Hi\n\nSponsored · Beta"))
+        assertEquals("Meh", meh.withoutSponsoredLabel("Meh"))
+        // No advertiser: the server's bare "Sponsored ·" line is still recognized.
+        val anon = ad.copy(advertiser = null)
+        assertEquals("Buy", anon.withoutSponsoredLabel("Sponsored ·\nBuy"))
+    }
+
+    private fun post(id: String, postedAt: String, sponsored: Boolean = false) = StatusPost(
+        id = id, kind = "video", mediaPath = null, thumbPath = null, caption = null, textBody = null,
+        textBgColor = null, durationSeconds = null, postedAt = postedAt, sponsored = sponsored,
+    )
+
+    @Test
+    fun `rotateSponsored is deterministic per seed and keeps normal posts in their chronological slots`() {
+        val utc = java.time.ZoneOffset.UTC
+        val posts = listOf(
+            post("n1", "2026-10-15T08:00:00Z"),
+            post("adA", "2026-10-15T09:00:00Z", sponsored = true),
+            post("n2", "2026-10-15T10:00:00Z"),
+            post("adB", "2026-10-15T11:00:00Z", sponsored = true),
+            post("adC", "2026-10-15T12:00:00Z", sponsored = true),
+            post("n3", "2026-10-16T08:00:00Z"),
+        )
+        val seed = "device-1|2026-10-15"
+        val once = posts.rotateSponsored(seed, utc).map { it.id }
+        assertEquals(once, posts.rotateSponsored(seed, utc).map { it.id })
+        // Input order of the ads never changes the result (content-determined shuffle).
+        val swapped = posts.toMutableList().apply { this[3] = posts[4]; this[4] = posts[3] }
+        assertEquals(once, swapped.rotateSponsored(seed, utc).map { it.id })
+        // Normal posts never move; ads stay in ad slots.
+        assertEquals(listOf("n1", "n2", "n3"), listOf(once[0], once[2], once[5]))
+        assertEquals(setOf("adA", "adB", "adC"), setOf(once[1], once[3], once[4]))
+        // Different devices/days see different first ads (no advertiser always plays first).
+        val firstAds = (1..40).map { posts.rotateSponsored("device-$it|2026-10-15", utc)[1].id }.toSet()
+        assertEquals(setOf("adA", "adB", "adC"), firstAds)
+        // No ads -> the very same list.
+        val plain = posts.filterNot { it.sponsored }
+        assertTrue(plain === plain.rotateSponsored(seed, utc))
+    }
 }

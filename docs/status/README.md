@@ -73,9 +73,38 @@ still comes straight from the third parties. Contract:
   The installed version is `minOf(body, endpoint)` so a stale CDN body can never suppress future syncs.
   Family caches are stamped with the config version they loaded under, so a config change makes them
   stale immediately; a failed provider keeps its previous creators while its siblings refresh.
+- **Pinned providers** (additive `pinned`, default false, plus the display `name`): a pinned provider's
+  creators carry `StatusCreator.pinnedSection` (= the provider name) and ALWAYS lead the Home row and the
+  See-all (`sortedByUnseenFirst`: pinned in provider order, then unseen-first); their ring keeps its
+  seen/unseen look, only the position is fixed. The See-all gives each pinned provider its own top
+  section titled with its name, and `mergeStatusCreators` puts pinned creators first and lets them claim
+  their names, so a same-named creator on any platform is dropped (never shown beside or instead of them). Today this is Zemer's own provider (`zemer`, served by the
+  content mirror in the JewishStatus shape).
 - **Persistence.** `StatusSourcesConfigKey` (raw JSON) + `StatusSourcesVersionKey` (the effective
   version), reloaded in `App.kt`; `StatusSourcesCache.update()` never installs an older version, so the
   startup restore cannot roll back a concurrent sync.
+
+## Sponsored posts + exact views (Zemer's own provider)
+
+Contract: `handoff-docs/zemer-app-sponsored-status-request.md`. Additive `public_posts` fields, present
+only on ads: `sponsored`, `advertiser`, `link` (parsed by `parsePosts`; `ends_at` is enforced
+server-side, which only serves an ad inside its window). Every ad is already labeled server-side
+("Sponsored · <advertiser>" leading the caption / ending the text body), so older builds stay honest.
+
+- **Viewer:** a "Sponsored" badge beside the creator name (`StatusStoryTopOverlay.badge`); the label line
+  is dropped from the shown caption/body (`withoutSponsoredLabel`; copy + save keep the full text); a
+  `link` shows an "Open link" pill (`Context.openStatusLink`, fail-soft when a filter blocks browsers).
+- **Rotation:** `rotateSponsored(seed = telemetry device id + UTC date)` shuffles ads among their own
+  slots within a posting date; normal posts keep their chronological slots. Applied in `StoryViewModel`
+  with the content filter so every viewer path sees one order.
+- **Exact views:** for PINNED creators only, a post with >= 1 s of VISIBLE time (frame clock, so
+  backgrounded time never counts; a video only after its first frame, so a video that never rendered is
+  never a view) reports
+  `{"type":"status","kind":"view","id","secs"}` (secs capped at its duration, else the player's), once per post per device
+  per UTC day (`recordDailyStatusView` over a small `tracking_status_views` SharedPreferences file, never the app settings); the Open-link pill reports
+  `kind":"tap"`. See `docs/tracking/README.md`.
+- **Landscape media:** `StatusVideoSurface` switches ZOOM -> FIT for a square/landscape video wider than the surface
+  (`statusVideoResizeMode`), so landscape posts from any platform are letterboxed, not cropped.
 
 ## Integration rules
 
