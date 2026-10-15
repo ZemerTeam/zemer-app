@@ -168,5 +168,8 @@ class StatusSourcesConfigTest {
         // Absent on older descriptors -> unpinned, name falls back to the id.
         assertFalse(jewish.pinned)
         assertEquals("jewish-status", jewish.name)
+        // Fetch order puts the pinned provider first even when the config lists it later.
+        val reversed = parseStatusSourcesConfig(doc(descriptor(id = "jewish-status"), pinned, version = 5))!!
+        assertEquals(listOf("zemer", "jewish-status"), reversed.providersOfType(StatusProviderType.SUPABASE_CATEGORY).map { it.id })
     }
 }

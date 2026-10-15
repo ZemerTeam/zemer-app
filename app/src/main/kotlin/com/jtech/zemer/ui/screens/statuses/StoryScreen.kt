@@ -114,6 +114,8 @@ import com.jtech.zemer.statuses.resumePos
 import com.jtech.zemer.statuses.statusAvatarUrl
 import com.jtech.zemer.statuses.statusDateGroups
 import com.jtech.zemer.statuses.statusMediaUrl
+import com.jtech.zemer.statuses.STATUS_STILL_SECONDS
+import com.jtech.zemer.statuses.indexAfterRefresh
 import com.jtech.zemer.statuses.withoutSponsoredLabel
 import com.jtech.zemer.ui.theme.HeaderFontFamily
 import com.jtech.zemer.viewmodels.StoryViewModel
@@ -324,8 +326,7 @@ fun StoryScreen(
                 // slots), so re-find the current one by id rather than keeping a now-different index.
                 val currentId = currentPosts?.getOrNull(postIdx)?.id
                 currentPosts = fresh
-                postIdx = fresh.indexOfFirst { it.id == currentId }.takeIf { it >= 0 }
-                    ?: postIdx.coerceIn(0, fresh.lastIndex)
+                postIdx = indexAfterRefresh(fresh, currentId, postIdx)
                 floorIndex = floorIndex.coerceIn(0, fresh.lastIndex)
             }
         }
@@ -430,7 +431,7 @@ fun StoryScreen(
                 // Image/text: hold the API-provided duration (the site defaults to 7s). Advance real elapsed
                 // time on the display frame clock for a perfectly smooth bar; the dt cap freezes it while
                 // backgrounded (frame clock pauses) and the `paused` check freezes it during a press-hold.
-                val durationMs = (post.durationSeconds ?: 7) * 1000f
+                val durationMs = (post.durationSeconds ?: STATUS_STILL_SECONDS) * 1000f
                 var elapsed = 0f
                 var prevFrame = 0L
                 while (elapsed < durationMs) {

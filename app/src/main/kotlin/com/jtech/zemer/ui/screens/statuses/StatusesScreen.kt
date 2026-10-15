@@ -99,9 +99,9 @@ fun StatusesScreen(
                     modifier = Modifier.padding(top = 8.dp), // sit a bit lower under the app bar
                 )
             }
-            pinned.forEach { (title, group) -> statusSection(title, group, seenPostIds, contentFilter, ::open) }
-            statusSection(jewishTitle, jewish, seenPostIds, contentFilter, ::open)
-            statusSection(yidTitle, yid, seenPostIds, contentFilter, ::open)
+            pinned.forEach { (title, group) -> statusSection("pinned_$title", title, group, seenPostIds, contentFilter, ::open) }
+            statusSection("source_jewish", jewishTitle, jewish, seenPostIds, contentFilter, ::open)
+            statusSection("source_yid", yidTitle, yid, seenPostIds, contentFilter, ::open)
         }
     }
 
@@ -129,6 +129,7 @@ private fun List<StatusCreator>.filterSourceAndQuery(source: StatusSource, query
 
 /** One platform section: the shared Home-row section title (only when it has matches) then its circles. */
 private fun androidx.compose.foundation.lazy.grid.LazyGridScope.statusSection(
+    key: String,
     title: String,
     creators: List<StatusCreator>,
     seenPostIds: Set<String>,
@@ -136,7 +137,7 @@ private fun androidx.compose.foundation.lazy.grid.LazyGridScope.statusSection(
     onOpen: (StatusCreator) -> Unit,
 ) {
     if (creators.isEmpty()) return
-    item(span = { GridItemSpan(maxLineSpan) }, key = "header_$title") {
+    item(span = { GridItemSpan(maxLineSpan) }, key = "header_$key") {
         NavigationTitle(title = title)
     }
     items(items = creators, key = { it.id }) { creator ->

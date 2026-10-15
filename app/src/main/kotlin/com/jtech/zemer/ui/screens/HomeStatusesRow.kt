@@ -22,6 +22,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.jtech.zemer.statuses.StatusContentFilter
 import com.jtech.zemer.statuses.StatusCreator
+import com.jtech.zemer.statuses.shouldFollowPinnedLeader
 import com.jtech.zemer.statuses.sortedByUnseenFirst
 import com.jtech.zemer.ui.component.StatusCreatorCircle
 
@@ -50,9 +51,10 @@ fun HomeStatusesRow(
     val pinnedLeader = ordered.firstOrNull()?.takeIf { it.pinnedSection != null }?.id
     var followedLeader by rememberSaveable { mutableStateOf<String?>(null) }
     LaunchedEffect(pinnedLeader) {
-        if (pinnedLeader == null || pinnedLeader == followedLeader) return@LaunchedEffect
-        if (listState.firstVisibleItemIndex <= 1) listState.scrollToItem(0)
-        followedLeader = pinnedLeader
+        if (shouldFollowPinnedLeader(pinnedLeader, followedLeader, listState.firstVisibleItemIndex)) {
+            listState.scrollToItem(0)
+        }
+        if (pinnedLeader != null) followedLeader = pinnedLeader
     }
     LazyRow(
         state = listState,

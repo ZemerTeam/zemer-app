@@ -220,11 +220,15 @@ class StatusesApiTest {
         // Zemer watched (z1 seen), b caught up: pinned still leads, the rest unseen-first.
         val ordered = listOf(a, b, zemer).sortedByUnseenFirst(setOf("z1", "b1"), showAll)
         assertEquals(listOf("zemer", "a", "b"), ordered.map { it.id })
-        // Two pinned creators keep their provider (input) order.
+        // Two pinned creators keep their provider (input) order, even when the first is caught up.
         val other = creator("other", "o1", pinned = "Other")
         assertEquals(
             listOf("zemer", "other", "a"),
             listOf(a, zemer, other).sortedByUnseenFirst(emptySet(), showAll).map { it.id },
+        )
+        assertEquals(
+            listOf("zemer", "other", "a"),
+            listOf(a, zemer, other).sortedByUnseenFirst(setOf("z1"), showAll).map { it.id },
         )
     }
 
@@ -239,6 +243,14 @@ class StatusesApiTest {
         val yidNamesake = creator("y1", "y", source = StatusSource.YID_STATUS).copy(displayName = "ZEMER")
         val pinnedPrimary = pinnedFeed.copy(source = StatusSource.JEWISH_STATUS)
         assertEquals(listOf("zemer"), mergeStatusCreators(listOf(pinnedPrimary), listOf(yidNamesake)).map { it.id })
+    }
+
+    @Test
+    fun `mergeStatusCreators emits one pinned creator even when both families pin it`() {
+        val fromJewish = creator("zemer", "z1", pinned = "Zemer").copy(displayName = "Zemer")
+        val fromYid = fromJewish.copy(source = StatusSource.YID_STATUS)
+        val merged = mergeStatusCreators(listOf(fromJewish, creator("a", "a1")), listOf(fromYid))
+        assertEquals(listOf("zemer", "a"), merged.map { it.id })
     }
 
     @Test

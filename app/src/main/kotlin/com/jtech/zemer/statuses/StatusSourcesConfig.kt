@@ -77,7 +77,9 @@ data class StatusSourcesConfig(
     val version: Long,
     val providers: List<StatusProvider>,
 ) {
-    fun providersOfType(type: StatusProviderType): List<StatusProvider> = providers.filter { it.type == type }
+    /** This type's providers, PINNED first (stable), so a pinned provider claims a creator id it shares. */
+    fun providersOfType(type: StatusProviderType): List<StatusProvider> =
+        providers.filter { it.type == type }.sortedBy { !it.pinned }
 }
 
 /**

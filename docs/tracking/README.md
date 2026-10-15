@@ -70,7 +70,7 @@ rather than poison-pilling the queue. Losing events is fine. Breaking playback i
 - **`status`** — the Music Status viewer (`StoryScreen` -> `StoryViewModel.onPostViewed` /
   `onSponsoredLinkTapped`), PINNED (Zemer-owned) creators only. `view`: when a post leaves the screen
   after >= 1 s, `secs` = whole seconds on screen capped at its duration (`statusViewSecs`), at most once
-  per post per device per UTC day (`recordDailyStatusView` over the persisted `status_views_sent` set,
+  per post per device per UTC day (`recordDailyStatusView` over the persisted `tracking_status_views` SharedPreferences set,
   so replays and restarts never inflate `views`). `tap`: the Sponsored "Open link" pill. Wire:
   `{"type":"status","t":…,"kind":"view","id":"<post id>","secs":12}` / `{…,"kind":"tap","id":…}`.
   Contract: `handoff-docs/zemer-app-sponsored-status-request.md`.

@@ -13,6 +13,7 @@ import com.jtech.zemer.statuses.StatusDownloadManager
 import com.jtech.zemer.statuses.StatusPost
 import com.jtech.zemer.statuses.StatusesRepository
 import com.jtech.zemer.statuses.applyStatusFilter
+import com.jtech.zemer.statuses.STATUS_STILL_SECONDS
 import com.jtech.zemer.statuses.rotateSponsored
 import com.jtech.zemer.tracking.Tracker
 import com.jtech.zemer.utils.dataStore
@@ -30,8 +31,6 @@ import java.time.LocalDate
 import java.time.ZoneOffset
 import javax.inject.Inject
 
-// Image/text statuses hold this long when the API gives no duration (the site's default; see StoryScreen).
-private const val DEFAULT_STILL_SECONDS = 7
 
 /**
  * The full-screen story viewer's ViewModel. Reads the SAME shared [StatusesRepository] state the Home
@@ -85,10 +84,13 @@ class StoryViewModel @Inject constructor(
             .stateIn(viewModelScope, SharingStarted.Eagerly, null)
 
     // Sponsored posts rotate per device per UTC day (seed = telemetry device id + date); every accessor
-    // below applies it with the filter, so driver, cube preview and resume math see ONE order.
+    // below applies it with the filter, so driver, cube preview and resume math see ONE order. The seed is
+    // fixed once per viewer (a device id landing late or UTC midnight passing mid-viewer must not reorder
+    // what the preview face already showed).
+    private val rotationSeed by lazy { "${Tracker.deviceIdOrNull.orEmpty()}|${LocalDate.now(ZoneOffset.UTC)}" }
+
     private fun List<StatusPost>.filtered(): List<StatusPost> =
-        (contentFilter.value?.let { applyStatusFilter(it) } ?: this)
-            .rotateSponsored("${Tracker.deviceIdOrNull.orEmpty()}|${LocalDate.now(ZoneOffset.UTC)}")
+        (contentFilter.value?.let { applyStatusFilter(it) } ?: this).rotateSponsored(rotationSeed)
 
     /**
      * A post left the screen after [onScreenMs] of visible time. Exact view counts are reported for PINNED
@@ -98,7 +100,7 @@ class StoryViewModel @Inject constructor(
     fun onPostViewed(creator: StatusCreator, post: StatusPost, onScreenMs: Long, videoDurationMs: Long?) {
         if (creator.pinnedSection == null) return
         val duration = post.durationSeconds
-            ?: if (post.kind == "video") videoDurationMs?.let { (it / 1000).toInt() } else DEFAULT_STILL_SECONDS
+            ?: if (post.kind == "video") videoDurationMs?.let { (it / 1000).toInt() } else STATUS_STILL_SECONDS
         Tracker.statusView(post.id, onScreenMs, duration)
     }
 

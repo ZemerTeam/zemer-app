@@ -389,12 +389,12 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/main/kotlin/com/jtech/zemer/statuses/StatusDownloadsView.kt` | 30 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/statuses/StatusGallery.kt` | 107 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/statuses/StatusSeenStore.kt` | 31 lines | `.kt` |
-| `app/src/main/kotlin/com/jtech/zemer/statuses/StatusSourcesConfig.kt` | 168 lines | `.kt` |
+| `app/src/main/kotlin/com/jtech/zemer/statuses/StatusSourcesConfig.kt` | 170 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/statuses/StatusText.kt` | 45 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/statuses/StatusTextImage.kt` | 60 lines | `.kt` |
-| `app/src/main/kotlin/com/jtech/zemer/statuses/StatusTimeline.kt` | 76 lines | `.kt` |
-| `app/src/main/kotlin/com/jtech/zemer/statuses/StatusesApi.kt` | 332 lines | `.kt` |
-| `app/src/main/kotlin/com/jtech/zemer/statuses/StatusesRepository.kt` | 299 lines | `.kt` |
+| `app/src/main/kotlin/com/jtech/zemer/statuses/StatusTimeline.kt` | 91 lines | `.kt` |
+| `app/src/main/kotlin/com/jtech/zemer/statuses/StatusesApi.kt` | 341 lines | `.kt` |
+| `app/src/main/kotlin/com/jtech/zemer/statuses/StatusesRepository.kt` | 301 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/statuses/YidStatusApi.kt` | 146 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/sync/ContentFilterSyncService.kt` | 305 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/sync/ContentReportRepository.kt` | 54 lines | `.kt` |
@@ -406,7 +406,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/main/kotlin/com/jtech/zemer/tracking/LibraryActionBackfill.kt` | 142 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/tracking/PlayHistoryBackfill.kt` | 166 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/tracking/PlaySource.kt` | 80 lines | `.kt` |
-| `app/src/main/kotlin/com/jtech/zemer/tracking/Tracker.kt` | 342 lines | `.kt` |
+| `app/src/main/kotlin/com/jtech/zemer/tracking/Tracker.kt` | 336 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/tracking/TrackingEvents.kt` | 267 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/tracking/TrackingLifecycle.kt` | 58 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/tracking/TrackingQueue.kt` | 98 lines | `.kt` |
@@ -487,7 +487,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/main/kotlin/com/jtech/zemer/ui/component/StatusCopyButton.kt` | 48 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/component/StatusCreatorCircle.kt` | 139 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/component/StatusLoadingIndicator.kt` | 61 lines | `.kt` |
-| `app/src/main/kotlin/com/jtech/zemer/ui/component/StatusStoryTopOverlay.kt` | 176 lines | `.kt` |
+| `app/src/main/kotlin/com/jtech/zemer/ui/component/StatusStoryTopOverlay.kt` | 182 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/component/StatusVideoSurface.kt` | 89 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/component/SyncAccountWarning.kt` | 58 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/component/UpdateDownloadDialog.kt` | 267 lines | `.kt` |
@@ -553,7 +553,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/HomeGenresRow.kt` | 118 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/HomeScreen.kt` | 1521 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/HomeSeeAllScreen.kt` | 368 lines | `.kt` |
-| `app/src/main/kotlin/com/jtech/zemer/ui/screens/HomeStatusesRow.kt` | 77 lines | `.kt` |
+| `app/src/main/kotlin/com/jtech/zemer/ui/screens/HomeStatusesRow.kt` | 79 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/KidZoneScreen.kt` | 164 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/KidZoneTab.kt` | 22 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/LatestReleasesScreen.kt` | 104 lines | `.kt` |
@@ -627,8 +627,8 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/settings/UpdaterSettings.kt` | 408 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/statuses/SavedStatusScreen.kt` | 353 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/statuses/StatusDownloadsScreen.kt` | 439 lines | `.kt` |
-| `app/src/main/kotlin/com/jtech/zemer/ui/screens/statuses/StatusesScreen.kt` | 153 lines | `.kt` |
-| `app/src/main/kotlin/com/jtech/zemer/ui/screens/statuses/StoryScreen.kt` | 973 lines | `.kt` |
+| `app/src/main/kotlin/com/jtech/zemer/ui/screens/statuses/StatusesScreen.kt` | 154 lines | `.kt` |
+| `app/src/main/kotlin/com/jtech/zemer/ui/screens/statuses/StoryScreen.kt` | 974 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/theme/ChartColors.kt` | 30 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/theme/LogColors.kt` | 26 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/theme/PlayerColorExtractor.kt` | 133 lines | `.kt` |
@@ -746,7 +746,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/main/kotlin/com/jtech/zemer/viewmodels/SavedStatusViewModel.kt` | 38 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/viewmodels/StatsViewModel.kt` | 50 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/viewmodels/StatusDownloadsViewModel.kt` | 34 lines | `.kt` |
-| `app/src/main/kotlin/com/jtech/zemer/viewmodels/StoryViewModel.kt` | 147 lines | `.kt` |
+| `app/src/main/kotlin/com/jtech/zemer/viewmodels/StoryViewModel.kt` | 149 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/viewmodels/TopPlaylistViewModel.kt` | 38 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/viewmodels/VideoHomeRowsViewModel.kt` | 96 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/viewmodels/WhitelistedArtistsViewModel.kt` | 70 lines | `.kt` |
@@ -1093,9 +1093,9 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/test/kotlin/com/jtech/zemer/statuses/StatusDownloadNamingTest.kt` | 39 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/statuses/StatusDownloadTest.kt` | 40 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/statuses/StatusDownloadsViewTest.kt` | 40 lines | `.kt` |
-| `app/src/test/kotlin/com/jtech/zemer/statuses/StatusSourcesConfigTest.kt` | 172 lines | `.kt` |
-| `app/src/test/kotlin/com/jtech/zemer/statuses/StatusTimelineTest.kt` | 105 lines | `.kt` |
-| `app/src/test/kotlin/com/jtech/zemer/statuses/StatusesApiTest.kt` | 306 lines | `.kt` |
+| `app/src/test/kotlin/com/jtech/zemer/statuses/StatusSourcesConfigTest.kt` | 175 lines | `.kt` |
+| `app/src/test/kotlin/com/jtech/zemer/statuses/StatusTimelineTest.kt` | 127 lines | `.kt` |
+| `app/src/test/kotlin/com/jtech/zemer/statuses/StatusesApiTest.kt` | 318 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/statuses/YidStatusApiTest.kt` | 81 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/sync/ContentReportRepositoryTest.kt` | 81 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/sync/PodcastSyncLogicTest.kt` | 171 lines | `.kt` |
@@ -1197,7 +1197,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `docs/app/README.md` | 189 lines | `.md` |
 | `docs/app/database.md` | 657 lines | `.md` |
 | `docs/app/playback.md` | 119 lines | `.md` |
-| `docs/app/preferences-sync-auth.md` | 221 lines | `.md` |
+| `docs/app/preferences-sync-auth.md` | 220 lines | `.md` |
 | `docs/app/viewmodels.md` | 132 lines | `.md` |
 | `docs/build-release.md` | 58 lines | `.md` |
 | `docs/fcast/01-architecture.md` | 67 lines | `.md` |

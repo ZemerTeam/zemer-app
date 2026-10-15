@@ -31,6 +31,7 @@ import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import coil3.compose.AsyncImage
@@ -138,12 +139,17 @@ fun StatusStoryTopOverlay(
 
                 Column(Modifier.weight(1f)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
+                        // The name yields (one line, ellipsized) so the badge - an ad's only disclosure
+                        // once its caption label is stripped - always keeps its full width.
                         Text(
                             text = creatorName,
                             color = Color.White,
                             style = MaterialTheme.typography.titleSmall.copy(shadow = statusTextShadow),
                             fontFamily = HeaderFontFamily,
                             fontWeight = FontWeight.SemiBold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f, fill = false),
                         )
                         if (badge != null) {
                             Spacer(Modifier.width(8.dp))

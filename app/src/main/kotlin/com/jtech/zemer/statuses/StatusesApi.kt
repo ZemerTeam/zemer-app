@@ -96,6 +96,9 @@ fun List<StatusPost>.rotateSponsored(seed: String, zone: ZoneId = ZoneId.systemD
     return out
 }
 
+/** How long an image/text status holds when the API gives no duration (the site's default). */
+const val STATUS_STILL_SECONDS = 7
+
 /** The user's Music Status content filter (Settings -> Appearance): which status KINDS to hide. */
 data class StatusContentFilter(
     val hideText: Boolean,
@@ -142,8 +145,9 @@ fun List<StatusCreator>.sortedByUnseenFirst(
     seenPostIds: Set<String>,
     filter: StatusContentFilter,
 ): List<StatusCreator> =
-    // Pinned creators lead in their provider order (stable sort), keeping their own read ring.
-    sortedWith(compareBy({ it.pinnedSection == null }, { it.caughtUpOnLatest(seenPostIds, filter) }))
+    // Pinned creators lead in their provider order whatever their read state (stable sort; they keep their
+    // own read ring); only the unpinned rest sink when caught up.
+    sortedWith(compareBy({ it.pinnedSection == null }, { it.pinnedSection == null && it.caughtUpOnLatest(seenPostIds, filter) }))
 
 /**
  * Merge two platforms' creators, dropping cross-platform DUPLICATES (the same real creator appears on
@@ -158,8 +162,13 @@ fun mergeStatusCreators(
     secondary: List<StatusCreator>,
 ): List<StatusCreator> {
     val out = ArrayList<StatusCreator>(primary.size + secondary.size)
-    (primary + secondary).filterTo(out) { it.pinnedSection != null }
-    val seenNames = out.mapTo(HashSet(), ::statusNameKey)
+    val seenNames = HashSet<String>()
+    val seenIds = HashSet<String>()
+    // One pinned creator per id and per name, even when two pinned providers return the same creator
+    // (a duplicate id would crash the keyed Home row / See-all grid).
+    for (c in primary + secondary) {
+        if (c.pinnedSection != null && seenIds.add(c.id) && seenNames.add(statusNameKey(c))) out.add(c)
+    }
     val pinnedNames = HashSet(seenNames)
     for (c in primary) if (c.pinnedSection == null && statusNameKey(c) !in pinnedNames) { seenNames.add(statusNameKey(c)); out.add(c) }
     for (c in secondary) if (c.pinnedSection == null && seenNames.add(statusNameKey(c))) out.add(c)

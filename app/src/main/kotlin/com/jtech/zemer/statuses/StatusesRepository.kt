@@ -205,7 +205,8 @@ class StatusesRepository @Inject constructor(
                 } else {
                     // Fail-soft PER provider: keep THIS provider's previously-loaded creators so one
                     // source's outage never blanks its rows while its siblings refresh.
-                    jewishCache?.filter { providerByCreator[it.id]?.id == provider.id }?.forEach { c ->
+                    jewishCache?.filter { providerByCreator[it.id]?.id == provider.id }?.forEach { cached ->
+                        val c = cached.withProvider(provider) // re-stamp: the config may have changed the pin
                         if (byId.putIfAbsent(c.id, c) == null) providerByCreator[c.id] = provider
                     }
                 }
@@ -269,7 +270,8 @@ class StatusesRepository @Inject constructor(
                 } else {
                     // Fail-soft PER provider: keep THIS provider's previously-loaded creators (their posts
                     // are still in postsCache) so one source's outage never blanks its rows.
-                    yidCache?.creators?.filter { providerByCreator[it.id]?.id == provider.id }?.forEach { c ->
+                    yidCache?.creators?.filter { providerByCreator[it.id]?.id == provider.id }?.forEach { cached ->
+                        val c = cached.withProvider(provider) // re-stamp: the config may have changed the pin
                         if (byId.putIfAbsent(c.id, c) == null) providerByCreator[c.id] = provider
                     }
                 }
@@ -296,4 +298,4 @@ class StatusesRepository @Inject constructor(
 
 /** Tag a creator with its provider's pin (see [StatusCreator.pinnedSection]). */
 private fun StatusCreator.withProvider(provider: StatusProvider) =
-    if (provider.pinned) copy(pinnedSection = provider.name) else this
+    copy(pinnedSection = provider.name.takeIf { provider.pinned })

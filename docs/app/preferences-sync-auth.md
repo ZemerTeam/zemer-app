@@ -186,7 +186,6 @@ Every other `*PreferencesKey(...)` call under `app/src/main/kotlin`. The `MusicW
 | `sync/UserPreferencesRepository.kt` | `lastSyncTimeKey` | `longPreferencesKey` | `last_content_filter_sync_time` |
 | `sync/UserPreferencesRepository.kt` | `deviceIdKey` | `stringPreferencesKey` | `current_device_id` |
 | `sync/UserPreferencesRepository.kt` | `syncEnabledKey` | `booleanPreferencesKey` | `content_filter_sync_enabled` |
-| `tracking/Tracker.kt` | `STATUS_VIEWS_SENT_KEY` | `stringSetPreferencesKey` | `status_views_sent` |
 | `utils/DeviceIdGenerator.kt` | `deviceIdKey` | `stringPreferencesKey` | `device_id` |
 | `widget/MusicWidget.kt` | `PREF_TITLE` | `stringPreferencesKey` | `title` |
 | `widget/MusicWidget.kt` | `PREF_ARTIST` | `stringPreferencesKey` | `artist` |

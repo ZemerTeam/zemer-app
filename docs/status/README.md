@@ -101,7 +101,7 @@ server-side, which only serves an ad inside its window). Every ad is already lab
   backgrounded time never counts; a video only after its first frame, so a video that never rendered is
   never a view) reports
   `{"type":"status","kind":"view","id","secs"}` (secs capped at its duration, else the player's), once per post per device
-  per UTC day (persisted `status_views_sent`, `recordDailyStatusView`); the Open-link pill reports
+  per UTC day (`recordDailyStatusView` over a small `tracking_status_views` SharedPreferences file, never the app settings); the Open-link pill reports
   `kind":"tap"`. See `docs/tracking/README.md`.
 - **Landscape media:** `StatusVideoSurface` switches ZOOM -> FIT for a square/landscape video wider than the surface
   (`statusVideoResizeMode`), so landscape posts from any platform are letterboxed, not cropped.
