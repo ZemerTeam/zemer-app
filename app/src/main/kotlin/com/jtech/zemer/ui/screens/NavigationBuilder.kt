@@ -32,6 +32,7 @@ import com.jtech.zemer.ui.screens.playlist.ZemerCuratedPlaylistScreen
 import com.jtech.zemer.ui.screens.recognition.RecognitionHistoryScreen
 import com.jtech.zemer.ui.screens.search.OnlineSearchResult
 import com.jtech.zemer.ui.screens.settings.AboutScreen
+import com.jtech.zemer.ui.screens.settings.DonateScreen
 import com.jtech.zemer.ui.screens.settings.AndroidAutoSettings
 import com.jtech.zemer.ui.screens.settings.AppearanceSettings
 import com.jtech.zemer.ui.screens.settings.BackupAndRestore
@@ -482,6 +483,9 @@ fun NavGraphBuilder.navigationBuilder(
         composable("settings/log_viewer") {
             LogViewerScreen(navController, scrollBehavior)
         }
+    }
+    composable("settings/donate") {
+        DonateScreen(navController, scrollBehavior)
     }
     composable("settings/about") {
         AboutScreen(navController, scrollBehavior)

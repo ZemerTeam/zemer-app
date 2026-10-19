@@ -450,4 +450,16 @@
     <string name="update_error_storage">Not enough free storage to save the update.</string>
     <string name="update_error_corrupt">The downloaded file was incomplete or damaged. Try again.</string>
     <string name="update_error_unknown">The download failed. Try again.</string>
+    <string name="donate_amount">Amount</string>
+    <string name="donate_amount_range">Between $%1$d and $%2$d</string>
+    <string name="donate_email">Email for a receipt (optional)</string>
+    <string name="donate_button">Donate $%1$s</string>
+    <string name="donate_thanks_title">Thank you!</string>
+    <string name="donate_thanks">Your donation went through. It helps keep Zemer running.</string>
+    <string name="donate_done">Done</string>
+    <string name="donate_needs_browser">Your bank wants to verify this payment on a web page, which this app doesn\'t open. Please try another card.</string>
+    <string name="donate_preset">$%1$d</string>
+    <string name="donate_currency_symbol">$</string>
+    <string name="donate_failed">Couldn\'t start the payment. Check your connection and try again.</string>
+    <string name="donate_stripe_note">Card payments are handled securely by Stripe, inside the app. Zemer never sees your card number.</string>
 </resources>
