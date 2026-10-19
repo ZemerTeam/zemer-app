@@ -15,8 +15,8 @@
 | BuildConfig fields visible in Gradle | `ARCHITECTURE`, `COMMIT_HASH`, `RUN_NUMBER`, `GOOGLE_TOKEN_EXCHANGE_URL`, `CONTENT_MIRROR_URL`, `ZEMER_LYRICS_BASE_URL` |
 | Room schema directory | `app/schemas` |
 | Native build | None (no `app/src/main/cpp`, no `externalNativeBuild`) |
-| Tracked app paths | `1091` |
-| Tracked app Kotlin files | `808` (`614` in `src/main`, `192` in `src/test`, `2` in `src/androidTest`) |
+| Tracked app paths | `1096` |
+| Tracked app Kotlin files | `813` (`617` in `src/main`, `194` in `src/test`, `2` in `src/androidTest`) |
 | Tracked app resource paths | `214` |
 | Tracked app asset paths | `0` in `src/main` (`3` test fixtures under `src/androidTest/assets`) |
 | Tracked app Room schema files | `36` |
@@ -68,6 +68,7 @@
 | `com.jtech.zemer.lyrics.zemer` | 14 |
 | `com.jtech.zemer.models` | 5 |
 | `com.jtech.zemer.offline` | 16 |
+| `com.jtech.zemer.payments` | 1 |
 | `com.jtech.zemer.playback` | 50 |
 | `com.jtech.zemer.playback.queues` | 7 |
 | `com.jtech.zemer.playback.relay` | 4 |
@@ -94,7 +95,7 @@
 | `com.jtech.zemer.ui.screens.podcast` | 1 |
 | `com.jtech.zemer.ui.screens.recognition` | 2 |
 | `com.jtech.zemer.ui.screens.search` | 3 |
-| `com.jtech.zemer.ui.screens.settings` | 18 |
+| `com.jtech.zemer.ui.screens.settings` | 19 |
 | `com.jtech.zemer.ui.screens.statuses` | 4 |
 | `com.jtech.zemer.ui.theme` | 7 |
 | `com.jtech.zemer.ui.utils` | 20 |
@@ -103,7 +104,7 @@
 | `com.jtech.zemer.utils.mp4` | 2 |
 | `com.jtech.zemer.utils.ogg` | 1 |
 | `com.jtech.zemer.utils.updater` | 7 |
-| `com.jtech.zemer.viewmodels` | 52 |
+| `com.jtech.zemer.viewmodels` | 53 |
 | `com.jtech.zemer.widget` | 2 |
 
 <!-- /generated:app-packages -->
@@ -131,6 +132,7 @@
 | `com/jtech/zemer/lyrics/zemer` | 14 |
 | `com/jtech/zemer/models` | 5 |
 | `com/jtech/zemer/offline` | 16 |
+| `com/jtech/zemer/payments` | 1 |
 | `com/jtech/zemer/playback` | 50 |
 | `com/jtech/zemer/playback/queues` | 7 |
 | `com/jtech/zemer/playback/relay` | 4 |
@@ -157,7 +159,7 @@
 | `com/jtech/zemer/ui/screens/podcast` | 1 |
 | `com/jtech/zemer/ui/screens/recognition` | 2 |
 | `com/jtech/zemer/ui/screens/search` | 3 |
-| `com/jtech/zemer/ui/screens/settings` | 18 |
+| `com/jtech/zemer/ui/screens/settings` | 19 |
 | `com/jtech/zemer/ui/screens/statuses` | 4 |
 | `com/jtech/zemer/ui/theme` | 7 |
 | `com/jtech/zemer/ui/utils` | 20 |
@@ -166,7 +168,7 @@
 | `com/jtech/zemer/utils/mp4` | 2 |
 | `com/jtech/zemer/utils/ogg` | 1 |
 | `com/jtech/zemer/utils/updater` | 7 |
-| `com/jtech/zemer/viewmodels` | 52 |
+| `com/jtech/zemer/viewmodels` | 53 |
 | `com/jtech/zemer/widget` | 2 |
 
 <!-- /generated:app-directories -->
