@@ -177,6 +177,8 @@ ksp {
 
 configurations.all {
     exclude(group = "com.google.protobuf", module = "protobuf-java")
+    // No Play Integrity anywhere in Zemer (Firebase Auth declares it but never calls it).
+    exclude(group = "com.google.android.play", module = "integrity")
 }
 
 tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach {
@@ -256,6 +258,9 @@ dependencies {
     implementation(libs.ktor.client.content.negotiation)
     // Gzip for the content mirror (ZemerContentClient): the /whitelist payload is ~432 KB raw / ~70 KB gzipped.
     implementation(libs.ktor.client.encoding)
+
+    // In-app donations (payments/DonationClient): Stripe card field + PaymentLauncher, never a browser
+    implementation(libs.stripe.payments.core)
 
     // Self-update installers (Shizuku / root); hidden PackageInstaller APIs via refine
     compileOnly(libs.rikka.hidden.stub)

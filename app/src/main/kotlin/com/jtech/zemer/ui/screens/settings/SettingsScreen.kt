@@ -23,7 +23,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -38,8 +37,6 @@ import com.jtech.zemer.ui.component.Material3SettingsGroup
 import com.jtech.zemer.ui.component.Material3SettingsItem
 import com.jtech.zemer.ui.component.zemerTopAppBarColors
 import com.jtech.zemer.extensions.toast
-
-private const val DONATE_URL = "https://buymeacoffee.com/zemer"
 
 data class SettingItem(
     val id: String,
@@ -57,7 +54,6 @@ fun SettingsScreen(
     scrollBehavior: TopAppBarScrollBehavior,
     latestVersionName: String,
 ) {
-    val uriHandler = LocalUriHandler.current
     val context = LocalContext.current
     Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
     // Android Auto app package; declared in <queries> so getPackageInfo is visible on API 30+.
@@ -185,7 +181,7 @@ fun SettingsScreen(
             description = stringResource(R.string.settings_desc_donate),
             icon = R.drawable.favorite,
             section = stringResource(R.string.settings_section_support),
-            route = null
+            route = "settings/donate"
         )
     )
     val androidAutoSettings = if (hasAndroidAuto) {
@@ -263,8 +259,6 @@ fun SettingsScreen(
                             onClick = {
                                 if (setting.route != null) {
                                     navController.navigate(setting.route)
-                                } else if (setting.id == "donate") {
-                                    uriHandler.openUri(DONATE_URL)
                                 } else if (setting.id == "logout") {
                                     FirebaseAuth.getInstance().signOut()
                                     context.toast(R.string.logged_out)
