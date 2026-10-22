@@ -320,7 +320,7 @@
     <string name="onboarding_view_privacy">Voir la politique de confidentialité</string>
     <string name="onboarding_continue">Continuer</string>
     <string name="onboarding_tos_title">Conditions d\'utilisation</string>
-    <string name="onboarding_tos_body">En utilisant Zemer, vous acceptez ce qui suit :\n• Vous ne tiendrez pas les développeurs responsables de dommages ou de réclamations éventuels.\n• Il vous incombe de respecter les lois sur le droit d\'auteur pour tout contenu que vous diffusez.\n• Nous renvoyons uniquement vers des contenus tiers et n\'hébergeons aucun fichier multimédia.\n• L\'application est fournie « en l\'état », sans aucune garantie.</string>
+    <string name="onboarding_tos_body">En utilisant Zemer, vous acceptez ce qui suit : • Vous ne tiendrez pas les développeurs responsables des dommages ou réclamations. • Vous êtes responsable du respect du droit d\'auteur pour tout contenu que vous écoutez. • Nous redirigeons uniquement vers du contenu tiers et ne hébergeons aucun média. • L\'application est fournie « en l\'état », sans aucune garantie.</string>
     <string name="onboarding_privacy_title">Politique de Confidentialité</string>
     <string name="onboarding_permissions_title">Vérification rapide des autorisations</string>
     <string name="onboarding_permissions_subtitle">Accordez quelques autorisations pour garantir la fluidité de la lecture et des téléchargements. Vous pouvez ignorer cette étape si vous préférez.</string>
@@ -387,4 +387,16 @@
     <string name="update_error_storage">Espace de stockage insuffisant pour enregistrer la mise à jour.</string>
     <string name="update_error_corrupt">Le fichier téléchargé était incomplet ou endommagé. Réessayez.</string>
     <string name="update_error_unknown">Le téléchargement a échoué. Réessayez.</string>
+    <string name="donate_amount">Montant</string>
+    <string name="donate_amount_range">Entre $%1$d et $%2$d</string>
+    <string name="donate_email">E-mail pour le reçu (optionnel)</string>
+    <string name="donate_button">Faire un don de $%1$s</string>
+    <string name="donate_thanks_title">Merci !</string>
+    <string name="donate_thanks">Votre don a bien été effectué. Il permet de faire fonctionner Zemer.</string>
+    <string name="donate_done">Terminé</string>
+    <string name="donate_needs_browser">Votre banque souhaite vérifier ce paiement sur une page web que cette application ne peut pas ouvrir. Veuillez essayer une autre carte.</string>
+    <string name="donate_preset">$%1$d</string>
+    <string name="donate_currency_symbol">$</string>
+    <string name="donate_failed">Impossible d\'initialiser le paiement. Vérifiez votre connexion et réessayez.</string>
+    <string name="donate_stripe_note">Les paiements par carte sont sécurisés par Stripe, directement dans l\'application. Zemer ne prend jamais connaissance de votre numéro de carte.</string>
 </resources>
