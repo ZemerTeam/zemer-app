@@ -117,6 +117,7 @@ constructor(
         .dns(ResilientDns())
         .connectTimeout(30, TimeUnit.SECONDS)
         .readTimeout(3, TimeUnit.MINUTES)
+        .addInterceptor(com.jtech.zemer.pass.ZemerPass.OkHttpInterceptor)
         .build()
 
     // Concurrent download limiter (max 3 simultaneous downloads)

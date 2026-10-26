@@ -112,6 +112,9 @@ class App : Application(), SingletonImageLoader.Factory {
         PlayHistoryBackfill.maybeStart(this) { databaseLazy.get() }
         LibraryActionBackfill.maybeStart(this) { databaseLazy.get() }
 
+        // The genuine-app pass (pass/PassManager): load the stored one, then keep it fresh. Never fatal.
+        applicationScope.launch(Dispatchers.IO) { com.jtech.zemer.pass.PassManager.run(this@App) }
+
         // On-device offline-search snapshot: refresh it in the background if the user enabled offline
         // search and it's due (daily, any connection). Delayed + best-effort so it never
         // competes with startup; a no-op when offline search is off. (docs: the outage-fallback subset.)
@@ -342,6 +345,8 @@ class App : Application(), SingletonImageLoader.Factory {
             // Raise it so a full grid of avatars fetches in one wave.
             .dispatcher(Dispatcher().apply { maxRequestsPerHost = 12 })
             .dns(ResilientDns())
+            // server covers (playlists, stations) come from search.zemer.io; the pass rides only those
+            .addInterceptor(com.jtech.zemer.pass.ZemerPass.OkHttpInterceptor)
             .build()
 
         return ImageLoader.Builder(this).apply {

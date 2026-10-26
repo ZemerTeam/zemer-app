@@ -146,6 +146,7 @@ class ZemerSearchClient @Inject constructor() {
             requestTimeoutMillis = REQUEST_TIMEOUT_MS
             connectTimeoutMillis = CONNECT_TIMEOUT_MS
         }
+        install(com.jtech.zemer.pass.ZemerPass.KtorPlugin)
     }
 
     suspend fun search(

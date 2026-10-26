@@ -19,6 +19,8 @@ object LyricsHttp {
         HttpClient(CIO) {
             install(ContentNegotiation) { json(json) }
             install(HttpTimeout) { requestTimeoutMillis = 15_000; connectTimeoutMillis = 10_000; socketTimeoutMillis = 15_000 }
+            // the genuine-app pass rides only Zemer-host requests, never the third-party lyrics pages
+            install(com.jtech.zemer.pass.ZemerPass.KtorPlugin)
             expectSuccess = false
         }
     }

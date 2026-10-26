@@ -36,6 +36,7 @@ object RelayDataSourceFactory {
             .dns(ResilientDns())
             .connectTimeout(30, TimeUnit.SECONDS)
             .readTimeout(60, TimeUnit.SECONDS)
+            .addInterceptor(com.jtech.zemer.pass.ZemerPass.OkHttpInterceptor)
             .build()
         val http = OkHttpDataSource.Factory(client)
         // Default headers on the relay OkHttp factory ride relay hosts only (local files bypass OkHttp) and

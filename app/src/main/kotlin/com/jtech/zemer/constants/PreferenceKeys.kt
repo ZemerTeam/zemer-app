@@ -22,6 +22,12 @@ val PlaybackModeKey = stringPreferencesKey("playbackMode")
 // listening history. See handoff-docs/zemer-app-relay-device-id-request.md (option B).
 val RelayDeviceIdKey = stringPreferencesKey("relayDeviceId")
 
+/** The genuine-app pass (see pass/PassManager): the token, its attested key id, its expiry, and the earliest next try after a failure. */
+val ZemerPassKey = stringPreferencesKey("zemerPass")
+val ZemerPassKeyIdKey = stringPreferencesKey("zemerPassKeyId")
+val ZemerPassExpiresAtKey = longPreferencesKey("zemerPassExpiresAt")
+val ZemerPassRetryAfterKey = longPreferencesKey("zemerPassRetryAfter")
+
 val DynamicThemeKey = booleanPreferencesKey("dynamicTheme")
 // Legacy boolean high-refresh toggle. Superseded by [RefreshRateModeKey]; kept declared only so the
 // one-time migration can read whether a user had explicitly turned it off. Do not read it elsewhere.
