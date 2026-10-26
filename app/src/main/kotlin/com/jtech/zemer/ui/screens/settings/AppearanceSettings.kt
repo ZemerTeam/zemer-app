@@ -865,6 +865,8 @@ fun AppearanceSettings(
             ),
         )
 
+        HomeAppSettingsGroup()
+
         // Music Status settings, wrapped as one group. Its measured top (see [statusGroupTopY]) is what
         // the See-all gear scrolls to, so the whole section lands under the app bar rather than at the
         // top of Appearance or barely peeking at the bottom. Hidden entirely when videos are blocked

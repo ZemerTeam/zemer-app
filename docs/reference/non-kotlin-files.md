@@ -59,7 +59,7 @@ Every tracked non-Kotlin path outside `docs/` is listed. Text files report line 
 | `app/src/androidTest/assets/sample-flat.m4a` | 5341038 bytes | binary `.m4a` |
 | `app/src/androidTest/assets/sample-opus.webm` | 5878798 bytes | binary `.webm` |
 | `app/src/debug/res/values/app_name.xml` | 4 lines | text `.xml`; XML root `resources` |
-| `app/src/main/AndroidManifest.xml` | 299 lines | text `.xml`; XML root `manifest` |
+| `app/src/main/AndroidManifest.xml` | 322 lines | text `.xml`; XML root `manifest` |
 | `app/src/main/ic_launcher-playstore.png` | 23742 bytes | binary `.png` |
 | `app/src/main/res/drawable-night/widget_background.xml` | 6 lines | text `.xml`; XML root `shape` |
 | `app/src/main/res/drawable/account.xml` | 9 lines | text `.xml`; XML root `vector` |
@@ -264,7 +264,7 @@ Every tracked non-Kotlin path outside `docs/` is listed. Text files report line 
 | `app/src/main/res/values/app_name.xml` | 4 lines | text `.xml`; XML root `resources` |
 | `app/src/main/res/values/colors.xml` | 9 lines | text `.xml`; XML root `resources` |
 | `app/src/main/res/values/metrolist_strings.xml` | 700 lines | text `.xml`; XML root `resources` |
-| `app/src/main/res/values/strings.xml` | 465 lines | text `.xml`; XML root `resources` |
+| `app/src/main/res/values/strings.xml` | 470 lines | text `.xml`; XML root `resources` |
 | `app/src/main/res/values/styles.xml` | 26 lines | text `.xml`; XML root `resources` |
 | `app/src/main/res/values/values.xml` | 8 lines | text `.xml`; XML root `resources` |
 | `app/src/main/res/xml-v25/shortcuts.xml` | 33 lines | text `.xml`; XML root `shortcuts` |
