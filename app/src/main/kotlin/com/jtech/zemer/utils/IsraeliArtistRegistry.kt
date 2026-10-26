@@ -21,6 +21,11 @@ object IsraeliArtistRegistry {
     @Volatile
     private var loaded = false
 
+    // After a failed load, callers skip the fetch until this time: the filter path calls ensureLoaded()
+    // per pass, and a slow/unreachable server must not add a network wait to every one of them.
+    @Volatile
+    private var retryAfterMs = 0L
+
     private val mutex = Mutex()
 
     fun isIsraeli(artistId: String?): Boolean {
@@ -28,13 +33,13 @@ object IsraeliArtistRegistry {
         return cachedIds.contains(artistId)
     }
 
-    suspend fun ensureLoaded() = ensureLoaded(::fetchIds)
+    suspend fun ensureLoaded() = ensureLoaded(fetch = ::fetchIds)
 
-    internal suspend fun ensureLoaded(fetch: suspend () -> Set<String>) {
-        if (loaded) return
+    internal suspend fun ensureLoaded(now: () -> Long = System::currentTimeMillis, fetch: suspend () -> Set<String>) {
+        if (loaded || now() < retryAfterMs) return
 
         mutex.withLock {
-            if (loaded) return
+            if (loaded || now() < retryAfterMs) return
 
             runCatching {
                 val ids = fetch()
@@ -42,6 +47,7 @@ object IsraeliArtistRegistry {
                 loaded = true
                 Timber.d("IsraeliArtistRegistry: Loaded ${ids.size} artist ids")
             }.onFailure {
+                retryAfterMs = now() + RETRY_COOLDOWN_MS
                 Timber.w(it, "IsraeliArtistRegistry: Failed to load artist ids")
             }
         }
@@ -55,5 +61,8 @@ object IsraeliArtistRegistry {
     internal fun resetForTest() {
         cachedIds = emptySet()
         loaded = false
+        retryAfterMs = 0L
     }
+
+    internal const val RETRY_COOLDOWN_MS = 60_000L
 }
