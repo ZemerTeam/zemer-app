@@ -26,7 +26,16 @@ object LyricsUtils {
 
     /** A body worth serving has at least [MIN_LYRIC_LINES] non-blank lines (a title echo or a one-line stub is not lyrics). */
     const val MIN_LYRIC_LINES = 4
-    fun hasLyricBody(text: String): Boolean = text.lineSequence().count { it.isNotBlank() } >= MIN_LYRIC_LINES
+    fun hasLyricBody(text: String): Boolean = looksLikeText(text) && text.lineSequence().count { it.isNotBlank() } >= MIN_LYRIC_LINES
+
+    /**
+     * False for decoded binary (e.g. compressed bytes read as text): it is full of U+FFFD replacement and
+     * control characters, which real lyrics essentially never contain. Allows a stray one (2 %).
+     */
+    fun looksLikeText(text: String): Boolean {
+        val junk = text.count { it == '\uFFFD' || (it < ' ' && it != '\n' && it != '\r' && it != '\t') }
+        return junk * 50 <= text.length
+    }
 
     /**
      * The lyrics with any word tags removed and spacing normalised, for places that expose the raw

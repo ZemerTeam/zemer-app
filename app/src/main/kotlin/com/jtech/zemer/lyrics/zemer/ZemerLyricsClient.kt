@@ -114,8 +114,17 @@ object ZemerLyricsClient {
 
     var baseUrl: String = BuildConfig.ZEMER_LYRICS_BASE_URL.trimEnd('/')
 
+    const val LYRICS_CLIENT_HEADER = "X-Zemer-Lyrics-Client"
+    const val LYRICS_CLIENT_VERSION = "2"
+
     suspend fun resolve(videoId: String): Resolved? {
-        val r = LyricsHttp.client.get("$baseUrl/lyrics/resolve") { url { parameters.append("videoId", videoId) }; header(HttpHeaders.Accept, "application/json") }
+        val r = LyricsHttp.client.get("$baseUrl/lyrics/resolve") {
+            url { parameters.append("videoId", videoId) }
+            header(HttpHeaders.Accept, "application/json")
+            // Tells the server this build decompresses pointer pages and ranks the inline body first, so it may
+            // send every pointer as a fallback (builds without it get no pointer they would mis-read).
+            header(LYRICS_CLIENT_HEADER, LYRICS_CLIENT_VERSION)
+        }
         return if (r.status == HttpStatusCode.OK) r.body<Resolved>() else null
     }
 

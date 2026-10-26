@@ -18,8 +18,11 @@ data class LyricsEntity(
          * beatable): installs below it drop their refreshable rows once (`DatabaseDao.purgeRefreshableLyrics`).
          * 1 = the Zemer resolver's zemer / youtube / tab4u / zemirotdb / community sources and `lineTimes`.
          * 2 = the resolver's apple (Apple Music line sync) sources, synced-first walk.
+         * 3 = compressed pointer pages decoded and server-inline bodies ranked before pointers; drops auto-cached
+         *     plain rows once, which also clears any body an undecoded compressed page left behind. The purge only
+         *     deletes: each song re-resolves lazily on its next play / pane open, never in a bulk sweep.
          */
-        const val CHAIN_GENERATION = 2
+        const val CHAIN_GENERATION = 3
 
         /**
          * Provider stamp for a row cached before provider tracking whose song the gated chain could not

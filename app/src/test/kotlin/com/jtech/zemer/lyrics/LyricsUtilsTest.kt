@@ -61,6 +61,15 @@ class LyricsUtilsTest {
 
     /** The shared body gate (Zemer sources and the fetched providers): fewer than four non-blank lines is a stub, not lyrics. */
     @Test
+    fun `looksLikeText accepts real lyrics and rejects decoded binary`() {
+        assertTrue(LyricsUtils.looksLikeText("שורה ראשונה\nSecond line\n\tindented\r\nלכה דודי"))
+        // one stray replacement character in a long body is tolerated
+        assertTrue(LyricsUtils.looksLikeText("a fairly long line of real lyrics text here\nand another one\uFFFD"))
+        assertFalse(LyricsUtils.looksLikeText("\u001F\uFFFD\b\u0000\uFFFD\uFFFDx\u0003\uFFFD\nabc"))
+        assertFalse(LyricsUtils.hasLyricBody("\uFFFD\uFFFD\n\uFFFD\u0001\n\uFFFD\uFFFD\n\u0002\uFFFD"))
+    }
+
+    @Test
     fun `hasLyricBody needs four non-blank lines`() {
         assertTrue(LyricsUtils.hasLyricBody("a\nb\n\nc\nd"))
         assertFalse(LyricsUtils.hasLyricBody("a\nb\nc"))

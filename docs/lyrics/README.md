@@ -50,11 +50,16 @@ download-completion prefetch (`MediaStoreDownloadManager`) call it and none re-i
   - `booklet`/`manual`/`canonical`/`community`: inline text.
 
   **Walk order** (`ZemerLyricsProvider.order`): synced first (`synced`, an inline `syncedLrc`/`richSync`, or the
-  one pointer the resolver's `lineTimes` were measured against), then `rank`: `zemer` 0 > `jkaraoke`/`apple` 1 >
+  one pointer the resolver's `lineTimes` were measured against); within each of the synced and plain tiers a body
+  the server carries INLINE (`syncedLrc`/`richSync`/`plain`, `isInline`) comes before a pointer the app must fetch
+  and parse (the server holds the text for nearly every song; a third-party page can change or break, so the
+  pointer is the fallback); then `rank`: `zemer` 0 > `jkaraoke`/`apple` 1 >
   `lrclib`/`kugou`/`simpmusic`/`zingmusic`/`youtube` 2 > `jyrics`/`shironet`/`tab4u`/`zemirotdb`/`lyricstranslate`
-  3 > `booklet`/`manual`/`canonical`/`community` 4 (inline bodies stay behind the pointers: the pointer is the
-  fresher copy, the inline text the outage fallback); unknown types are skipped, never guessed; the server's order
-  breaks ties. Each source's fetch/parse runs under `runCatching` (rethrowing `CancellationException`), so a dead
+  3 > `booklet`/`manual`/`canonical`/`community` 4; unknown types are skipped, never guessed; the server's order
+  breaks ties. `/lyrics/resolve` is sent with `X-Zemer-Lyrics-Client: 2` (this build decodes compressed pages and
+  ranks inline first, so the server may send every pointer). The shared `LyricsHttp` client decodes gzip/deflate
+  (a page may arrive compressed unasked), and a body that still looks binary (`LyricsUtils.looksLikeText`: U+FFFD /
+  control characters) is never served. Each source's fetch/parse runs under `runCatching` (rethrowing `CancellationException`), so a dead
   or throwing source is skipped, never the walk. `bodies(firstOnly = true)` stops at the first source that yields
   text, so the auto-fetch path does not download every source. The informational extras (`publicDomain`,
   `borrowedFrom`, `syncedTruncated`, `wordSyncPartial`, `provenance`, `admittedBy`, `Resolved.syncTruncated`,
@@ -183,7 +188,7 @@ minted that would hide lyrics once online). Opening the pane is then a Room read
 * The menu's Refetch (`LyricsStore.refetch`) DELETES the row first (the pane visibly clears and reloads even when the
   chain answers the same body) and stores a fresh answer; the open screen's own `ensure` joins the same single-flight
   walk (`LyricsStoreTest`).
-* **Cache refresh is by CHAIN GENERATION**, not one-off booleans: `LyricsEntity.CHAIN_GENERATION` (currently 2;
+* **Cache refresh is by CHAIN GENERATION**, not one-off booleans: `LyricsEntity.CHAIN_GENERATION` (currently 3;
   bump it when the chain gains sources or sync it did not have) vs the persisted `LyricsChainGenerationKey`; an
   install below it queues `DatabaseDao.purgeRefreshableLyrics` once (fire-and-forget `database.query`) — drops
   not-found rows (the chain may cover the song now) and auto-cached PLAIN rows (it may sync them now), keeps every
