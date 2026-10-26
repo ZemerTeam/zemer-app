@@ -6,7 +6,7 @@ recommendations. The authoritative wire spec is the handoff doc
 
 ## TL;DR
 
-Six events — `open`, `search`, `play`, `click`, `action`, `impression` — batched into a durable on-disk
+Seven events — `open`, `search`, `play`, `click`, `action`, `impression`, `fetch_fail` — batched into a durable on-disk
 queue and POSTed fire-and-forget. Identity is ONE random UUID (`TrackingDeviceIdKey` in DataStore),
 nothing else: no account data, no device identifiers, no location. Product decisions: track everything
 including KidZone, no opt-out, one `search` event per executed query, offline plays queue and upload late.
@@ -271,3 +271,12 @@ the play backfill's queue bypass, pacing and `historyEventEpochMillis`, with the
 for the stats key): a 5 s skip bumps `plays` but not `qualifiedPlays`; a gibberish search shows under
 zero-result searches within ~a minute of a flush. The `PlaybackStatsListener`/lifecycle layers need a
 device (no Robolectric); everything else is covered by `app/src/test/.../tracking/`.
+
+## `fetch_fail` (content-server reachability)
+
+`{"type":"fetch_fail","t","host":"content","path","kind"}`, enqueued when a content-server read fails
+(`ZemerContentClient.kt`, `fetchFailKind`), at most once per `host:path` per app session. `kind` is
+`challenge` (a Cloudflare bot challenge, `cf-mitigated: challenge`), `http_<code>`, `timeout`, `io`
+(no network / DNS / refused), `non_json`, `empty` or `other`. It measures how many devices cannot reach
+content.zemer.io directly. Servers that do not know the type skip it, so it never fails a batch.
+
