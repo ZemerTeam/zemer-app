@@ -2,7 +2,7 @@
 
 Every tracked Kotlin file is listed with hard metadata extracted from the file text: line count, package, whether it declares any `@Composable`, import count, top-level declaration count (`Decls` - a high value flags a god-file), and the external import roots it depends on. Declaration counting is regex-based (after stripping comments and string literals). For the actual declaration names, read the file or use your editor's outline - they are not duplicated here.
 
-## `app` Kotlin files (813)
+## `app` Kotlin files (820)
 
 | File | Lines | Package | Compose | Imports | Decls | External import roots |
 | --- | ---: | --- | --- | ---: | ---: | --- |
@@ -144,6 +144,10 @@ Every tracked Kotlin file is listed with hard metadata extracted from the file t
 | `app/src/main/kotlin/com/jtech/zemer/offline/SubsetStore.kt` | 115 | `com.jtech.zemer.offline` | no | 5 | 26 | android.content, java.io, kotlinx.serialization |
 | `app/src/main/kotlin/com/jtech/zemer/offline/SubsetSyncClient.kt` | 62 | `com.jtech.zemer.offline` | no | 12 | 10 | io.ktor, java.io, javax.inject, kotlinx.serialization |
 | `app/src/main/kotlin/com/jtech/zemer/offline/SubsetSynonyms.kt` | 74 | `com.jtech.zemer.offline` | no | 0 | 18 |  |
+| `app/src/main/kotlin/com/jtech/zemer/pass/PassClient.kt` | 71 | `com.jtech.zemer.pass` | no | 16 | 29 | io.ktor, java.io, java.util, kotlinx.serialization |
+| `app/src/main/kotlin/com/jtech/zemer/pass/PassKeystore.kt` | 58 | `com.jtech.zemer.pass` | no | 9 | 13 | android.os, android.security, java.security, java.util |
+| `app/src/main/kotlin/com/jtech/zemer/pass/PassManager.kt` | 127 | `com.jtech.zemer.pass` | no | 15 | 28 | android.content, androidx.datastore, kotlinx.coroutines, timber.log |
+| `app/src/main/kotlin/com/jtech/zemer/pass/ZemerPass.kt` | 53 | `com.jtech.zemer.pass` | no | 4 | 11 | io.ktor, java.net, okhttp3.Response |
 | `app/src/main/kotlin/com/jtech/zemer/payments/DonationClient.kt` | 82 | `com.jtech.zemer.payments` | no | 17 | 26 | io.ktor, java.math, java.util, kotlinx.serialization |
 | `app/src/main/kotlin/com/jtech/zemer/playback/CastAutoAdvance.kt` | 75 | `com.jtech.zemer.playback` | no | 0 | 13 |  |
 | `app/src/main/kotlin/com/jtech/zemer/playback/CastAwarePlayer.kt` | 203 | `com.jtech.zemer.playback` | no | 5 | 46 | androidx.media3, kotlinx.coroutines |
@@ -673,6 +677,9 @@ Every tracked Kotlin file is listed with hard metadata extracted from the file t
 | `app/src/test/kotlin/com/jtech/zemer/offline/SubsetSearchTest.kt` | 177 | `com.jtech.zemer.offline` | no | 4 | 38 | org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/offline/SubsetStoreStagingTest.kt` | 74 | `com.jtech.zemer.offline` | no | 6 | 8 | org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/offline/SubsetSyncTest.kt` | 72 | `com.jtech.zemer.offline` | no | 4 | 13 | org.junit |
+| `app/src/test/kotlin/com/jtech/zemer/pass/PassClientTest.kt` | 86 | `com.jtech.zemer.pass` | no | 12 | 23 | io.ktor, java.net, kotlin.concurrent, kotlinx.coroutines, org.junit |
+| `app/src/test/kotlin/com/jtech/zemer/pass/PassManagerTest.kt` | 71 | `com.jtech.zemer.pass` | no | 8 | 6 | java.io, org.junit |
+| `app/src/test/kotlin/com/jtech/zemer/pass/ZemerPassHeaderTest.kt` | 86 | `com.jtech.zemer.pass` | no | 15 | 13 | io.ktor, java.net, kotlin.concurrent, kotlinx.coroutines, okhttp3.Dns, okhttp3.OkHttpClient, okhttp3.Request, org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/payments/DonationClientTest.kt` | 59 | `com.jtech.zemer.payments` | no | 4 | 3 | org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/playback/BlockedPodcastsQueueTest.kt` | 55 | `com.jtech.zemer.playback` | no | 6 | 4 | androidx.media3, org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/playback/CastAutoAdvanceTest.kt` | 184 | `com.jtech.zemer.playback` | no | 3 | 10 | org.junit |

@@ -15,8 +15,8 @@
 | BuildConfig fields visible in Gradle | `ARCHITECTURE`, `COMMIT_HASH`, `RUN_NUMBER`, `GOOGLE_TOKEN_EXCHANGE_URL`, `CONTENT_MIRROR_URL`, `ZEMER_LYRICS_BASE_URL` |
 | Room schema directory | `app/schemas` |
 | Native build | None (no `app/src/main/cpp`, no `externalNativeBuild`) |
-| Tracked app paths | `1096` |
-| Tracked app Kotlin files | `813` (`617` in `src/main`, `194` in `src/test`, `2` in `src/androidTest`) |
+| Tracked app paths | `1103` |
+| Tracked app Kotlin files | `820` (`621` in `src/main`, `197` in `src/test`, `2` in `src/androidTest`) |
 | Tracked app resource paths | `214` |
 | Tracked app asset paths | `0` in `src/main` (`3` test fixtures under `src/androidTest/assets`) |
 | Tracked app Room schema files | `36` |
@@ -68,6 +68,7 @@
 | `com.jtech.zemer.lyrics.zemer` | 14 |
 | `com.jtech.zemer.models` | 5 |
 | `com.jtech.zemer.offline` | 16 |
+| `com.jtech.zemer.pass` | 4 |
 | `com.jtech.zemer.payments` | 1 |
 | `com.jtech.zemer.playback` | 50 |
 | `com.jtech.zemer.playback.queues` | 7 |
@@ -132,6 +133,7 @@
 | `com/jtech/zemer/lyrics/zemer` | 14 |
 | `com/jtech/zemer/models` | 5 |
 | `com/jtech/zemer/offline` | 16 |
+| `com/jtech/zemer/pass` | 4 |
 | `com/jtech/zemer/payments` | 1 |
 | `com/jtech/zemer/playback` | 50 |
 | `com/jtech/zemer/playback/queues` | 7 |

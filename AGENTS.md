@@ -161,17 +161,20 @@ The "Kosher" guarantee runs through one chokepoint - `utils/WhitelistFilter.kt` 
 - **KidZone is a two-tab browse (Artists | Podcasts; `ui/screens/KidZoneTab.kt`, pure + tested):** Artists = local whitelist slice (`WHERE isKidZone = 1`); Podcasts = `/podcasts?kidZone=1` (`ZemerSearchRepository.kidZonePodcasts`, server-first with offline fallback, fail-soft). `kidZone` is a NAVIGATION-context flag riding the show/channel routes, so every server call from a KidZone-opened screen sends `kidZone=1` (server filters as second layer), with offline parity via the subset's per-show `isKidZone`. The Podcasts chip is removed under Block Podcasts. The chip row is the shared `ContentTabChipsRow` (`ui/component/ChipsRow.kt`) in the scaffold's `topSections` slot. The normal Podcasts browse filters wholly-kid channels out (`!isKidZone`). Contract: `handoff-docs/zemer-app-kidzone-redesign-request.md`.
 - **Playlist covers come from the filtered tracks, never `playlist.thumbnail`** (YouTube curator art bypasses the filter). `filteredPlaylistCover(filteredSongs, thumbnailOf)` (`ui/screens/playlist/PlaylistHeaderCover.kt`) derives both the header cover and the saved-to-Library cover from the first content-filtered track, falling back to the `queue_music` placeholder / null `thumbnailUrl`. Don't revert either site.
 
-### The genuine-app pass (`pass/` - Android key attestation; monitor stage)
+### The genuine-app pass (`pass/` - Android key attestation; a bonus, never a requirement)
 
-Proves to the Zemer servers that a request comes from the real, release-signed app on real hardware, so the
-open source alone cannot get past their blocks. `PassManager` (run from `App`, re-checked hourly) gets a nonce
+Tells the Zemer servers that a request comes from the real, release-signed app on real hardware. It only ever
+ADDS trust (e.g. an exemption from abuse caps): **no request is ever refused for lacking a pass, and nothing may
+ever key on attestation success, boot state, bootloader lock, Play Services or Play Integrity** (owner rule:
+never lock out a legitimate user; healthy phones on a revoked factory key can never get a pass). `PassManager` (run from `App`, re-checked hourly) gets a nonce
 from `content.zemer.io/pass/challenge`, creates an EC P-256 AndroidKeyStore key attested over it
 (`PassKeystore`: StrongBox, else TEE) and posts the certificate chain to `/pass/attest`; the 24 h pass is then
 renewed by signing a fresh nonce with that key (`/pass/renew`), re-attesting only when a renewal is refused.
 Rules that must not regress:
 
-- **Never fatal.** No pass (no hardware attestation, an emulator, a debug signature, offline, refused) means
-  the app sends no header and works exactly as before; refusals back off a day, network failures an hour
+- **Never fatal, never shown.** No pass (no hardware attestation, a revoked factory key, an emulator, a debug
+  signature, offline, refused) means the app sends no header and works exactly as before, with no user-facing
+  message; refusals back off a day, network failures an hour
   (`PassManager.nextStep` / `backoffFor`, JVM-tested), so a device that cannot attest never retries per launch.
 - **The pass rides ONLY Zemer hosts** (`ZemerPass.hostGetsPass`: search, content, stream, plus a configured
   test base URL) via `ZemerPass.KtorPlugin` / `ZemerPass.OkHttpInterceptor`. Shared clients (lyrics, images)

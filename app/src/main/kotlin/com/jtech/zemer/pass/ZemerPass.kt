@@ -7,10 +7,12 @@ import java.net.URI
 
 /**
  * The genuine-app pass: a short-lived token the content server issues after this install proves (Android key
- * attestation) it is the real, release-signed app (see [PassManager]). It rides as [HEADER] on every request
- * to the Zemer servers, and ONLY to them ([hostGetsPass]) - several shared clients also reach third-party
- * hosts, which must never see it. No pass (no hardware attestation, offline, refused) sends nothing and the
- * app works exactly as without it.
+ * attestation) it is the real, release-signed app (see [PassManager]). It is a BONUS that only ever adds trust
+ * (e.g. an exemption from abuse caps): no request is ever refused for lacking one, and nothing may ever require
+ * attestation, a locked bootloader or Play Services (owner rule - healthy phones on a revoked factory key can
+ * never get a pass). It rides as [HEADER] on every request to the Zemer servers, and ONLY to them
+ * ([hostGetsPass]) - several shared clients also reach third-party hosts, which must never see it. No pass
+ * sends nothing and the app works exactly as without it.
  */
 object ZemerPass {
     const val HEADER = "X-Zemer-Pass"
