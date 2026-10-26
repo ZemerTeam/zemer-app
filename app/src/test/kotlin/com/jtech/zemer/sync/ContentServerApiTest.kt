@@ -34,6 +34,7 @@ class ContentServerApiTest {
 
     // "METHOD /path" -> (status, body); a null body means "hang past the client timeout"
     private val routes = mutableMapOf<String, Pair<Int, String?>>()
+    @Volatile private var retryAfter: String? = null
 
     @Before
     fun setUp() {
@@ -61,7 +62,7 @@ class ContentServerApiTest {
         if (reply == null) Thread.sleep(3_000)
         val bytes = (reply ?: "{}").encodeToByteArray()
         socket.getOutputStream().apply {
-            write("HTTP/1.1 $status X\r\nContent-Type: application/json\r\nContent-Length: ${bytes.size}\r\nConnection: close\r\n\r\n".encodeToByteArray())
+            write("HTTP/1.1 $status X\r\nContent-Type: application/json\r\nContent-Length: ${bytes.size}\r\n${retryAfter?.let { "Retry-After: $it\r\n" } ?: ""}Connection: close\r\n\r\n".encodeToByteArray())
             write(bytes)
             flush()
         }
@@ -97,6 +98,14 @@ class ContentServerApiTest {
         expectStatus(400) { api.submitReport(buildJsonObject {}) }
         routes["POST /reports"] = 429 to """{"error":"rate limited"}"""
         expectStatus(429) { api.submitReport(buildJsonObject {}) }
+        // Retry-After is carried on the exception
+        retryAfter = "90"
+        try {
+            api.submitReport(buildJsonObject {})
+            fail("expected 429")
+        } catch (e: ContentServerException) {
+            assertEquals(90L, e.retryAfterSec)
+        }
     }
 
     @Test
@@ -145,6 +154,25 @@ class ContentServerApiTest {
         assertNull(api.devicePrefs("unknown"))
         routes["GET /prefs/device/abc-123"] = 429 to "{}"
         expectStatus(429) { api.devicePrefs("abc-123") }
+    }
+
+    @Test
+    fun `a 200 that is not a device answer fails instead of restoring defaults`() = runBlocking {
+        // e.g. a proxy's JSON error page or a Cloudflare challenge served with 200
+        routes["GET /prefs/device/abc"] = 200 to """{"ok":false}"""
+        try {
+            api.devicePrefs("abc")
+            fail("expected a parse failure")
+        } catch (e: kotlinx.serialization.SerializationException) {
+            // expected
+        }
+        routes["GET /prefs/device/abc"] = 200 to "<html>Just a moment...</html>"
+        try {
+            api.devicePrefs("abc")
+            fail("expected a parse failure")
+        } catch (e: kotlinx.serialization.SerializationException) {
+            // expected
+        }
     }
 
     @Test

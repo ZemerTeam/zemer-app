@@ -26,6 +26,7 @@ import com.jtech.zemer.constants.FemalePasscodeHashKey
 import com.jtech.zemer.constants.ContentFiltersAutoRestoredKey
 import com.jtech.zemer.constants.ContentFiltersRestoredEmailKey
 import com.jtech.zemer.constants.ContentFiltersLockedKey
+import com.jtech.zemer.constants.OnboardingCompleteKey
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
@@ -34,6 +35,9 @@ import java.util.Date
 import com.jtech.zemer.di.SyncDataStore
 import com.jtech.zemer.di.MainDataStore
 import android.util.Log
+import kotlinx.coroutines.CancellationException
+import kotlinx.serialization.SerializationException
+import java.io.IOException
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -113,6 +117,15 @@ class UserPreferencesRepository @Inject constructor(
     private val lastSyncTimeKey = longPreferencesKey("last_content_filter_sync_time")
     private val deviceIdKey = stringPreferencesKey("current_device_id")
     private val syncEnabledKey = booleanPreferencesKey("content_filter_sync_enabled")
+    // Set when an upload of the local filters failed; the local DataStore (always the latest state)
+    // is then pending and is pushed before any server-wins pull, across restarts.
+    private val uploadPendingKey = booleanPreferencesKey("content_filter_upload_pending")
+
+    suspend fun isUploadPending(): Boolean = syncDataStore.data.first()[uploadPendingKey] ?: false
+
+    private suspend fun setUploadPending(pending: Boolean) {
+        syncDataStore.edit { it[uploadPendingKey] = pending }
+    }
 
     /**
      * Fetch device preferences from the server (single document per user with a devices array)
@@ -149,36 +162,38 @@ class UserPreferencesRepository @Inject constructor(
     }
 
     /**
-     * Fetch device preferences by device ID only (no authentication required)
-     * This searches for preferences across all users by device ID
+     * Look this device's preferences up by device ID only (no authentication required): the server
+     * searches every account's devices array. Only a 200 ([DeviceRestoreResult.Restored]) or a 404
+     * ([DeviceRestoreResult.NoPrefs]) is a definitive answer; anything else is [DeviceRestoreResult.Failed].
      */
-    suspend fun fetchDevicePreferencesByDeviceId(): Result<ContentFilterConfig> {
+    suspend fun fetchDevicePreferencesByDeviceId(): DeviceRestoreResult {
         return try {
             val deviceId = deviceIdGenerator.getDeviceId()
             Log.d("ZemerSync", "Fetching preferences for device ID: $deviceId")
 
-            // The server looks this device ID up in every account's devices array
             val restore = api.devicePrefs(deviceId)
-            val foundConfig = restore?.contentFilters?.toConfig()
-            lastRestoredEmail = restore?.userEmail
-
-            if (foundConfig != null) {
+            if (restore != null) {
                 Log.d("ZemerSync", "Found device in an account document")
+                lastRestoredEmail = restore.userEmail
                 updateLastSyncTime()
 
                 storeDeviceId(deviceId)
 
-                Result.success(foundConfig)
+                DeviceRestoreResult.Restored(restore.contentFilters.toConfig())
             } else {
                 Log.d("ZemerSync", "No device preferences found for device ID: $deviceId")
-                Result.failure(Exception("No device preferences found"))
+                DeviceRestoreResult.NoPrefs
             }
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             val errorClassification = classifySyncError(e)
             Log.e("ZemerSync", "Auto-restore fetch failed: $errorClassification")
             Log.e("ZemerSync", "Original error: ${e.message}")
-            reportException(e)
-            Result.failure(e)
+            // An unreachable/erroring server or a proxy page (e.g. a Cloudflare challenge served with
+            // 200) is expected during an outage, not a bug worth a report on every retry.
+            if (e !is IOException && e !is SerializationException) reportException(e)
+            DeviceRestoreResult.Failed(e)
         }
     }
 
@@ -281,8 +296,8 @@ class UserPreferencesRepository @Inject constructor(
 
                 withIdToken { api.putPrefs(it, entity.copy(devices = updatedDevices, updatedAt = Date())) }
             } else {
-                // Document doesn't exist, create it
-                uploadDevicePreferences(config)
+                // Document doesn't exist, create it (a failure must surface so the change stays pending)
+                uploadDevicePreferences(config).getOrThrow()
             }
 
             updateLastSyncTime()
@@ -322,6 +337,8 @@ class UserPreferencesRepository @Inject constructor(
             Result.failure(e)
         }
     }
+
+    suspend fun isOnboardingComplete(): Boolean = mainDataStore.data.first()[OnboardingCompleteKey] ?: false
 
     suspend fun isSyncEnabled(): Boolean {
         return syncDataStore.data.map { preferences ->
@@ -372,11 +389,12 @@ class UserPreferencesRepository @Inject constructor(
             // Check if device preferences exist
             val existingPrefs = fetchDevicePreferences()
 
-            if (existingPrefs.isSuccess) {
+            val uploaded = if (existingPrefs.isSuccess) {
                 updateDevicePreferences(currentConfig)
             } else {
                 uploadDevicePreferences(currentConfig)
             }
+            setUploadPending(uploaded.isFailure)
 
             Result.success(Unit)
         } catch (e: Exception) {
@@ -418,6 +436,14 @@ class UserPreferencesRepository @Inject constructor(
     suspend fun performSync(): Result<ContentFilterConfig> {
         return try {
             Log.d("ZemerSync", "Starting performSync...")
+
+            // Local changes that never reached the server go up FIRST: a server-wins pull would
+            // otherwise replace them with the stale server copy.
+            if (isUploadPending()) {
+                Log.d("ZemerSync", "Pending local changes - uploading before pulling")
+                syncToServer()
+                if (isUploadPending()) return Result.failure(Exception("Local changes still pending upload"))
+            }
 
             // Always sync from server first (server wins)
             Log.d("ZemerSync", "Attempting syncFromServer...")
@@ -530,6 +556,13 @@ class UserPreferencesRepository @Inject constructor(
     }
 
     }
+
+/** The outcome of [UserPreferencesRepository.fetchDevicePreferencesByDeviceId]. */
+sealed interface DeviceRestoreResult {
+    data class Restored(val config: ContentFilterConfig) : DeviceRestoreResult
+    data object NoPrefs : DeviceRestoreResult
+    data class Failed(val error: Throwable) : DeviceRestoreResult
+}
 
 /**
  * Runs [block] with a token from [token]; a 401 (expired/revoked token) retries ONCE with a

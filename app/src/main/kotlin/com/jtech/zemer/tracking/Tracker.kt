@@ -93,6 +93,14 @@ object Tracker {
 
     fun action(kind: String, id: String) = enqueue { TrackingEvents.action(now(), kind, id) }
 
+    // host:path pairs already reported this process, so a retrying sync reports each failure once.
+    private val reportedFetchFails = java.util.concurrent.ConcurrentHashMap.newKeySet<String>()
+
+    /** A failed server read, at most once per [host]+[path] per app session. */
+    fun fetchFail(host: String, path: String, kind: String) {
+        if (reportedFetchFails.add("$host:$path")) enqueue { TrackingEvents.fetchFail(now(), host, path, kind) }
+    }
+
     /**
      * One rendered row/screen: the videoIds actually on screen, on [surface].
      *

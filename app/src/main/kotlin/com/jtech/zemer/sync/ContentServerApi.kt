@@ -27,13 +27,25 @@ import java.io.IOException
 import javax.inject.Inject
 import javax.inject.Singleton
 
-/** A non-2xx answer from the content server; [status] is the HTTP code (401 = bad/expired token). */
-class ContentServerException(val status: Int, message: String) : IOException(message)
+/**
+ * A non-2xx answer from the content server; [status] is the HTTP code (401 = bad/expired token).
+ * [challenge] = Cloudflare answered with a bot challenge (`cf-mitigated: challenge`), not the origin.
+ */
+class ContentServerException(
+    val status: Int,
+    message: String,
+    val challenge: Boolean = false,
+    /** The server's `Retry-After` (seconds) on a 429, when sent. */
+    val retryAfterSec: Long? = null,
+) : IOException(message)
+
+internal fun HttpResponse.isCloudflareChallenge(): Boolean = headers["cf-mitigated"].equals("challenge", ignoreCase = true)
 
 /** `GET /prefs/device/<deviceId>`: the device's filters plus the owning account's email (the restore label). */
 @Serializable
 data class DeviceRestore(
-    val contentFilters: DeviceContentFilters = DeviceContentFilters(),
+    // Required: a 200 without filters (e.g. a proxy's JSON error page) must fail, never restore defaults.
+    val contentFilters: DeviceContentFilters,
     val userEmail: String? = null,
 )
 
@@ -89,7 +101,14 @@ class ContentServerApi(
 
     private suspend fun HttpResponse.checked(path: String): String {
         val body = bodyAsText()
-        if (!status.isSuccess()) throw ContentServerException(status.value, "content server $path -> HTTP ${status.value}: ${body.take(200)}")
+        if (!status.isSuccess()) {
+            throw ContentServerException(
+                status.value,
+                "content server $path -> HTTP ${status.value}: ${body.take(200)}",
+                isCloudflareChallenge(),
+                headers["Retry-After"]?.trim()?.toLongOrNull(),
+            )
+        }
         return body
     }
 
@@ -110,3 +129,17 @@ class ContentServerApi(
         }
     }
 }
+
+/**
+ * The wait before retrying after [failure]: [backoffMs], or the server's Retry-After when longer,
+ * never more than [MAX_RETRY_AFTER_MS] (a bogus header must not park the caller for hours).
+ */
+internal fun retryDelayMs(backoffMs: Long, failure: Throwable?): Long {
+    val retryAfterMs = ((failure as? ContentServerException)?.retryAfterSec ?: 0L).coerceIn(0L, MAX_RETRY_AFTER_MS / 1000) * 1000
+    return maxOf(backoffMs, retryAfterMs)
+}
+
+private const val MAX_RETRY_AFTER_MS = 10 * 60_000L
+
+/** Backoff between retries of a write the server could not take (prefs upload, queued report): 5s doubling, capped at 5 minutes. */
+internal fun writeRetryDelayMs(attempt: Int): Long = minOf(5_000L shl attempt.coerceIn(0, 6), 300_000L)

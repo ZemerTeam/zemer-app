@@ -327,6 +327,9 @@ class MainActivity : ComponentActivity() {
     @Inject
     lateinit var contentFilterSyncService: com.jtech.zemer.sync.ContentFilterSyncService
 
+    @Inject
+    lateinit var contentReportRepository: com.jtech.zemer.sync.ContentReportRepository
+
     private lateinit var navController: NavHostController
     private var pendingIntent: Intent? = null
 
@@ -542,6 +545,7 @@ class MainActivity : ComponentActivity() {
         }
 
         contentFilterSyncService.initialize()
+        contentReportRepository.drainPending()
 
         setContent {
             // Display refresh-rate policy (Settings -> Appearance): SYSTEM leaves the rate unforced so

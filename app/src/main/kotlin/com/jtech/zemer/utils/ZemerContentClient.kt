@@ -1,6 +1,9 @@
 package com.jtech.zemer.utils
 
 import com.jtech.zemer.BuildConfig
+import com.jtech.zemer.sync.ContentServerException
+import com.jtech.zemer.sync.isCloudflareChallenge
+import com.jtech.zemer.tracking.Tracker
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.cio.CIO
 import io.ktor.client.plugins.HttpTimeout
@@ -20,7 +23,13 @@ import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonPrimitive
 import timber.log.Timber
+import io.ktor.client.network.sockets.ConnectTimeoutException
+import io.ktor.client.network.sockets.SocketTimeoutException
+import io.ktor.client.plugins.HttpRequestTimeoutException
+import kotlinx.coroutines.CancellationException
+import kotlinx.serialization.SerializationException
 import java.io.IOException
+import java.nio.channels.UnresolvedAddressException
 
 /**
  * Read-only client for the self-hosted content mirror ([BuildConfig.CONTENT_MIRROR_URL], normally
@@ -63,7 +72,7 @@ object ZemerContentClient {
             timeout { requestTimeoutMillis = timeoutMs }
         }
         if (!response.status.isSuccess()) {
-            throw IOException("content mirror $path -> HTTP ${response.status.value}")
+            throw ContentServerException(response.status.value, "content mirror $path -> HTTP ${response.status.value}", response.isCloudflareChallenge())
         }
         return response.bodyAsText()
     }
@@ -254,5 +263,24 @@ suspend fun <T> mirrorFirst(
         .onSuccess { Timber.d("ZemerContentClient: %s served from content mirror", label) }
         .getOrElse { throwable ->
             Timber.w(throwable, "ZemerContentClient: %s mirror unavailable — falling back to Firebase", label)
+            // Measures how many devices depend on the Firebase fallback before it can be removed.
+            if (ZemerContentClient.enabled && throwable !is CancellationException) {
+                Tracker.fetchFail(host = "content", path = label, kind = fetchFailKind(throwable))
+            }
             firebase()
         }
+
+/**
+ * Why a content-mirror read failed, for the `fetch_fail` telemetry event: `challenge` (Cloudflare bot
+ * challenge), `http_<code>`, `timeout`, `io` (no network / DNS / connection), `non_json` (a 2xx body
+ * that is not the expected JSON), `empty` (a valid but empty allow-set), else `other`.
+ */
+internal fun fetchFailKind(t: Throwable): String = when {
+    t is ContentServerException && t.challenge -> "challenge"
+    t is ContentServerException -> "http_${t.status}"
+    t is HttpRequestTimeoutException || t is ConnectTimeoutException || t is SocketTimeoutException -> "timeout"
+    t is IOException || t is UnresolvedAddressException -> "io"
+    t is SerializationException || t is IllegalArgumentException -> "non_json"
+    t is IllegalStateException && t.message?.startsWith("content mirror: empty") == true -> "empty"
+    else -> "other"
+}

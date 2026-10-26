@@ -38,6 +38,7 @@ import com.jtech.zemer.viewmodels.OnboardingViewModel
 import com.jtech.zemer.R
 import com.jtech.zemer.ui.component.SyncAccountWarning
 import com.jtech.zemer.ui.component.ZemerLoadingIndicator
+import com.jtech.zemer.ui.component.InlineErrorPanel
 import com.jtech.zemer.ui.component.DefaultDialog
 import androidx.datastore.core.DataStore
 import com.jtech.zemer.constants.EnableContentFiltersKey
@@ -107,15 +108,10 @@ internal fun ContentFiltersScreen(
 
     // Check for auto-restore and skip logic
     LaunchedEffect(Unit) {
-        // Check if we should skip (already configured)
+        // Check if we should skip (already configured). The saved-settings lookup itself is started
+        // by the view model, so this screen opens on it instead of racing it.
         if (contentFiltersAlreadySet) {
             onSkip()
-            return@LaunchedEffect
-        }
-
-        // Attempt auto-restore only if user not signed in
-        if (authState !is com.jtech.zemer.auth.AuthState.SignedIn) {
-            viewModel.attemptAutoRestore()
         }
     }
 
@@ -177,6 +173,33 @@ internal fun ContentFiltersScreen(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         textAlign = TextAlign.Center
                     )
+                }
+            } else if (uiState.restoreFailed) {
+                // No definitive answer from the server: block here (retrying automatically) rather than
+                // let a device with saved, possibly locked filters continue as a new user.
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    OnboardingStepTitle(
+                        text = stringResource(R.string.onboarding_restore_check_failed),
+                    )
+                    InlineErrorPanel(text = stringResource(R.string.onboarding_restore_check_failed_detail))
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        OnboardingPrimaryButton(
+                            text = stringResource(R.string.retry),
+                            onClick = viewModel::retryAutoRestore,
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                        OnboardingTextButton(
+                            text = stringResource(R.string.onboarding_back),
+                            onClick = onBack,
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                    }
                 }
             } else if (uiState.hasServerPreferences && uiState.restoredConfig != null) {
                 // Auto-restore screen showing what's being restored
