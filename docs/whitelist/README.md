@@ -22,7 +22,7 @@ consumers, and UI entry points.
 | `isGenZ` | `Boolean = false` | Stored only. |
 | `isKids` | `Boolean = false` | Kids-only artists are excluded from the telemetry-ranked rows (`RankedContentGate`). |
 | `isKidZone` | `Boolean = false` | Used by Kid Zone / non-Kid-Zone DAO queries. |
-| `thumbnailUrl` | `@Ignore var String? = null` (body property) | **Transient, NOT a column** (no Room migration): the artist's channel image carried in from the whitelist fetch (mirror/Firestore `thumbnail` field). Consumed by `syncArtistWhitelist` to populate `Artist.thumbnailUrl`; Room ignores it when reading rows back. |
+| `thumbnailUrl` | `@Ignore var String? = null` (body property) | **Transient, NOT a column** (no Room migration): the artist's channel image carried in from the whitelist fetch (the content server's `thumbnail` field). Consumed by `syncArtistWhitelist` to populate `Artist.thumbnailUrl`; Room ignores it when reading rows back. |
 
 ### DAO methods
 
@@ -58,17 +58,18 @@ tested), so a stale pre-split mirror snapshot cannot burn the one-time backfill.
 Many library DAO queries also JOIN `artist_whitelist`, so local songs, albums, artists, related songs
 and search previews are constrained to whitelisted artists.
 
-## Fetch path (content mirror first, Firestore fallback)
+## Fetch path (content server only)
 
-Every `WhitelistFetcher` read is `mirrorFirst`: it asks the plain-JSON content mirror (`ZemerContentClient`,
-`content.zemer.io`) first and falls back to the Firebase SDK (`FirebaseFirestore.getInstance()`) only when the
-mirror call throws (network, non-2xx, empty/invalid body, parse error):
+Every `WhitelistFetcher` read goes to the plain-JSON content server (`ZemerContentClient`,
+`content.zemer.io`), the source of truth; there is no Firestore fallback. Any failure (network, non-2xx,
+empty/invalid body, parse error) returns a failed `Result`, is reported as a `fetch_fail` event, and the
+sync keeps the last-good local table:
 
-| Read | Mirror (`ZemerContentClient`) | Firestore fallback |
-| --- | --- | --- |
-| `fetchVersion()` | `version()` → `/whitelist/version` (`gate`) | `databasenumber/latest`: timestamp field `updatedAt` or field `update` as string/long, converted to `Long`. |
-| `fetchWhitelist()` | `whitelist()` → `/whitelist` (throws on an empty list) | `artistsWhitelist`: all documents, each valid one mapped to `ArtistWhitelistEntity`. |
-| `fetchBlockedIds()` | `blockedIds()` → `/blockedContentIds` | `blockedContentIds`: all documents; each is one id-level **override** (see "Conditional id overrides"). Read-only — the app never writes/deletes this collection. |
+| Read | Content server (`ZemerContentClient`) |
+| --- | --- |
+| `fetchVersion()` | `version()` → `/whitelist/version` (`gate`) |
+| `fetchWhitelist()` | `whitelist()` → `/whitelist` (throws on an empty list) |
+| `fetchBlockedIds()` | `blockedIds()` → `/blockedContentIds`; each entry is one id-level **override** (see "Conditional id overrides"). Read-only. |
 
 For each whitelist document, the fetcher accepts the id from `id` or `artistId`, the name from
 `name` or `artistName`, and the boolean flags `isFemale`/`isChasid`/`isGenZ`/`isKids`/`isKidZone`
@@ -78,8 +79,7 @@ For each whitelist document, the fetcher accepts the id from `id` or `artistId`,
 
 Each whitelist doc also carries a **`thumbnail`** (a channel-image URL resolved server-side):
 
-- `fetchWhitelist` sets it on the transient `ArtistWhitelistEntity.thumbnailUrl` (both mirror and
-  Firestore paths).
+- `fetchWhitelist` sets it on the transient `ArtistWhitelistEntity.thumbnailUrl`.
 - `syncArtistWhitelist` writes it onto `Artist.thumbnailUrl` inside the sync transaction — new artist
   rows get it in their insert; existing rows via `updateArtistThumbnailUrl`, whose SQL is **fill-only**
   (`AND (thumbnailUrl IS NULL OR thumbnailUrl = '')`): a null/blank server value never wipes anything,
@@ -156,8 +156,7 @@ the whole channel — and **conditionally**, so they only hide for the users the
 ### Data model
 
 `WhitelistFetcher.fetchBlockedIds()` reads the mirror's `/blockedContentIds` (pre-bucketed by reason,
-disabled entries dropped server-side) with the Firestore `blockedContentIds` collection as fallback —
-one document per overridden id:
+disabled entries dropped server-side); upstream each override is one document per overridden id:
 
 | Field | Meaning |
 | --- | --- |

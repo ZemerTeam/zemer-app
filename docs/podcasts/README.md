@@ -21,12 +21,12 @@ through the same pipeline as a song). The app<->server threads live in
 - `whitelistedPodcastRoute(podcastId, channelId)` (unit-tested) routes a browsed show
   CHANNEL-first when the host is known, else to the show.
 
-## Whitelist (channel-level, mirror-first)
+## Whitelist (channel-level, from the content server)
 
 Podcasts have their OWN channel-level whitelist, separate from the artist one.
 `SyncUtils.syncPodcastWhitelist` (via `WhitelistFetcher.fetchPodcastWhitelist`/`fetchPodcastVersion`) reads
-`content.zemer.io/podcastChannelsWhitelist` (+ `/version` gate) with a Firestore
-`podcastChannelsWhitelist` fallback - the artist-whitelist pattern. Each mirror doc IS a host
+`content.zemer.io/podcastChannelsWhitelist` (+ `/version` gate), the artist-whitelist pattern (no
+Firestore fallback). Each mirror doc IS a host
 channel (`id` = the `UC...` channel id) carrying its `thumbnailUrl`, so the browse grid renders straight from the allow-set with
 no per-row fetch. A failed/empty fetch preserves the last-good table (never unblocks).
 `filterWhitelisted` gates `PodcastItem`/`EpisodeItem` against this table (respecting filters-off)
