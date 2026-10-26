@@ -81,7 +81,6 @@ fun NavGraphBuilder.navigationBuilder(
     navController: NavHostController,
     scrollBehavior: TopAppBarScrollBehavior,
     searchBarScrollBehavior: TopAppBarScrollBehavior,
-    latestVersionName: String,
     homeViewModel: HomeViewModel? = null,
 ) {
     composable(Screens.Home.route) {
@@ -425,7 +424,7 @@ fun NavGraphBuilder.navigationBuilder(
         TopPlaylistScreen(navController, scrollBehavior)
     }
     composable("settings") {
-        SettingsScreen(navController, scrollBehavior, latestVersionName)
+        SettingsScreen(navController, scrollBehavior)
     }
     composable("settings/android_auto") {
         AndroidAutoSettings(navController, scrollBehavior)

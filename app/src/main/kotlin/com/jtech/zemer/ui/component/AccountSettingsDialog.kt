@@ -25,7 +25,6 @@ import com.jtech.zemer.ui.screens.settings.AccountSettings
 fun AccountSettingsDialog(
     navController: NavController,
     onDismiss: () -> Unit,
-    latestVersionName: String
 ) {
     Dialog(
         onDismissRequest = onDismiss,
@@ -61,7 +60,6 @@ fun AccountSettingsDialog(
                 AccountSettings(
                     navController = navController,
                     onClose = onDismiss,
-                    latestVersionName = latestVersionName
                 )
             }
         }

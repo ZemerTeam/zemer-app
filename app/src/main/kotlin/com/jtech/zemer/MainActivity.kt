@@ -1,7 +1,6 @@
 package com.jtech.zemer
 
 import android.annotation.SuppressLint
-import android.app.PendingIntent
 import android.content.ComponentName
 import android.content.Intent
 import android.content.res.Configuration
@@ -137,8 +136,6 @@ import androidx.compose.ui.util.fastForEachIndexed
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.core.app.ActivityCompat
-import androidx.core.app.NotificationCompat
-import androidx.core.app.NotificationManagerCompat
 import androidx.core.net.toUri
 import androidx.core.util.Consumer
 import androidx.core.view.WindowCompat
@@ -178,7 +175,6 @@ import com.jtech.zemer.ui.screens.HomeContentTab
 import com.jtech.zemer.ui.screens.effectiveHomeTab
 import com.jtech.zemer.constants.BlockPodcastsKey
 import com.jtech.zemer.constants.AppLanguageKey
-import com.jtech.zemer.constants.CheckForUpdatesKey
 import com.jtech.zemer.constants.EnableHighRefreshRateKey
 import com.jtech.zemer.constants.RefreshRateMode
 import com.jtech.zemer.constants.RefreshRateModeKey
@@ -208,7 +204,6 @@ import com.jtech.zemer.constants.BottomNavArtistsRemovedKey
 import com.jtech.zemer.constants.BottomNavigationBarEnabledKey
 import com.jtech.zemer.constants.BottomNavigationItemsKey
 import com.jtech.zemer.constants.StopMusicOnTaskClearKey
-import com.jtech.zemer.constants.UpdateNotificationsEnabledKey
 import com.jtech.zemer.constants.VisitorDataKey
 import com.jtech.zemer.db.MusicDatabase
 import com.jtech.zemer.db.entities.SearchHistory
@@ -274,7 +269,6 @@ import com.jtech.zemer.utils.preferredRefreshRateHz
 import com.jtech.zemer.utils.selectRefreshRateMode
 import com.jtech.zemer.utils.ButtonMapperBridge
 import com.jtech.zemer.utils.SyncUtils
-import com.jtech.zemer.utils.Updater
 import com.jtech.zemer.utils.dataStore
 import com.jtech.zemer.utils.ContentFilterState
 import com.jtech.zemer.utils.WhitelistCache
@@ -282,7 +276,6 @@ import com.jtech.zemer.utils.filterWhitelisted
 import com.jtech.zemer.utils.filterWhitelistedWithLocalArtists
 import com.jtech.zemer.utils.get
 import com.jtech.zemer.utils.getSuspend
-import com.jtech.zemer.utils.hasNotificationPermission
 import com.jtech.zemer.utils.removeBottomNavItem
 import com.jtech.zemer.utils.rememberEnumPreference
 import com.jtech.zemer.utils.rememberPreference
@@ -317,7 +310,6 @@ import java.net.URLEncoder
 import java.util.Locale
 import timber.log.Timber
 import javax.inject.Inject
-import kotlin.time.Duration.Companion.days
 
 @Suppress("DEPRECATION", "ASSIGNED_BUT_NEVER_ACCESSED_VARIABLE")
 @OptIn(ExperimentalFoundationApi::class)
@@ -337,7 +329,6 @@ class MainActivity : ComponentActivity() {
 
     private lateinit var navController: NavHostController
     private var pendingIntent: Intent? = null
-    private var latestVersionName by mutableStateOf(BuildConfig.VERSION_NAME)
 
     private var playerConnection by mutableStateOf<PlayerConnection?>(null)
 
@@ -588,49 +579,6 @@ class MainActivity : ComponentActivity() {
                     lp.preferredRefreshRate = preferredRefreshRateHz(refreshRateMode, target)
                 }
                 win.attributes = lp
-            }
-
-            val checkForUpdates by rememberPreference(CheckForUpdatesKey, defaultValue = false)
-
-            LaunchedEffect(checkForUpdates) {
-                if (checkForUpdates) {
-                    withContext(Dispatchers.IO) {
-                        if (System.currentTimeMillis() - Updater.lastCheckTime > 1.days.inWholeMilliseconds) {
-                            val updatesEnabled = dataStore.get(CheckForUpdatesKey, false)
-                            val notifEnabled = dataStore.get(UpdateNotificationsEnabledKey, false)
-                            if (!updatesEnabled || !hasNotificationPermission(this@MainActivity)) return@withContext
-                            Updater.getLatestUpdate().onSuccess { info ->
-                                latestVersionName = info.versionName
-                                if (info.versionName != BuildConfig.VERSION_NAME && notifEnabled) {
-                                    if (!hasNotificationPermission(this@MainActivity)) return@onSuccess
-                                    val intent = Intent(Intent.ACTION_VIEW, info.downloadUrl.toUri())
-
-                                    val flags = PendingIntent.FLAG_UPDATE_CURRENT or
-                                        (PendingIntent.FLAG_IMMUTABLE)
-                                    val pending = PendingIntent.getActivity(this@MainActivity, 1001, intent, flags)
-
-                                    @SuppressLint("MissingPermission")
-                                    run {
-                                        val notif = NotificationCompat.Builder(this@MainActivity, "updates")
-                                            .setSmallIcon(R.drawable.update)
-                                            .setContentTitle(getString(R.string.update_available_title))
-                                            .setContentText(info.versionName)
-                                            .setContentIntent(pending)
-                                            .setAutoCancel(true)
-                                            .build()
-                                        runCatching {
-                                            NotificationManagerCompat.from(this@MainActivity).notify(1001, notif)
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                } else {
-                    // when the user disables updates, reset to the current version
-                    // to trick the app into thinking it's on the latest version
-                    latestVersionName = BuildConfig.VERSION_NAME
-                }
             }
 
             val enableDynamicTheme by rememberPreference(DynamicThemeKey, defaultValue = false)
@@ -2065,7 +2013,6 @@ class MainActivity : ComponentActivity() {
                                             navController,
                                             topAppBarScrollBehavior,
                                             searchBarScrollBehavior,
-                                            latestVersionName,
                                             homeViewModel
                                         )
                                     }
@@ -2150,7 +2097,6 @@ class MainActivity : ComponentActivity() {
                                     showAccountDialog = false
                                     homeViewModel.refresh()
                                 },
-                                latestVersionName = latestVersionName
                             )
                         }
 

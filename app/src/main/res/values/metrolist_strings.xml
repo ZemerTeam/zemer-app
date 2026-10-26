@@ -216,7 +216,6 @@
     <string name="update_action">Update</string>
     <string name="force_download_stable">Download current stable release</string>
     <string name="check_for_updates_now">Check for updates now</string>
-    <string name="update_available_title">Update available</string>
     <string name="update_available">Update available</string>
     <string name="up_to_date">Up to date</string>
     <string name="up_to_date_message">You are running the latest version (%1$s).</string>
