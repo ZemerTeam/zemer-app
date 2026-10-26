@@ -68,4 +68,24 @@ class PassManagerTest {
         val text = java.util.Base64.getUrlEncoder().withoutPadding().encodeToString(raw)
         assertTrue(raw.contentEquals(PassClient.Nonce(text).bytes))
     }
+
+    @Test
+    fun `a failing check never escapes the refresh loop and is retried next round`() = kotlinx.coroutines.runBlocking {
+        var calls = 0
+        PassManager.keepFresh(intervalMs = 1, rounds = 3) {
+            calls++
+            if (calls < 3) throw java.io.IOException("datastore unreadable") else Unit
+        }
+        assertEquals(3, calls)
+        // a non-IO failure is contained too
+        PassManager.keepFresh(intervalMs = 1, rounds = 1) { error("corrupt") }
+    }
+
+    @Test
+    fun `cancellation still stops the loop`() = kotlinx.coroutines.runBlocking {
+        val result = runCatching {
+            PassManager.keepFresh(intervalMs = 1, rounds = 5) { throw kotlinx.coroutines.CancellationException("stop") }
+        }
+        assertTrue(result.exceptionOrNull() is kotlinx.coroutines.CancellationException)
+    }
 }

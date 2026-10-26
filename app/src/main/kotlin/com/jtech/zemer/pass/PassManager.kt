@@ -53,9 +53,21 @@ object PassManager {
             val prefs = context.dataStore.data.first()
             ZemerPass.current = prefs.validPass(System.currentTimeMillis())
         }
-        while (true) {
-            ensureFresh(context)
-            delay(CHECK_INTERVAL_MS)
+        keepFresh { ensureFresh(context) }
+    }
+
+    /**
+     * Runs [check] now and then every [intervalMs] for as long as the caller lives. A failure of the check itself
+     * (e.g. an unreadable DataStore) is logged and retried next round, never thrown: the pass must never crash
+     * the app. [rounds] bounds the loop for tests.
+     */
+    internal suspend fun keepFresh(intervalMs: Long = CHECK_INTERVAL_MS, rounds: Int = Int.MAX_VALUE, check: suspend () -> Unit) {
+        repeat(rounds) {
+            runCatching { check() }.onFailure {
+                if (it is CancellationException) throw it
+                Timber.w(it, "ZemerPass: check failed, retrying next round")
+            }
+            delay(intervalMs)
         }
     }
 
