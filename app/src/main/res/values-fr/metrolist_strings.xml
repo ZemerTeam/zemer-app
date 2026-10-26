@@ -257,7 +257,6 @@
     <string name="nightly_update_available">Mise à jour disponible : %1$s</string>
     <string name="force_download_stable">Télécharger la version stable actuelle</string>
     <string name="check_for_updates_now">Rechercher des mises à jour maintenant</string>
-    <string name="update_available_title">Mise à jour disponible</string>
     <string name="update_available">Mise à jour disponible</string>
     <string name="up_to_date">À jour</string>
     <string name="up_to_date_message">Vous utilisez la dernière version (%1$s).</string>
