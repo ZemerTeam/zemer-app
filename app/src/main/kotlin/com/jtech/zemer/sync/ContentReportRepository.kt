@@ -1,54 +1,58 @@
 package com.jtech.zemer.sync
 
 import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.firestore.FieldValue
-import com.google.firebase.firestore.FirebaseFirestore
-import kotlinx.coroutines.tasks.await
+import kotlinx.serialization.json.JsonNull
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
 import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
- * Submits user content reports (inappropriate song/album/artist/playlist) to the
- * `artistReports` Firestore collection. [subject] carries the item-identifying fields
- * (e.g. "songId"/"songTitle"); the reason, comment, reporter and timestamp fields are
- * appended here.
+ * Submits user content reports (inappropriate song/album/artist/playlist) to the content server's
+ * `POST /reports`. [subject] carries the item-identifying fields (e.g. "songId"/"songTitle"); the
+ * reason, comment and reporter fields are appended here. The server owns status and createdAt.
  */
 @Singleton
 class ContentReportRepository @Inject constructor(
-    private val firestore: FirebaseFirestore,
+    private val api: ContentServerApi,
     private val auth: FirebaseAuth,
 ) {
     suspend fun submitReport(subject: Map<String, Any?>, reason: String, comment: String) {
-        val payload = buildReportPayload(
-            subject = subject,
-            reason = reason,
-            comment = comment,
-            reporterUid = auth.currentUser?.uid ?: "anon",
-            createdAt = FieldValue.serverTimestamp(),
+        api.submitReport(
+            buildReportPayload(
+                subject = subject,
+                reason = reason,
+                comment = comment,
+                reporterUid = auth.currentUser?.uid ?: "anon",
+            )
         )
-        firestore.collection("artistReports").add(payload).await()
     }
 
     companion object {
         /**
-         * Pure payload assembly, separated from the Firestore call so it is unit-testable. The
-         * reserved fields are written AFTER the subject is merged in, so a stray subject key can
-         * never clobber a repository-controlled field (reason/comment/status/reporterUid/createdAt).
+         * Pure payload assembly, separated from the network call so it is unit-testable. The reserved
+         * fields are written AFTER the subject is merged in, so a stray subject key can never clobber a
+         * repository-controlled field (reason/comment/reporterUid).
          */
         fun buildReportPayload(
             subject: Map<String, Any?>,
             reason: String,
             comment: String,
             reporterUid: String,
-            createdAt: Any,
-        ): HashMap<String, Any?> {
-            val payload = HashMap<String, Any?>(subject)
+        ): JsonObject {
+            val payload = LinkedHashMap<String, Any?>(subject)
             payload["reason"] = reason
             payload["comment"] = comment
-            payload["status"] = "pending"
             payload["reporterUid"] = reporterUid
-            payload["createdAt"] = createdAt
-            return payload
+            return JsonObject(payload.mapValues { (_, value) -> value.toJson() })
+        }
+
+        private fun Any?.toJson() = when (this) {
+            null -> JsonNull
+            is String -> JsonPrimitive(this)
+            is Number -> JsonPrimitive(this)
+            is Boolean -> JsonPrimitive(this)
+            else -> JsonPrimitive(toString())
         }
     }
 }

@@ -1,13 +1,31 @@
 package com.jtech.zemer.sync.models
 
-import com.google.firebase.firestore.IgnoreExtraProperties
-import com.google.firebase.firestore.ServerTimestamp
+import kotlinx.serialization.KSerializer
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.descriptors.PrimitiveKind
+import kotlinx.serialization.descriptors.PrimitiveSerialDescriptor
+import kotlinx.serialization.encoding.Decoder
+import kotlinx.serialization.encoding.Encoder
+import java.time.Instant
+import java.time.ZoneOffset
+import java.time.format.DateTimeFormatter
 import java.util.Date
+
+/**
+ * A timestamp on the content server's `/prefs` wire: UTC ISO-8601 with `Z`. Written with millis (the
+ * server rejects any other shape); read with any fraction length (0-9 digits, as imported docs carry).
+ */
+object IsoDateSerializer : KSerializer<Date> {
+    private val writer = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'").withZone(ZoneOffset.UTC)
+    override val descriptor = PrimitiveSerialDescriptor("IsoDate", PrimitiveKind.STRING)
+    override fun serialize(encoder: Encoder, value: Date) = encoder.encodeString(writer.format(value.toInstant()))
+    override fun deserialize(decoder: Decoder): Date = Date.from(Instant.parse(decoder.decodeString()))
+}
 
 /**
  * Content filter configuration for a device
  */
-@IgnoreExtraProperties
+@Serializable
 data class DeviceContentFilters(
     val enableContentFilters: Boolean = true,
     val allowFemaleSingers: Boolean = false,
@@ -23,7 +41,7 @@ data class DeviceContentFilters(
     }
 
     /**
-     * Convert from local ContentFilterConfig to Firestore model
+     * Convert from local ContentFilterConfig to the synced model
      */
     fun fromConfig(config: com.jtech.zemer.utils.ContentFilterConfig): DeviceContentFilters {
         return DeviceContentFilters(
@@ -50,7 +68,7 @@ data class DeviceContentFilters(
     }
 }
 
-@IgnoreExtraProperties
+@Serializable
 data class DeviceMetadata(
     val deviceName: String = "",
     val manufacturer: String = "",
@@ -58,8 +76,8 @@ data class DeviceMetadata(
     val androidVersion: String = "",
     val sdkVersion: Int = 0,
     val appVersion: String = "",
-    val firstSeen: Date? = null,
-    val lastSeen: Date? = null
+    @Serializable(with = IsoDateSerializer::class) val firstSeen: Date? = null,
+    @Serializable(with = IsoDateSerializer::class) val lastSeen: Date? = null
 ) {
     companion object {
     }
@@ -69,28 +87,28 @@ data class DeviceMetadata(
 /**
  * Simple device data for storing in user document
  */
-@IgnoreExtraProperties
+@Serializable
 data class UserDeviceData(
     val deviceId: String = "",
     val deviceInfo: DeviceMetadata = DeviceMetadata(),
     val contentFilters: DeviceContentFilters = DeviceContentFilters(),
-    val createdAt: Date? = null,
+    @Serializable(with = IsoDateSerializer::class) val createdAt: Date? = null,
     val lastSyncTime: Long = -1
 )
 
 /**
- * Firestore entity representing content filter preferences for a user with multiple devices.
+ * The synced `/prefs` document: content filter preferences for a user with multiple devices.
  * All devices are stored in one document per user for easy browsing and searching.
  */
-@IgnoreExtraProperties
+@Serializable
 data class DevicePreferencesEntity(
     val userId: String = "",
     val userEmail: String = "",
     val contentFilters: DeviceContentFilters = DeviceContentFilters(),
     val deviceInfo: DeviceMetadata = DeviceMetadata(),
     val devices: List<UserDeviceData> = emptyList(),
-    val createdAt: Date? = null,
-    val updatedAt: Date? = null
+    @Serializable(with = IsoDateSerializer::class) val createdAt: Date? = null,
+    @Serializable(with = IsoDateSerializer::class) val updatedAt: Date? = null
 ) {
     companion object {
     }
