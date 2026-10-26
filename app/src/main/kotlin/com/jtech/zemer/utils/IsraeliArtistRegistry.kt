@@ -1,16 +1,13 @@
 package com.jtech.zemer.utils
 
-import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import kotlinx.coroutines.tasks.await
 import timber.log.Timber
 
 /**
  * Central registry for artists that should be treated as Israeli and excluded from surfaced content.
  *
- * The data is read mirror-first (content mirror `/israeliArtists`) with the Firestore `israeliArtists`
- * collection as fallback, whose documents contain either an `id` or `artistId` field. The registry is
+ * The data is read from the content server (`/israeliArtists`). The registry is
  * cached in memory after the first load to avoid repeated network requests and can be reused across
  * view models to ensure consistent filtering.
  */
@@ -50,19 +47,10 @@ object IsraeliArtistRegistry {
         }
     }
 
-    private suspend fun fetchIds(): Set<String> = mirrorFirst(
-        "israeliArtists",
-        mirror = { ZemerContentClient.israeliArtists() },
-        firebase = {
-            val snapshot = FirebaseFirestore.getInstance()
-                .collection("israeliArtists")
-                .get()
-                .await()
-            snapshot.documents.mapNotNull { doc ->
-                doc.getString("id") ?: doc.getString("artistId")
-            }.toSet()
-        },
-    )
+    private suspend fun fetchIds(): Set<String> =
+        runCatching { ZemerContentClient.israeliArtists() }
+            .onFailure { reportContentFetchFailure("israeliArtists", it) }
+            .getOrThrow()
 
     internal fun resetForTest() {
         cachedIds = emptySet()

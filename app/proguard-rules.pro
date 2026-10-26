@@ -102,7 +102,6 @@
 -keep class com.google.firebase.** { *; }
 -keep class com.google.android.gms.** { *; }
 -keep class com.google.firebase.auth.** { *; }
--keep class com.google.firebase.firestore.** { *; }
 -keep class com.google.android.gms.auth.** { *; }
 -keep class com.google.android.gms.tasks.** { *; }
 -dontwarn com.google.firebase.**
@@ -115,14 +114,6 @@
 -keep class com.google.firebase.auth.AuthResult { *; }
 -keep class com.google.firebase.auth.GoogleAuthProvider { *; }
 -keep class com.google.android.gms.auth.api.signin.** { *; }
-
-## Firebase Firestore
--keep class com.google.firebase.firestore.FirebaseFirestore { *; }
--keep class com.google.firebase.firestore.CollectionReference { *; }
--keep class com.google.firebase.firestore.DocumentReference { *; }
--keep class com.google.firebase.firestore.Query { *; }
--keep class com.google.firebase.firestore.DocumentSnapshot { *; }
--keep class com.google.firebase.firestore.QuerySnapshot { *; }
 
 ## App Sync Classes (prevent obfuscation)
 -keep class com.jtech.zemer.sync.** { *; }
@@ -196,7 +187,7 @@
 -keep interface com.google.android.gms.tasks.OnFailureListener
 -keep interface com.google.android.gms.tasks.OnCompleteListener
 
-## Reflection and serialization for Firestore
+## kotlinx.serialization for the synced preference models
 -keepattributes *Annotation*, InnerClasses
 -dontnote kotlinx.serialization.AnnotationsKt
 -keep,includedescriptorclasses class com.jtech.zemer.sync.models.**$$serializer { *; }

@@ -100,9 +100,8 @@ android {
         buildConfigField("int", "RUN_NUMBER", "$runNumber")
         val googleTokenExchangeUrl = (project.findProperty("googleTokenExchangeUrl") as String?) ?: ""
         buildConfigField("String", "GOOGLE_TOKEN_EXCHANGE_URL", "\"$googleTokenExchangeUrl\"")
-        // Read-only content mirror (content.zemer.io) used mirror-first with the Firebase SDK as
-        // fallback (see ZemerContentClient). Override with -PcontentMirrorUrl=; empty disables the
-        // mirror so every content read goes straight to Firebase (debug force-Firebase / A-B).
+        // Content server (content.zemer.io): the content allow-sets, reports and synced content-filter
+        // preferences (see ZemerContentClient / ContentServerApi). Override with -PcontentMirrorUrl=.
         val contentMirrorUrl = (project.findProperty("contentMirrorUrl") as String?) ?: "https://content.zemer.io"
         buildConfigField("String", "CONTENT_MIRROR_URL", "\"$contentMirrorUrl\"")
         // Zemer lyrics resolver (the search server's /lyrics/resolve). Override with
@@ -304,7 +303,6 @@ dependencies {
     implementation(libs.room.runtime)
     implementation(platform(libs.firebase.bom))
     implementation(libs.firebase.auth)
-    implementation(libs.firebase.firestore)
     implementation(libs.firebase.crashlytics)
     implementation(libs.firebase.crashlytics.ndk)
     implementation(libs.firebase.analytics)

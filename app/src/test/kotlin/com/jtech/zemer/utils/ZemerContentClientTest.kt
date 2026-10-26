@@ -1,16 +1,13 @@
 package com.jtech.zemer.utils
 
-import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.Json
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * Pure-JVM guards for the content-mirror cutover: the [mirrorFirst] resilience contract (worst case ==
- * Firebase) and the wire-model shapes the two mappings depend on. The HTTP/Firestore paths need
+ * Pure-JVM guards for the content-mirror wire-model shapes the two mappings depend on. The HTTP paths need
  * instrumentation the project doesn't have (no Robolectric), so those are not unit-tested here.
  */
 class ZemerContentClientTest {
@@ -20,20 +17,6 @@ class ZemerContentClientTest {
         ignoreUnknownKeys = true
         isLenient = true
         coerceInputValues = true
-    }
-
-    @Test
-    fun `mirrorFirst returns the mirror result and never touches firebase when the mirror succeeds`() = runBlocking {
-        var firebaseRan = false
-        val result = mirrorFirst("t", mirror = { "mirror" }, firebase = { firebaseRan = true; "firebase" })
-        assertEquals("mirror", result)
-        assertFalse("firebase fallback must not run when the mirror succeeds", firebaseRan)
-    }
-
-    @Test
-    fun `mirrorFirst falls back to firebase on ANY mirror throw`() = runBlocking {
-        val result = mirrorFirst("t", mirror = { error("mirror down") }, firebase = { "firebase" })
-        assertEquals("firebase", result)
     }
 
     @Test

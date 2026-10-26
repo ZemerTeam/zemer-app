@@ -20,7 +20,7 @@ package com.jtech.zemer.utils
  * item type. Unlike the artist membership whitelist (never run over raw Zemer results, as it would clip
  * legitimate hits), an id+reason override is surgical and safe to apply on every surface.
  *
- * Synced read-only from `blockedContentIds` (content mirror first, Firestore fallback); the app NEVER
+ * Synced read-only from the content server's `blockedContentIds`; the app NEVER
  * writes/deletes it.
  * The snapshot is a single `@Volatile` map, replaced atomically — a concurrent reader always sees a
  * complete, consistent table, and a failed sync leaves the previous table intact (never unblocks).

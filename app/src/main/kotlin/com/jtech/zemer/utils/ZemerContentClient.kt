@@ -33,18 +33,16 @@ import java.nio.channels.UnresolvedAddressException
 
 /**
  * Read-only client for the self-hosted content mirror ([BuildConfig.CONTENT_MIRROR_URL], normally
- * content.zemer.io) — a periodically-refreshed plain-JSON copy of the world-readable Firestore content
- * collections. It is used **mirror-first** via [mirrorFirst]: ANY failure (disabled, unreachable,
- * non-2xx, empty/invalid body, parse error) throws and falls back to the existing Firebase SDK path, so
- * the worst case is exactly today's behavior.
+ * content.zemer.io) - the source of truth for the content allow-sets. ANY failure (disabled,
+ * unreachable, non-2xx, empty/invalid body, parse error) throws, and the caller keeps its last-good data.
  *
- * It is a self-contained `object` (not Hilt-injected) on purpose: two of its callers — [WhitelistFetcher]
- * and [IsraeliArtistRegistry] — are Kotlin `object`s that cannot receive a constructor-injected client,
- * so this mirrors how [WhitelistFetcher] self-obtains Firestore. Reads are public and unauthenticated;
+ * It is a self-contained `object` (not Hilt-injected) on purpose: two of its callers - [WhitelistFetcher]
+ * and [IsraeliArtistRegistry] - are Kotlin `object`s that cannot receive a constructor-injected client.
+ * Reads are public and unauthenticated;
  * never attach a token. Parsing is lenient so a new mirror field is forward-compatible.
  */
 object ZemerContentClient {
-    /** Empty URL = mirror disabled (debug force-Firebase); every call then throws → Firebase fallback. */
+    /** Empty URL = mirror disabled; every call then throws. */
     private val baseUrl: String = BuildConfig.CONTENT_MIRROR_URL.trimEnd('/')
     val enabled: Boolean get() = baseUrl.isNotBlank()
 
@@ -87,7 +85,7 @@ object ZemerContentClient {
 
     /**
      * `/whitelist` → already whitelist docs. **Throws on an empty list** so an empty/broken mirror can
-     * never replace a good whitelist — [mirrorFirst] then falls back to Firebase (which has data).
+     * never replace a good whitelist (the caller keeps its last-good table).
      */
     suspend fun whitelist(): List<ContentWhitelistDoc> {
         val docs = json.decodeFromString(ListSerializer(ContentWhitelistDoc.serializer()), getText("/whitelist", WHITELIST_TIMEOUT_MS))
@@ -108,7 +106,7 @@ object ZemerContentClient {
         return gate
     }
 
-    /** `/podcastChannelsWhitelist` → the whitelisted host-channel docs. Throws on empty so [mirrorFirst] falls back. */
+    /** `/podcastChannelsWhitelist` → the whitelisted host-channel docs. Throws on empty so the caller keeps its last-good table. */
     suspend fun podcastsWhitelist(): List<ContentPodcastDoc> {
         val docs = json.decodeFromString(ListSerializer(ContentPodcastDoc.serializer()), getText("/podcastChannelsWhitelist", WHITELIST_TIMEOUT_MS))
         if (docs.isEmpty()) error("content mirror: empty /podcastChannelsWhitelist")
@@ -251,25 +249,17 @@ data class ContentPodcastDoc(
 )
 
 /**
- * Try [mirror] first; on ANY throw fall back to [firebase] (the intact Firestore code that runs today),
- * so a down/broken mirror degrades to exactly today's behavior. [label] is for the Timber breadcrumb.
+ * Logs a failed content read and reports it as a `fetch_fail` event (once per [label] per session), so
+ * we can see how many devices cannot reach the content server. A cancellation is rethrown, never reported.
  */
-suspend fun <T> mirrorFirst(
-    label: String,
-    mirror: suspend () -> T,
-    firebase: suspend () -> T,
-): T =
-    runCatching { mirror() }
-        .onSuccess { Timber.d("ZemerContentClient: %s served from content mirror", label) }
-        .getOrElse { throwable ->
-            if (throwable is CancellationException) throw throwable
-            Timber.w(throwable, "ZemerContentClient: %s mirror unavailable — falling back to Firebase", label)
-            // Measures how many devices depend on the Firebase fallback before it can be removed.
-            if (ZemerContentClient.enabled) {
-                Tracker.fetchFail(host = "content", path = label, kind = fetchFailKind(throwable))
-            }
-            firebase()
-        }
+internal fun reportContentFetchFailure(label: String, t: Throwable) {
+    // a cancelled read is not a failure: rethrown so the caller's runCatching never turns it into one
+    if (t is CancellationException) throw t
+    Timber.w(t, "ZemerContentClient: %s unavailable", label)
+    if (ZemerContentClient.enabled) {
+        Tracker.fetchFail(host = "content", path = label, kind = fetchFailKind(t))
+    }
+}
 
 /**
  * Why a content-mirror read failed, for the `fetch_fail` telemetry event: `challenge` (Cloudflare bot

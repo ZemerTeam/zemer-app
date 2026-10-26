@@ -953,7 +953,7 @@ class SyncUtils @Inject constructor(
     }
 
     /**
-     * Sync the podcast whitelist (`podcastChannelsWhitelist`, mirror-first) into the local
+     * Sync the podcast whitelist (`podcastChannelsWhitelist`, from the content server) into the local
      * `podcast_whitelist` table + in-memory [PodcastWhitelistCache], mirroring [syncArtistWhitelist]:
      * a version probe skips the fetch when unchanged, existing thumbnails are preserved across a
      * refresh, and a failure keeps the previous list (never empties the browse screen). Account-
@@ -966,8 +966,7 @@ class SyncUtils @Inject constructor(
             _podcastWhitelistSyncProgress.value = WhitelistSyncProgress()
             try {
                 // The allow-set + version gate + art all come from the content mirror (content.zemer.io/
-                // podcastChannelsWhitelist), MIRROR-FIRST with Firestore fallback — exactly like the artist
-                // whitelist (WhitelistFetcher.fetch*): each doc now carries thumbnailUrl + channelId, so
+                // podcastChannelsWhitelist), exactly like the artist whitelist (WhitelistFetcher.fetch*): each doc now carries thumbnailUrl + channelId, so
                 // the browse grid renders straight from the mirror with no per-device catalog fetch.
                 val remoteVersion = WhitelistFetcher.fetchPodcastVersion().getOrNull()
                 val localVersion = context.dataStore.get(LastPodcastWhitelistVersionKey, 0L)
@@ -1014,7 +1013,7 @@ class SyncUtils @Inject constructor(
                     settings[LastPodcastWhitelistSyncTimeKey] = System.currentTimeMillis()
                     remoteVersion?.let { settings[LastPodcastWhitelistVersionKey] = it }
                 }
-                Timber.d("Podcast whitelist synced (mirror-first) with ${whitelistEntries.size} podcasts")
+                Timber.d("Podcast whitelist synced with ${whitelistEntries.size} podcasts")
             } catch (e: Exception) {
                 Timber.e(e, "Error syncing podcast whitelist")
                 _podcastWhitelistSyncProgress.value = WhitelistSyncProgress(isComplete = true)
