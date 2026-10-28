@@ -29,6 +29,7 @@ class SubsetSyncClient @Inject constructor() {
             requestTimeoutMillis = SHARD_TIMEOUT_MS
             connectTimeoutMillis = CONNECT_TIMEOUT_MS
         }
+        install(com.jtech.zemer.net.ZemerHeaders.KtorPlugin)
     }
 
     private val json = Json { ignoreUnknownKeys = true }

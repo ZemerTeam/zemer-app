@@ -14,9 +14,9 @@
 | Compose | Enabled |
 | BuildConfig fields visible in Gradle | `ARCHITECTURE`, `COMMIT_HASH`, `RUN_NUMBER`, `GOOGLE_TOKEN_EXCHANGE_URL`, `CONTENT_MIRROR_URL`, `ZEMER_LYRICS_BASE_URL` |
 | Room schema directory | `app/schemas` |
-| Native build | None (no `app/src/main/cpp`, no `externalNativeBuild`) |
-| Tracked app paths | `1097` |
-| Tracked app Kotlin files | `814` (`617` in `src/main`, `195` in `src/test`, `2` in `src/androidTest`) |
+| Native build | Yes (see `build-release.md`) |
+| Tracked app paths | `1112` |
+| Tracked app Kotlin files | `822` (`622` in `src/main`, `198` in `src/test`, `2` in `src/androidTest`) |
 | Tracked app resource paths | `214` |
 | Tracked app asset paths | `0` in `src/main` (`3` test fixtures under `src/androidTest/assets`) |
 | Tracked app Room schema files | `36` |
@@ -67,6 +67,7 @@
 | `com.jtech.zemer.lyrics.youtube` | 2 |
 | `com.jtech.zemer.lyrics.zemer` | 14 |
 | `com.jtech.zemer.models` | 5 |
+| `com.jtech.zemer.net` | 2 |
 | `com.jtech.zemer.offline` | 16 |
 | `com.jtech.zemer.payments` | 1 |
 | `com.jtech.zemer.playback` | 50 |
@@ -77,6 +78,7 @@
 | `com.jtech.zemer.recognition.shazam` | 2 |
 | `com.jtech.zemer.repositories` | 1 |
 | `com.jtech.zemer.search` | 10 |
+| `com.jtech.zemer.sig` | 3 |
 | `com.jtech.zemer.stats` | 1 |
 | `com.jtech.zemer.statuses` | 14 |
 | `com.jtech.zemer.sync` | 4 |
@@ -131,6 +133,7 @@
 | `com/jtech/zemer/lyrics/youtube` | 2 |
 | `com/jtech/zemer/lyrics/zemer` | 14 |
 | `com/jtech/zemer/models` | 5 |
+| `com/jtech/zemer/net` | 2 |
 | `com/jtech/zemer/offline` | 16 |
 | `com/jtech/zemer/payments` | 1 |
 | `com/jtech/zemer/playback` | 50 |
@@ -141,6 +144,7 @@
 | `com/jtech/zemer/recognition/shazam` | 2 |
 | `com/jtech/zemer/repositories` | 1 |
 | `com/jtech/zemer/search` | 10 |
+| `com/jtech/zemer/sig` | 3 |
 | `com/jtech/zemer/stats` | 1 |
 | `com/jtech/zemer/statuses` | 14 |
 | `com/jtech/zemer/sync` | 4 |

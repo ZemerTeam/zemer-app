@@ -427,8 +427,12 @@ def _native_section():
         # the submodule inventory remains meaningful.
         # H3s: the caller (gen_build_release_md) already emits the "## Native code and
         # submodules" H2 this section sits under.
-        lines = ["### Native code", "", "None - metadata embedding is pure Kotlin",
-                 "(`utils/mp4/`, `utils/ogg/`); no NDK/CMake build.", "", "### Git submodules", ""]
+        lines = ["### Native code", "",
+                 "One optional library: the request signer `libzemersig` (`app/src/main/cpp/zemersig/`, CMake),",
+                 "built ONLY with its build type's signing master (release: CI secret `ZEMER_SIG_MASTER` or the",
+                 "private Gradle property `zemerSigMaster`; debug: the private `zemerSigDevMaster`); without it there",
+                 "is no NDK/CMake build. Metadata embedding is",
+                 "pure Kotlin (`utils/mp4/`, `utils/ogg/`).", "", "### Git submodules", ""]
         if subs:
             # Header directly before the rows (after the blank line) so the table renders.
             lines += ["| Submodule | Path | URL |", "| --- | --- | --- |"]

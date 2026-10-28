@@ -42,8 +42,11 @@
 
 ### Native code
 
-None - metadata embedding is pure Kotlin
-(`utils/mp4/`, `utils/ogg/`); no NDK/CMake build.
+One optional library: the request signer `libzemersig` (`app/src/main/cpp/zemersig/`, CMake),
+built ONLY with its build type's signing master (release: CI secret `ZEMER_SIG_MASTER` or the
+private Gradle property `zemerSigMaster`; debug: the private `zemerSigDevMaster`); without it there
+is no NDK/CMake build. Metadata embedding is
+pure Kotlin (`utils/mp4/`, `utils/ogg/`).
 
 ### Git submodules
 

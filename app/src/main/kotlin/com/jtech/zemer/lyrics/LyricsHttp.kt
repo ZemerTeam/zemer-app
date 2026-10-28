@@ -21,6 +21,8 @@ object LyricsHttp {
             install(ContentNegotiation) { json(json) }
             install(HttpTimeout) { requestTimeoutMillis = 15_000; connectTimeoutMillis = 10_000; socketTimeoutMillis = 15_000 }
             install(ContentEncoding) { gzip(); deflate() }
+            // the request signature rides only Zemer-host requests, never the third-party lyrics pages
+            install(com.jtech.zemer.net.ZemerHeaders.KtorPlugin)
             expectSuccess = false
         }
     }

@@ -1,0 +1,65 @@
+{
+ "about": "Cross-language test vectors for X-Zemer-Sig (server/sig.mjs). The key is a TEST key: bytes 1..32.",
+ "keyB64": "AQIDBAUGBwgJCgsMDQ4PEBESExQVFhcYGRobHB0eHyA=",
+ "vectors": [
+  {
+   "note": "plain ASCII query",
+   "method": "GET",
+   "url": "/search?q=shwekey",
+   "t": 1793040000,
+   "sig": "B9v2sgjjDb6j0qV1OsNt6e200EmQVgSxvQo7iavEPkA"
+  },
+  {
+   "note": "Hebrew query, several params",
+   "method": "GET",
+   "url": "/search?q=%D7%A9%D7%9C%D7%95%D7%9D&allowFemale=0&kidZone=0",
+   "t": 1793040000,
+   "sig": "bJNIx-Ep2GaBJIHNI3uVsyYrShrEwuFnrktee3yaS1w"
+  },
+  {
+   "note": "space as + and params out of order",
+   "method": "GET",
+   "url": "/search?kidZone=0&q=a+b&allowFemale=0",
+   "t": 1793040000,
+   "sig": "F0iw2Ms1sVzSOmrOpd5ntcOBEpNcxKJPS21AbbHM-Ac"
+  },
+  {
+   "note": "relay audio",
+   "method": "GET",
+   "url": "/stream?v=OxcRcrGRVpM",
+   "t": 1793040123,
+   "sig": "4zoEaVpCpjR4D2G0Zg9nVL6PGntc6AZzs0zzfRdfdzQ"
+  },
+  {
+   "note": "no query",
+   "method": "GET",
+   "url": "/whitelist/version",
+   "t": 1793040123,
+   "sig": "FEs0GUBZ24pMgGw_qZhIfFJ4UGY0SpARe87zF5XeWIE"
+  },
+  {
+   "note": "PUT without query (body is not signed)",
+   "method": "PUT",
+   "url": "/prefs",
+   "t": 1793040456,
+   "sig": "A0sNzwvfRmzNiSnJWPjaVnm7-1JUxPZpNBTf644317o"
+  },
+  {
+   "note": "repeated and empty params",
+   "method": "GET",
+   "url": "/a?x=2&x=1&y=",
+   "t": 1793040456,
+   "sig": "LZjZwyDZ0YAUXHourp5MMOd6VtbBAx65kJ_8Km9aeKo"
+  }
+ ],
+ "derivation": {
+  "about": "key(keyId) = HMAC-SHA256(master, UTF-8(\"zemer-sig-v1:\" + keyId)), base64; keyId = the versionCode in decimal. TEST master: bytes 1..32. 38 and 39 re-derived with openssl.",
+  "masterB64": "AQIDBAUGBwgJCgsMDQ4PEBESExQVFhcYGRobHB0eHyA=",
+  "keys": {
+   "1": "WYSOPOLXf3iq1Db/SqFHVlnH9q7bjp1B8gOmirNCjR8=",
+   "38": "gDhyBVnQwI6nDbPtk9rGKWaHzp62KbbX45tmpa6xc5Q=",
+   "39": "cGQjtkT7+F+gjZsOUGHNk7SfvSzPAo41yzD4iIoXEL4=",
+   "40": "eb+E3MtByyOpaHYnNJDGNzlrOMmgI0RJoCQW+yVnz8k="
+  }
+ }
+}
