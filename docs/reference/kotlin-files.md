@@ -150,7 +150,7 @@ Every tracked Kotlin file is listed with hard metadata extracted from the file t
 | `app/src/main/kotlin/com/jtech/zemer/offline/SubsetStore.kt` | 115 | `com.jtech.zemer.offline` | no | 5 | 26 | android.content, java.io, kotlinx.serialization |
 | `app/src/main/kotlin/com/jtech/zemer/offline/SubsetSyncClient.kt` | 62 | `com.jtech.zemer.offline` | no | 12 | 10 | io.ktor, java.io, javax.inject, kotlinx.serialization |
 | `app/src/main/kotlin/com/jtech/zemer/offline/SubsetSynonyms.kt` | 74 | `com.jtech.zemer.offline` | no | 0 | 18 |  |
-| `app/src/main/kotlin/com/jtech/zemer/payments/DonationClient.kt` | 82 | `com.jtech.zemer.payments` | no | 17 | 26 | io.ktor, java.math, java.util, kotlinx.serialization |
+| `app/src/main/kotlin/com/jtech/zemer/payments/DonationClient.kt` | 98 | `com.jtech.zemer.payments` | no | 18 | 30 | io.ktor, java.math, java.util, kotlinx.serialization |
 | `app/src/main/kotlin/com/jtech/zemer/playback/CastAutoAdvance.kt` | 75 | `com.jtech.zemer.playback` | no | 0 | 13 |  |
 | `app/src/main/kotlin/com/jtech/zemer/playback/CastAwarePlayer.kt` | 203 | `com.jtech.zemer.playback` | no | 5 | 46 | androidx.media3, kotlinx.coroutines |
 | `app/src/main/kotlin/com/jtech/zemer/playback/CastConnect.kt` | 139 | `com.jtech.zemer.playback` | no | 10 | 16 | java.net, kotlinx.coroutines, org.fcast |
@@ -485,7 +485,7 @@ Every tracked Kotlin file is listed with hard metadata extracted from the file t
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/settings/BackupAndRestore.kt` | 203 | `com.jtech.zemer.ui.screens.settings` | yes | 48 | 16 | androidx.activity, androidx.compose, androidx.hilt, androidx.navigation, java.time, kotlinx.coroutines |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/settings/ButtonSetupScreen.kt` | 374 | `com.jtech.zemer.ui.screens.settings` | yes | 58 | 17 | android.view, androidx.activity, androidx.compose, androidx.hilt, androidx.navigation |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/settings/ContentSettings.kt` | 663 | `com.jtech.zemer.ui.screens.settings` | yes | 92 | 68 | android.content, android.os, android.provider, androidx.activity, androidx.compose, androidx.core, androidx.hilt, androidx.navigation, com.google, dagger.hilt, java.text, java.util, javax.inject, kotlinx.coroutines |
-| `app/src/main/kotlin/com/jtech/zemer/ui/screens/settings/DonateScreen.kt` | 174 | `com.jtech.zemer.ui.screens.settings` | yes | 49 | 12 | android.view, androidx.compose, androidx.hilt, androidx.lifecycle, androidx.navigation, com.stripe |
+| `app/src/main/kotlin/com/jtech/zemer/ui/screens/settings/DonateScreen.kt` | 186 | `com.jtech.zemer.ui.screens.settings` | yes | 51 | 13 | android.view, androidx.compose, androidx.hilt, androidx.lifecycle, androidx.navigation, com.stripe |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/settings/GeneralSettings.kt` | 82 | `com.jtech.zemer.ui.screens.settings` | yes | 29 | 4 | android.content, android.net, android.os, android.provider, androidx.compose, androidx.navigation |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/settings/LogViewerScreen.kt` | 378 | `com.jtech.zemer.ui.screens.settings` | yes | 73 | 30 | androidx.compose, androidx.navigation, java.text, java.time, java.util, kotlinx.coroutines |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/settings/LyricsProviderDialogs.kt` | 92 | `com.jtech.zemer.ui.screens.settings` | yes | 23 | 13 | androidx.compose |
@@ -587,7 +587,7 @@ Every tracked Kotlin file is listed with hard metadata extracted from the file t
 | `app/src/main/kotlin/com/jtech/zemer/viewmodels/ButtonSetupViewModel.kt` | 136 | `com.jtech.zemer.viewmodels` | no | 22 | 26 | android.content, android.view, androidx.datastore, androidx.lifecycle, dagger.hilt, javax.inject, kotlinx.coroutines |
 | `app/src/main/kotlin/com/jtech/zemer/viewmodels/CachePlaylistViewModel.kt` | 26 | `com.jtech.zemer.viewmodels` | no | 7 | 4 | androidx.lifecycle, dagger.hilt, javax.inject, kotlinx.coroutines |
 | `app/src/main/kotlin/com/jtech/zemer/viewmodels/ContinueListeningViewModel.kt` | 38 | `com.jtech.zemer.viewmodels` | no | 12 | 2 | androidx.lifecycle, dagger.hilt, javax.inject, kotlinx.coroutines |
-| `app/src/main/kotlin/com/jtech/zemer/viewmodels/DonateViewModel.kt` | 123 | `com.jtech.zemer.viewmodels` | no | 27 | 21 | android.content, androidx.annotation, androidx.lifecycle, com.stripe, dagger.hilt, javax.inject, kotlinx.coroutines |
+| `app/src/main/kotlin/com/jtech/zemer/viewmodels/DonateViewModel.kt` | 149 | `com.jtech.zemer.viewmodels` | no | 27 | 25 | android.content, androidx.annotation, androidx.lifecycle, com.stripe, dagger.hilt, javax.inject, kotlinx.coroutines |
 | `app/src/main/kotlin/com/jtech/zemer/viewmodels/DownloadedContentViewModel.kt` | 51 | `com.jtech.zemer.viewmodels` | no | 17 | 5 | android.content, androidx.lifecycle, dagger.hilt, javax.inject, kotlinx.coroutines |
 | `app/src/main/kotlin/com/jtech/zemer/viewmodels/DownloadedVideosViewModel.kt` | 39 | `com.jtech.zemer.viewmodels` | no | 18 | 3 | android.content, androidx.lifecycle, dagger.hilt, javax.inject, kotlinx.coroutines |
 | `app/src/main/kotlin/com/jtech/zemer/viewmodels/HistoryViewModel.kt` | 108 | `com.jtech.zemer.viewmodels` | no | 20 | 22 | androidx.lifecycle, dagger.hilt, java.time, javax.inject, kotlinx.coroutines |
@@ -685,7 +685,7 @@ Every tracked Kotlin file is listed with hard metadata extracted from the file t
 | `app/src/test/kotlin/com/jtech/zemer/offline/SubsetSearchTest.kt` | 177 | `com.jtech.zemer.offline` | no | 4 | 38 | org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/offline/SubsetStoreStagingTest.kt` | 74 | `com.jtech.zemer.offline` | no | 6 | 8 | org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/offline/SubsetSyncTest.kt` | 72 | `com.jtech.zemer.offline` | no | 4 | 13 | org.junit |
-| `app/src/test/kotlin/com/jtech/zemer/payments/DonationClientTest.kt` | 59 | `com.jtech.zemer.payments` | no | 4 | 3 | org.junit |
+| `app/src/test/kotlin/com/jtech/zemer/payments/DonationClientTest.kt` | 71 | `com.jtech.zemer.payments` | no | 4 | 3 | org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/playback/BlockedPodcastsQueueTest.kt` | 55 | `com.jtech.zemer.playback` | no | 6 | 4 | androidx.media3, org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/playback/CastAutoAdvanceTest.kt` | 184 | `com.jtech.zemer.playback` | no | 3 | 10 | org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/playback/CastConnectTest.kt` | 134 | `com.jtech.zemer.playback` | no | 13 | 13 | java.net, kotlinx.coroutines, org.fcast, org.junit |

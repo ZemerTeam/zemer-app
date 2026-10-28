@@ -43,9 +43,11 @@ import com.jtech.zemer.ui.component.AppStateView
 import com.jtech.zemer.ui.component.BackTopAppBar
 import com.jtech.zemer.ui.component.ChipsRow
 import com.jtech.zemer.ui.component.ChipsRowTopPadding
+import com.jtech.zemer.ui.component.ErrorRetryState
 import com.jtech.zemer.ui.component.InfoLabel
 import com.jtech.zemer.ui.component.InlineErrorPanel
 import com.jtech.zemer.ui.component.OnboardingPrimaryButton
+import com.jtech.zemer.ui.component.ZemerLoadingSection
 import com.jtech.zemer.viewmodels.DonateViewModel
 import com.stripe.android.payments.paymentlauncher.rememberPaymentLauncher
 import com.stripe.android.view.CardMultilineWidget
@@ -64,14 +66,17 @@ fun DonateScreen(
 ) {
     val context = LocalContext.current
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val cardSetup by viewModel.cardSetup.collectAsStateWithLifecycle()
     var amountText by rememberSaveable { mutableStateOf(DonationClient.PRESET_DOLLARS[1].toString()) }
     var email by rememberSaveable { mutableStateOf("") }
     val cents = DonationClient.cents(amountText)
 
     // Stripe's own card field: the card goes only to Stripe, never to Zemer's servers. Created once
-    // (AndroidView keeps its first view), so a later theme change keeps the typed card.
+    // (AndroidView keeps its first view), so a later theme change keeps the typed card, and only once Stripe has its
+    // publishable key (the field's own background work needs it and crashes without it).
     val darkTheme = MaterialTheme.colorScheme.surface.luminance() < 0.5f
-    val cardWidget = remember {
+    val cardWidget = remember(cardSetup == DonateViewModel.CardSetup.READY) {
+        if (cardSetup != DonateViewModel.CardSetup.READY) return@remember null
         val theme = if (darkTheme) {
             com.google.android.material.R.style.Theme_MaterialComponents_NoActionBar
         } else {
@@ -148,16 +153,23 @@ fun DonateScreen(
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email, imeAction = ImeAction.Done),
                 modifier = Modifier.fillMaxWidth(),
             )
-            AndroidView(factory = { cardWidget }, modifier = Modifier.fillMaxWidth())
+            when {
+                cardWidget != null -> AndroidView(factory = { cardWidget }, modifier = Modifier.fillMaxWidth())
+                cardSetup == DonateViewModel.CardSetup.FAILED -> ErrorRetryState(
+                    onRetry = viewModel::loadCardSetup,
+                    message = stringResource(R.string.donate_failed),
+                )
+                else -> ZemerLoadingSection()
+            }
             OnboardingPrimaryButton(
                 text = cents?.let { stringResource(R.string.donate_button, DonationClient.amountParam(it)) }
                     ?: stringResource(R.string.donate),
                 onClick = {
                     // Null means the card is incomplete; the widget marks the bad fields itself.
-                    val card = cardWidget.paymentMethodCreateParams
+                    val card = cardWidget?.paymentMethodCreateParams
                     if (card != null) cents?.let { viewModel.donate(it, email, card) }
                 },
-                enabled = cents != null,
+                enabled = cents != null && cardWidget != null,
                 loading = state.busy,
                 modifier = Modifier.fillMaxWidth(),
             )

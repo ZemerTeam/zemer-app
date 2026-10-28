@@ -52,6 +52,32 @@ class DonateViewModel @Inject constructor(
     private val _state = MutableStateFlow(DonateUiState())
     val state: StateFlow<DonateUiState> = _state.asStateFlow()
 
+    /** Stripe's card field needs its publishable key before it exists, so the screen shows it only once [CardSetup.READY]. */
+    enum class CardSetup { LOADING, READY, FAILED }
+
+    private val _cardSetup = MutableStateFlow(CardSetup.LOADING)
+    val cardSetup: StateFlow<CardSetup> = _cardSetup.asStateFlow()
+
+    init {
+        loadCardSetup()
+    }
+
+    fun loadCardSetup() {
+        if (_cardSetup.value == CardSetup.READY) return
+        _cardSetup.value = CardSetup.LOADING
+        viewModelScope.launch {
+            _cardSetup.value = try {
+                PaymentConfiguration.init(context, DonationClient.publishableKey())
+                CardSetup.READY
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                if (shouldReport(e)) reportException(e, "DonateViewModel.cardSetup")
+                CardSetup.FAILED
+            }
+        }
+    }
+
     fun donate(cents: Int, email: String, card: PaymentMethodCreateParams) {
         if (_state.value.busy) return
         _state.value = DonateUiState(busy = true)

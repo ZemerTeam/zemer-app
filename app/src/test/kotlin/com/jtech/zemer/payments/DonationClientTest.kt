@@ -49,6 +49,18 @@ class DonationClientTest {
         assertNull(failure(200, """{"client_secret":null,"publishable_key":"pk_live_x"}"""))
     }
 
+    @Test
+    fun `parseConfig reads the publishable key, and fails on anything else`() {
+        assertEquals("pk_live_x", DonationClient.parseConfig(200, """{"publishable_key":"pk_live_x"}"""))
+        listOf(200 to "{}", 200 to """{"publishable_key":null}""", 200 to "not json", 503 to "<html>down</html>").forEach { (s, b) ->
+            try {
+                DonationClient.parseConfig(s, b)
+                fail("expected DonationException for $s $b")
+            } catch (_: DonationException) {
+            }
+        }
+    }
+
     private fun failure(status: Int, body: String): String? = try {
         DonationClient.parseResponse(status, body)
         fail("expected DonationException")
