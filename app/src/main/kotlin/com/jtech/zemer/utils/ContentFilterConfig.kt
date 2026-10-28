@@ -9,7 +9,6 @@ data class ContentFilterConfig(
     val allowFemaleSingers: Boolean = false,
     val blockVideos: Boolean = false,
     val blockPodcasts: Boolean = false,
-    val femalePasscodeHash: String? = null,
     val lastSyncTime: Long = -1L,
     val isSynced: Boolean = false
 )
@@ -36,7 +35,6 @@ object ContentFilterState {
         allowFemaleSingers: Boolean? = null,
         blockVideos: Boolean? = null,
         blockPodcasts: Boolean? = null,
-        femalePasscodeHash: String? = null,
         lastSyncTime: Long? = null,
         isSynced: Boolean? = null
     ) {
@@ -46,7 +44,6 @@ object ContentFilterState {
             allowFemaleSingers = allowFemaleSingers ?: currentConfig.allowFemaleSingers,
             blockVideos = blockVideos ?: currentConfig.blockVideos,
             blockPodcasts = blockPodcasts ?: currentConfig.blockPodcasts,
-            femalePasscodeHash = femalePasscodeHash ?: currentConfig.femalePasscodeHash,
             lastSyncTime = lastSyncTime ?: currentConfig.lastSyncTime,
             isSynced = isSynced ?: currentConfig.isSynced
         )
@@ -60,14 +57,12 @@ object ContentFilterState {
         allowFemaleSingers: Boolean? = null,
         blockVideos: Boolean? = null,
         blockPodcasts: Boolean? = null,
-        femalePasscodeHash: String? = null
     ) {
         updateConfig(
             filtersEnabled = filtersEnabled,
             allowFemaleSingers = allowFemaleSingers,
             blockVideos = blockVideos,
             blockPodcasts = blockPodcasts,
-            femalePasscodeHash = femalePasscodeHash
         )
     }
 
@@ -75,7 +70,6 @@ object ContentFilterState {
         get() = current.filtersEnabled && (
             current.allowFemaleSingers.not() ||
             current.blockVideos ||
-            current.blockPodcasts ||
-            current.femalePasscodeHash != null
+            current.blockPodcasts
         )
 }

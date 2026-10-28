@@ -10,6 +10,7 @@ import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Assert.fail
@@ -138,7 +139,8 @@ class ContentServerApiTest {
         assertEquals("PUT", req.method)
         assertEquals("Bearer tok", req.auth)
         assertTrue(req.body.contains(""""createdAt":"1970-01-01T00:00:00.000Z""""))
-        assertTrue(req.body.contains(""""femalePasscodeHash":null"""))
+        assertTrue(req.body.contains(""""blockPodcasts":null"""))
+        assertFalse(req.body.contains("femalePasscodeHash"))
         routes["PUT /prefs"] = 400 to """{"error":"bad date"}"""
         expectStatus(400) { api.putPrefs("tok", DevicePreferencesEntity()) }
     }
@@ -149,8 +151,7 @@ class ContentServerApiTest {
         val restore = api.devicePrefs("abc-123")!!
         assertNull(seen.single().auth)
         assertEquals("a@b.c", restore.userEmail)
-        assertTrue(restore.contentFilters.allowFemaleSingers)
-        assertEquals("h", restore.contentFilters.femalePasscodeHash)
+        assertTrue(restore.contentFilters.allowFemaleSingers) // the retired passcode field is ignored
         assertNull(api.devicePrefs("unknown"))
         routes["GET /prefs/device/abc-123"] = 429 to "{}"
         expectStatus(429) { api.devicePrefs("abc-123") }

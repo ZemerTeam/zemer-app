@@ -25,8 +25,8 @@ class DevicePreferencesJsonTest {
     private fun encode(doc: DevicePreferencesEntity) =
         json.parseToJsonElement(json.encodeToString(DevicePreferencesEntity.serializer(), doc)).jsonObject
 
-    // Shape of a doc imported from Firestore: blockPodcasts absent, femalePasscodeHash null, 0- and
-    // 6-digit fractions, an unknown field.
+    // Shape of a doc imported from Firestore: blockPodcasts absent, the retired femalePasscodeHash present
+    // (ignored like any unknown field), 0- and 6-digit fractions, an unknown field.
     private val imported = """
         {"userId":"uid1","userEmail":"uid1",
          "contentFilters":{"enableContentFilters":true,"allowFemaleSingers":false,"blockVideos":true,"femalePasscodeHash":null},
@@ -45,13 +45,11 @@ class DevicePreferencesJsonTest {
         // absent blockPodcasts stays null and derives from blockVideos, exactly like the Firestore path
         assertNull(doc.contentFilters.blockPodcasts)
         assertTrue(doc.contentFilters.toConfig().blockPodcasts)
-        assertNull(doc.contentFilters.femalePasscodeHash)
         assertNull(doc.deviceInfo.firstSeen)
         assertEquals(Date(1_788_220_800_000L), doc.deviceInfo.lastSeen)
         assertEquals(Date(1_793_031_170_253L), doc.updatedAt) // 6-digit fraction, truncated to millis
         val device = doc.devices.single()
         assertEquals("dev-1", device.deviceId)
-        assertEquals("abc", device.contentFilters.femalePasscodeHash)
         assertEquals(false, device.contentFilters.blockPodcasts)
         assertEquals(true, device.contentFilters.allowFemaleSingers)
         assertEquals(1_793_031_170_253L, device.lastSyncTime)
@@ -64,7 +62,7 @@ class DevicePreferencesJsonTest {
         val doc = DevicePreferencesEntity(
             userId = "uid1",
             userEmail = "a@b.c",
-            contentFilters = DeviceContentFilters(blockVideos = true, blockPodcasts = null, femalePasscodeHash = null),
+            contentFilters = DeviceContentFilters(blockVideos = true, blockPodcasts = null),
             deviceInfo = DeviceMetadata(deviceName = "Pixel", sdkVersion = 34, lastSeen = Date(1_761_495_170_000L)),
             devices = listOf(UserDeviceData(deviceId = "dev-1", createdAt = Date(1_761_495_170_253L), lastSyncTime = 42L)),
             createdAt = Date(0L),
@@ -75,7 +73,7 @@ class DevicePreferencesJsonTest {
         assertEquals(JsonNull, out["updatedAt"])
         val filters = out["contentFilters"]!!.jsonObject
         assertEquals(JsonNull, filters["blockPodcasts"])
-        assertEquals(JsonNull, filters["femalePasscodeHash"])
+        assertFalse("the retired passcode field is never sent", "femalePasscodeHash" in filters)
         assertEquals("true", filters["enableContentFilters"]!!.jsonPrimitive.content)
         val info = out["deviceInfo"]!!.jsonObject
         assertEquals(JsonNull, info["firstSeen"])

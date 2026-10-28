@@ -48,14 +48,12 @@ class DeviceContentFiltersTest {
             allowFemaleSingers = true,
             blockVideos = true,
             blockPodcasts = true,
-            femalePasscodeHash = "hash",
         )
         val roundTripped = DeviceContentFilters().fromConfig(original).toConfig()
         assertEquals(original.filtersEnabled, roundTripped.filtersEnabled)
         assertEquals(original.allowFemaleSingers, roundTripped.allowFemaleSingers)
         assertEquals(original.blockVideos, roundTripped.blockVideos)
         assertEquals(original.blockPodcasts, roundTripped.blockPodcasts)
-        assertEquals(original.femalePasscodeHash, roundTripped.femalePasscodeHash)
     }
 
     @Test

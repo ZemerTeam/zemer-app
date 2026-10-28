@@ -171,7 +171,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/main/kotlin/com/jtech/zemer/constants/LibraryFilter.kt` | 14 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/constants/MediaSessionConstants.kt` | 23 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/constants/PlaybackMode.kt` | 11 lines | `.kt` |
-| `app/src/main/kotlin/com/jtech/zemer/constants/PreferenceKeys.kt` | 668 lines | `.kt` |
+| `app/src/main/kotlin/com/jtech/zemer/constants/PreferenceKeys.kt` | 667 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/crash/CrashReport.kt` | 151 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/crash/CrashReporter.kt` | 121 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/crash/CrashScrubber.kt` | 30 lines | `.kt` |
@@ -414,10 +414,10 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/main/kotlin/com/jtech/zemer/statuses/YidStatusApi.kt` | 146 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/sync/ContentFilterSyncService.kt` | 338 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/sync/ContentReportRepository.kt` | 117 lines | `.kt` |
-| `app/src/main/kotlin/com/jtech/zemer/sync/ContentServerApi.kt` | 157 lines | `.kt` |
+| `app/src/main/kotlin/com/jtech/zemer/sync/ContentServerApi.kt` | 158 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/sync/PodcastSyncLogic.kt` | 105 lines | `.kt` |
-| `app/src/main/kotlin/com/jtech/zemer/sync/UserPreferencesRepository.kt` | 657 lines | `.kt` |
-| `app/src/main/kotlin/com/jtech/zemer/sync/models/DevicePreferencesEntity.kt` | 115 lines | `.kt` |
+| `app/src/main/kotlin/com/jtech/zemer/sync/UserPreferencesRepository.kt` | 653 lines | `.kt` |
+| `app/src/main/kotlin/com/jtech/zemer/sync/models/DevicePreferencesEntity.kt` | 112 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/tracking/FlushSchedule.kt` | 30 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/tracking/ImpressionReporter.kt` | 99 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/tracking/LibraryActionBackfill.kt` | 142 lines | `.kt` |
@@ -682,7 +682,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/main/kotlin/com/jtech/zemer/utils/ButtonMapperBridge.kt` | 35 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/utils/CoilBitmapLoader.kt` | 54 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/utils/ComposeToImage.kt` | 263 lines | `.kt` |
-| `app/src/main/kotlin/com/jtech/zemer/utils/ContentFilterConfig.kt` | 81 lines | `.kt` |
+| `app/src/main/kotlin/com/jtech/zemer/utils/ContentFilterConfig.kt` | 75 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/utils/CoverArtEmbedder.kt` | 184 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/utils/CrashReportingTree.kt` | 35 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/utils/DataStore.kt` | 180 lines | `.kt` |
@@ -1123,13 +1123,13 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/test/kotlin/com/jtech/zemer/statuses/StatusesApiTest.kt` | 206 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/statuses/YidStatusApiTest.kt` | 81 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/sync/ContentReportRepositoryTest.kt` | 92 lines | `.kt` |
-| `app/src/test/kotlin/com/jtech/zemer/sync/ContentServerApiTest.kt` | 199 lines | `.kt` |
+| `app/src/test/kotlin/com/jtech/zemer/sync/ContentServerApiTest.kt` | 200 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/sync/DeviceFiltersChangedTest.kt` | 33 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/sync/PodcastSyncLogicTest.kt` | 171 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/sync/ReportRetryTest.kt` | 57 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/sync/TokenRetryTest.kt` | 49 lines | `.kt` |
-| `app/src/test/kotlin/com/jtech/zemer/sync/models/DeviceContentFiltersTest.kt` | 80 lines | `.kt` |
-| `app/src/test/kotlin/com/jtech/zemer/sync/models/DevicePreferencesJsonTest.kt` | 115 lines | `.kt` |
+| `app/src/test/kotlin/com/jtech/zemer/sync/models/DeviceContentFiltersTest.kt` | 78 lines | `.kt` |
+| `app/src/test/kotlin/com/jtech/zemer/sync/models/DevicePreferencesJsonTest.kt` | 113 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/tracking/FlushScheduleTest.kt` | 57 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/tracking/LibraryActionBackfillTest.kt` | 101 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/tracking/PlayHistoryBackfillTest.kt` | 102 lines | `.kt` |
@@ -1231,7 +1231,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `docs/app/README.md` | 197 lines | `.md` |
 | `docs/app/database.md` | 657 lines | `.md` |
 | `docs/app/playback.md` | 119 lines | `.md` |
-| `docs/app/preferences-sync-auth.md` | 221 lines | `.md` |
+| `docs/app/preferences-sync-auth.md` | 220 lines | `.md` |
 | `docs/app/viewmodels.md` | 134 lines | `.md` |
 | `docs/build-release.md` | 60 lines | `.md` |
 | `docs/fcast/01-architecture.md` | 67 lines | `.md` |

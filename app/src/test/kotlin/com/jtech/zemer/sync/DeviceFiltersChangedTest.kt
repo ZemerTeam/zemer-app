@@ -22,7 +22,7 @@ class DeviceFiltersChangedTest {
     @Test
     fun `any changed field, or an unset podcast flag made explicit, is sent`() {
         assertTrue(deviceFiltersChanged(doc, "me", stored.copy(allowFemaleSingers = true)))
-        assertTrue(deviceFiltersChanged(doc, "me", stored.copy(femalePasscodeHash = "h")))
+        assertTrue(deviceFiltersChanged(doc, "me", stored.copy(enableContentFilters = false)))
         assertTrue(deviceFiltersChanged(doc.copy(devices = listOf(UserDeviceData(deviceId = "me", contentFilters = stored.copy(blockPodcasts = null)))), "me", stored))
     }
 

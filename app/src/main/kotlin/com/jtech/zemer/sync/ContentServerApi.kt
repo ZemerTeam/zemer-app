@@ -115,7 +115,8 @@ class ContentServerApi(
 
     companion object {
         // encodeDefaults + explicit nulls: send every field like the Firestore set() of the same entity did
-        // (e.g. a null femalePasscodeHash / firstSeen goes out as null, not omitted). Lenient reads.
+        // (e.g. a null blockPodcasts / firstSeen goes out as null, not omitted). Lenient reads: unknown fields
+        // (such as the retired femalePasscodeHash in an old document) are ignored.
         internal val json = Json {
             ignoreUnknownKeys = true
             coerceInputValues = true
