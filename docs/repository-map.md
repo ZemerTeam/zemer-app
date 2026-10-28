@@ -54,9 +54,9 @@ The following inventory is generated from repository files outside `.git`, `.gra
 
 ### Counts
 
-- Files counted: `1413`
+- Files counted: `1418`
 - By extension:
-  - `.kt`: `917`
+  - `.kt`: `922`
   - `.xml`: `196`
   - `.mjs`: `110`
   - `.md`: `64`
@@ -172,6 +172,10 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/main/kotlin/com/jtech/zemer/constants/MediaSessionConstants.kt` | 23 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/constants/PlaybackMode.kt` | 11 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/constants/PreferenceKeys.kt` | 668 lines | `.kt` |
+| `app/src/main/kotlin/com/jtech/zemer/crash/CrashReport.kt` | 151 lines | `.kt` |
+| `app/src/main/kotlin/com/jtech/zemer/crash/CrashReporter.kt` | 121 lines | `.kt` |
+| `app/src/main/kotlin/com/jtech/zemer/crash/CrashScrubber.kt` | 30 lines | `.kt` |
+| `app/src/main/kotlin/com/jtech/zemer/crash/CrashUploader.kt` | 77 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/db/Converters.kt` | 20 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/db/DatabaseDao.kt` | 1840 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/db/MusicDatabase.kt` | 646 lines | `.kt` |
@@ -992,6 +996,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/test/cpp/hmac_host_harness.c` | 27 lines | `.c` |
 | `app/src/test/kotlin/com/dpi/DensityMathTest.kt` | 69 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/constants/PreferenceKeysTest.kt` | 26 lines | `.kt` |
+| `app/src/test/kotlin/com/jtech/zemer/crash/CrashReportTest.kt` | 116 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/db/SqliteBindLimitTest.kt` | 23 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/db/entities/LyricsCachePolicyTest.kt` | 83 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/db/entities/ShareLinkTest.kt` | 41 lines | `.kt` |
@@ -1223,7 +1228,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/universal/release/baselineProfiles/1/app-universal-release.dm` | 9981 bytes | `.dm` |
 | `build.gradle.kts` | 36 lines | `.kts` |
 | `docs/README.md` | 44 lines | `.md` |
-| `docs/app/README.md` | 195 lines | `.md` |
+| `docs/app/README.md` | 197 lines | `.md` |
 | `docs/app/database.md` | 657 lines | `.md` |
 | `docs/app/playback.md` | 119 lines | `.md` |
 | `docs/app/preferences-sync-auth.md` | 221 lines | `.md` |
@@ -1259,7 +1264,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `docs/recognize_music/02-whitelist-guarantee.md` | 69 lines | `.md` |
 | `docs/recognize_music/03-entry-points-and-ui.md` | 80 lines | `.md` |
 | `docs/recognize_music/README.md` | 73 lines | `.md` |
-| `docs/reference/kotlin-files.md` | 930 lines | `.md` |
+| `docs/reference/kotlin-files.md` | 935 lines | `.md` |
 | `docs/reference/non-kotlin-files.md` | 445 lines | `.md` |
 | `docs/reference/resource-index.md` | 317 lines | `.md` |
 | `docs/remote_cipher_config/01-concepts-and-format.md` | 135 lines | `.md` |
@@ -1267,7 +1272,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `docs/remote_cipher_config/03-extraction-and-self-heal.md` | 102 lines | `.md` |
 | `docs/remote_cipher_config/04-operations.md` | 121 lines | `.md` |
 | `docs/remote_cipher_config/README.md` | 60 lines | `.md` |
-| `docs/repository-map.md` | 1506 lines | `.md` |
+| `docs/repository-map.md` | 1511 lines | `.md` |
 | `docs/sabr/README.md` | 369 lines | `.md` |
 | `docs/stations/README.md` | 67 lines | `.md` |
 | `docs/status/README.md` | 93 lines | `.md` |
