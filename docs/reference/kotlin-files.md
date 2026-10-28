@@ -266,7 +266,7 @@ Every tracked Kotlin file is listed with hard metadata extracted from the file t
 | `app/src/main/kotlin/com/jtech/zemer/sync/ContentReportRepository.kt` | 117 | `com.jtech.zemer.sync` | no | 21 | 18 | android.content, com.google, dagger.hilt, java.io, javax.inject, kotlinx.coroutines, kotlinx.serialization, timber.log |
 | `app/src/main/kotlin/com/jtech/zemer/sync/ContentServerApi.kt` | 157 | `com.jtech.zemer.sync` | no | 27 | 29 | io.ktor, java.io, javax.inject, kotlinx.serialization |
 | `app/src/main/kotlin/com/jtech/zemer/sync/PodcastSyncLogic.kt` | 105 | `com.jtech.zemer.sync` | no | 0 | 10 |  |
-| `app/src/main/kotlin/com/jtech/zemer/sync/UserPreferencesRepository.kt` | 619 | `com.jtech.zemer.sync` | no | 41 | 103 | android.content, android.util, androidx.datastore, dagger.hilt, java.io, java.util, javax.inject, kotlinx.coroutines, kotlinx.serialization |
+| `app/src/main/kotlin/com/jtech/zemer/sync/UserPreferencesRepository.kt` | 631 | `com.jtech.zemer.sync` | no | 41 | 105 | android.content, android.util, androidx.datastore, dagger.hilt, java.io, java.util, javax.inject, kotlinx.coroutines, kotlinx.serialization |
 | `app/src/main/kotlin/com/jtech/zemer/sync/models/DevicePreferencesEntity.kt` | 115 | `com.jtech.zemer.sync.models` | no | 10 | 36 | java.time, java.util, kotlinx.serialization |
 | `app/src/main/kotlin/com/jtech/zemer/tracking/FlushSchedule.kt` | 30 | `com.jtech.zemer.tracking` | no | 0 | 8 |  |
 | `app/src/main/kotlin/com/jtech/zemer/tracking/ImpressionReporter.kt` | 99 | `com.jtech.zemer.tracking` | yes | 9 | 5 | androidx.compose, kotlinx.coroutines |

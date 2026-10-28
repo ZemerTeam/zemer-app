@@ -295,10 +295,18 @@ class UserPreferencesRepository @Inject constructor(
             val entity = withIdToken { api.getPrefs(it) }
 
             if (entity != null && entity.devices.any { it.deviceId == deviceId }) {
+                val filters = config.toDeviceContentFilters()
+                // Every launch's sign-in sync lands here: an unchanged device is not re-written (each PUT is a
+                // server write, stamped lastSeen/updatedAt).
+                if (!deviceFiltersChanged(entity, deviceId, filters)) {
+                    Log.d("ZemerSync", "Device filters unchanged on the server, not re-sent")
+                    updateLastSyncTime()
+                    return Result.success(Unit)
+                }
                 val updatedDevices = entity.devices.map { deviceData ->
                     if (deviceData.deviceId == deviceId) {
                         deviceData.copy(
-                            contentFilters = config.toDeviceContentFilters(),
+                            contentFilters = filters,
                             deviceInfo = deviceData.deviceInfo.copy(lastSeen = Date()),
                             lastSyncTime = System.currentTimeMillis()
                         )
@@ -580,6 +588,10 @@ sealed interface DeviceRestoreResult {
     data object NoPrefs : DeviceRestoreResult
     data class Failed(val error: Throwable) : DeviceRestoreResult
 }
+
+/** Whether [filters] differ from what [entity] stores for [deviceId] (an absent device counts as changed). */
+internal fun deviceFiltersChanged(entity: DevicePreferencesEntity, deviceId: String, filters: DeviceContentFilters): Boolean =
+    entity.devices.find { it.deviceId == deviceId }?.contentFilters != filters
 
 /**
  * A filter-sync failure worth retrying later: a write the server could not take now ([isRetryableWriteFailure]) or
