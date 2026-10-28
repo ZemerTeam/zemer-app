@@ -84,7 +84,7 @@ class UserPreferencesRepository @Inject constructor(
 
     fun needsInstallRestoreCheck(): Boolean = !restoreCheckedMarker.exists()
 
-    private fun markRestoreChecked() {
+    fun markRestoreChecked() {
         runCatching { restoreCheckedMarker.createNewFile() }.onFailure { Log.w("ZemerSync", "Restore marker not written", it) }
     }
 
@@ -209,7 +209,7 @@ class UserPreferencesRepository @Inject constructor(
 
                 storeDeviceId(deviceId)
 
-                markRestoreChecked()
+                // the caller records the answer once it has saved the restored filters
                 DeviceRestoreResult.Restored(restore.contentFilters.toConfig())
             } else {
                 Log.d("ZemerSync", "No device preferences found for device ID: $deviceId")
@@ -436,8 +436,9 @@ class UserPreferencesRepository @Inject constructor(
             // Already what the server holds for this device (e.g. the change a server-wins pull just applied): nothing
             // to send, and no request at all.
             val uid = authManager.currentUserId
-            if (uid != null && lastServerFilters == uid to currentConfig.toDeviceContentFilters()) {
-                setUploadPending(null)
+            // Not while an upload is pending: an earlier PUT may have landed without our knowing, so only a real
+            // read-and-write clears it.
+            if (uid != null && !isUploadPending() && lastServerFilters == uid to currentConfig.toDeviceContentFilters()) {
                 return Result.success(Unit)
             }
 

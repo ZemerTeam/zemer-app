@@ -91,6 +91,8 @@ class ContentFilterSyncService @Inject constructor(
 
                         ContentFilterState.current = config
                         userPreferencesRepository.saveToDataStore(config)
+                        // only now: a process death before the save must leave the lookup to run again
+                        userPreferencesRepository.markRestoreChecked()
                         _isApplyingServerPreferences = false
                         return@launch
                     } else if (result is DeviceRestoreResult.NoPrefs) {
@@ -176,8 +178,8 @@ class ContentFilterSyncService @Inject constructor(
                 // Wait for auth to be fully ready (the uid the server keys the document by; an anonymous account has no email)
                 if (waitForAuthReady()) {
                     initialSyncMutex.withLock {
-                        if (initialSyncUid != authState.userId) {
-                            performInitialSync()
+                        // Recorded only once the server-wins read worked, so a later SignedIn event retries a failed one
+                        if (initialSyncUid != authState.userId && performInitialSync()) {
                             initialSyncUid = authState.userId
                         }
                     }
@@ -229,8 +231,9 @@ class ContentFilterSyncService @Inject constructor(
     /**
      * Perform initial sync when app starts or user signs in
      */
-    private suspend fun performInitialSync() {
-        try {
+    /** True once the server-wins read succeeded. */
+    private suspend fun performInitialSync(): Boolean {
+        return try {
             _syncState.value = SyncState.SYNCING
             _isApplyingServerPreferences = true
 
@@ -250,8 +253,10 @@ class ContentFilterSyncService @Inject constructor(
             }
 
             _syncState.value = SyncState.IDLE
+            result.isSuccess
         } catch (e: Exception) {
             _syncState.value = SyncState.ERROR(e.message ?: "Sync failed")
+            false
         } finally {
             _isApplyingServerPreferences = false
         }

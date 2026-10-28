@@ -132,6 +132,8 @@ class OnboardingViewModel @Inject constructor(
 
                     // Apply locally
                     userPreferencesRepository.saveToDataStore(config)
+                    // only now: a process death before the save must leave the lookup to run again
+                    userPreferencesRepository.markRestoreChecked()
 
                     _uiState.update {
                         it.copy(
