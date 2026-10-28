@@ -96,6 +96,22 @@ jobs:
       - name: Check 16 KB page-size alignment
         run: bash scripts/check-16kb-alignment.sh app/build/outputs/apk/release/app-release.apk
 
+      # The R8 mapping of a build that ships (main / manual, never a PR), so its crash reports decode to readable
+      # stacks. Never fails the build: without the secret, or if the upload fails, the APK still ships.
+      - name: Upload R8 mapping for crash reports
+        if: github.event_name != 'pull_request'
+        continue-on-error: true
+        env:
+          CRASH_MAPPING_KEY: ${{ secrets.CRASH_MAPPING_KEY }}
+        run: |
+          if [ -z "$CRASH_MAPPING_KEY" ]; then echo "CRASH_MAPPING_KEY not set; skipped"; exit 0; fi
+          version_code=$(grep -oP 'versionCode = \K[0-9]+' app/build.gradle.kts)
+          gzip -c app/build/outputs/mapping/release/mapping.txt > mapping.txt.gz
+          curl -fsS --max-time 180 -X POST \
+            -H "Authorization: Bearer $CRASH_MAPPING_KEY" -H "Content-Encoding: gzip" \
+            --data-binary @mapping.txt.gz \
+            "https://tracking.zemer.io/v1/mapping?commit=${GITHUB_SHA}&versionCode=${version_code}&runNumber=${GITHUB_RUN_NUMBER}"
+
       - name: Upload APK artifact
         id: upload-artifact
         uses: actions/upload-artifact@v4

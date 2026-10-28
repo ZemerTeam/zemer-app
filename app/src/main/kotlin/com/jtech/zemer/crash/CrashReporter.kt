@@ -62,6 +62,7 @@ object CrashReporter {
     }
 
     fun nonFatal(throwable: Throwable) = runCatching {
+        if (CrashReport.isCancellation(throwable)) return@runCatching // normal coroutine cancellation, not an error
         val key = CrashReport.fingerprint(throwable)
         synchronized(lock) {
             val isNew = nonFatals.offer(key) {

@@ -34,6 +34,7 @@
 | Configure release keystore | run: `mkdir -p app/keystore` |
 | Assemble signed release | run: `./gradlew assembleRelease` |
 | Check 16 KB page-size alignment | run: `bash scripts/check-16kb-alignment.sh app/build/outputs/apk/release/app-release.apk` |
+| Upload R8 mapping for crash reports | run: `if [ -z "$CRASH_MAPPING_KEY" ]; then echo "CRASH_MAPPING_KEY not set; skipped"; exit 0; fi` |
 | Upload APK artifact | `actions/upload-artifact@v4` (name=`release-apk`, path=`app/build/outputs/apk/release/*.apk`) |
 | Send Telegram notification | run: `if [ "$JOB_STATUS" == "success" ]; then` |
 

@@ -62,25 +62,15 @@
     # i/w/e are deliberately left in release builds
 }
 
-## Strip Timber logging in release
+## Strip only verbose/debug Timber logging in release. i/w/e stay: they feed the crash reporter (breadcrumbs, and
+## reportException() logs at ERROR to report a non-fatal), so stripping them silenced every release non-fatal.
 -assumenosideeffects class timber.log.Timber {
     public static void v(...);
     public static void d(...);
-    public static void i(...);
-    public static void w(...);
-    public static void e(...);
-    public static void wtf(...);
-    public static void log(int, java.lang.String, java.lang.String, java.lang.Throwable);
-    public static void tag(java.lang.String);
 }
 -assumenosideeffects class timber.log.Timber$Tree {
     public void v(...);
     public void d(...);
-    public void i(...);
-    public void w(...);
-    public void e(...);
-    public void wtf(...);
-    public void log(int, java.lang.String, java.lang.String, java.lang.Throwable);
 }
 
 ## Queue Persistence Rules
