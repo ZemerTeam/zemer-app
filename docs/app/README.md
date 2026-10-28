@@ -9,7 +9,7 @@
 | Gradle module | `:app` |
 | Namespace / application ID | `com.jtech.zemer` / `com.jtech.zemer` |
 | Compile / min / target SDK | `36` / `26` / `36` |
-| Version code/name | `38` / `38` |
+| Version code/name | `39` / `39` |
 | Kotlin/JVM target | JVM 21 |
 | Compose | Enabled |
 | BuildConfig fields visible in Gradle | `ARCHITECTURE`, `COMMIT_HASH`, `RUN_NUMBER`, `GOOGLE_TOKEN_EXCHANGE_URL`, `CONTENT_MIRROR_URL`, `ZEMER_LYRICS_BASE_URL` |
