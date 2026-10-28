@@ -25,7 +25,7 @@ Every tracked Kotlin file is listed with hard metadata extracted from the file t
 | `app/src/main/kotlin/com/jtech/zemer/constants/LibraryFilter.kt` | 14 | `com.jtech.zemer.constants` | no | 0 | 1 |  |
 | `app/src/main/kotlin/com/jtech/zemer/constants/MediaSessionConstants.kt` | 23 | `com.jtech.zemer.constants` | no | 2 | 14 | android.os, androidx.media3 |
 | `app/src/main/kotlin/com/jtech/zemer/constants/PlaybackMode.kt` | 11 | `com.jtech.zemer.constants` | no | 0 | 1 |  |
-| `app/src/main/kotlin/com/jtech/zemer/constants/PreferenceKeys.kt` | 668 | `com.jtech.zemer.constants` | no | 9 | 193 | androidx.annotation, androidx.datastore, java.time |
+| `app/src/main/kotlin/com/jtech/zemer/constants/PreferenceKeys.kt` | 667 | `com.jtech.zemer.constants` | no | 9 | 192 | androidx.annotation, androidx.datastore, java.time |
 | `app/src/main/kotlin/com/jtech/zemer/crash/CrashReport.kt` | 151 | `com.jtech.zemer.crash` | no | 7 | 38 | java.util, kotlinx.serialization |
 | `app/src/main/kotlin/com/jtech/zemer/crash/CrashReporter.kt` | 121 | `com.jtech.zemer.crash` | no | 9 | 35 | android.content, android.os, com.google, java.io, java.util, kotlinx.coroutines |
 | `app/src/main/kotlin/com/jtech/zemer/crash/CrashScrubber.kt` | 30 | `com.jtech.zemer.crash` | no | 0 | 9 |  |
@@ -268,10 +268,10 @@ Every tracked Kotlin file is listed with hard metadata extracted from the file t
 | `app/src/main/kotlin/com/jtech/zemer/statuses/YidStatusApi.kt` | 146 | `com.jtech.zemer.statuses` | no | 8 | 29 | java.io, java.util, okhttp3.MediaType, okhttp3.OkHttpClient, okhttp3.Request, okhttp3.RequestBody, org.json |
 | `app/src/main/kotlin/com/jtech/zemer/sync/ContentFilterSyncService.kt` | 338 | `com.jtech.zemer.sync` | no | 21 | 43 | android.util, javax.inject, kotlin.math, kotlinx.coroutines |
 | `app/src/main/kotlin/com/jtech/zemer/sync/ContentReportRepository.kt` | 117 | `com.jtech.zemer.sync` | no | 21 | 18 | android.content, com.google, dagger.hilt, java.io, javax.inject, kotlinx.coroutines, kotlinx.serialization, timber.log |
-| `app/src/main/kotlin/com/jtech/zemer/sync/ContentServerApi.kt` | 157 | `com.jtech.zemer.sync` | no | 27 | 29 | io.ktor, java.io, javax.inject, kotlinx.serialization |
+| `app/src/main/kotlin/com/jtech/zemer/sync/ContentServerApi.kt` | 158 | `com.jtech.zemer.sync` | no | 27 | 29 | io.ktor, java.io, javax.inject, kotlinx.serialization |
 | `app/src/main/kotlin/com/jtech/zemer/sync/PodcastSyncLogic.kt` | 105 | `com.jtech.zemer.sync` | no | 0 | 10 |  |
-| `app/src/main/kotlin/com/jtech/zemer/sync/UserPreferencesRepository.kt` | 657 | `com.jtech.zemer.sync` | no | 41 | 109 | android.content, android.util, androidx.datastore, dagger.hilt, java.io, java.util, javax.inject, kotlinx.coroutines, kotlinx.serialization |
-| `app/src/main/kotlin/com/jtech/zemer/sync/models/DevicePreferencesEntity.kt` | 115 | `com.jtech.zemer.sync.models` | no | 10 | 36 | java.time, java.util, kotlinx.serialization |
+| `app/src/main/kotlin/com/jtech/zemer/sync/UserPreferencesRepository.kt` | 653 | `com.jtech.zemer.sync` | no | 40 | 109 | android.content, android.util, androidx.datastore, dagger.hilt, java.io, java.util, javax.inject, kotlinx.coroutines, kotlinx.serialization |
+| `app/src/main/kotlin/com/jtech/zemer/sync/models/DevicePreferencesEntity.kt` | 112 | `com.jtech.zemer.sync.models` | no | 10 | 35 | java.time, java.util, kotlinx.serialization |
 | `app/src/main/kotlin/com/jtech/zemer/tracking/FlushSchedule.kt` | 30 | `com.jtech.zemer.tracking` | no | 0 | 8 |  |
 | `app/src/main/kotlin/com/jtech/zemer/tracking/ImpressionReporter.kt` | 99 | `com.jtech.zemer.tracking` | yes | 9 | 5 | androidx.compose, kotlinx.coroutines |
 | `app/src/main/kotlin/com/jtech/zemer/tracking/LibraryActionBackfill.kt` | 142 | `com.jtech.zemer.tracking` | no | 16 | 18 | android.content, androidx.datastore, java.time, java.util, kotlinx.coroutines, timber.log |
@@ -536,7 +536,7 @@ Every tracked Kotlin file is listed with hard metadata extracted from the file t
 | `app/src/main/kotlin/com/jtech/zemer/utils/ButtonMapperBridge.kt` | 35 | `com.jtech.zemer.utils` | no | 5 | 8 | android.view, java.util |
 | `app/src/main/kotlin/com/jtech/zemer/utils/CoilBitmapLoader.kt` | 54 | `com.jtech.zemer.utils` | no | 15 | 8 | android.content, android.graphics, android.net, androidx.core, androidx.media3, coil3.imageLoader, coil3.request, coil3.toBitmap, com.google, kotlinx.coroutines |
 | `app/src/main/kotlin/com/jtech/zemer/utils/ComposeToImage.kt` | 263 | `com.jtech.zemer.utils` | no | 32 | 63 | android.annotation, android.content, android.graphics, android.net, android.os, android.provider, android.text, androidx.core, coil3.imageLoader, coil3.request, coil3.toBitmap, java.io, kotlinx.coroutines |
-| `app/src/main/kotlin/com/jtech/zemer/utils/ContentFilterConfig.kt` | 81 | `com.jtech.zemer.utils` | no | 0 | 17 |  |
+| `app/src/main/kotlin/com/jtech/zemer/utils/ContentFilterConfig.kt` | 75 | `com.jtech.zemer.utils` | no | 0 | 16 |  |
 | `app/src/main/kotlin/com/jtech/zemer/utils/CoverArtEmbedder.kt` | 184 | `com.jtech.zemer.utils` | no | 12 | 29 | android.content, android.util, java.io, kotlinx.coroutines, okhttp3.OkHttpClient, okhttp3.Request |
 | `app/src/main/kotlin/com/jtech/zemer/utils/CrashReportingTree.kt` | 35 | `com.jtech.zemer.utils` | no | 2 | 6 | android.util, timber.log |
 | `app/src/main/kotlin/com/jtech/zemer/utils/DataStore.kt` | 180 | `com.jtech.zemer.utils` | yes | 21 | 13 | android.content, androidx.compose, androidx.datastore, kotlin.properties, kotlinx.coroutines |
@@ -763,13 +763,13 @@ Every tracked Kotlin file is listed with hard metadata extracted from the file t
 | `app/src/test/kotlin/com/jtech/zemer/statuses/StatusesApiTest.kt` | 206 | `com.jtech.zemer.statuses` | no | 6 | 28 | org.json, org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/statuses/YidStatusApiTest.kt` | 81 | `com.jtech.zemer.statuses` | no | 5 | 11 | org.json, org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/sync/ContentReportRepositoryTest.kt` | 92 | `com.jtech.zemer.sync` | no | 6 | 6 | kotlinx.serialization, org.junit |
-| `app/src/test/kotlin/com/jtech/zemer/sync/ContentServerApiTest.kt` | 199 | `com.jtech.zemer.sync` | no | 20 | 31 | io.ktor, java.net, java.util, kotlin.concurrent, kotlinx.coroutines, kotlinx.serialization, org.junit |
+| `app/src/test/kotlin/com/jtech/zemer/sync/ContentServerApiTest.kt` | 200 | `com.jtech.zemer.sync` | no | 21 | 31 | io.ktor, java.net, java.util, kotlin.concurrent, kotlinx.coroutines, kotlinx.serialization, org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/sync/DeviceFiltersChangedTest.kt` | 33 | `com.jtech.zemer.sync` | no | 6 | 3 | org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/sync/PodcastSyncLogicTest.kt` | 171 | `com.jtech.zemer.sync` | no | 4 | 9 | org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/sync/ReportRetryTest.kt` | 57 | `com.jtech.zemer.sync` | no | 7 | 1 | java.io, java.nio, kotlinx.serialization, org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/sync/TokenRetryTest.kt` | 49 | `com.jtech.zemer.sync` | no | 4 | 4 | kotlinx.coroutines, org.junit |
-| `app/src/test/kotlin/com/jtech/zemer/sync/models/DeviceContentFiltersTest.kt` | 80 | `com.jtech.zemer.sync.models` | no | 7 | 3 | org.junit |
-| `app/src/test/kotlin/com/jtech/zemer/sync/models/DevicePreferencesJsonTest.kt` | 115 | `com.jtech.zemer.sync.models` | no | 13 | 17 | java.util, kotlinx.serialization, org.junit |
+| `app/src/test/kotlin/com/jtech/zemer/sync/models/DeviceContentFiltersTest.kt` | 78 | `com.jtech.zemer.sync.models` | no | 7 | 3 | org.junit |
+| `app/src/test/kotlin/com/jtech/zemer/sync/models/DevicePreferencesJsonTest.kt` | 113 | `com.jtech.zemer.sync.models` | no | 13 | 17 | java.util, kotlinx.serialization, org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/tracking/FlushScheduleTest.kt` | 57 | `com.jtech.zemer.tracking` | no | 2 | 8 | org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/tracking/LibraryActionBackfillTest.kt` | 101 | `com.jtech.zemer.tracking` | no | 9 | 10 | java.time, org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/tracking/PlayHistoryBackfillTest.kt` | 102 | `com.jtech.zemer.tracking` | no | 7 | 11 | java.time, org.junit |

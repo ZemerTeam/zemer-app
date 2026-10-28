@@ -22,7 +22,6 @@ import com.jtech.zemer.constants.EnableContentFiltersKey
 import com.jtech.zemer.constants.AllowFemaleSingersKey
 import com.jtech.zemer.constants.BlockVideosKey
 import com.jtech.zemer.constants.BlockPodcastsKey
-import com.jtech.zemer.constants.FemalePasscodeHashKey
 import com.jtech.zemer.constants.ContentFiltersAutoRestoredKey
 import com.jtech.zemer.constants.ContentFiltersRestoredEmailKey
 import com.jtech.zemer.constants.ContentFiltersLockedKey
@@ -48,7 +47,6 @@ private fun ContentFilterConfig.toDeviceContentFilters(): DeviceContentFilters {
         allowFemaleSingers = allowFemaleSingers,
         blockVideos = blockVideos,
         blockPodcasts = blockPodcasts,
-        femalePasscodeHash = femalePasscodeHash
     )
 }
 
@@ -430,7 +428,6 @@ class UserPreferencesRepository @Inject constructor(
                 allowFemaleSingers = prefs[AllowFemaleSingersKey] ?: false,
                 blockVideos = prefs[BlockVideosKey] ?: false,
                 blockPodcasts = prefs[BlockPodcastsKey] ?: false,
-                femalePasscodeHash = prefs[FemalePasscodeHashKey]
             )
 
             // Already what the server holds for this device (e.g. the change a server-wins pull just applied): nothing
@@ -542,9 +539,8 @@ class UserPreferencesRepository @Inject constructor(
             preferences[AllowFemaleSingersKey] = config.allowFemaleSingers
             preferences[BlockVideosKey] = config.blockVideos
             preferences[BlockPodcastsKey] = config.blockPodcasts
-            config.femalePasscodeHash?.let { hash ->
-                preferences[FemalePasscodeHashKey] = hash
-            }
+            // the retired female-singer passcode lock: drop the hash an old build may have left here
+            preferences.remove(stringPreferencesKey("femalePasscodeHash"))
         }
     }
 

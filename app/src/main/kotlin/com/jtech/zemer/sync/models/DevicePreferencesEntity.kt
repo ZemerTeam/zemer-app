@@ -35,7 +35,6 @@ data class DeviceContentFilters(
     // from blockVideos — so a sync-account video-blocker is locked out of podcasts too. Once a client
     // writes an explicit value it is respected.
     val blockPodcasts: Boolean? = null,
-    val femalePasscodeHash: String? = null
 ) {
     companion object {
     }
@@ -49,7 +48,6 @@ data class DeviceContentFilters(
             allowFemaleSingers = config.allowFemaleSingers,
             blockVideos = config.blockVideos,
             blockPodcasts = config.blockPodcasts,
-            femalePasscodeHash = config.femalePasscodeHash
         )
     }
 
@@ -63,7 +61,6 @@ data class DeviceContentFilters(
             allowFemaleSingers = allowFemaleSingers,
             blockVideos = blockVideos,
             blockPodcasts = blockPodcasts ?: blockVideos,
-            femalePasscodeHash = femalePasscodeHash
         )
     }
 }

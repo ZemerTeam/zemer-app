@@ -224,7 +224,6 @@ val PlaylistEditLockKey = booleanPreferencesKey("playlistEditLock")
 val QuickPicksKey = stringPreferencesKey("discover")
 val QueueEditLockKey = booleanPreferencesKey("queueEditLock")
 val AllowFemaleSingersKey = booleanPreferencesKey("allowFemaleSingers")
-val FemalePasscodeHashKey = stringPreferencesKey("femalePasscodeHash")
 val BlockVideosKey = booleanPreferencesKey("blockVideos")
 val BlockPodcastsKey = booleanPreferencesKey("blockPodcasts")
 // One-time seed guard: on first run after podcast-blocking shipped, blockPodcasts is seeded from
