@@ -10,7 +10,7 @@ import org.junit.Test
 /**
  * Issue #535: "loaded" was keyed off a non-empty set, so a successfully loaded EMPTY registry (the live
  * list is empty) re-fetched on every ensureLoaded() - one network round-trip per filtered artist. A
- * success, empty or not, must be loaded once; a failure must still be retried.
+ * success, empty or not, must be loaded once; a failure must still be retried (after a cooldown).
  */
 class IsraeliArtistRegistryTest {
 
@@ -26,12 +26,38 @@ class IsraeliArtistRegistryTest {
     }
 
     @Test
-    fun `a failed load is retried on the next call`() = runBlocking {
+    fun `a failed load is retried once the cooldown has passed, not on every call`() = runBlocking {
         var fetches = 0
-        IsraeliArtistRegistry.ensureLoaded { fetches++; throw java.io.IOException("offline") }
-        IsraeliArtistRegistry.ensureLoaded { fetches++; setOf("UC1") }
-        IsraeliArtistRegistry.ensureLoaded { fetches++; emptySet() }
+        var clock = 1_000L
+        IsraeliArtistRegistry.ensureLoaded(now = { clock }) { fetches++; throw java.io.IOException("offline") }
+        // inside the cooldown: no fetch (an outage must not add a network wait to every filter pass)
+        IsraeliArtistRegistry.ensureLoaded(now = { clock }) { fetches++; setOf("UC1") }
+        assertEquals(1, fetches)
+        assertFalse(IsraeliArtistRegistry.isIsraeli("UC1"))
+        clock += IsraeliArtistRegistry.RETRY_COOLDOWN_MS
+        IsraeliArtistRegistry.ensureLoaded(now = { clock }) { fetches++; setOf("UC1") }
+        IsraeliArtistRegistry.ensureLoaded(now = { clock }) { fetches++; emptySet() }
         assertEquals(2, fetches)
         assertTrue(IsraeliArtistRegistry.isIsraeli("UC1"))
+    }
+
+    @Test
+    fun `a cancelled load is rethrown and starts no cooldown`() = runBlocking {
+        var fetches = 0
+        val thrown = runCatching {
+            IsraeliArtistRegistry.ensureLoaded(now = { 1_000L }) { fetches++; throw kotlinx.coroutines.CancellationException("left the screen") }
+        }.exceptionOrNull()
+        assertTrue(thrown is kotlinx.coroutines.CancellationException)
+        // the next call, at the same instant, loads at once
+        IsraeliArtistRegistry.ensureLoaded(now = { 1_000L }) { fetches++; setOf("UC1") }
+        assertEquals(2, fetches)
+        assertTrue(IsraeliArtistRegistry.isIsraeli("UC1"))
+    }
+
+    @Test
+    fun `a content read reports a failure but rethrows a cancellation`() {
+        assertTrue(contentRead("x") { throw java.io.IOException("down") }.isFailure)
+        val thrown = runCatching { contentRead("x") { throw kotlinx.coroutines.CancellationException("gone") } }.exceptionOrNull()
+        assertTrue(thrown is kotlinx.coroutines.CancellationException)
     }
 }

@@ -232,7 +232,7 @@ object ZemerResultMapper {
     /**
      * A `/radio` page's tracks as playable [SongItem]s with the same defense-in-depth every other
      * Zemer surface gets — sparse-row drop, de-dup, and the surgical id-overrides ([dropBlocked]):
-     * a Firestore-blocked id must not play even when the server's override sync lags the app's.
+     * a blocked id (blockedContentIds) must not play even when the server's override sync lags the app's.
      */
     fun ZemerRadioResponse.toSongItems(): List<SongItem> =
         songItems(tracks)
@@ -240,7 +240,7 @@ object ZemerResultMapper {
     /**
      * The curated albums as browsable [AlbumItem] rows (the detail screen's Albums chip), with the
      * same defense-in-depth every other Zemer collection gets: sparse-row drop, de-dup, and the
-     * surgical id-overrides ([dropBlocked]) — a Firestore-blocked album must not render as a row
+     * surgical id-overrides ([dropBlocked]) — a blocked album (blockedContentIds) must not render as a row
      * even if the server's serve-time strip lags the app's fresher local table.
      */
     fun ZemerCuratedPlaylistResponse.toAlbumItems(): List<AlbumItem> =

@@ -3,7 +3,6 @@ package com.jtech.zemer.viewmodels
 import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.google.firebase.firestore.FirebaseFirestore
 import com.jtech.zemer.constants.ArtistProfilesCacheKey
 import com.jtech.zemer.constants.ArtistProfilesCacheTimestampKey
 import com.jtech.zemer.constants.HomeRecentArtistsKey
@@ -25,7 +24,7 @@ import com.jtech.zemer.utils.ContentWhitelistDoc
 import com.jtech.zemer.utils.IsraeliArtistRegistry
 import com.jtech.zemer.utils.RankedContentGate
 import com.jtech.zemer.utils.ZemerContentClient
-import com.jtech.zemer.utils.mirrorFirst
+import com.jtech.zemer.utils.contentRead
 import com.jtech.zemer.utils.ContentFilterState
 import com.jtech.zemer.utils.SyncUtils
 import com.jtech.zemer.search.ZemerResultMapper
@@ -53,7 +52,6 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.tasks.await
 import timber.log.Timber
 import javax.inject.Inject
 import kotlin.random.Random
@@ -298,7 +296,7 @@ class HomeViewModel @Inject constructor(
             }
         }
 
-        // If we have cache, return it immediately and check for updates (mirror-first) in background
+        // If we have cache, return it immediately and check for updates in background
         if (cachedProfiles.isNotEmpty() && !force) {
             // Background check for updates
             viewModelScope.launch(Dispatchers.IO) {
@@ -307,37 +305,37 @@ class HomeViewModel @Inject constructor(
             return cachedProfiles
         }
 
-        // No cache (first launch) - must fetch, mirror-first with the Firestore fallback
-        return fetchArtistProfilesFromFirebase(cachedProfiles)
+        // No cache (first launch) - must fetch
+        return fetchArtistProfilesFromServer(cachedProfiles)
     }
 
     private suspend fun checkAndUpdateArtistProfiles(cachedProfiles: List<HomeArtistProfile>) {
         runCatching {
-            val firestoreStart = System.currentTimeMillis()
-            val profiles = fetchArtistProfilesMirrorFirst()
-            val fetchTime = System.currentTimeMillis() - firestoreStart
+            val fetchStart = System.currentTimeMillis()
+            val profiles = fetchArtistProfiles()
+            val fetchTime = System.currentTimeMillis() - fetchStart
 
             // Check if data changed
             val changed = profiles.size != cachedProfiles.size ||
                 profiles.map { it.id }.toSet() != cachedProfiles.map { it.id }.toSet()
 
             if (changed) {
-                Timber.d("NET: Firebase artistsWhitelist CHANGED in ${fetchTime}ms (${cachedProfiles.size} -> ${profiles.size} docs) - cache updated for next load")
+                Timber.d("NET: artistsWhitelist CHANGED in ${fetchTime}ms (${cachedProfiles.size} -> ${profiles.size} docs) - cache updated for next load")
                 homeArtistProfilesCache = profiles
                 saveArtistProfilesToCache(profiles)
             } else {
-                Timber.d("NET: Firebase artistsWhitelist unchanged in ${fetchTime}ms (${profiles.size} docs)")
+                Timber.d("NET: artistsWhitelist unchanged in ${fetchTime}ms (${profiles.size} docs)")
             }
         }.onFailure {
-            Timber.w(it, "HomeViewModel: Background Firebase check failed")
+            Timber.w(it, "HomeViewModel: Background artist-profile check failed")
         }
     }
 
-    private suspend fun fetchArtistProfilesFromFirebase(fallback: List<HomeArtistProfile>): List<HomeArtistProfile> {
+    private suspend fun fetchArtistProfilesFromServer(fallback: List<HomeArtistProfile>): List<HomeArtistProfile> {
         return runCatching {
-            val firestoreStart = System.currentTimeMillis()
-            val profiles = fetchArtistProfilesMirrorFirst()
-            Timber.d("NET: artistsWhitelist fetch took ${System.currentTimeMillis() - firestoreStart}ms (${profiles.size} docs)")
+            val fetchStart = System.currentTimeMillis()
+            val profiles = fetchArtistProfiles()
+            Timber.d("NET: artistsWhitelist fetch took ${System.currentTimeMillis() - fetchStart}ms (${profiles.size} docs)")
             homeArtistProfilesCache = profiles
             saveArtistProfilesToCache(profiles)
             profiles
@@ -347,34 +345,10 @@ class HomeViewModel @Inject constructor(
         }
     }
 
-    /**
-     * Artist profiles for Home — mirror-first (content.zemer.io) with the Firestore SDK as the exact
-     * fallback that ran before. Booleans stay nullable (null = unknown, distinct from false).
-     */
-    private suspend fun fetchArtistProfilesMirrorFirst(): List<HomeArtistProfile> =
-        mirrorFirst<List<HomeArtistProfile>>(
-            "homeArtistProfiles",
-            mirror = { ZemerContentClient.whitelist().mapNotNull { it.toHomeArtistProfile() } },
-            firebase = {
-                val snapshot = FirebaseFirestore.getInstance()
-                    .collection("artistsWhitelist")
-                    .get()
-                    .await()
-                snapshot.documents.mapNotNull { doc ->
-                    val id = doc.getString("id") ?: doc.getString("artistId") ?: return@mapNotNull null
-                    val name = doc.getString("name") ?: doc.getString("artistName") ?: id
-                    HomeArtistProfile(
-                        id = id,
-                        name = name,
-                        isAmerican = doc.getBoolean("isAmerican"),
-                        isIsraeli = IsraeliArtistRegistry.isIsraeli(id),
-                        isFemale = doc.getBoolean("isFemale"),
-                        isFamous = doc.getBoolean("isFamous"),
-                        isKids = doc.getBoolean("isKids"),
-                    )
-                }
-            },
-        )
+    /** Artist profiles for Home from the content server. Booleans stay nullable (null = unknown, distinct from false). */
+    private suspend fun fetchArtistProfiles(): List<HomeArtistProfile> =
+        // the same read as the whitelist sync, so one outage is one fetch_fail
+        contentRead("whitelist") { ZemerContentClient.whitelist(reuseRecent = true).mapNotNull { it.toHomeArtistProfile() } }.getOrThrow()
 
     private fun ContentWhitelistDoc.toHomeArtistProfile(): HomeArtistProfile? {
         val resolvedId = id.takeIf { it.isNotBlank() } ?: artistId?.takeIf { it.isNotBlank() } ?: return null

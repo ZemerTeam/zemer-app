@@ -365,6 +365,8 @@
     <string name="onboarding_restoring_filters">Restoring Content Filter Settings</string>
     <string name="onboarding_checking_saved">Checking for saved preferences…</string>
     <string name="onboarding_restore_check_failed">Can\'t check your saved settings</string>
+    <string name="onboarding_whitelist_load_failed">Can\'t load the artist list</string>
+    <string name="onboarding_whitelist_load_failed_detail">Zemer needs the list of approved artists before you can start. Check your internet connection. Retrying automatically.</string>
     <string name="onboarding_restore_check_failed_detail">Zemer needs to check whether this device has saved content filters before you continue. Check your internet connection. Retrying automatically.</string>
     <string name="onboarding_found_saved">Found your saved preferences</string>
     <string name="onboarding_restored_settings">Restored Settings:</string>

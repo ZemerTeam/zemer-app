@@ -48,7 +48,7 @@ object VideoModeLogic {
      *   governs (an ATV verdict overrides the corpus and hides the toggle).
      * @param counterpartVideoId a known video counterpart id for the item, or null.
      * @param isBlockedRendition content-filter check for a specific rendition id (BlockedIdsCache) — a
-     *   Firestore-blocked video is never watchable even when its audio side is fine.
+     *   server-blocked (blockedContentIds) video is never watchable even when its audio side is fine.
      */
     fun availability(
         mediaId: String,

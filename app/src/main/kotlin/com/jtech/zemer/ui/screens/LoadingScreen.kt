@@ -1,6 +1,12 @@
 package com.jtech.zemer.ui.screens
 
+import com.jtech.zemer.ui.component.InlineErrorPanel
+import com.jtech.zemer.ui.component.OnboardingPrimaryButton
 import com.jtech.zemer.ui.component.OnboardingStepTitle
+import com.jtech.zemer.viewmodels.restoreRetryDelayMs
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 
 import android.graphics.PorterDuff
 import android.graphics.PorterDuffColorFilter
@@ -20,6 +26,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -61,17 +68,36 @@ fun LoadingScreen(
     )
 
 
+    val scope = rememberCoroutineScope()
+
     LaunchedEffect(Unit) {
         if (shouldStartSync) {
             syncUtils.syncArtistWhitelist(forceSync = true)
         }
     }
 
-    LaunchedEffect(progress.isComplete) {
-        // Wait for sync to complete before finishing
-        if (progress.isComplete) {
+    LaunchedEffect(progress.isComplete, progress.failedEmpty) {
+        // Wait for sync to complete before finishing; without any artist list the app would open empty
+        if (progress.isComplete && !progress.failedEmpty) {
             onFinished()
         }
+    }
+
+    // No artist list yet: block here and keep retrying with backoff (the panel's Retry tries at once). One effect for
+    // the screen's lifetime: keyed on the flag, each attempt's own reset of it cancelled that attempt mid-request.
+    LaunchedEffect(Unit) {
+        var attempt = 0
+        while (true) {
+            val done = syncUtils.whitelistSyncProgress.first { it.isComplete }
+            if (!done.failedEmpty) break
+            delay(restoreRetryDelayMs(attempt++))
+            syncUtils.syncArtistWhitelist(forceSync = true)
+        }
+    }
+
+    if (progress.failedEmpty) {
+        WhitelistLoadFailed(onRetry = { scope.launch { syncUtils.syncArtistWhitelist(forceSync = true) } })
+        return
     }
 
     Box(
@@ -103,6 +129,26 @@ fun LoadingScreen(
                 modifier = Modifier.fillMaxWidth(),
             )
         }
+    }
+}
+
+@Composable
+private fun WhitelistLoadFailed(onRetry: () -> Unit) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.surface)
+            .padding(24.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterVertically),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        OnboardingStepTitle(text = stringResource(R.string.onboarding_whitelist_load_failed))
+        InlineErrorPanel(text = stringResource(R.string.onboarding_whitelist_load_failed_detail))
+        OnboardingPrimaryButton(
+            text = stringResource(R.string.retry),
+            onClick = onRetry,
+            modifier = Modifier.fillMaxWidth(),
+        )
     }
 }
 
