@@ -9,7 +9,7 @@ class ZemerLyricsProviderTest {
     private fun res(name: String) = javaClass.classLoader!!.getResourceAsStream("lyrics/$name")!!.readBytes().toString(Charsets.UTF_8)
 
     @Test
-    fun `prefers synced jkaraoke, then jyrics, then hosted text, and skips sources that fail`() = runBlocking {
+    fun `prefers synced jkaraoke, then the server-hosted text, then the fetched page, and skips sources that fail`() = runBlocking {
         val resolved = ZemerLyricsClient.Resolved(
             videoId = "sTCPij7kSwA", verified = true, hasSynced = true,
             sources = listOf(
@@ -20,9 +20,9 @@ class ZemerLyricsProviderTest {
         )
         val fetch: suspend (String) -> String? = { url -> when { url.contains("jkaraoke") -> res("jkaraoke-page28.json"); url.contains("jyrics") -> res("jyrics-0.html"); else -> null } }
         val bodies = ZemerLyricsProvider.bodies(resolved, fetch)
-        assertEquals(listOf("jkaraoke", "jyrics", "booklet"), bodies.map { it.first })
+        assertEquals(listOf("jkaraoke", "booklet", "jyrics"), bodies.map { it.first })
         assertTrue(bodies[0].second.startsWith("["))                     // LRC first
-        assertEquals("שדוד עכו חולון", bodies[1].second.lines().first())  // parsed Jyrics plain
+        assertEquals("שדוד עכו חולון", bodies[2].second.lines().first())  // parsed page plain, now the fallback
         // a dead source is skipped, not fatal
         val dead = ZemerLyricsProvider.bodies(resolved, fetch = { null })
         assertEquals(listOf("booklet"), dead.map { it.first })
@@ -147,17 +147,20 @@ class ZemerLyricsProviderTest {
             ZemerLyricsClient.Source(type = "booklet", plain = "b\nb\nb\nb"),                                   // plain inline, rank 4
             ZemerLyricsClient.Source(type = "jyrics", url = "https://www.jyrics.com/lyrics/avraham/"),          // plain pointer, rank 3
         ))
-        assertEquals(listOf("apple", "youtube", "manual", "shironet", "jyrics", "booklet"), ZemerLyricsProvider.order(resolved).map { it.type })
+        // synced tier: the server-inline body first, then the pointers by rank; plain tier the same
+        assertEquals(listOf("manual", "apple", "youtube", "booklet", "shironet", "jyrics"), ZemerLyricsProvider.order(resolved).map { it.type })
         val fetch: suspend (String) -> String? = { url -> when {
             url.contains("paxsenix") -> res("apple-1571752969.json")
             url.contains("shironet") -> throw IllegalStateException("network down")
             else -> res("jyrics-0.html")
         } }
         val bodies = ZemerLyricsProvider.bodies(resolved, fetch, youtube = { tab })
-        assertEquals(listOf("apple", "youtube", "Telegram", "jyrics", "booklet"), bodies.map { it.first })
-        assertTrue(bodies[1].second.startsWith("[00:01.00] first line"))
-        // firstOnly under the same order returns the synced apple body
-        assertEquals(listOf("apple"), ZemerLyricsProvider.bodies(resolved, fetch, firstOnly = true, youtube = { tab }).map { it.first })
+        assertEquals(listOf("Telegram", "apple", "youtube", "booklet", "jyrics"), bodies.map { it.first })
+        assertTrue(bodies[2].second.startsWith("[00:01.00] first line"))
+        // firstOnly under the same order returns the synced server-inline body, with no fetch at all
+        val fetched = ArrayList<String>()
+        assertEquals(listOf("Telegram"), ZemerLyricsProvider.bodies(resolved, { fetched += it; fetch(it) }, firstOnly = true, youtube = { tab }).map { it.first })
+        assertTrue(fetched.isEmpty())
         // a cancelled walk stops at the cancelled source, never falling through to the next
         val cancelled = runCatching { ZemerLyricsProvider.bodies(resolved, fetch = { throw kotlinx.coroutines.CancellationException("gone") }, youtube = { tab }) }
         assertTrue(cancelled.exceptionOrNull() is kotlinx.coroutines.CancellationException)
@@ -241,5 +244,22 @@ class ZemerLyricsProviderTest {
         // no entryId (an older server) never fetches
         val noId = ZemerLyricsClient.Resolved(videoId = "x", sources = listOf(ZemerLyricsClient.Source(type = "simpmusic", synced = true)))
         assertTrue(ZemerLyricsProvider.bodies(noId, fetch = { null }, simpmusic = { _, _, _ -> error("must not be called") }).isEmpty())
+    }
+
+    @Test
+    fun `a page that decodes to binary is never served and the server-inline text wins`() = runBlocking {
+        val garbage = java.io.ByteArrayOutputStream().also { out ->
+            java.util.zip.GZIPOutputStream(out).use { it.write(res("jyrics-0.html").encodeToByteArray()) }
+        }.toByteArray().decodeToString()
+        val pointerOnly = ZemerLyricsClient.Resolved(videoId = "g", sources = listOf(
+            ZemerLyricsClient.Source(type = "jyrics", url = "https://www.jyrics.com/lyrics/x/"),
+        ))
+        assertTrue(ZemerLyricsProvider.bodies(pointerOnly, fetch = { garbage }).isEmpty())
+        val withInline = ZemerLyricsClient.Resolved(videoId = "g", sources = listOf(
+            ZemerLyricsClient.Source(type = "jyrics", url = "https://www.jyrics.com/lyrics/x/"),
+            ZemerLyricsClient.Source(type = "manual", origin = "jyrics", plain = "one\ntwo\nthree\nfour"),
+        ))
+        val first = ZemerLyricsProvider.bodies(withInline, fetch = { garbage }, firstOnly = true)
+        assertEquals(listOf("one\ntwo\nthree\nfour"), first.map { it.second })
     }
 }

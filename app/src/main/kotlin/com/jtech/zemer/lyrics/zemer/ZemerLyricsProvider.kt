@@ -11,11 +11,12 @@ import kotlinx.coroutines.CancellationException
 /**
  * First provider in the chain. Resolves the videoId through the Zemer server, then fetches the text from
  * the sources the server vouches for. Sources are walked SYNCED FIRST (a source the server flags `synced`, one
- * carrying `syncedLrc`/`richSync` inline, or the one pointer the resolver's measured `lineTimes` cover), then
- * by [rank]: zemer (Zemer's own certified text + word timings) > jkaraoke / apple (line-synced from the source) >
+ * carrying `syncedLrc`/`richSync` inline, or the one pointer the resolver's measured `lineTimes` cover); within
+ * each, a body the SERVER CARRIES INLINE beats a pointer the app must fetch and parse (the server holds the text
+ * for nearly every song, and a third-party page can change or break; the pointer is the fallback), then by
+ * [rank]: zemer (Zemer's own certified text + word timings) > jkaraoke / apple (line-synced from the source) >
  * lrclib / kugou / simpmusic / zingmusic / youtube > the text pages jyrics / shironet / tab4u / zemirotdb /
- * lyricstranslate > the operator-hosted booklet / manual / canonical / community bodies (kept behind the
- * pointers: a pointer is the fresher copy, the inline body the fallback through a provider outage).
+ * lyricstranslate > the operator-hosted booklet / manual / canonical / community bodies.
  * Every body goes through the same parser the server used to verify it (golden-pinned ports), so what the
  * user sees is exactly what was cross-checked. A type this build does not know yields nothing and is skipped.
  */
@@ -63,7 +64,10 @@ object ZemerLyricsProvider : LyricsProvider {
                 "kugou" -> s.hash?.let { h -> s.krcId?.let { id -> fetch(KugouLrc.searchUrl(h))?.let { KugouLrc.accessKey(it, id) }?.let { key -> fetch(KugouLrc.downloadUrl(id, key))?.let { KugouLrc.lrc(it) } } } }
                 "booklet", "manual", "canonical", "community" -> inline(s)
                 else -> null
-            } }.onFailure { if (it is CancellationException) throw it }.getOrNull()?.let { withLineTimes(s, it, resolved.lineTimes) }
+            } }.onFailure { if (it is CancellationException) throw it }.getOrNull()
+                // a page that decoded to binary is never lyrics, whatever its parser made of it
+                ?.takeIf(LyricsUtils::looksLikeText)
+                ?.let { withLineTimes(s, it, resolved.lineTimes) }
             if (body != null) out += sourceLabel(s) to body
         }
         return out
@@ -82,9 +86,13 @@ object ZemerLyricsProvider : LyricsProvider {
     private fun withLineTimes(s: ZemerLyricsClient.Source, body: String, lineTimes: ZemerLyricsClient.LineTimes?): String =
         if (lineTimes != null && lineTimes.type == s.type && !LyricsUtils.isSynced(body)) LineTimesLrc.apply(body, lineTimes) ?: body else body
 
-    /** Synced sources first, then [rank]; the server's own order breaks ties (a stable sort). */
+    /** Synced sources first, then server-inline bodies before pointers, then [rank]; the server's own order breaks ties (a stable sort). */
     fun order(resolved: ZemerLyricsClient.Resolved): List<ZemerLyricsClient.Source> =
-        resolved.sources.sortedWith(compareBy({ !isSynced(it, resolved.lineTimes) }, { rank(it) }))
+        resolved.sources.sortedWith(compareBy({ !isSynced(it, resolved.lineTimes) }, { !isInline(it) }, { rank(it) }))
+
+    /** The server carries the text itself (`syncedLrc` / `richSync` / `plain`), so no third-party fetch is needed. */
+    fun isInline(s: ZemerLyricsClient.Source): Boolean =
+        !s.syncedLrc.isNullOrBlank() || !s.richSync.isNullOrBlank() || !s.plain.isNullOrBlank()
 
     /** Flagged synced by the server, carrying a synced body inline, or the one pointer the measured `lineTimes` were taken against. */
     fun isSynced(s: ZemerLyricsClient.Source, lineTimes: ZemerLyricsClient.LineTimes?): Boolean =
