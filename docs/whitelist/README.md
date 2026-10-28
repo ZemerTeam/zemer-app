@@ -14,7 +14,7 @@ consumers, and UI entry points.
 | `artistId` | `String` | Artist identifier and primary key. |
 | `artistName` | `String` | Stored display name for the whitelisted artist. |
 | `addedAt` / `lastSyncedAt` | `LocalDateTime = LocalDateTime.now()` | Insert / sync timestamps. |
-| `source` | `String = "firestore"` | Source label. |
+| `source` | `String = "mirror"` | Source label. |
 | `isFemale` | `Boolean = false` | Used by content filters to block or allow female singers. |
 | `isChasid` | `Boolean = false` | Stored only; the filter does not read it. |
 | `displayName` | `String? = null` | The curated clean single-script name — present ONLY on split docs whose legacy `artistName` is a dual "English - עברית" dash form. AUTHORITATIVE for the artist row's name (see below). |

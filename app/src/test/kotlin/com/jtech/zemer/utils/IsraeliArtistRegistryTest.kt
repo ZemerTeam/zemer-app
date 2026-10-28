@@ -40,4 +40,24 @@ class IsraeliArtistRegistryTest {
         assertEquals(2, fetches)
         assertTrue(IsraeliArtistRegistry.isIsraeli("UC1"))
     }
+
+    @Test
+    fun `a cancelled load is rethrown and starts no cooldown`() = runBlocking {
+        var fetches = 0
+        val thrown = runCatching {
+            IsraeliArtistRegistry.ensureLoaded(now = { 1_000L }) { fetches++; throw kotlinx.coroutines.CancellationException("left the screen") }
+        }.exceptionOrNull()
+        assertTrue(thrown is kotlinx.coroutines.CancellationException)
+        // the next call, at the same instant, loads at once
+        IsraeliArtistRegistry.ensureLoaded(now = { 1_000L }) { fetches++; setOf("UC1") }
+        assertEquals(2, fetches)
+        assertTrue(IsraeliArtistRegistry.isIsraeli("UC1"))
+    }
+
+    @Test
+    fun `a content read reports a failure but rethrows a cancellation`() {
+        assertTrue(contentRead("x") { throw java.io.IOException("down") }.isFailure)
+        val thrown = runCatching { contentRead("x") { throw kotlinx.coroutines.CancellationException("gone") } }.exceptionOrNull()
+        assertTrue(thrown is kotlinx.coroutines.CancellationException)
+    }
 }

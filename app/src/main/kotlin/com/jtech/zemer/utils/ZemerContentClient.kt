@@ -22,6 +22,7 @@ import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.coroutines.sync.withLock
 import timber.log.Timber
 import io.ktor.client.network.sockets.ConnectTimeoutException
 import io.ktor.client.network.sockets.SocketTimeoutException
@@ -87,12 +88,20 @@ object ZemerContentClient {
      * `/whitelist` → already whitelist docs. **Throws on an empty list** so an empty/broken mirror can
      * never replace a good whitelist (the caller keeps its last-good table).
      */
-    suspend fun whitelist(): List<ContentWhitelistDoc> {
+    suspend fun whitelist(): List<ContentWhitelistDoc> = whitelistMutex.withLock {
+        // The sync and Home both read it at startup: one download serves both (only a success is kept).
+        whitelistMemo?.takeIf { System.nanoTime() - it.first < WHITELIST_MEMO_NS }?.let { return@withLock it.second }
         val docs = json.decodeFromString(ListSerializer(ContentWhitelistDoc.serializer()), getText("/whitelist", WHITELIST_TIMEOUT_MS))
         if (docs.isEmpty()) error("content mirror: empty /whitelist")
         Timber.d("ZemerContentClient: /whitelist %d docs", docs.size)
-        return docs
+        whitelistMemo = System.nanoTime() to docs
+        docs
     }
+
+    private val whitelistMutex = kotlinx.coroutines.sync.Mutex()
+
+    @Volatile
+    private var whitelistMemo: Pair<Long, List<ContentWhitelistDoc>>? = null
 
     /**
      * `/podcastChannelsWhitelist/version` → the podcast CHANNEL allow-set gate (the direct parallel to
@@ -175,6 +184,7 @@ object ZemerContentClient {
 
     // The whitelist is large (~70 KB gzipped); give it more headroom so a slow link doesn't false-fallback.
     private const val WHITELIST_TIMEOUT_MS = 8_000L
+    private const val WHITELIST_MEMO_NS = 60_000_000_000L
 }
 
 /** `/whitelist/version`. `gate` is the monotonic epoch-ms (or `update`) the app version-gates on. */
@@ -252,6 +262,9 @@ data class ContentPodcastDoc(
  * Logs a failed content read and reports it as a `fetch_fail` event (once per [label] per session), so
  * we can see how many devices cannot reach the content server. A cancellation is rethrown, never reported.
  */
+internal inline fun <T> contentRead(label: String, block: () -> T): Result<T> =
+    runCatching(block).onFailure { reportContentFetchFailure(label, it) }
+
 internal fun reportContentFetchFailure(label: String, t: Throwable) {
     // a cancelled read is not a failure: rethrown so the caller's runCatching never turns it into one
     if (t is CancellationException) throw t

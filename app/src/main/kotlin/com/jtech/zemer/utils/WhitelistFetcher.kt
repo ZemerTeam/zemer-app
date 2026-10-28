@@ -14,13 +14,10 @@ object WhitelistFetcher {
     var lastFetchTime = -1L
         private set
 
-    private inline fun <T> fetch(label: String, block: () -> T): Result<T> =
-        runCatching(block).onFailure { reportContentFetchFailure(label, it) }
-
-    suspend fun fetchVersion(): Result<Long> = fetch("version") { ZemerContentClient.version() }
+    suspend fun fetchVersion(): Result<Long> = contentRead("version") { ZemerContentClient.version() }
 
     suspend fun fetchWhitelist(onProgress: (current: Int, total: Int) -> Unit = { _, _ -> }): Result<List<ArtistWhitelistEntity>> =
-        fetch("whitelist") {
+        contentRead("whitelist") {
             val now = LocalDateTime.now()
             val docs = ZemerContentClient.whitelist()
             val total = docs.size
@@ -60,16 +57,16 @@ object WhitelistFetcher {
      * The read-only `blockedContentIds` overrides - id-level content blocks applied everywhere in the app
      * (see [BlockedIdsCache]), as id -> reason ("female", "global"). The app only ever READS them.
      */
-    suspend fun fetchBlockedIds(): Result<Map<String, String>> = fetch("blockedIds") { ZemerContentClient.blockedIds() }
+    suspend fun fetchBlockedIds(): Result<Map<String, String>> = contentRead("blockedIds") { ZemerContentClient.blockedIds() }
 
     // The podcast whitelist is the authoritative allow-set + version gate, exactly like the artist
     // whitelist (fetchVersion/fetchWhitelist). `zemer-search /podcasts` is NOT the gate; the gate lives here.
 
     suspend fun fetchPodcastVersion(): Result<Long> =
-        fetch("podcastVersion") { ZemerContentClient.podcastsWhitelistVersion() }
+        contentRead("podcastVersion") { ZemerContentClient.podcastsWhitelistVersion() }
 
     suspend fun fetchPodcastWhitelist(onProgress: (current: Int, total: Int) -> Unit = { _, _ -> }): Result<List<PodcastWhitelistEntity>> =
-        fetch("podcastWhitelist") {
+        contentRead("podcastWhitelist") {
             val now = LocalDateTime.now()
             val docs = ZemerContentClient.podcastsWhitelist()
             val total = docs.size

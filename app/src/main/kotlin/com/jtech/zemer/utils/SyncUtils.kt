@@ -53,7 +53,9 @@ import javax.inject.Singleton
 data class WhitelistSyncProgress(
     val current: Int = 0,
     val total: Int = 0,
-    val isComplete: Boolean = false
+    val isComplete: Boolean = false,
+    /** Finished without any artist list on the device (a first sync that failed or came back empty). */
+    val failedEmpty: Boolean = false,
 )
 
 @Singleton
@@ -890,7 +892,7 @@ class SyncUtils @Inject constructor(
                 if (whitelistEntries.isEmpty()) {
                     runCatching { WhitelistCache.updateAll(database.getWhitelistEntriesSync()) }
                     refreshBlockedIds()
-                    _whitelistSyncProgress.value = WhitelistSyncProgress(isComplete = true)
+                    _whitelistSyncProgress.value = WhitelistSyncProgress(isComplete = true, failedEmpty = localEmpty)
                     return@withContext
                 }
 
@@ -945,7 +947,8 @@ class SyncUtils @Inject constructor(
                     }
                 }
             } catch (e: Exception) {
-                _whitelistSyncProgress.value = WhitelistSyncProgress(isComplete = true)
+                val nothingLocal = runCatching { database.getAllWhitelistedArtistIdsSync().isEmpty() }.getOrDefault(true)
+                _whitelistSyncProgress.value = WhitelistSyncProgress(isComplete = true, failedEmpty = nothingLocal)
             } finally {
                 isSyncingWhitelist.value = false
             }

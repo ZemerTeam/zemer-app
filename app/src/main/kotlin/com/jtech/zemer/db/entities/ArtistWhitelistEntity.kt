@@ -13,7 +13,7 @@ data class ArtistWhitelistEntity(
     @PrimaryKey val artistId: String,
     val artistName: String,
     val addedAt: LocalDateTime = LocalDateTime.now(),
-    val source: String = "firestore",
+    val source: String = "mirror",
     val lastSyncedAt: LocalDateTime = LocalDateTime.now(),
     val isFemale: Boolean = false,
     val isChasid: Boolean = false,

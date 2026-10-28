@@ -223,7 +223,11 @@ ISO-8601 written with millis (`IsoDateSerializer`), nulls explicit, an absent `b
   clear and a restored app backup all start without it); an ordinary launch never looks the device up, from
   either the service or the onboarding flow (which is composed briefly on every launch).
 - **Content reads come only from content.zemer.io** (the Firestore SDK is gone): a failed read keeps the
-  last-good local table and reports `fetch_fail` (see §Tracking).
+  last-good local table and reports `fetch_fail` (see §Tracking), all through the one `contentRead` helper (a
+  cancellation is rethrown, never reported). With NO local artist list (a first sync that failed or came back
+  empty, `WhitelistSyncProgress.failedEmpty`), onboarding's `LoadingScreen` blocks on "Can't load the artist
+  list" with Retry and auto-retry (one effect for the screen's lifetime - never keyed on the flag, which each
+  attempt resets); never let a first launch finish with an empty whitelist.
 
 ### Zemer curated playlists (the Home "Zemer Playlists" shelf)
 

@@ -257,7 +257,7 @@ Every `@Composable fun` per UI file (extension receivers dropped, so `BoxScope.X
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/HomeStatusesRow.kt` | 58 | HomeStatusesRow |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/KidZoneScreen.kt` | 164 | KidZoneScreen, KidZonePodcastsContent |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/LatestReleasesScreen.kt` | 104 | LatestReleasesScreen |
-| `app/src/main/kotlin/com/jtech/zemer/ui/screens/LoadingScreen.kt` | 141 | LoadingScreen, DisposableLifecycle, DisposableEffectWithLifecycle |
+| `app/src/main/kotlin/com/jtech/zemer/ui/screens/LoadingScreen.kt` | 187 | LoadingScreen, WhitelistLoadFailed, DisposableLifecycle, DisposableEffectWithLifecycle |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/LoginGateScreen.kt` | 276 | LoginGateScreen |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/LoginScreen.kt` | 243 | LoginScreen |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/OnboardingScreen.kt` | 92 | OnboardingFlow |
@@ -491,7 +491,7 @@ Key declarations are the first 12 `class`/`object`/`interface`/`fun`/`val`/`var`
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/KidZoneScreen.kt` | 164 | fun KidZoneScreen, val blockPodcasts, val _, val tabs, var selectedTab, val tab, val chips, fun KidZonePodcastsContent, var viewType, val filtered, fun openShow |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/KidZoneTab.kt` | 22 | class KidZoneTab, fun visibleKidZoneTabs, fun effectiveKidZoneTab |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/LatestReleasesScreen.kt` | 104 | fun LatestReleasesScreen, val context, val playerConnection, val isPlaying, val mediaMetadata, val releases, val lazyListState, var filter, val visibleReleases |
-| `app/src/main/kotlin/com/jtech/zemer/ui/screens/LoadingScreen.kt` | 141 | fun LoadingScreen, val syncUtils, val progress, val composition, val lottieColors, val loopingState, fun DisposableLifecycle, val observer, fun DisposableEffectWithLifecycle |
+| `app/src/main/kotlin/com/jtech/zemer/ui/screens/LoadingScreen.kt` | 187 | fun LoadingScreen, val syncUtils, val progress, val composition, val lottieColors, val loopingState, val scope, var attempt, val done, fun WhitelistLoadFailed, fun DisposableLifecycle, val observer, … (+1 more) |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/LoginCapture.kt` | 39 | object LoginCapture, val EXTRACT_VISITOR_DATA_JS, val EXTRACT_DATA_SYNC_ID_JS, val CAPTURE_RETRY_DELAY_MS, val MAX_CAPTURE_ATTEMPTS, fun cleanDataSyncId, fun isCaptureComplete |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/LoginGateRedirect.kt` | 17 | object LoginGateRedirect, val ROUTE, fun shouldRedirect |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/LoginGateScreen.kt` | 276 | fun LoginGateScreen, val context, val coroutineScope, var isAnonymousLoading, var visitorData, var dataSyncId, var innerTubeCookie, var accountName, var accountEmail, var accountChannelHandle, val gradient, val httpClient, … (+11 more) |

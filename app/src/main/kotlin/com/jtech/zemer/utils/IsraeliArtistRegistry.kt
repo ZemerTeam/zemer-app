@@ -1,5 +1,6 @@
 package com.jtech.zemer.utils
 
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import timber.log.Timber
@@ -35,28 +36,29 @@ object IsraeliArtistRegistry {
 
     suspend fun ensureLoaded() = ensureLoaded(fetch = ::fetchIds)
 
-    internal suspend fun ensureLoaded(now: () -> Long = System::currentTimeMillis, fetch: suspend () -> Set<String>) {
+    // Monotonic (a wall-clock change must not stretch the cooldown); injectable for tests.
+    internal suspend fun ensureLoaded(now: () -> Long = { System.nanoTime() / 1_000_000 }, fetch: suspend () -> Set<String>) {
         if (loaded || now() < retryAfterMs) return
 
         mutex.withLock {
             if (loaded || now() < retryAfterMs) return
 
-            runCatching {
+            try {
                 val ids = fetch()
                 cachedIds = ids
                 loaded = true
                 Timber.d("IsraeliArtistRegistry: Loaded ${ids.size} artist ids")
-            }.onFailure {
+            } catch (e: CancellationException) {
+                throw e // the caller went away: not a failure, no cooldown
+            } catch (e: Exception) {
                 retryAfterMs = now() + RETRY_COOLDOWN_MS
-                Timber.w(it, "IsraeliArtistRegistry: Failed to load artist ids")
+                Timber.w(e, "IsraeliArtistRegistry: Failed to load artist ids")
             }
         }
     }
 
     private suspend fun fetchIds(): Set<String> =
-        runCatching { ZemerContentClient.israeliArtists() }
-            .onFailure { reportContentFetchFailure("israeliArtists", it) }
-            .getOrThrow()
+        contentRead("israeliArtists") { ZemerContentClient.israeliArtists() }.getOrThrow()
 
     internal fun resetForTest() {
         cachedIds = emptySet()
