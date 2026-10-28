@@ -185,12 +185,12 @@ class ContentFilterSyncService @Inject constructor(
     private suspend fun handleAuthStateChange(authState: AuthState) {
         when (authState) {
             is AuthState.SignedIn -> {
-                // Wait for auth to be fully ready (email loaded)
+                // Wait for auth to be fully ready (the uid the server keys the document by; an anonymous account has no email)
                 if (waitForAuthReady()) {
                     performInitialSync()
                 } else {
                     _syncState.value = SyncState.ERROR("Authentication timeout")
-                    Log.e("ZemerSync", "Failed to get user email within timeout")
+                    Log.e("ZemerSync", "Auth not ready within timeout")
                 }
             }
             is AuthState.SignedOut -> {
@@ -264,7 +264,7 @@ class ContentFilterSyncService @Inject constructor(
         val startTime = System.currentTimeMillis()
 
         while (System.currentTimeMillis() - startTime < timeoutMs) {
-            if (authManager.isUserSignedIn && authManager.currentUserEmail != null) {
+            if (authManager.isUserSignedIn && authManager.currentUserId != null) {
                 return true
             }
             kotlinx.coroutines.delay(100)
@@ -286,15 +286,15 @@ class ContentFilterSyncService @Inject constructor(
         for (attempt in 0 until maxRetries) {
             try {
                 val isSignedIn = authManager.isUserSignedIn
-                val userEmail = authManager.currentUserEmail
-                Log.d("ZemerSync", "Retry attempt ${attempt + 1}: isSignedIn=$isSignedIn, userEmail=$userEmail")
+                val userId = authManager.currentUserId
+                Log.d("ZemerSync", "Retry attempt ${attempt + 1}: isSignedIn=$isSignedIn, hasUid=${userId != null}")
 
-                if (isSignedIn && userEmail != null) {
+                if (isSignedIn && userId != null) {
                     Log.d("ZemerSync", "Auth is ready, executing operation")
                     return Result.success(operation())
                 } else {
                     lastException = Exception("Authentication not ready (attempt ${attempt + 1}/$maxRetries)")
-                    Log.d("ZemerSync", "Auth not ready: isSignedIn=$isSignedIn, userEmail=$userEmail")
+                    Log.d("ZemerSync", "Auth not ready: isSignedIn=$isSignedIn, hasUid=${userId != null}")
                     if (System.currentTimeMillis() - startTime < timeoutMs) {
                         // Exponential backoff: 100ms, 200ms, 400ms, 800ms, 1600ms
                         val delay = (100L * (1 shl attempt)).coerceAtMost(1600L)

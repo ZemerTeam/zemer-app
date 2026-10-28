@@ -109,7 +109,7 @@ internal fun ContentFiltersScreen(
     // Check for auto-restore and skip logic
     LaunchedEffect(Unit) {
         // Check if we should skip (already configured). The saved-settings lookup itself is started
-        // by the view model, so this screen opens on it instead of racing it.
+        // by the onboarding flow, so this screen opens on it instead of racing it.
         if (contentFiltersAlreadySet) {
             onSkip()
         }
