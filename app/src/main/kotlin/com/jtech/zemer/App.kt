@@ -1,5 +1,6 @@
 package com.jtech.zemer
 
+import com.jtech.zemer.net.ZemerHeaders.withZemerHeaders
 import android.app.Application
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -342,6 +343,8 @@ class App : Application(), SingletonImageLoader.Factory {
             // Raise it so a full grid of avatars fetches in one wave.
             .dispatcher(Dispatcher().apply { maxRequestsPerHost = 12 })
             .dns(ResilientDns())
+            // server covers (playlists, stations) come from search.zemer.io; the signature rides only those
+            .withZemerHeaders()
             .build()
 
         return ImageLoader.Builder(this).apply {

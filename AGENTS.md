@@ -26,7 +26,7 @@ Zemer is a "Kosher" YouTube Music client for Android (Kotlin, Jetpack Compose, M
 
 ## Build & run
 
-- **JDK 21**, `compileSdk`/`targetSdk` 36, `minSdk` 26. Ships `arm64-v8a` + `armeabi-v7a` ABIs (for bundled dependency native libs only - the app has no NDK build or C/C++ of its own). No product flavors.
+- **JDK 21**, `compileSdk`/`targetSdk` 36, `minSdk` 26. Ships `arm64-v8a` + `armeabi-v7a` ABIs. The app's only C code is the optional request signer (`app/src/main/cpp/zemersig/`), built only when the signing key is present - see §Request signing; everything else native comes from dependencies. No product flavors.
 - `./gradlew :app:assembleDebug` - debug APK at `app/build/outputs/apk/debug/app-debug.apk`.
 - `./gradlew :app:assembleRelease` - release APK. **Build BOTH after any change**: release runs R8 (`isMinifyEnabled = true`) and catches shrink/keep-rule breakage that debug never will.
 - Submodules are required: `git submodule update --init --recursive` (`cipher/`). Download metadata embedding is pure Kotlin (`utils/mp4/Mp4MetadataWriter`, `utils/ogg/OggOpusTagger`, framework-based `utils/mp4/AudioRemux`); audio downloads may keep Opus (itag 251, saved as tagged `.ogg` on API 29+) - see §The download system.
@@ -160,6 +160,32 @@ The "Kosher" guarantee runs through one chokepoint - `utils/WhitelistFilter.kt` 
 - **Display names** (`displayName`/`altName`, contract `handoff-docs/zemer-whitelist-display-names.md`): some docs keep a legacy dual "English - עברית" `name` (frozen - old installs and wire credits depend on it); `displayName` (only on those docs) is AUTHORITATIVE for the artist row, applied by the set-based, idempotent DAO UPDATE `applyWhitelistDisplayNames` after every full fetch, and preferred over the YTM channel title by the stale library-artist refresh. Never reintroduce a one-shot legacy-name-guarded rename (it froze installs on stale names). `altName` is matched by library artist search, the Artists/KidZone browse pills (`WhitelistCache`) and `artistByName`. `DisplayNamesBackfilledKey` re-enables the version-gated sync fast path only after a fetch that carried split names (`whitelistCarriesDisplayNames`, tested).
 - **KidZone is a two-tab browse (Artists | Podcasts; `ui/screens/KidZoneTab.kt`, pure + tested):** Artists = local whitelist slice (`WHERE isKidZone = 1`); Podcasts = `/podcasts?kidZone=1` (`ZemerSearchRepository.kidZonePodcasts`, server-first with offline fallback, fail-soft). `kidZone` is a NAVIGATION-context flag riding the show/channel routes, so every server call from a KidZone-opened screen sends `kidZone=1` (server filters as second layer), with offline parity via the subset's per-show `isKidZone`. The Podcasts chip is removed under Block Podcasts. The chip row is the shared `ContentTabChipsRow` (`ui/component/ChipsRow.kt`) in the scaffold's `topSections` slot. The normal Podcasts browse filters wholly-kid channels out (`!isKidZone`). Contract: `handoff-docs/zemer-app-kidzone-redesign-request.md`.
 - **Playlist covers come from the filtered tracks, never `playlist.thumbnail`** (YouTube curator art bypasses the filter). `filteredPlaylistCover(filteredSongs, thumbnailOf)` (`ui/screens/playlist/PlaylistHeaderCover.kt`) derives both the header cover and the saved-to-Library cover from the first content-filtered track, falling back to the `queue_music` placeholder / null `thumbnailUrl`. Don't revert either site.
+
+### Request signing (`sig/` + `cpp/zemersig/`)
+
+Builds with a signing key add `X-Zemer-Sig: k=<keyId>;t=<unix s>;s=<base64url HMAC-SHA256>` to every request to
+the Zemer servers, over `SigCanonical.message` (contract + vectors: zemer-search `server/sig.mjs` /
+`sig-vectors.json`, copied into `src/test/resources/sig/`). Rules that must not regress:
+
+- **No key ever lives in the source.** Release builds derive their key from `ZEMER_SIG_MASTER` (CI secret, passed to
+  `assembleRelease`) or the Gradle property `zemerSigMaster`; debug builds from `zemerSigDevMaster` /
+  `ZEMER_SIG_DEV_MASTER`, under the key id `d<versionCode>`. `generateZemerSigKeyRelease` / `...Debug` derive
+  `HMAC-SHA256(source, "zemer-sig-v1:<keyId>")` (self-checked against the pinned vectors on every build) into
+  their own `build/generated/zemersig/<type>/` header, so a debug build never contains a release key; the key is
+  rebuilt on the C stack for each HMAC and wiped, never a JVM object. Never commit a key, a key source, a
+  generated header or a key-bearing log.
+- **No key = no header, never a failure.** A build type without its key source gets no native library
+  (`ZEMER_SIG_SKIP`) and behaves identically, unsigned; a load or signing failure only drops the header.
+- **The canonical message is byte-exact with the server.** Any change to `SigCanonical` must keep
+  `SigCanonicalTest` (7 contract vectors + 400 server-signed URLs) and `SigNativeHostTest` (the C HMAC on the
+  host) green; contract changes travel as handoff-doc edits with new vectors.
+- **One hook, Zemer hosts only, judged per redirect hop:** `net/ZemerHeaders` - `KtorPlugin` signs at
+  `SendingRequest` (the final URL) and REPLACES the header on every hop (Ktor's redirect copies the previous
+  hop's headers), removing it for a non-Zemer hop; OkHttp clients install `.withZemerHeaders()`, a NETWORK
+  interceptor (never `addInterceptor`, which would carry the signature onto a redirect to another host or an
+  old path), signing each hop incl. every playback range. It adds the signature to `ZemerHosts` only and takes
+  the server clock from their `Date`. A new client to a Zemer host installs it (`ZemerHeadersTest` pins the
+  redirect behavior).
 
 ### Zemer curated playlists (the Home "Zemer Playlists" shelf)
 

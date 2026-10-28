@@ -53,6 +53,7 @@ object ZemerContentClient {
             }
             // Gzip: the whitelist is ~432 KB raw / ~70 KB gzipped, so this is the main speed lever.
             install(ContentEncoding) { gzip() }
+            install(com.jtech.zemer.net.ZemerHeaders.KtorPlugin)
         }
     }
 

@@ -87,6 +87,10 @@ jobs:
           } >> "$GITHUB_ENV"
 
       - name: Assemble signed release
+        env:
+          # Request-signing key source; each versionCode's key is derived from it at build time. Where the secret
+          # is unavailable the build is simply unsigned.
+          ZEMER_SIG_MASTER: ${{ secrets.ZEMER_SIG_MASTER }}
         run: ./gradlew assembleRelease
 
       - name: Check 16 KB page-size alignment

@@ -1,5 +1,6 @@
 package com.jtech.zemer.playback
 
+import com.jtech.zemer.net.ZemerHeaders.withZemerHeaders
 import android.content.Context
 import android.net.ConnectivityManager
 import android.net.Uri
@@ -117,6 +118,7 @@ constructor(
         .dns(ResilientDns())
         .connectTimeout(30, TimeUnit.SECONDS)
         .readTimeout(3, TimeUnit.MINUTES)
+        .withZemerHeaders()
         .build()
 
     // Concurrent download limiter (max 3 simultaneous downloads)

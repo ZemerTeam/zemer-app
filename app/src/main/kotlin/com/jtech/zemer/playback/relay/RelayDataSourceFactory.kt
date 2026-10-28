@@ -1,5 +1,6 @@
 package com.jtech.zemer.playback.relay
 
+import com.jtech.zemer.net.ZemerHeaders.withZemerHeaders
 import android.content.Context
 import androidx.core.net.toUri
 import com.jtech.zemer.BuildConfig
@@ -36,6 +37,7 @@ object RelayDataSourceFactory {
             .dns(ResilientDns())
             .connectTimeout(30, TimeUnit.SECONDS)
             .readTimeout(60, TimeUnit.SECONDS)
+            .withZemerHeaders()
             .build()
         val http = OkHttpDataSource.Factory(client)
         // Default headers on the relay OkHttp factory ride relay hosts only (local files bypass OkHttp) and
