@@ -7,7 +7,7 @@ import java.util.Locale
 
 /**
  * Reports a caught exception. Logged at ERROR through Timber, which the
- * [CrashReportingTree] turns into a Crashlytics non-fatal issue (with the
+ * [CrashReportingTree] turns into a crash-report non-fatal (with the
  * recent log breadcrumbs attached) in addition to local logcat output in
  * debug builds.
  *

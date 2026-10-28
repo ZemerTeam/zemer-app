@@ -4,12 +4,12 @@ import android.util.Log
 import timber.log.Timber
 
 /**
- * Forwards every Timber log (DEBUG and above) to Crashlytics as a breadcrumb,
+ * Forwards every Timber log (DEBUG and above) to the crash reporter as a breadcrumb,
  * so crash and non-fatal reports carry the recent log trail (stream resolution,
  * cipher, poToken, …). Throwables logged at ERROR are additionally recorded as
  * non-fatal issues.
  *
- * The Crashlytics calls are injected so the tree stays unit-testable on the JVM.
+ * The reporter calls are injected so the tree stays unit-testable on the JVM.
  */
 class CrashReportingTree(
     private val logBreadcrumb: (String) -> Unit,

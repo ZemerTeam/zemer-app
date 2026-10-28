@@ -198,7 +198,9 @@
     kotlinx.serialization.KSerializer serializer(...);
 }
 
-## Preserve debugging information for sync troubleshooting
+## Readable crash reports: shrink and optimize, but keep class/method names (the source is public, so renaming
+## hides nothing) and line numbers, so stacks need no mapping file
+-dontobfuscate
 -keepattributes SourceFile,LineNumberTable
 -keepattributes LocalVariableTable
 -keepattributes LocalVariableTypeTable

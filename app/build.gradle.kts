@@ -14,7 +14,6 @@ plugins {
     alias(libs.plugins.kotlin.ksp)
     alias(libs.plugins.compose.compiler)
     alias(libs.plugins.google.gms.google.services)
-    alias(libs.plugins.firebase.crashlytics)
     alias(libs.plugins.rikka.tools.refine)
 }
 
@@ -156,9 +155,6 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
-            configure<com.google.firebase.crashlytics.buildtools.gradle.CrashlyticsExtension> {
-                nativeSymbolUploadEnabled = true
-            }
         }
         debug {
             isDebuggable = true
@@ -303,8 +299,6 @@ dependencies {
     implementation(libs.room.runtime)
     implementation(platform(libs.firebase.bom))
     implementation(libs.firebase.auth)
-    implementation(libs.firebase.crashlytics)
-    implementation(libs.firebase.crashlytics.ndk)
     implementation(libs.play.services.auth)
     implementation(libs.kotlinx.coroutines.play.services)
     ksp(libs.room.compiler)

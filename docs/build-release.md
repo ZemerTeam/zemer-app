@@ -7,7 +7,7 @@
 | File | Hard facts visible in file |
 | --- | --- |
 | `settings.gradle.kts` | Root project `Zemer`; includes `:app`, `:innertube`; composite build `cipher` substitutes `com.zemer:cipher` with `:library`; repositories: mavenLocal, Google, Gradle Plugin Portal, Maven Central, JitPack. |
-| `build.gradle.kts` | Root plugins (apply false): `hilt`, `kotlin.ksp`, `google.gms.google.services`, `firebase.crashlytics`, `rikka.tools.refine`; buildscript classpath: `libs.gradle`, `kotlin("gradle-plugin", libs.versions.kotlin.get())`, `libs.google.services`; registers task(s): `clean`; subprojects emit Compose compiler reports/metrics when `enableComposeCompilerReports=true`. |
+| `build.gradle.kts` | Root plugins (apply false): `hilt`, `kotlin.ksp`, `google.gms.google.services`, `rikka.tools.refine`; buildscript classpath: `libs.gradle`, `kotlin("gradle-plugin", libs.versions.kotlin.get())`, `libs.google.services`; registers task(s): `clean`; subprojects emit Compose compiler reports/metrics when `enableComposeCompilerReports=true`. |
 | `gradle.properties` | `org.gradle.jvmargs=-Xmx4096M -Dkotlin.daemon.jvm.options\="-Xmx4096M" -XX:+UseParallelGC`; `android.useAndroidX=true`; `android.enableJetifier=false`; `org.gradle.unsafe.configuration-cache=true`; `android.nonTransitiveRClass=false`; `org.gradle.parallel=true`; `org.gradle.daemon=true`; `org.gradle.configureondemand=false`; `android.suppressUnsupportedOptionWarnings=android.suppressUnsupportedOptionWarnings,android.nonFinalResIds`; `systemProp.org.gradle.internal.http.connectionTimeout=180000`; `systemProp.org.gradle.internal.http.socketTimeout=180000`; `org.gradle.caching=false`; `ksp.incremental=false`; `ksp.incremental.intermodule=false`. |
 | `gradle/libs.versions.toml` | Central version catalog for plugins and dependencies; see `reference/non-kotlin-files.md`. |
 
@@ -34,7 +34,6 @@
 | Configure release keystore | run: `mkdir -p app/keystore` |
 | Assemble signed release | run: `./gradlew assembleRelease` |
 | Check 16 KB page-size alignment | run: `bash scripts/check-16kb-alignment.sh app/build/outputs/apk/release/app-release.apk` |
-| Upload Crashlytics native symbols | run: `./gradlew :app:uploadCrashlyticsSymbolFileRelease` |
 | Upload APK artifact | `actions/upload-artifact@v4` (name=`release-apk`, path=`app/build/outputs/apk/release/*.apk`) |
 | Send Telegram notification | run: `if [ "$JOB_STATUS" == "success" ]; then` |
 

@@ -116,13 +116,20 @@ class ZemerHeadersTest {
     }
 
     @Test
-    fun `nothing reaches non-Zemer hosts, tracking included`() {
+    fun `nothing reaches non-Zemer hosts`() {
         val port = server.localPort
-        okGet("http://tracking.zemer.io:$port/v1/events")
         okGet("http://example.org:$port/x")
+        okGet("http://nightly.zemer.io:$port/api")
+        assertEquals(2, seenSnapshot().size)
         seenSnapshot().forEach { s ->
             assertNull(s.headers["x-zemer-sig"])
         }
+    }
+
+    @Test
+    fun `tracking is signed for a client that installs the hook (the crash reporter)`() {
+        okGet("http://tracking.zemer.io:${server.localPort}/v1/crash")
+        assertTrue(verify(seenSnapshot().single()))
     }
 
     @Test
@@ -181,8 +188,9 @@ class ZemerHeadersTest {
 
     @Test
     fun `the Zemer host gate`() {
-        listOf("search.zemer.io", "content.zemer.io", "stream.zemer.io", "SEARCH.ZEMER.IO").forEach { assertTrue(it, ZemerHosts.isZemerHost(it)) }
-        listOf("tracking.zemer.io", "nightly.zemer.io", "zemer.io", "lrclib.net", "search.zemer.io.evil.com", "music.youtube.com")
+        listOf("search.zemer.io", "content.zemer.io", "stream.zemer.io", "tracking.zemer.io", "SEARCH.ZEMER.IO")
+            .forEach { assertTrue(it, ZemerHosts.isZemerHost(it)) }
+        listOf("nightly.zemer.io", "zemer.io", "lrclib.net", "search.zemer.io.evil.com", "music.youtube.com")
             .forEach { assertFalse(it, ZemerHosts.isZemerHost(it)) }
     }
 

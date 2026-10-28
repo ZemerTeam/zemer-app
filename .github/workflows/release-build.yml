@@ -96,9 +96,6 @@ jobs:
       - name: Check 16 KB page-size alignment
         run: bash scripts/check-16kb-alignment.sh app/build/outputs/apk/release/app-release.apk
 
-      - name: Upload Crashlytics native symbols
-        run: ./gradlew :app:uploadCrashlyticsSymbolFileRelease
-
       - name: Upload APK artifact
         id: upload-artifact
         uses: actions/upload-artifact@v4
