@@ -277,7 +277,7 @@ Tracked Android resource paths under `app/src/**/res`: `214`.
 
 | Path | Lines/bytes | XML root | Resource names / metadata |
 | --- | ---: | --- | --- |
-| `app/src/main/res/values-iw/metrolist_strings.xml` | 134 lines | `resources` | background_color, local_history, remote_history, unknown_artist, liked, offline, my_top, cached_playlist, sync_playlist, sync_disabled, elements_selected, allows_for_sync_witch_youtube, generating_image, please_wait, share_lyrics, share_as_text, share_as_image, max_selection_limit, share_selected, customize_colors, … +103 more |
+| `app/src/main/res/values-iw/metrolist_strings.xml` | 136 lines | `resources` | background_color, local_history, remote_history, unknown_artist, liked, offline, my_top, cached_playlist, sync_playlist, sync_disabled, elements_selected, allows_for_sync_witch_youtube, generating_image, please_wait, share_lyrics, share_as_text, share_as_image, max_selection_limit, share_selected, customize_colors, … +105 more |
 | `app/src/main/res/values-iw/strings.xml` | 269 lines | `resources` | songs, history, home, artists, albums, playlists, n_selected, account, quick_picks, forgotten_favorites, keep_listening, today, yesterday, this_week, last_week, search, search_yt_music, filter_library, filter_liked, filter_downloaded, … +206 more |
 
 ## `values-ji` (2 paths)
