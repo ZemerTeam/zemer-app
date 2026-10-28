@@ -54,9 +54,9 @@ The following inventory is generated from repository files outside `.git`, `.gra
 
 ### Counts
 
-- Files counted: `1390`
+- Files counted: `1391`
 - By extension:
-  - `.kt`: `901`
+  - `.kt`: `902`
   - `.xml`: `196`
   - `.mjs`: `110`
   - `.md`: `64`
@@ -992,6 +992,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/test/kotlin/com/jtech/zemer/lyrics/LineExtrasStoreTest.kt` | 108 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/lyrics/LineExtrasTest.kt` | 83 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/lyrics/LyricsChainWalkTest.kt` | 111 lines | `.kt` |
+| `app/src/test/kotlin/com/jtech/zemer/lyrics/LyricsHttpDecodeTest.kt` | 68 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/lyrics/LyricsProviderOrderingTest.kt` | 37 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/lyrics/LyricsProviderRegistryTest.kt` | 31 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/lyrics/LyricsStoreTest.kt` | 233 lines | `.kt` |
@@ -1234,7 +1235,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `docs/recognize_music/02-whitelist-guarantee.md` | 69 lines | `.md` |
 | `docs/recognize_music/03-entry-points-and-ui.md` | 80 lines | `.md` |
 | `docs/recognize_music/README.md` | 73 lines | `.md` |
-| `docs/reference/kotlin-files.md` | 914 lines | `.md` |
+| `docs/reference/kotlin-files.md` | 915 lines | `.md` |
 | `docs/reference/non-kotlin-files.md` | 438 lines | `.md` |
 | `docs/reference/resource-index.md` | 317 lines | `.md` |
 | `docs/remote_cipher_config/01-concepts-and-format.md` | 135 lines | `.md` |
@@ -1242,7 +1243,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `docs/remote_cipher_config/03-extraction-and-self-heal.md` | 102 lines | `.md` |
 | `docs/remote_cipher_config/04-operations.md` | 121 lines | `.md` |
 | `docs/remote_cipher_config/README.md` | 60 lines | `.md` |
-| `docs/repository-map.md` | 1481 lines | `.md` |
+| `docs/repository-map.md` | 1482 lines | `.md` |
 | `docs/sabr/README.md` | 369 lines | `.md` |
 | `docs/stations/README.md` | 67 lines | `.md` |
 | `docs/status/README.md` | 93 lines | `.md` |
