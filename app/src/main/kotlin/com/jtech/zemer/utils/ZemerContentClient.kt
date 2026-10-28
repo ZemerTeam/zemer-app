@@ -7,6 +7,7 @@ import com.jtech.zemer.tracking.Tracker
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.cio.CIO
 import io.ktor.client.plugins.HttpTimeout
+import io.ktor.client.plugins.HttpTimeoutConfig
 import io.ktor.client.plugins.compression.ContentEncoding
 import io.ktor.client.plugins.timeout
 import io.ktor.client.request.get
@@ -65,10 +66,10 @@ object ZemerContentClient {
         }
     }
 
-    private suspend fun getText(path: String, timeoutMs: Long): String {
+    private suspend fun getText(path: String, timeoutMs: Long, stallMs: Long? = null): String {
         check(enabled) { "content mirror disabled" }
         val response: HttpResponse = client.get("$baseUrl$path") {
-            timeout { requestTimeoutMillis = timeoutMs }
+            timeout { contentReadTimeouts(timeoutMs, stallMs) }
         }
         if (!response.status.isSuccess()) {
             throw ContentServerException(response.status.value, "content mirror $path -> HTTP ${response.status.value}", response.isCloudflareChallenge())
@@ -96,7 +97,7 @@ object ZemerContentClient {
         if (reuseRecent) {
             whitelistMemo?.takeIf { System.nanoTime() - it.first < WHITELIST_MEMO_NS }?.let { return@withLock it.second }
         }
-        val docs = json.decodeFromString(ListSerializer(ContentWhitelistDoc.serializer()), getText("/whitelist", WHITELIST_TIMEOUT_MS))
+        val docs = json.decodeFromString(ListSerializer(ContentWhitelistDoc.serializer()), getText("/whitelist", WHITELIST_TIMEOUT_MS, WHITELIST_STALL_MS))
         if (docs.isEmpty()) error("content mirror: empty /whitelist")
         Timber.d("ZemerContentClient: /whitelist %d docs", docs.size)
         whitelistMemo = System.nanoTime() to docs
@@ -122,7 +123,7 @@ object ZemerContentClient {
 
     /** `/podcastChannelsWhitelist` → the whitelisted host-channel docs. Throws on empty so the caller keeps its last-good table. */
     suspend fun podcastsWhitelist(): List<ContentPodcastDoc> {
-        val docs = json.decodeFromString(ListSerializer(ContentPodcastDoc.serializer()), getText("/podcastChannelsWhitelist", WHITELIST_TIMEOUT_MS))
+        val docs = json.decodeFromString(ListSerializer(ContentPodcastDoc.serializer()), getText("/podcastChannelsWhitelist", WHITELIST_TIMEOUT_MS, WHITELIST_STALL_MS))
         if (docs.isEmpty()) error("content mirror: empty /podcastChannelsWhitelist")
         Timber.d("ZemerContentClient: /podcastChannelsWhitelist %d docs", docs.size)
         return docs
@@ -187,8 +188,11 @@ object ZemerContentClient {
     private const val DEFAULT_TIMEOUT_MS = 4_000L
     private const val SMALL_TIMEOUT_MS = 4_000L
 
-    // The whitelist is large (~70 KB gzipped); give it more headroom so a slow link doesn't false-fallback.
-    private const val WHITELIST_TIMEOUT_MS = 8_000L
+    // The allow-lists are large (the artist list ~210 KB gzipped) and one read per launch, and a fresh install cannot
+    // start without the artist list: a fixed 8 s cap failed every link under ~210 kbit/s. A slow link that keeps
+    // delivering is given time; a stalled one still fails fast.
+    private const val WHITELIST_TIMEOUT_MS = 180_000L
+    private const val WHITELIST_STALL_MS = 15_000L
     private const val WHITELIST_MEMO_NS = 60_000_000_000L
 }
 
@@ -267,6 +271,15 @@ data class ContentPodcastDoc(
  * Logs a failed content read and reports it as a `fetch_fail` event (once per [label] per session), so
  * we can see how many devices cannot reach the content server. A cancellation is rethrown, never reported.
  */
+/**
+ * A read's time limits: [totalMs] for the whole call, and with [stallMs] a large body fails only when no data
+ * arrives for that long, so a slow link that keeps delivering finishes (JVM-tested in ContentReadTimeoutsTest).
+ */
+internal fun HttpTimeoutConfig.contentReadTimeouts(totalMs: Long, stallMs: Long?) {
+    requestTimeoutMillis = totalMs
+    if (stallMs != null) socketTimeoutMillis = stallMs
+}
+
 internal inline fun <T> contentRead(label: String, block: () -> T): Result<T> =
     runCatching(block).onFailure { reportContentFetchFailure(label, it) }
 
