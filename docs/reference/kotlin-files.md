@@ -2,7 +2,7 @@
 
 Every tracked Kotlin file is listed with hard metadata extracted from the file text: line count, package, whether it declares any `@Composable`, import count, top-level declaration count (`Decls` - a high value flags a god-file), and the external import roots it depends on. Declaration counting is regex-based (after stripping comments and string literals). For the actual declaration names, read the file or use your editor's outline - they are not duplicated here.
 
-## `app` Kotlin files (834)
+## `app` Kotlin files (835)
 
 | File | Lines | Package | Compose | Imports | Decls | External import roots |
 | --- | ---: | --- | --- | ---: | ---: | --- |
@@ -812,6 +812,7 @@ Every tracked Kotlin file is listed with hard metadata extracted from the file t
 | `app/src/test/kotlin/com/jtech/zemer/utils/ArtistThumbResolverTest.kt` | 140 | `com.jtech.zemer.utils` | no | 5 | 8 | org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/utils/BlockedIdsCacheTest.kt` | 62 | `com.jtech.zemer.utils` | no | 5 | 7 | org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/utils/BottomNavItemsTest.kt` | 46 | `com.jtech.zemer.utils` | no | 2 | 8 | org.junit |
+| `app/src/test/kotlin/com/jtech/zemer/utils/ContentReadTimeoutsTest.kt` | 86 | `com.jtech.zemer.utils` | no | 15 | 11 | io.ktor, java.net, kotlin.concurrent, kotlinx.coroutines, org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/utils/CrashReportingTreeTest.kt` | 64 | `com.jtech.zemer.utils` | no | 6 | 6 | org.junit, timber.log |
 | `app/src/test/kotlin/com/jtech/zemer/utils/FetchFailKindTest.kt` | 35 | `com.jtech.zemer.utils` | no | 9 | 1 | io.ktor, java.io, java.nio, kotlinx.serialization, org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/utils/IsraeliArtistRegistryTest.kt` | 63 | `com.jtech.zemer.utils` | no | 6 | 8 | kotlinx.coroutines, org.junit |
