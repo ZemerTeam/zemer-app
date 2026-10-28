@@ -77,6 +77,17 @@ class UserPreferencesRepository @Inject constructor(
     private val authManager: UserAuthManager,
     private val deviceIdGenerator: DeviceIdGenerator
 ) {
+    // Present once this install got a definitive saved-settings answer (restored, or none saved). It lives in
+    // noBackupFilesDir, so a fresh install, a data clear and a restored app backup all start without it: the
+    // device lookup is for those launches only, never ordinary ones (each lookup is server cost).
+    private val restoreCheckedMarker get() = java.io.File(context.noBackupFilesDir, "device_restore_checked")
+
+    fun needsInstallRestoreCheck(): Boolean = !restoreCheckedMarker.exists()
+
+    fun markRestoreChecked() {
+        runCatching { restoreCheckedMarker.createNewFile() }.onFailure { Log.w("ZemerSync", "Restore marker not written", it) }
+    }
+
     // The account email of the last device-id restore, saved by [markAutoRestored] as the restore label.
     @Volatile
     private var lastRestoredEmail: String? = null
@@ -133,6 +144,14 @@ class UserPreferencesRepository @Inject constructor(
         syncDataStore.edit { if (uid != null) it[uploadPendingUidKey] = uid else it.remove(uploadPendingUidKey) }
     }
 
+    // What the server last held for this device's filters, keyed by account uid (read or written this process).
+    @Volatile
+    private var lastServerFilters: Pair<String, DeviceContentFilters>? = null
+
+    private fun rememberServerFilters(uid: String?, filters: DeviceContentFilters) {
+        if (uid != null) lastServerFilters = uid to filters
+    }
+
     // One upload at a time: each is GET then PUT then the pending flag, and an older one finishing last would
     // overwrite a newer change with a stale config (the retry loop races preference changes otherwise).
     private val uploadMutex = kotlinx.coroutines.sync.Mutex()
@@ -154,6 +173,7 @@ class UserPreferencesRepository @Inject constructor(
                 // Find current device in devices array, fallback to main contentFilters
                 val deviceData = entity.devices.find { it.deviceId == deviceId }
                 val config = deviceData?.contentFilters?.toConfig() ?: entity.contentFilters.toConfig()
+                deviceData?.let { rememberServerFilters(userId, it.contentFilters) }
 
                 updateLastSyncTime()
 
@@ -189,9 +209,11 @@ class UserPreferencesRepository @Inject constructor(
 
                 storeDeviceId(deviceId)
 
+                // the caller records the answer once it has saved the restored filters
                 DeviceRestoreResult.Restored(restore.contentFilters.toConfig())
             } else {
                 Log.d("ZemerSync", "No device preferences found for device ID: $deviceId")
+                markRestoreChecked()
                 DeviceRestoreResult.NoPrefs
             }
         } catch (e: CancellationException) {
@@ -208,9 +230,10 @@ class UserPreferencesRepository @Inject constructor(
     }
 
     /**
-     * Upload device preferences to the server
+     * Add this device to the account document [existingPrefs] (as just read from the server), or create the
+     * document when there is none.
      */
-    suspend fun uploadDevicePreferences(config: ContentFilterConfig): Result<Unit> {
+    private suspend fun uploadDevicePreferences(config: ContentFilterConfig, existingPrefs: DevicePreferencesEntity?): Result<Unit> {
         return try {
             val userId = authManager.currentUserId
                 ?: return Result.failure(Exception("User not authenticated"))
@@ -232,9 +255,6 @@ class UserPreferencesRepository @Inject constructor(
 
             Log.d("ZemerSync", "Uploading device preferences for user: $userId, email: $userEmail, device: $deviceId")
             
-            // Check if user document already exists
-            val existingPrefs = withIdToken { api.getPrefs(it) }
-
             if (existingPrefs != null) {
                 // Update existing document - add/update this device
                 val updatedDevices = existingPrefs.devices.filter { it.deviceId != deviceId } + currentDeviceData
@@ -265,6 +285,7 @@ class UserPreferencesRepository @Inject constructor(
             }
 
             Log.d("ZemerSync", "Successfully uploaded to: devicePreferences/$userId")
+            rememberServerFilters(userId, contentFilters)
 
             updateLastSyncTime()
 
@@ -295,10 +316,19 @@ class UserPreferencesRepository @Inject constructor(
             val entity = withIdToken { api.getPrefs(it) }
 
             if (entity != null && entity.devices.any { it.deviceId == deviceId }) {
+                val filters = config.toDeviceContentFilters()
+                // Every launch's sign-in sync lands here: an unchanged device is not re-written (each PUT is a
+                // server write, stamped lastSeen/updatedAt).
+                if (!deviceFiltersChanged(entity, deviceId, filters)) {
+                    Log.d("ZemerSync", "Device filters unchanged on the server, not re-sent")
+                    rememberServerFilters(authManager.currentUserId, filters)
+                    updateLastSyncTime()
+                    return Result.success(Unit)
+                }
                 val updatedDevices = entity.devices.map { deviceData ->
                     if (deviceData.deviceId == deviceId) {
                         deviceData.copy(
-                            contentFilters = config.toDeviceContentFilters(),
+                            contentFilters = filters,
                             deviceInfo = deviceData.deviceInfo.copy(lastSeen = Date()),
                             lastSyncTime = System.currentTimeMillis()
                         )
@@ -308,10 +338,11 @@ class UserPreferencesRepository @Inject constructor(
                 }
 
                 withIdToken { api.putPrefs(it, entity.copy(devices = updatedDevices, updatedAt = Date())) }
+                rememberServerFilters(authManager.currentUserId, filters)
             } else {
                 // No document yet, or one that does not list this device (e.g. a second device on the account):
                 // add this device, creating the document if needed. A failure must surface so the change stays pending.
-                uploadDevicePreferences(config).getOrThrow()
+                uploadDevicePreferences(config, entity).getOrThrow()
             }
 
             updateLastSyncTime()
@@ -402,14 +433,17 @@ class UserPreferencesRepository @Inject constructor(
                 femalePasscodeHash = prefs[FemalePasscodeHashKey]
             )
 
-            // Check if device preferences exist
-            val existingPrefs = fetchDevicePreferences()
-
-            val uploaded = if (existingPrefs.isSuccess) {
-                updateDevicePreferences(currentConfig)
-            } else {
-                uploadDevicePreferences(currentConfig)
+            // Already what the server holds for this device (e.g. the change a server-wins pull just applied): nothing
+            // to send, and no request at all.
+            val uid = authManager.currentUserId
+            // Not while an upload is pending: an earlier PUT may have landed without our knowing, so only a real
+            // read-and-write clears it.
+            if (uid != null && !isUploadPending() && lastServerFilters == uid to currentConfig.toDeviceContentFilters()) {
+                return Result.success(Unit)
             }
+
+            // One read of the account document; the device is updated, added, or the document created from it
+            val uploaded = updateDevicePreferences(currentConfig)
             val failure = uploaded.exceptionOrNull()
             setUploadPending(if (failure != null && failure.isRetryableSyncFailure()) authManager.currentUserId else null)
 
@@ -580,6 +614,10 @@ sealed interface DeviceRestoreResult {
     data object NoPrefs : DeviceRestoreResult
     data class Failed(val error: Throwable) : DeviceRestoreResult
 }
+
+/** Whether [filters] differ from what [entity] stores for [deviceId] (an absent device counts as changed). */
+internal fun deviceFiltersChanged(entity: DevicePreferencesEntity, deviceId: String, filters: DeviceContentFilters): Boolean =
+    entity.devices.find { it.deviceId == deviceId }?.contentFilters != filters
 
 /**
  * A filter-sync failure worth retrying later: a write the server could not take now ([isRetryableWriteFailure]) or
