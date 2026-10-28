@@ -220,7 +220,6 @@
     <string name="restore_failed">Impossible de restaurer la sauvegarde</string>
     <string name="cancel">Annuler</string>
     <string name="about">À propos</string>
-    <string name="new_version_available">Nouvelle version disponible</string>
     <string name="restart">Redémarrer</string>
     <string name="back_to_top">Retour en haut de page</string>
     <string name="kid_zone">Zone enfants</string>

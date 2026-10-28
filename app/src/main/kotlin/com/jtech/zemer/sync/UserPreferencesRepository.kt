@@ -6,7 +6,6 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
-import com.google.firebase.firestore.FirebaseFirestore
 import com.jtech.zemer.auth.UserAuthManager
 import com.jtech.zemer.utils.reportException
 import com.jtech.zemer.sync.models.DevicePreferencesEntity
@@ -27,15 +26,19 @@ import com.jtech.zemer.constants.FemalePasscodeHashKey
 import com.jtech.zemer.constants.ContentFiltersAutoRestoredKey
 import com.jtech.zemer.constants.ContentFiltersRestoredEmailKey
 import com.jtech.zemer.constants.ContentFiltersLockedKey
+import com.jtech.zemer.constants.OnboardingCompleteKey
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.tasks.await
+import kotlinx.coroutines.sync.withLock
 import java.util.Date
 import com.jtech.zemer.di.SyncDataStore
 import com.jtech.zemer.di.MainDataStore
 import android.util.Log
+import kotlinx.coroutines.CancellationException
+import kotlinx.serialization.SerializationException
+import java.io.IOException
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -62,44 +65,42 @@ private fun com.jtech.zemer.utils.DeviceInfo.toDeviceMetadata(): DeviceMetadata 
 }
 
 /**
- * Repository for managing user preferences sync between local DataStore and Firestore.
+ * Repository for managing user preferences sync between local DataStore and the content server's `/prefs`.
  * Handles device-specific content filter preferences with server-wins conflict resolution.
  */
 @Singleton
 class UserPreferencesRepository @Inject constructor(
     @ApplicationContext private val context: Context,
-    private val firestore: FirebaseFirestore,
+    private val api: ContentServerApi,
     @SyncDataStore private val syncDataStore: DataStore<Preferences>,
     @MainDataStore private val mainDataStore: DataStore<Preferences>,
     private val authManager: UserAuthManager,
     private val deviceIdGenerator: DeviceIdGenerator
 ) {
-    companion object {
-        private const val USER_PREFERENCES_COLLECTION = "devicePreferences"
-        private const val DEVICE_PREFERENCES_SUBCOLLECTION = "devicePreferences"
-    }
+    // The account email of the last device-id restore, saved by [markAutoRestored] as the restore label.
+    @Volatile
+    private var lastRestoredEmail: String? = null
 
-    // The user's document ID is their Firebase UID.
-    private fun getDocumentId(): String {
-        return authManager.currentUserId ?: throw IllegalStateException("User not authenticated")
-    }
+    // The server keys the document by the ID token's uid.
+    private suspend fun <T> withIdToken(block: suspend (String) -> T): T =
+        withTokenRetry({ authManager.getIdToken(forceRefresh = it).getOrThrow() }, block)
 
     /**
-     * Classify Firebase errors for better debugging
+     * Classify sync errors for better debugging
      */
-    private fun classifyFirebaseError(e: Exception): String {
+    private fun classifySyncError(e: Exception): String {
         return when {
-            e is com.google.firebase.firestore.FirebaseFirestoreException -> {
-                when (e.code) {
-                    com.google.firebase.firestore.FirebaseFirestoreException.Code.UNAVAILABLE -> "Firestore unavailable"
-                    com.google.firebase.firestore.FirebaseFirestoreException.Code.PERMISSION_DENIED -> "Permission denied"
-                    com.google.firebase.firestore.FirebaseFirestoreException.Code.NOT_FOUND -> "Document not found"
-                    com.google.firebase.firestore.FirebaseFirestoreException.Code.DEADLINE_EXCEEDED -> "Request timeout"
-                    com.google.firebase.firestore.FirebaseFirestoreException.Code.UNAUTHENTICATED -> "User not authenticated"
-                    com.google.firebase.firestore.FirebaseFirestoreException.Code.CANCELLED -> "Request cancelled"
-                    else -> "Firestore error: ${e.code}"
+            e is ContentServerException -> {
+                when (e.status) {
+                    400 -> "Rejected by server"
+                    401 -> "User not authenticated"
+                    404 -> "Document not found"
+                    429 -> "Rate limited"
+                    in 500..599 -> "Server unavailable"
+                    else -> "Server error: ${e.status}"
                 }
             }
+            e is io.ktor.client.plugins.HttpRequestTimeoutException -> "Request timeout"
             e is com.google.firebase.auth.FirebaseAuthException -> {
                 "Authentication error: ${e.errorCode}"
             }
@@ -117,9 +118,27 @@ class UserPreferencesRepository @Inject constructor(
     private val lastSyncTimeKey = longPreferencesKey("last_content_filter_sync_time")
     private val deviceIdKey = stringPreferencesKey("current_device_id")
     private val syncEnabledKey = booleanPreferencesKey("content_filter_sync_enabled")
+    // The account whose upload of the local filters failed for a reason worth retrying (unreachable, 5xx, 429,
+    // a challenge page, no network for the token). The local DataStore, always the latest state, is then pending:
+    // pushed before any server-wins pull, across restarts, but only for THAT account - a different sign-in never
+    // receives another account's pending change, and a permanent rejection is not retried forever.
+    private val uploadPendingUidKey = stringPreferencesKey("content_filter_upload_pending_uid")
+
+    suspend fun isUploadPending(): Boolean {
+        val uid = authManager.currentUserId ?: return false
+        return syncDataStore.data.first()[uploadPendingUidKey] == uid
+    }
+
+    private suspend fun setUploadPending(uid: String?) {
+        syncDataStore.edit { if (uid != null) it[uploadPendingUidKey] = uid else it.remove(uploadPendingUidKey) }
+    }
+
+    // One upload at a time: each is GET then PUT then the pending flag, and an older one finishing last would
+    // overwrite a newer change with a stale config (the retry loop races preference changes otherwise).
+    private val uploadMutex = kotlinx.coroutines.sync.Mutex()
 
     /**
-     * Fetch device preferences from Firestore (single document per user with a devices array)
+     * Fetch device preferences from the server (single document per user with a devices array)
      */
     suspend fun fetchDevicePreferences(): Result<ContentFilterConfig> {
         return try {
@@ -128,17 +147,10 @@ class UserPreferencesRepository @Inject constructor(
 
             val deviceId = deviceIdGenerator.getDeviceId()
 
-            // Fetch single document by UID directly from devicePreferences collection
-            val document = firestore
-                .collection(USER_PREFERENCES_COLLECTION)
-                .document(getDocumentId())
-                .get()
-                .await()
+            // Fetch the single document keyed by the token's UID
+            val entity = withIdToken { api.getPrefs(it) }
 
-            if (document.exists() == true) {
-                val entity = document.toObject(DevicePreferencesEntity::class.java)
-                    ?: return Result.failure(Exception("Failed to parse preferences document"))
-
+            if (entity != null) {
                 // Find current device in devices array, fallback to main contentFilters
                 val deviceData = entity.devices.find { it.deviceId == deviceId }
                 val config = deviceData?.contentFilters?.toConfig() ?: entity.contentFilters.toConfig()
@@ -152,7 +164,7 @@ class UserPreferencesRepository @Inject constructor(
                 Result.failure(Exception("No user preferences found"))
             }
         } catch (e: Exception) {
-            val errorClassification = classifyFirebaseError(e)
+            val errorClassification = classifySyncError(e)
             Log.e("ZemerSync", "Fetch preferences failed: $errorClassification")
             Log.e("ZemerSync", "Original error: ${e.message}")
             Result.failure(e)
@@ -160,59 +172,43 @@ class UserPreferencesRepository @Inject constructor(
     }
 
     /**
-     * Fetch device preferences by device ID only (no authentication required)
-     * This searches for preferences across all users by device ID
+     * Look this device's preferences up by device ID only (no authentication required): the server
+     * searches every account's devices array. Only a 200 ([DeviceRestoreResult.Restored]) or a 404
+     * ([DeviceRestoreResult.NoPrefs]) is a definitive answer; anything else is [DeviceRestoreResult.Failed].
      */
-    suspend fun fetchDevicePreferencesByDeviceId(): Result<ContentFilterConfig> {
+    suspend fun fetchDevicePreferencesByDeviceId(): DeviceRestoreResult {
         return try {
             val deviceId = deviceIdGenerator.getDeviceId()
             Log.d("ZemerSync", "Fetching preferences for device ID: $deviceId")
 
-            // Query all user documents in the devicePreferences collection for this device ID in the devices array
-            // Since Firestore doesn't support array queries across all documents directly,
-            // we need to fetch all user documents and search in memory
-            val query = firestore
-                .collection(USER_PREFERENCES_COLLECTION)
-                .get()
-                .await()
-
-            Log.d("ZemerSync", "Query result size: ${query.documents.size}")
-
-            var foundConfig: ContentFilterConfig? = null
-
-            for (document in query.documents) {
-                val entity = document.toObject(DevicePreferencesEntity::class.java)
-                if (entity != null) {
-                    val deviceData = entity.devices.find { it.deviceId == deviceId }
-                    if (deviceData != null) {
-                        foundConfig = deviceData.contentFilters.toConfig()
-                        Log.d("ZemerSync", "Found device in user document: ${document.id}")
-                        break
-                    }
-                }
-            }
-
-            if (foundConfig != null) {
+            val restore = api.devicePrefs(deviceId)
+            if (restore != null) {
+                Log.d("ZemerSync", "Found device in an account document")
+                lastRestoredEmail = restore.userEmail
                 updateLastSyncTime()
 
                 storeDeviceId(deviceId)
 
-                Result.success(foundConfig)
+                DeviceRestoreResult.Restored(restore.contentFilters.toConfig())
             } else {
                 Log.d("ZemerSync", "No device preferences found for device ID: $deviceId")
-                Result.failure(Exception("No device preferences found"))
+                DeviceRestoreResult.NoPrefs
             }
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
-            val errorClassification = classifyFirebaseError(e)
+            val errorClassification = classifySyncError(e)
             Log.e("ZemerSync", "Auto-restore fetch failed: $errorClassification")
             Log.e("ZemerSync", "Original error: ${e.message}")
-            reportException(e)
-            Result.failure(e)
+            // An unreachable/erroring server or a proxy page (e.g. a Cloudflare challenge served with
+            // 200) is expected during an outage, not a bug worth a report on every retry.
+            if (e !is IOException && e !is SerializationException) reportException(e)
+            DeviceRestoreResult.Failed(e)
         }
     }
 
     /**
-     * Upload device preferences to Firestore
+     * Upload device preferences to the server
      */
     suspend fun uploadDevicePreferences(config: ContentFilterConfig): Result<Unit> {
         return try {
@@ -237,27 +233,18 @@ class UserPreferencesRepository @Inject constructor(
             Log.d("ZemerSync", "Uploading device preferences for user: $userId, email: $userEmail, device: $deviceId")
             
             // Check if user document already exists
-            val existingDoc = firestore
-                .collection(USER_PREFERENCES_COLLECTION)
-                .document(getDocumentId())
-                .get()
-                .await()
+            val existingPrefs = withIdToken { api.getPrefs(it) }
 
-            if (existingDoc.exists()) {
+            if (existingPrefs != null) {
                 // Update existing document - add/update this device
-                val existingPrefs = existingDoc.toObject(DevicePreferencesEntity::class.java)
-                val updatedDevices = (existingPrefs?.devices ?: emptyList()).filter { it.deviceId != deviceId } + currentDeviceData
+                val updatedDevices = existingPrefs.devices.filter { it.deviceId != deviceId } + currentDeviceData
 
-                val updatedDoc = existingPrefs?.copy(
+                val updatedDoc = existingPrefs.copy(
                     devices = updatedDevices,
                     updatedAt = Date()
-                ) ?: throw Exception("Failed to parse existing preferences")
+                )
 
-                firestore
-                    .collection(USER_PREFERENCES_COLLECTION)
-                    .document(getDocumentId())
-                    .set(updatedDoc)
-                    .await()
+                withIdToken { api.putPrefs(it, updatedDoc) }
 
                 Log.d("ZemerSync", "Updated existing document with ${updatedDevices.size} devices")
             } else {
@@ -272,11 +259,7 @@ class UserPreferencesRepository @Inject constructor(
                     updatedAt = Date()
                 )
 
-                firestore
-                    .collection(USER_PREFERENCES_COLLECTION)
-                    .document(getDocumentId())
-                    .set(newDoc)
-                    .await()
+                withIdToken { api.putPrefs(it, newDoc) }
 
                 Log.d("ZemerSync", "Created new document for user: $userId")
             }
@@ -288,17 +271,20 @@ class UserPreferencesRepository @Inject constructor(
             storeDeviceId(deviceId)
 
             Result.success(Unit)
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
-            val errorClassification = classifyFirebaseError(e)
+            val errorClassification = classifySyncError(e)
             Log.e("ZemerSync", "Upload failed: $errorClassification")
             Log.e("ZemerSync", "Original error: ${e.message}")
-            reportException(e)
+            // a transient failure is retried by the pending-upload loop; reporting each attempt would only add noise
+            if (!e.isRetryableSyncFailure()) reportException(e)
             Result.failure(e)
         }
     }
 
     /**
-     * Update existing device preferences in Firestore
+     * Update existing device preferences on the server
      */
     suspend fun updateDevicePreferences(config: ContentFilterConfig): Result<Unit> {
         return try {
@@ -306,16 +292,9 @@ class UserPreferencesRepository @Inject constructor(
             val deviceId = deviceIdGenerator.getDeviceId()
 
             // Fetch the user document and update the specific device in the devices array
-            val document = firestore
-                .collection(USER_PREFERENCES_COLLECTION)
-                .document(getDocumentId())
-                .get()
-                .await()
+            val entity = withIdToken { api.getPrefs(it) }
 
-            if (document.exists()) {
-                val entity = document.toObject(DevicePreferencesEntity::class.java)
-                    ?: return Result.failure(Exception("Failed to parse user preferences"))
-
+            if (entity != null && entity.devices.any { it.deviceId == deviceId }) {
                 val updatedDevices = entity.devices.map { deviceData ->
                     if (deviceData.deviceId == deviceId) {
                         deviceData.copy(
@@ -328,17 +307,11 @@ class UserPreferencesRepository @Inject constructor(
                     }
                 }
 
-                firestore
-                    .collection(USER_PREFERENCES_COLLECTION)
-                    .document(getDocumentId())
-                    .update(
-                        "devices", updatedDevices,
-                        "updatedAt", Date()
-                    )
-                    .await()
+                withIdToken { api.putPrefs(it, entity.copy(devices = updatedDevices, updatedAt = Date())) }
             } else {
-                // Document doesn't exist, create it
-                uploadDevicePreferences(config)
+                // No document yet, or one that does not list this device (e.g. a second device on the account):
+                // add this device, creating the document if needed. A failure must surface so the change stays pending.
+                uploadDevicePreferences(config).getOrThrow()
             }
 
             updateLastSyncTime()
@@ -357,29 +330,20 @@ class UserPreferencesRepository @Inject constructor(
             // No email needed - we use UID as document ID
             val currentDeviceId = deviceIdGenerator.getDeviceId()
 
-            val document = firestore
-                .collection(USER_PREFERENCES_COLLECTION)
-                .document(getDocumentId())
-                .get()
-                .await()
+            val entity = withIdToken { api.getPrefs(it) }
 
-            if (document.exists()) {
-                val entity = document.toObject(DevicePreferencesEntity::class.java)
-                if (entity != null) {
-                    val devices = entity.devices.map { deviceData ->
-                        UserDevice(
-                            deviceId = deviceData.deviceId,
-                            deviceName = deviceData.deviceInfo.deviceName,
-                            lastSeen = deviceData.deviceInfo.lastSeen,
-                            firstSeen = deviceData.deviceInfo.firstSeen,
-                            appVersion = deviceData.deviceInfo.appVersion,
-                            isCurrentDevice = deviceData.deviceId == currentDeviceId
-                        )
-                    }
-                    Result.success(devices)
-                } else {
-                    Result.failure(Exception("Failed to parse user preferences"))
+            if (entity != null) {
+                val devices = entity.devices.map { deviceData ->
+                    UserDevice(
+                        deviceId = deviceData.deviceId,
+                        deviceName = deviceData.deviceInfo.deviceName,
+                        lastSeen = deviceData.deviceInfo.lastSeen,
+                        firstSeen = deviceData.deviceInfo.firstSeen,
+                        appVersion = deviceData.deviceInfo.appVersion,
+                        isCurrentDevice = deviceData.deviceId == currentDeviceId
+                    )
                 }
+                Result.success(devices)
             } else {
                 Result.success(emptyList())
             }
@@ -387,6 +351,8 @@ class UserPreferencesRepository @Inject constructor(
             Result.failure(e)
         }
     }
+
+    suspend fun isOnboardingComplete(): Boolean = mainDataStore.data.first()[OnboardingCompleteKey] ?: false
 
     suspend fun isSyncEnabled(): Boolean {
         return syncDataStore.data.map { preferences ->
@@ -418,7 +384,9 @@ class UserPreferencesRepository @Inject constructor(
     /**
      * Sync current local preferences to server
      */
-    suspend fun syncToServer(): Result<Unit> {
+    suspend fun syncToServer(): Result<Unit> = uploadMutex.withLock { syncToServerLocked() }
+
+    private suspend fun syncToServerLocked(): Result<Unit> {
         return try {
             if (!authManager.isUserSignedIn) {
                 return Result.failure(Exception("User not authenticated"))
@@ -437,11 +405,13 @@ class UserPreferencesRepository @Inject constructor(
             // Check if device preferences exist
             val existingPrefs = fetchDevicePreferences()
 
-            if (existingPrefs.isSuccess) {
+            val uploaded = if (existingPrefs.isSuccess) {
                 updateDevicePreferences(currentConfig)
             } else {
                 uploadDevicePreferences(currentConfig)
             }
+            val failure = uploaded.exceptionOrNull()
+            setUploadPending(if (failure != null && failure.isRetryableSyncFailure()) authManager.currentUserId else null)
 
             Result.success(Unit)
         } catch (e: Exception) {
@@ -483,6 +453,14 @@ class UserPreferencesRepository @Inject constructor(
     suspend fun performSync(): Result<ContentFilterConfig> {
         return try {
             Log.d("ZemerSync", "Starting performSync...")
+
+            // Local changes that never reached the server go up FIRST: a server-wins pull would
+            // otherwise replace them with the stale server copy.
+            if (isUploadPending()) {
+                Log.d("ZemerSync", "Pending local changes - uploading before pulling")
+                syncToServer()
+                if (isUploadPending()) return Result.failure(Exception("Local changes still pending upload"))
+            }
 
             // Always sync from server first (server wins)
             Log.d("ZemerSync", "Attempting syncFromServer...")
@@ -556,27 +534,8 @@ class UserPreferencesRepository @Inject constructor(
      */
     suspend fun markAutoRestored(config: com.jtech.zemer.utils.ContentFilterConfig) {
         try {
-            // Get the email from the user preferences that were just fetched
-            val deviceId = deviceIdGenerator.getDeviceId()
-
-            // Search the devicePreferences collection for this device ID
-            val query = firestore
-                .collection(USER_PREFERENCES_COLLECTION)
-                .get()
-                .await()
-
-            var userEmail: String? = null
-
-            for (document in query.documents) {
-                val entity = document.toObject(DevicePreferencesEntity::class.java)
-                if (entity != null) {
-                    val deviceData = entity.devices.find { it.deviceId == deviceId }
-                    if (deviceData != null) {
-                        userEmail = entity.userEmail
-                        break
-                    }
-                }
-            }
+            // The email of the account the device-id restore just found
+            val userEmail = lastRestoredEmail
 
             syncDataStore.edit { preferences ->
                 preferences[ContentFiltersAutoRestoredKey] = true
@@ -613,6 +572,32 @@ class UserPreferencesRepository @Inject constructor(
         }
     }
 
+    }
+
+/** The outcome of [UserPreferencesRepository.fetchDevicePreferencesByDeviceId]. */
+sealed interface DeviceRestoreResult {
+    data class Restored(val config: ContentFilterConfig) : DeviceRestoreResult
+    data object NoPrefs : DeviceRestoreResult
+    data class Failed(val error: Throwable) : DeviceRestoreResult
+}
+
+/**
+ * A filter-sync failure worth retrying later: a write the server could not take now ([isRetryableWriteFailure]) or
+ * no network to get the account token. Anything else (a 4xx rejection, a token that stays invalid) is permanent.
+ */
+internal fun Throwable.isRetryableSyncFailure(): Boolean =
+    isRetryableWriteFailure() || this is com.google.firebase.FirebaseNetworkException
+
+/**
+ * Runs [block] with a token from [token]; a 401 (expired/revoked token) retries ONCE with a
+ * force-refreshed token. Any other failure, or a second 401, propagates.
+ */
+internal suspend fun <T> withTokenRetry(token: suspend (forceRefresh: Boolean) -> String, block: suspend (String) -> T): T =
+    try {
+        block(token(false))
+    } catch (e: ContentServerException) {
+        if (e.status != 401) throw e
+        block(token(true))
     }
 
 data class UserDevice(

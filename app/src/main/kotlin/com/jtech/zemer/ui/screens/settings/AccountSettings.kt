@@ -13,8 +13,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Badge
-import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -40,7 +38,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -49,7 +46,6 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.jtech.zemer.App
-import com.jtech.zemer.BuildConfig
 import com.jtech.zemer.R
 import com.jtech.zemer.ui.component.DefaultDialog
 import com.jtech.zemer.constants.AccountChannelHandleKey
@@ -66,7 +62,6 @@ import com.jtech.zemer.ui.component.SettingsScreenTopSpacing
 import com.jtech.zemer.ui.component.SwitchPreference
 import com.jtech.zemer.ui.component.TextFieldDialog
 import com.jtech.zemer.ui.component.InfoLabel
-import com.jtech.zemer.utils.Updater
 import com.jtech.zemer.utils.rememberPreference
 import com.jtech.zemer.utils.reportException
 import com.jtech.zemer.viewmodels.AccountSettingsViewModel
@@ -86,11 +81,9 @@ import coil3.compose.AsyncImage
 fun AccountSettings(
     navController: NavController,
     onClose: () -> Unit,
-    latestVersionName: String
 )
 {
     val context = LocalContext.current
-    val uriHandler = LocalUriHandler.current
     val (accountNamePref, onAccountNameChange) = rememberPreference(AccountNameKey, "")
     val (accountEmail, onAccountEmailChange) = rememberPreference(AccountEmailKey, "")
     val (accountChannelHandle, onAccountChannelHandleChange) = rememberPreference(AccountChannelHandleKey, "")
@@ -424,29 +417,6 @@ fun AccountSettings(
                         Text(stringResource(R.string.logout_keep_library))
                     }
                 }
-            )
-        }
-
-        if (latestVersionName != BuildConfig.VERSION_NAME) {
-            SettingsCardGroup(
-                horizontalPadding = 0.dp, // the sheet's column already pads 16dp
-                rows = listOf(
-                    {
-                        PreferenceEntry(
-                            title = { Text(text = stringResource(R.string.new_version_available)) },
-                            description = latestVersionName,
-                            icon = {
-                                BadgedBox(badge = { Badge() }) {
-                                    Icon(painterResource(R.drawable.update), null)
-                                }
-                            },
-                            onClick = {
-                                Updater.getCachedDownloadUrl()?.let { uriHandler.openUri(it) }
-                            },
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                    },
-                ),
             )
         }
     }

@@ -186,6 +186,35 @@ the Zemer servers, over `SigCanonical.message` (contract + vectors: zemer-search
   old path), signing each hop incl. every playback range. It adds the signature to `ZemerHosts` only and takes
   the server clock from their `Date`. A new client to a Zemer host installs it (`ZemerHeadersTest` pins the
   redirect behavior).
+### Content-filter sync and reports (content.zemer.io, never Firestore)
+
+`sync/ContentServerApi` is the one client: `POST /reports` (`ContentReportRepository`), `GET`/`PUT /prefs`
+with the Firebase ID token (one retry on 401 with a refreshed token, `withTokenRetry`) and the
+unauthenticated `GET /prefs/device/<deviceId>` restore lookup (`UserPreferencesRepository`). The synced
+document keeps its old shape (`sync/models/DevicePreferencesEntity`, kotlinx-serialized); dates are UTC
+ISO-8601 written with millis (`IsoDateSerializer`), nulls explicit, an absent `blockPodcasts` derives from
+`blockVideos`. Firebase Auth stays (anonymous + Google sign-in); Firestore is not used for any of this. Rules:
+
+- **The restore gate (owner decision, no escape hatch):** on a fresh install or data clear (not signed
+  in), onboarding waits on `OnboardingViewModel`'s device lookup before the filter step: 200 restores and
+  locks, 404 continues as a new user, ANYTHING else (unreachable, timeout, 5xx, 429, a non-JSON or
+  challenge page) shows the blocking "Can't check your saved settings" panel with Retry and auto-retry
+  (`restoreRetryDelayMs`, honoring `Retry-After`). Never continue silently on a non-definitive answer, and
+  never render the filter toggles before the answer (the VM starts in Checking). During onboarding only
+  the gate looks the device up (`initialize()` skips it); normal launches never block. When the filters
+  are already set on the device the filter step is skipped and so is the lookup (`startAutoRestore`), so a
+  restore never replaces local filters unseen.
+- **Writes survive outages.** One shared predicate, `isRetryableWriteFailure` (unreachable, 5xx, 429, a
+  challenge page), decides what is retried. A filter upload failing that way (or with no network for the
+  token, `isRetryableSyncFailure`) records the account's uid in `content_filter_upload_pending_uid` - pending
+  only for that account; a permanent 4xx clears it - and is retried with backoff (`writeRetryDelayMs`);
+  uploads are serialized (`uploadMutex`) so an older one never lands last. `performSync` pushes a pending
+  upload BEFORE any server-wins pull, so a stale server copy never replaces an unsynced change. A device the
+  account document does not list yet is added, never dropped. Such a report is queued in
+  `filesDir/pending_reports.jsonl` and drained (one drain at a time) at launch and with backoff; any other
+  status fails to the dialog as before.
+- **Content reads that fall back to Firestore report `fetch_fail`** (see §Tracking) so the fallback's
+  reach is measured before it is removed.
 
 ### Zemer curated playlists (the Home "Zemer Playlists" shelf)
 
@@ -644,7 +673,7 @@ Full detail (shards, layers, tests): `docs/offline/README.md`. Invariants:
 
 ### Tracking (anonymous usage telemetry)
 
-Six events (`open`/`search`/`play`/`click`/`action`/`impression`) POSTed to `tracking.zemer.io`; full
+Seven events (`open`/`search`/`play`/`click`/`action`/`impression`/`fetch_fail`) POSTed to `tracking.zemer.io`; full
 detail in `docs/tracking/README.md`. Rules that must not regress:
 
 - **Telemetry may never break the app**: every `Tracker` entry point is a fire-and-forget `scope.launch`;

@@ -10,14 +10,14 @@
   (emits DownloadState.Downloaded)
 ```
 
-## The two update checkers (context)
+## The update checker (context)
 
-Both feed an APK into the world; only `UpdateChecker` feeds the installer.
+`UpdateChecker` is the only update checker (the old Firestore `Updater` pointed at a retired project
+and was removed).
 
 | Checker | Source | Used by | File |
 |---|---|---|---|
 | `UpdateChecker` | stable `https://ghtrack.zemer.io` (`/api`, `/changelog`, `/download`); nightly `https://nightly.zemer.io/api` (SHA-pinned `downloadUrl`, size + SHA-256 verified before install) | the Updater settings screen, the startup update dialog | `utils/UpdateChecker.kt`, `utils/updater/NightlyUpdates.kt` |
-| `Updater` | Firestore `appUpdates/latest` | the daily update notification in `MainActivity` and the Account settings "new version" row - both just open the download URL | `utils/Updater.kt` |
 
 `UpdateChecker.downloadUpdate(context)` downloads to a `.part` file in `context.cacheDir`, promotes it to
 `zemer-update.apk`, and emits `DownloadState.Downloaded(apkFile)` - the file the installer consumes.

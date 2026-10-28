@@ -73,6 +73,15 @@ internal object TrackingEvents {
         if (player != null) put("player", player)
     }
 
+    /** A failed read of a Zemer server ([host] e.g. "content"); [kind] per `fetchFailKind`. */
+    fun fetchFail(t: Long, host: String, path: String, kind: String): JsonObject = buildJsonObject {
+        put("type", "fetch_fail")
+        put("t", t)
+        put("host", host)
+        put("path", path)
+        put("kind", kind)
+    }
+
     fun action(t: Long, kind: String, id: String): JsonObject = buildJsonObject {
         put("type", "action")
         put("t", t)

@@ -7,7 +7,9 @@ import com.jtech.zemer.utils.reportException
 import com.jtech.zemer.utils.ContentFilterState
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -60,14 +62,18 @@ class ContentFilterSyncService @Inject constructor(
 
             // Auto-restore logic: Only auto-restore if we find server preferences but user isn't signed in locally
             // This happens on data clear/reinstall, NOT on first-time sign-in
-            if (!authManager.isUserSignedIn) {
+            if (!authManager.isUserSignedIn && !userPreferencesRepository.isOnboardingComplete()) {
+                // A fresh install / data clear: onboarding's blocking restore gate does this lookup (one
+                // definitive lookup per install, not two).
+                Log.d("ZemerSync", "Onboarding pending - its restore gate checks for server preferences")
+            } else if (!authManager.isUserSignedIn) {
                 try {
                     Log.d("ZemerSync", "User not signed in locally - checking for server preferences to auto-restore")
                     val result = userPreferencesRepository.fetchDevicePreferencesByDeviceId()
-                    if (result.isSuccess) {
+                    if (result is DeviceRestoreResult.Restored) {
                         Log.d("ZemerSync", "Found server preferences - performing auto-restore and auto-lock")
                         _isApplyingServerPreferences = true
-                        val config = result.getOrThrow()
+                        val config = result.config
                         Log.d("ZemerSync", "Applying config: $config")
 
                         // Mark as auto-restored and auto-lock settings
@@ -77,8 +83,11 @@ class ContentFilterSyncService @Inject constructor(
                         userPreferencesRepository.saveToDataStore(config)
                         _isApplyingServerPreferences = false
                         return@launch
-                    } else {
+                    } else if (result is DeviceRestoreResult.NoPrefs) {
                         Log.d("ZemerSync", "No server preferences found - first-time user, no auto-restore")
+                    } else {
+                        // Non-blocking here (a normal launch); onboarding has its own blocking gate.
+                        Log.d("ZemerSync", "Auto-restore check failed - keeping local preferences")
                     }
                 } catch (e: Exception) {
                     Log.d("ZemerSync", "Auto-restore exception: ${e.message}")
@@ -100,6 +109,7 @@ class ContentFilterSyncService @Inject constructor(
                 }
                 Log.d("ZemerSync", "Sync result: ${result.isSuccess}, error: ${result.exceptionOrNull()?.message}")
 
+                retryPendingUpload()
                 if (result.isFailure) {
                     val error = result.exceptionOrNull()
                     Log.e("ZemerSync", "Initial sync failed", error)
@@ -123,6 +133,7 @@ class ContentFilterSyncService @Inject constructor(
                 _syncState.value = SyncState.SYNCING
 
                 val result = userPreferencesRepository.syncToServer()
+                retryPendingUpload()
 
                 _syncState.value = SyncState.IDLE
 
@@ -143,6 +154,7 @@ class ContentFilterSyncService @Inject constructor(
                 _syncState.value = SyncState.SYNCING
 
                 val result = userPreferencesRepository.syncToServer()
+                retryPendingUpload()
 
                 _syncState.value = SyncState.IDLE
 
@@ -173,12 +185,12 @@ class ContentFilterSyncService @Inject constructor(
     private suspend fun handleAuthStateChange(authState: AuthState) {
         when (authState) {
             is AuthState.SignedIn -> {
-                // Wait for auth to be fully ready (email loaded)
+                // Wait for auth to be fully ready (the uid the server keys the document by; an anonymous account has no email)
                 if (waitForAuthReady()) {
                     performInitialSync()
                 } else {
                     _syncState.value = SyncState.ERROR("Authentication timeout")
-                    Log.e("ZemerSync", "Failed to get user email within timeout")
+                    Log.e("ZemerSync", "Auth not ready within timeout")
                 }
             }
             is AuthState.SignedOut -> {
@@ -187,6 +199,24 @@ class ContentFilterSyncService @Inject constructor(
             }
             else -> {
                 // Loading or error states - do nothing
+            }
+        }
+    }
+
+    private var pendingUploadJob: Job? = null
+
+    /**
+     * While an upload of the local filters is pending (the server was unreachable), keep retrying with
+     * backoff. The flag is persisted, so a restart picks it up in performSync before any pull.
+     */
+    private fun retryPendingUpload() {
+        if (pendingUploadJob?.isActive == true) return
+        pendingUploadJob = serviceScope.launch {
+            var attempt = 0
+            while (authManager.isUserSignedIn && userPreferencesRepository.isUploadPending()) {
+                delay(writeRetryDelayMs(attempt++))
+                Log.d("ZemerSync", "Retrying pending preference upload (attempt $attempt)")
+                userPreferencesRepository.syncToServer()
             }
         }
     }
@@ -215,6 +245,7 @@ class ContentFilterSyncService @Inject constructor(
             // This handles the case where user set preferences during onboarding before signing in
             Log.d("ZemerSync", "Ensuring local preferences are uploaded after initial sync")
             val uploadResult = userPreferencesRepository.syncToServer()
+            retryPendingUpload()
             if (uploadResult.isSuccess) {
                 Log.d("ZemerSync", "Local preferences uploaded successfully after sign-in")
             } else {
@@ -233,7 +264,7 @@ class ContentFilterSyncService @Inject constructor(
         val startTime = System.currentTimeMillis()
 
         while (System.currentTimeMillis() - startTime < timeoutMs) {
-            if (authManager.isUserSignedIn && authManager.currentUserEmail != null) {
+            if (authManager.isUserSignedIn && authManager.currentUserId != null) {
                 return true
             }
             kotlinx.coroutines.delay(100)
@@ -255,15 +286,15 @@ class ContentFilterSyncService @Inject constructor(
         for (attempt in 0 until maxRetries) {
             try {
                 val isSignedIn = authManager.isUserSignedIn
-                val userEmail = authManager.currentUserEmail
-                Log.d("ZemerSync", "Retry attempt ${attempt + 1}: isSignedIn=$isSignedIn, userEmail=$userEmail")
+                val userId = authManager.currentUserId
+                Log.d("ZemerSync", "Retry attempt ${attempt + 1}: isSignedIn=$isSignedIn, hasUid=${userId != null}")
 
-                if (isSignedIn && userEmail != null) {
+                if (isSignedIn && userId != null) {
                     Log.d("ZemerSync", "Auth is ready, executing operation")
                     return Result.success(operation())
                 } else {
                     lastException = Exception("Authentication not ready (attempt ${attempt + 1}/$maxRetries)")
-                    Log.d("ZemerSync", "Auth not ready: isSignedIn=$isSignedIn, userEmail=$userEmail")
+                    Log.d("ZemerSync", "Auth not ready: isSignedIn=$isSignedIn, hasUid=${userId != null}")
                     if (System.currentTimeMillis() - startTime < timeoutMs) {
                         // Exponential backoff: 100ms, 200ms, 400ms, 800ms, 1600ms
                         val delay = (100L * (1 shl attempt)).coerceAtMost(1600L)

@@ -5,9 +5,9 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.preferencesDataStore
 import com.jtech.zemer.utils.dataStore
-import com.google.firebase.firestore.FirebaseFirestore
 import com.jtech.zemer.auth.UserAuthManager
 import com.jtech.zemer.sync.ContentFilterSyncService
+import com.jtech.zemer.sync.ContentServerApi
 import com.jtech.zemer.sync.UserPreferencesRepository
 import com.jtech.zemer.utils.DeviceIdGenerator
 import dagger.Module
@@ -23,7 +23,7 @@ private val Context.syncDataStore: DataStore<Preferences> by preferencesDataStor
 
 /**
  * Hilt module for providing sync-related dependencies.
- * Includes Firebase services, authentication, and preference sync components.
+ * Includes authentication and preference sync components.
  */
 @Module
 @InstallIn(SingletonComponent::class)
@@ -37,15 +37,6 @@ object SyncModule {
     @SyncDataStore
     fun provideSyncDataStore(@ApplicationContext context: Context): DataStore<Preferences> {
         return context.syncDataStore
-    }
-
-    /**
-     * Provides FirebaseFirestore instance for user preferences storage
-     */
-    @Provides
-    @Singleton
-    fun provideFirebaseFirestore(): FirebaseFirestore {
-        return FirebaseFirestore.getInstance()
     }
 
     /**
@@ -88,7 +79,7 @@ object SyncModule {
     @Singleton
     fun provideUserPreferencesRepository(
         @ApplicationContext context: Context,
-        firestore: FirebaseFirestore,
+        api: ContentServerApi,
         @SyncDataStore syncDataStore: DataStore<Preferences>,
         @MainDataStore mainDataStore: DataStore<Preferences>,
         authManager: UserAuthManager,
@@ -96,7 +87,7 @@ object SyncModule {
     ): UserPreferencesRepository {
         return UserPreferencesRepository(
             context = context,
-            firestore = firestore,
+            api = api,
             syncDataStore = syncDataStore,
             mainDataStore = mainDataStore,
             authManager = authManager,

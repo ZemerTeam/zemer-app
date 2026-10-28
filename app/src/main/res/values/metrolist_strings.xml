@@ -216,7 +216,6 @@
     <string name="update_action">Update</string>
     <string name="force_download_stable">Download current stable release</string>
     <string name="check_for_updates_now">Check for updates now</string>
-    <string name="update_available_title">Update available</string>
     <string name="update_available">Update available</string>
     <string name="up_to_date">Up to date</string>
     <string name="up_to_date_message">You are running the latest version (%1$s).</string>
@@ -365,6 +364,8 @@
     <!-- Onboarding -->
     <string name="onboarding_restoring_filters">Restoring Content Filter Settings</string>
     <string name="onboarding_checking_saved">Checking for saved preferences…</string>
+    <string name="onboarding_restore_check_failed">Can\'t check your saved settings</string>
+    <string name="onboarding_restore_check_failed_detail">Zemer needs to check whether this device has saved content filters before you continue. Check your internet connection. Retrying automatically.</string>
     <string name="onboarding_found_saved">Found your saved preferences</string>
     <string name="onboarding_restored_settings">Restored Settings:</string>
     <string name="onboarding_restored_filters_enabled">• Content Filters: Enabled</string>

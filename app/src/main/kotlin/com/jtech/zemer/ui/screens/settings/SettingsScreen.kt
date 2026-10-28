@@ -52,7 +52,6 @@ data class SettingItem(
 fun SettingsScreen(
     navController: NavController,
     scrollBehavior: TopAppBarScrollBehavior,
-    latestVersionName: String,
 ) {
     val context = LocalContext.current
     Build.VERSION.SDK_INT >= Build.VERSION_CODES.S

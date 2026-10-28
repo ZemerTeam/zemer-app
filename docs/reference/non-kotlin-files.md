@@ -12,7 +12,7 @@ Every tracked non-Kotlin path outside `docs/` is listed. Text files report line 
 | `.github/workflows/ui-audit.yml` | 55 lines | text `.yml` |
 | `.gitignore` | 117 lines | text `[none]` |
 | `.gitmodules` | 3 lines | text `[none]` |
-| `AGENTS.md` | 1051 lines | text `.md` |
+| `AGENTS.md` | 1080 lines | text `.md` |
 | `LICENSE` | 674 lines | text `[none]` |
 | `README.md` | 9 lines | text `.md` |
 | `app/.gitignore` | 1 lines | text `[none]` |
@@ -257,18 +257,18 @@ Every tracked non-Kotlin path outside `docs/` is listed. Text files report line 
 | `app/src/main/res/raw/loading_dots_blue.lottie` | 1221 bytes | binary `.lottie` |
 | `app/src/main/res/raw/welcome.lottie` | 2138 bytes | binary `.lottie` |
 | `app/src/main/res/resources.properties` | 1 lines | text `.properties` |
-| `app/src/main/res/values-fr/metrolist_strings.xml` | 283 lines | text `.xml`; XML root `resources` |
-| `app/src/main/res/values-fr/strings.xml` | 402 lines | text `.xml`; XML root `resources` |
+| `app/src/main/res/values-fr/metrolist_strings.xml` | 282 lines | text `.xml`; XML root `resources` |
+| `app/src/main/res/values-fr/strings.xml` | 401 lines | text `.xml`; XML root `resources` |
 | `app/src/main/res/values-iw/metrolist_strings.xml` | 134 lines | text `.xml`; XML root `resources` |
-| `app/src/main/res/values-iw/strings.xml` | 270 lines | text `.xml`; XML root `resources` |
+| `app/src/main/res/values-iw/strings.xml` | 269 lines | text `.xml`; XML root `resources` |
 | `app/src/main/res/values-ji/metrolist_strings.xml` | 3 lines | text `.xml`; XML root `resources` |
 | `app/src/main/res/values-ji/strings.xml` | 3 lines | text `.xml`; XML root `resources` |
 | `app/src/main/res/values-night/colors.xml` | 6 lines | text `.xml`; XML root `resources` |
 | `app/src/main/res/values-v31/styles.xml` | 22 lines | text `.xml`; XML root `resources` |
 | `app/src/main/res/values/app_name.xml` | 4 lines | text `.xml`; XML root `resources` |
 | `app/src/main/res/values/colors.xml` | 9 lines | text `.xml`; XML root `resources` |
-| `app/src/main/res/values/metrolist_strings.xml` | 700 lines | text `.xml`; XML root `resources` |
-| `app/src/main/res/values/strings.xml` | 465 lines | text `.xml`; XML root `resources` |
+| `app/src/main/res/values/metrolist_strings.xml` | 701 lines | text `.xml`; XML root `resources` |
+| `app/src/main/res/values/strings.xml` | 464 lines | text `.xml`; XML root `resources` |
 | `app/src/main/res/values/styles.xml` | 26 lines | text `.xml`; XML root `resources` |
 | `app/src/main/res/values/values.xml` | 8 lines | text `.xml`; XML root `resources` |
 | `app/src/main/res/xml-v25/shortcuts.xml` | 33 lines | text `.xml`; XML root `shortcuts` |

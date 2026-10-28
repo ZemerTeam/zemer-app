@@ -7,8 +7,12 @@ import com.jtech.zemer.auth.AuthState
 import com.jtech.zemer.auth.WebViewGoogleAuthManager
 import com.jtech.zemer.sync.UserPreferencesRepository
 import com.jtech.zemer.sync.ContentFilterSyncService
+import com.jtech.zemer.sync.DeviceRestoreResult
+import com.jtech.zemer.sync.retryDelayMs
 import com.jtech.zemer.utils.ContentFilterConfig
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -26,16 +30,23 @@ class OnboardingViewModel @Inject constructor(
 
     data class UiState(
         val isCheckingAutoRestore: Boolean = false,
+        // The device-id lookup had no definitive answer (server unreachable/erroring): onboarding is
+        // blocked on a retry panel, never silently continued as a new user.
+        val restoreFailed: Boolean = false,
         val hasServerPreferences: Boolean = false,
         val restoredConfig: ContentFilterConfig? = null,
         val contentFiltersAlreadySet: Boolean = false,
         val isSignedIn: Boolean = false
     )
 
-    private val _uiState = MutableStateFlow(UiState())
+    // Not signed in = a fresh install or data clear: start in Checking so the filter toggles never
+    // render before the saved-settings lookup answers.
+    private val _uiState = MutableStateFlow(UiState(isCheckingAutoRestore = !authManager.isUserSignedIn))
     val uiState: StateFlow<UiState> = _uiState.asStateFlow()
 
     val authState = authManager.authStateFlow
+
+    private var restoreJob: Job? = null
 
     init {
         checkInitialState()
@@ -82,54 +93,65 @@ class OnboardingViewModel @Inject constructor(
     }
 
     /**
-     * Attempt auto-restore for unregistered users with server preferences
+     * Auto-restore for unregistered users with server preferences. Keeps retrying with backoff until the
+     * server gives a definitive answer: 200 restores (and locks), 404 continues as a new user. Skipped when
+     * the filters are already set on this device: onboarding then never shows the filter step, so a restore
+     * would replace (and lock) the local filters unseen.
      */
-    fun attemptAutoRestore() {
-        viewModelScope.launch {
-            _uiState.update { it.copy(isCheckingAutoRestore = true) }
+    fun startAutoRestore(contentFiltersAlreadySet: Boolean) {
+        if (contentFiltersAlreadySet) {
+            _uiState.update { it.copy(isCheckingAutoRestore = false) }
+            return
+        }
+        if (restoreJob?.isActive == true) return
+        restoreJob = viewModelScope.launch { restoreUntilDefinitive() }
+    }
 
-            try {
-                if (!authManager.isUserSignedIn) {
-                    val result = userPreferencesRepository.fetchDevicePreferencesByDeviceId()
-                    if (result.isSuccess) {
-                        val config = result.getOrThrow()
+    /** The panel's Retry: check again now, without waiting for the next backoff step. */
+    fun retryAutoRestore() {
+        restoreJob?.cancel()
+        _uiState.update { it.copy(isCheckingAutoRestore = true, restoreFailed = false) }
+        restoreJob = viewModelScope.launch { restoreUntilDefinitive() }
+    }
 
-                        // Mark as auto-restored and auto-lock
-                        userPreferencesRepository.markAutoRestored(config)
+    private suspend fun restoreUntilDefinitive() {
+        if (authManager.isUserSignedIn) {
+            _uiState.update { it.copy(isCheckingAutoRestore = false, restoreFailed = false, hasServerPreferences = false) }
+            return
+        }
+        var attempt = 0
+        while (true) {
+            when (val result = userPreferencesRepository.fetchDevicePreferencesByDeviceId()) {
+                is DeviceRestoreResult.Restored -> {
+                    val config = result.config
 
-                        // Apply locally
-                        userPreferencesRepository.saveToDataStore(config)
+                    // Mark as auto-restored and auto-lock
+                    userPreferencesRepository.markAutoRestored(config)
 
-                        _uiState.update {
-                            it.copy(
-                                isCheckingAutoRestore = false,
-                                hasServerPreferences = true,
-                                restoredConfig = config,
-                                contentFiltersAlreadySet = true
-                            )
-                        }
-                    } else {
-                        _uiState.update {
-                            it.copy(
-                                isCheckingAutoRestore = false,
-                                hasServerPreferences = false
-                            )
-                        }
-                    }
-                } else {
+                    // Apply locally
+                    userPreferencesRepository.saveToDataStore(config)
+
                     _uiState.update {
                         it.copy(
                             isCheckingAutoRestore = false,
-                            hasServerPreferences = false
+                            restoreFailed = false,
+                            hasServerPreferences = true,
+                            restoredConfig = config,
+                            contentFiltersAlreadySet = true
                         )
                     }
+                    return
                 }
-            } catch (e: Exception) {
-                _uiState.update {
-                    it.copy(
-                        isCheckingAutoRestore = false,
-                        hasServerPreferences = false
-                    )
+                DeviceRestoreResult.NoPrefs -> {
+                    _uiState.update {
+                        it.copy(isCheckingAutoRestore = false, restoreFailed = false, hasServerPreferences = false)
+                    }
+                    return
+                }
+                is DeviceRestoreResult.Failed -> {
+                    // Auto-retries keep the panel up (no spinner flicker); only Retry shows the spinner.
+                    _uiState.update { it.copy(isCheckingAutoRestore = false, restoreFailed = true) }
+                    delay(retryDelayMs(restoreRetryDelayMs(attempt++), result.error))
                 }
             }
         }
@@ -150,3 +172,6 @@ class OnboardingViewModel @Inject constructor(
     }
 
 }
+
+/** Backoff between automatic restore retries: 2s, 4s, 8s, 16s, then every 30s. */
+internal fun restoreRetryDelayMs(attempt: Int): Long = minOf(2_000L shl attempt.coerceIn(0, 4), 30_000L)

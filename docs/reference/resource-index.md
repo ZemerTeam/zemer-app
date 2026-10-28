@@ -261,8 +261,8 @@ Tracked Android resource paths under `app/src/**/res`: `214`.
 | `app/src/debug/res/values/app_name.xml` | 4 lines | `resources` | app_name |
 | `app/src/main/res/values/app_name.xml` | 4 lines | `resources` | app_name |
 | `app/src/main/res/values/colors.xml` | 9 lines | `resources` | widget_text_primary, widget_text_secondary, widget_background, widget_album_bg, widget_accent |
-| `app/src/main/res/values/metrolist_strings.xml` | 700 lines | `resources` | pause, replay, resume_playback, nothing_to_resume, crop_album_art, crop_album_art_desc, not_applicable, featured_playlists, home_see_all_empty, artist_not_available, album_not_available, song_not_available, featured_video_songs, video_downloads_in_music, video_downloads_in_music_description, podcast_not_available, local_history, remote_history, unknown_artist, latest_releases, … +548 more |
-| `app/src/main/res/values/strings.xml` | 465 lines | `resources` | home, back_to_top, songs, artists, kid_zone, albums, playlists, n_selected, history, account, quick_picks, forgotten_favorites, keep_listening, today, yesterday, this_week, last_week, search, search_yt_music, search_artists, … +343 more |
+| `app/src/main/res/values/metrolist_strings.xml` | 701 lines | `resources` | pause, replay, resume_playback, nothing_to_resume, crop_album_art, crop_album_art_desc, not_applicable, featured_playlists, home_see_all_empty, artist_not_available, album_not_available, song_not_available, featured_video_songs, video_downloads_in_music, video_downloads_in_music_description, podcast_not_available, local_history, remote_history, unknown_artist, latest_releases, … +549 more |
+| `app/src/main/res/values/strings.xml` | 464 lines | `resources` | home, back_to_top, songs, artists, kid_zone, albums, playlists, n_selected, history, account, quick_picks, forgotten_favorites, keep_listening, today, yesterday, this_week, last_week, search, search_yt_music, search_artists, … +342 more |
 | `app/src/main/res/values/styles.xml` | 26 lines | `resources` | Theme.Zemer, android:windowContentOverlay, android:windowDrawsSystemBarBackgrounds, android:windowMinWidthMinor, android:windowMinWidthMajor, android:windowNoTitle, android:windowBackground, android:enforceNavigationBarContrast, android:statusBarColor, android:navigationBarColor, Theme.Zemer.Transparent, android:windowIsTranslucent, android:backgroundDimEnabled, android:windowAnimationStyle |
 | `app/src/main/res/values/values.xml` | 8 lines | `resources` | media3_notification_play, media3_notification_pause, media3_notification_seek_to_previous, media3_notification_seek_to_next |
 
@@ -270,15 +270,15 @@ Tracked Android resource paths under `app/src/**/res`: `214`.
 
 | Path | Lines/bytes | XML root | Resource names / metadata |
 | --- | ---: | --- | --- |
-| `app/src/main/res/values-fr/metrolist_strings.xml` | 283 lines | `resources` | crop_album_art, not_applicable, local_history, remote_history, liked, offline, cached_playlist, uploaded_playlist, sync_playlist, sync_disabled, please_wait, share_lyrics, share_as_text, share_as_image, share_selected, customize_colors, more_options, text_color, secondary_text_color, background_color, … +232 more |
-| `app/src/main/res/values-fr/strings.xml` | 402 lines | `resources` | this_week, last_week, search, search_yt_music, search_artists, filter_library, filter_liked, filter_downloaded, filter_all, filter_songs, filter_videos, filter_albums, filter_artists, filter_playlists, filter_community_playlists, filter_featured_playlists, no_results_found, download_complete, library_artist_empty, library_album_empty, … +343 more |
+| `app/src/main/res/values-fr/metrolist_strings.xml` | 282 lines | `resources` | crop_album_art, not_applicable, local_history, remote_history, liked, offline, cached_playlist, uploaded_playlist, sync_playlist, sync_disabled, please_wait, share_lyrics, share_as_text, share_as_image, share_selected, customize_colors, more_options, text_color, secondary_text_color, background_color, … +231 more |
+| `app/src/main/res/values-fr/strings.xml` | 401 lines | `resources` | this_week, last_week, search, search_yt_music, search_artists, filter_library, filter_liked, filter_downloaded, filter_all, filter_songs, filter_videos, filter_albums, filter_artists, filter_playlists, filter_community_playlists, filter_featured_playlists, no_results_found, download_complete, library_artist_empty, library_album_empty, … +342 more |
 
 ## `values-iw` (2 paths)
 
 | Path | Lines/bytes | XML root | Resource names / metadata |
 | --- | ---: | --- | --- |
 | `app/src/main/res/values-iw/metrolist_strings.xml` | 134 lines | `resources` | background_color, local_history, remote_history, unknown_artist, liked, offline, my_top, cached_playlist, sync_playlist, sync_disabled, elements_selected, allows_for_sync_witch_youtube, generating_image, please_wait, share_lyrics, share_as_text, share_as_image, max_selection_limit, share_selected, customize_colors, … +103 more |
-| `app/src/main/res/values-iw/strings.xml` | 270 lines | `resources` | songs, history, home, artists, albums, playlists, n_selected, account, quick_picks, forgotten_favorites, keep_listening, today, yesterday, this_week, last_week, search, search_yt_music, filter_library, filter_liked, filter_downloaded, … +207 more |
+| `app/src/main/res/values-iw/strings.xml` | 269 lines | `resources` | songs, history, home, artists, albums, playlists, n_selected, account, quick_picks, forgotten_favorites, keep_listening, today, yesterday, this_week, last_week, search, search_yt_music, filter_library, filter_liked, filter_downloaded, … +206 more |
 
 ## `values-ji` (2 paths)
 

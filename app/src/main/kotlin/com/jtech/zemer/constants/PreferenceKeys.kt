@@ -107,7 +107,6 @@ val CheckForUpdatesKey = booleanPreferencesKey("checkForUpdates")
 val NightlyUpdatesKey = booleanPreferencesKey("nightlyUpdates") // opt-in nightly update channel
 // Last nightly build announced via the startup snackbar, so each nightly is announced only once.
 val LastNightlyAnnouncedKey = stringPreferencesKey("lastNightlyAnnounced")
-val UpdateNotificationsEnabledKey = booleanPreferencesKey("updateNotifications")
 val InstallerTypeKey = intPreferencesKey("installerType") // InstallerType ordinal
 val LastWhitelistVersionKey = longPreferencesKey("lastWhitelistVersion")
 // One-time gate: false until a full whitelist fetch has populated the v35 displayName/altName columns
