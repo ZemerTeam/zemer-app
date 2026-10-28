@@ -95,11 +95,11 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `.github/workflows/docs-regenerate.yml` | 80 lines | `.yml` |
 | `.github/workflows/player-monitor.yml` | 196 lines | `.yml` |
 | `.github/workflows/regression.yml` | 84 lines | `.yml` |
-| `.github/workflows/release-build.yml` | 167 lines | `.yml` |
+| `.github/workflows/release-build.yml` | 183 lines | `.yml` |
 | `.github/workflows/ui-audit.yml` | 55 lines | `.yml` |
 | `.gitignore` | 117 lines | `[none]` |
 | `.gitmodules` | 3 lines | `[none]` |
-| `AGENTS.md` | 1100 lines | `.md` |
+| `AGENTS.md` | 1103 lines | `.md` |
 | `LICENSE` | 674 lines | `[none]` |
 | `README.md` | 9 lines | `.md` |
 | `app/.gitignore` | 1 lines | `[none]` |
@@ -1234,7 +1234,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `docs/app/playback.md` | 119 lines | `.md` |
 | `docs/app/preferences-sync-auth.md` | 220 lines | `.md` |
 | `docs/app/viewmodels.md` | 134 lines | `.md` |
-| `docs/build-release.md` | 60 lines | `.md` |
+| `docs/build-release.md` | 61 lines | `.md` |
 | `docs/fcast/01-architecture.md` | 67 lines | `.md` |
 | `docs/fcast/02-on-demand-native-lib.md` | 59 lines | `.md` |
 | `docs/fcast/03-discovery-and-connection.md` | 113 lines | `.md` |

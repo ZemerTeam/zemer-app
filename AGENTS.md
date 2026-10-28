@@ -1068,9 +1068,12 @@ session; **gitignored**, never commit). Methodology + the symptom-indexed runboo
   query strings, ip/pot/visitorData/sig/n/key/token values, IPs, emails, the account uid) and carries no
   identifiers; non-fatals are deduped per launch (one per fingerprint, with a `count`, at most 20 kinds); a
   fatal is queued in the uncaught-exception handler and sent there (bounded wait), else on the next launch;
-  reports carry `commit` + `runNumber` because nightly and stable share one versionCode/versionName. Release
-  builds are NOT obfuscated (`-dontobfuscate`; shrinking and optimization stay on), so stacks are readable
-  with no mapping file - don't reintroduce renaming without a mapping upload on the server side.
+  reports carry `commit` + `runNumber` because nightly and stable share one versionCode/versionName; a
+  cancellation in the cause chain is never reported. Release builds keep Timber i/w/e (only v/d are stripped
+  by R8): stripping e silences `reportException()` and every release non-fatal. Release builds are not
+  obfuscated (`-dontobfuscate`), but R8's optimizations still merge classes and remap lines, so a release stack
+  is only readable after retrace: the release workflow uploads each shipping build's `mapping.txt` to
+  `tracking.zemer.io/v1/mapping` (secret `CRASH_MAPPING_KEY`, never fails the build) and the server retraces.
 - **`:innertube`** (`com.metrolist.innertube`) - the Ktor InnerTube client (requests, auth context,
   renderer parsers) and the `YouTubeClient` definitions. The cipher is the single sts/decipher source (no
   NewPipe extractor - don't reintroduce it).
