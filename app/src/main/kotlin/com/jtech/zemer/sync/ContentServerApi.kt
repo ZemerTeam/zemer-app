@@ -1,6 +1,7 @@
 package com.jtech.zemer.sync
 
 import com.jtech.zemer.BuildConfig
+import com.jtech.zemer.search.isZemerServerUnreachable
 import com.jtech.zemer.sync.models.DeviceContentFilters
 import com.jtech.zemer.sync.models.DevicePreferencesEntity
 import io.ktor.client.HttpClient
@@ -122,12 +123,23 @@ class ContentServerApi(
         }
 
         private fun defaultClient() = HttpClient(CIO) {
+            install(com.jtech.zemer.net.ZemerHeaders.KtorPlugin)
             install(HttpTimeout) {
                 connectTimeoutMillis = 5_000
                 requestTimeoutMillis = 10_000
             }
         }
     }
+}
+
+/**
+ * A write worth retrying later: the server was unreachable, answered 429 / 5xx, or a challenge page stood in for
+ * it. Any other status is a rejection of this write, and a non-network error (e.g. an unreadable 201 body, so a
+ * report may already be stored) is never re-sent.
+ */
+internal fun Throwable.isRetryableWriteFailure(): Boolean = when (this) {
+    is ContentServerException -> challenge || status == 429 || status >= 500
+    else -> isZemerServerUnreachable()
 }
 
 /**

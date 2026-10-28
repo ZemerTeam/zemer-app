@@ -2,6 +2,7 @@ package com.jtech.zemer.ui.screens
 
 import android.content.Context
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -44,6 +45,8 @@ fun OnboardingFlow(
             prefs.contains(BlockVideosKey.name)
         }
     }
+
+    LaunchedEffect(Unit) { viewModel.startAutoRestore(contentFiltersAlreadySet) }
 
     var step by rememberSaveable { mutableStateOf(OnboardingStep.Welcome) }
 

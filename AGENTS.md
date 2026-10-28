@@ -201,12 +201,18 @@ ISO-8601 written with millis (`IsoDateSerializer`), nulls explicit, an absent `b
   challenge page) shows the blocking "Can't check your saved settings" panel with Retry and auto-retry
   (`restoreRetryDelayMs`, honoring `Retry-After`). Never continue silently on a non-definitive answer, and
   never render the filter toggles before the answer (the VM starts in Checking). During onboarding only
-  the gate looks the device up (`initialize()` skips it); normal launches never block.
-- **Writes survive outages.** A failed filter upload sets the persisted `content_filter_upload_pending`
-  flag and is retried with backoff (`writeRetryDelayMs`); `performSync` pushes a pending upload BEFORE any
-  server-wins pull, so a stale server copy never replaces an unsynced change. A report the server could not
-  take (unreachable, 5xx, 429; `isRetryableReportFailure`) is queued in `filesDir/pending_reports.jsonl`
-  and drained at launch and with backoff; any other status fails to the dialog as before.
+  the gate looks the device up (`initialize()` skips it); normal launches never block. When the filters
+  are already set on the device the filter step is skipped and so is the lookup (`startAutoRestore`), so a
+  restore never replaces local filters unseen.
+- **Writes survive outages.** One shared predicate, `isRetryableWriteFailure` (unreachable, 5xx, 429, a
+  challenge page), decides what is retried. A filter upload failing that way (or with no network for the
+  token, `isRetryableSyncFailure`) records the account's uid in `content_filter_upload_pending_uid` - pending
+  only for that account; a permanent 4xx clears it - and is retried with backoff (`writeRetryDelayMs`);
+  uploads are serialized (`uploadMutex`) so an older one never lands last. `performSync` pushes a pending
+  upload BEFORE any server-wins pull, so a stale server copy never replaces an unsynced change. A device the
+  account document does not list yet is added, never dropped. Such a report is queued in
+  `filesDir/pending_reports.jsonl` and drained (one drain at a time) at launch and with backoff; any other
+  status fails to the dialog as before.
 - **Content reads that fall back to Firestore report `fetch_fail`** (see §Tracking) so the fallback's
   reach is measured before it is removed.
 

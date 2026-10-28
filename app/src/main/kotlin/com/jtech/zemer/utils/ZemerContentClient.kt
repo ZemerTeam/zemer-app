@@ -262,9 +262,10 @@ suspend fun <T> mirrorFirst(
     runCatching { mirror() }
         .onSuccess { Timber.d("ZemerContentClient: %s served from content mirror", label) }
         .getOrElse { throwable ->
+            if (throwable is CancellationException) throw throwable
             Timber.w(throwable, "ZemerContentClient: %s mirror unavailable — falling back to Firebase", label)
             // Measures how many devices depend on the Firebase fallback before it can be removed.
-            if (ZemerContentClient.enabled && throwable !is CancellationException) {
+            if (ZemerContentClient.enabled) {
                 Tracker.fetchFail(host = "content", path = label, kind = fetchFailKind(throwable))
             }
             firebase()

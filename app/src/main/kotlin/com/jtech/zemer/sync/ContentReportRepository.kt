@@ -2,7 +2,6 @@ package com.jtech.zemer.sync
 
 import android.content.Context
 import com.google.firebase.auth.FirebaseAuth
-import com.jtech.zemer.search.isZemerServerUnreachable
 import com.jtech.zemer.tracking.TrackingQueue
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CancellationException
@@ -55,7 +54,7 @@ class ContentReportRepository @Inject constructor(
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
-            if (!e.isRetryableReportFailure()) throw e
+            if (!e.isRetryableWriteFailure()) throw e
             Timber.w(e, "ContentReportRepository: server unavailable, report queued")
             pendingLock.withLock { pending.append(payload.toString()) }
             drainPending()
@@ -63,6 +62,7 @@ class ContentReportRepository @Inject constructor(
     }
 
     /** Sends queued reports oldest first, backing off while the server stays unavailable. */
+    @Synchronized
     fun drainPending() {
         if (drainJob?.isActive == true) return
         drainJob = scope.launch {
@@ -72,7 +72,7 @@ class ContentReportRepository @Inject constructor(
                 val failure = runCatching {
                     api.submitReport(Json.parseToJsonElement(line) as JsonObject)
                 }.exceptionOrNull()
-                if (failure == null || !failure.isRetryableReportFailure()) {
+                if (failure == null || !failure.isRetryableWriteFailure()) {
                     // Sent, or rejected for good (a bad line can never succeed): drop it either way.
                     if (failure != null) Timber.w(failure, "ContentReportRepository: queued report rejected")
                     pendingLock.withLock { pending.removeBatch(listOf(line)) }
@@ -114,14 +114,4 @@ class ContentReportRepository @Inject constructor(
             else -> JsonPrimitive(toString())
         }
     }
-}
-
-/**
- * Worth retrying later: the server was unreachable, or answered 429 / 5xx. Any other status is a
- * rejection of this report, and a non-network error (e.g. an unreadable 201 body, so the report may
- * already be stored) is never re-sent.
- */
-internal fun Throwable.isRetryableReportFailure(): Boolean = when (this) {
-    is ContentServerException -> status == 429 || status >= 500
-    else -> isZemerServerUnreachable()
 }

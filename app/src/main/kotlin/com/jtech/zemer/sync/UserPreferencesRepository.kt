@@ -31,6 +31,7 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.sync.withLock
 import java.util.Date
 import com.jtech.zemer.di.SyncDataStore
 import com.jtech.zemer.di.MainDataStore
@@ -117,15 +118,24 @@ class UserPreferencesRepository @Inject constructor(
     private val lastSyncTimeKey = longPreferencesKey("last_content_filter_sync_time")
     private val deviceIdKey = stringPreferencesKey("current_device_id")
     private val syncEnabledKey = booleanPreferencesKey("content_filter_sync_enabled")
-    // Set when an upload of the local filters failed; the local DataStore (always the latest state)
-    // is then pending and is pushed before any server-wins pull, across restarts.
-    private val uploadPendingKey = booleanPreferencesKey("content_filter_upload_pending")
+    // The account whose upload of the local filters failed for a reason worth retrying (unreachable, 5xx, 429,
+    // a challenge page, no network for the token). The local DataStore, always the latest state, is then pending:
+    // pushed before any server-wins pull, across restarts, but only for THAT account - a different sign-in never
+    // receives another account's pending change, and a permanent rejection is not retried forever.
+    private val uploadPendingUidKey = stringPreferencesKey("content_filter_upload_pending_uid")
 
-    suspend fun isUploadPending(): Boolean = syncDataStore.data.first()[uploadPendingKey] ?: false
-
-    private suspend fun setUploadPending(pending: Boolean) {
-        syncDataStore.edit { it[uploadPendingKey] = pending }
+    suspend fun isUploadPending(): Boolean {
+        val uid = authManager.currentUserId ?: return false
+        return syncDataStore.data.first()[uploadPendingUidKey] == uid
     }
+
+    private suspend fun setUploadPending(uid: String?) {
+        syncDataStore.edit { if (uid != null) it[uploadPendingUidKey] = uid else it.remove(uploadPendingUidKey) }
+    }
+
+    // One upload at a time: each is GET then PUT then the pending flag, and an older one finishing last would
+    // overwrite a newer change with a stale config (the retry loop races preference changes otherwise).
+    private val uploadMutex = kotlinx.coroutines.sync.Mutex()
 
     /**
      * Fetch device preferences from the server (single document per user with a devices array)
@@ -261,11 +271,14 @@ class UserPreferencesRepository @Inject constructor(
             storeDeviceId(deviceId)
 
             Result.success(Unit)
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             val errorClassification = classifySyncError(e)
             Log.e("ZemerSync", "Upload failed: $errorClassification")
             Log.e("ZemerSync", "Original error: ${e.message}")
-            reportException(e)
+            // a transient failure is retried by the pending-upload loop; reporting each attempt would only add noise
+            if (!e.isRetryableSyncFailure()) reportException(e)
             Result.failure(e)
         }
     }
@@ -281,7 +294,7 @@ class UserPreferencesRepository @Inject constructor(
             // Fetch the user document and update the specific device in the devices array
             val entity = withIdToken { api.getPrefs(it) }
 
-            if (entity != null) {
+            if (entity != null && entity.devices.any { it.deviceId == deviceId }) {
                 val updatedDevices = entity.devices.map { deviceData ->
                     if (deviceData.deviceId == deviceId) {
                         deviceData.copy(
@@ -296,7 +309,8 @@ class UserPreferencesRepository @Inject constructor(
 
                 withIdToken { api.putPrefs(it, entity.copy(devices = updatedDevices, updatedAt = Date())) }
             } else {
-                // Document doesn't exist, create it (a failure must surface so the change stays pending)
+                // No document yet, or one that does not list this device (e.g. a second device on the account):
+                // add this device, creating the document if needed. A failure must surface so the change stays pending.
                 uploadDevicePreferences(config).getOrThrow()
             }
 
@@ -370,7 +384,9 @@ class UserPreferencesRepository @Inject constructor(
     /**
      * Sync current local preferences to server
      */
-    suspend fun syncToServer(): Result<Unit> {
+    suspend fun syncToServer(): Result<Unit> = uploadMutex.withLock { syncToServerLocked() }
+
+    private suspend fun syncToServerLocked(): Result<Unit> {
         return try {
             if (!authManager.isUserSignedIn) {
                 return Result.failure(Exception("User not authenticated"))
@@ -394,7 +410,8 @@ class UserPreferencesRepository @Inject constructor(
             } else {
                 uploadDevicePreferences(currentConfig)
             }
-            setUploadPending(uploaded.isFailure)
+            val failure = uploaded.exceptionOrNull()
+            setUploadPending(if (failure != null && failure.isRetryableSyncFailure()) authManager.currentUserId else null)
 
             Result.success(Unit)
         } catch (e: Exception) {
@@ -563,6 +580,13 @@ sealed interface DeviceRestoreResult {
     data object NoPrefs : DeviceRestoreResult
     data class Failed(val error: Throwable) : DeviceRestoreResult
 }
+
+/**
+ * A filter-sync failure worth retrying later: a write the server could not take now ([isRetryableWriteFailure]) or
+ * no network to get the account token. Anything else (a 4xx rejection, a token that stays invalid) is permanent.
+ */
+internal fun Throwable.isRetryableSyncFailure(): Boolean =
+    isRetryableWriteFailure() || this is com.google.firebase.FirebaseNetworkException
 
 /**
  * Runs [block] with a token from [token]; a 401 (expired/revoked token) retries ONCE with a

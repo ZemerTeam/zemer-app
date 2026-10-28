@@ -11,20 +11,32 @@ import java.nio.channels.UnresolvedAddressException
 class ReportRetryTest {
     @Test
     fun `unreachable, 429 and 5xx are queued for retry`() {
-        assertTrue(IOException("down").isRetryableReportFailure())
-        assertTrue(UnresolvedAddressException().isRetryableReportFailure())
-        assertTrue(ContentServerException(429, "x").isRetryableReportFailure())
-        assertTrue(ContentServerException(500, "x").isRetryableReportFailure())
-        assertTrue(ContentServerException(503, "x", challenge = true).isRetryableReportFailure())
+        assertTrue(IOException("down").isRetryableWriteFailure())
+        assertTrue(UnresolvedAddressException().isRetryableWriteFailure())
+        assertTrue(ContentServerException(429, "x").isRetryableWriteFailure())
+        assertTrue(ContentServerException(500, "x").isRetryableWriteFailure())
+        assertTrue(ContentServerException(503, "x", challenge = true).isRetryableWriteFailure())
+        // a challenge page stands in for the origin: not a rejection of the write
+        assertTrue(ContentServerException(403, "x", challenge = true).isRetryableWriteFailure())
     }
 
     @Test
     fun `rejections and unreadable answers are never re-sent`() {
-        assertFalse(ContentServerException(400, "x").isRetryableReportFailure())
-        assertFalse(ContentServerException(403, "x").isRetryableReportFailure())
-        assertFalse(ContentServerException(413, "x").isRetryableReportFailure())
+        assertFalse(ContentServerException(400, "x").isRetryableWriteFailure())
+        assertFalse(ContentServerException(403, "x").isRetryableWriteFailure())
+        assertFalse(ContentServerException(413, "x").isRetryableWriteFailure())
         // a 201 whose body we could not read: the report may already be stored
-        assertFalse(SerializationException("bad body").isRetryableReportFailure())
+        assertFalse(SerializationException("bad body").isRetryableWriteFailure())
+    }
+
+    @Test
+    fun `a filter upload stays pending only for failures worth retrying`() {
+        assertTrue(IOException("down").isRetryableSyncFailure())
+        assertTrue(ContentServerException(503, "x").isRetryableSyncFailure())
+        assertTrue(ContentServerException(403, "x", challenge = true).isRetryableSyncFailure())
+        assertFalse(ContentServerException(400, "x").isRetryableSyncFailure())
+        assertFalse(ContentServerException(401, "x").isRetryableSyncFailure())
+        assertFalse(IllegalStateException("User not authenticated").isRetryableSyncFailure())
     }
 
     @Test

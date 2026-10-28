@@ -50,7 +50,6 @@ class OnboardingViewModel @Inject constructor(
 
     init {
         checkInitialState()
-        if (!authManager.isUserSignedIn) attemptAutoRestore()
     }
 
     suspend fun signInWithGoogle(idToken: String): Result<com.google.firebase.auth.FirebaseUser> {
@@ -95,9 +94,15 @@ class OnboardingViewModel @Inject constructor(
 
     /**
      * Auto-restore for unregistered users with server preferences. Keeps retrying with backoff until the
-     * server gives a definitive answer: 200 restores (and locks), 404 continues as a new user.
+     * server gives a definitive answer: 200 restores (and locks), 404 continues as a new user. Skipped when
+     * the filters are already set on this device: onboarding then never shows the filter step, so a restore
+     * would replace (and lock) the local filters unseen.
      */
-    fun attemptAutoRestore() {
+    fun startAutoRestore(contentFiltersAlreadySet: Boolean) {
+        if (contentFiltersAlreadySet) {
+            _uiState.update { it.copy(isCheckingAutoRestore = false) }
+            return
+        }
         if (restoreJob?.isActive == true) return
         restoreJob = viewModelScope.launch { restoreUntilDefinitive() }
     }
