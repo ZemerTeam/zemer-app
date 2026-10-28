@@ -322,7 +322,7 @@ Every `@Composable fun` per UI file (extension receivers dropped, so `BoxScope.X
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/statuses/SavedStatusScreen.kt` | 353 | SavedStatusScreen, SavedPreviewFace |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/statuses/StatusDownloadsScreen.kt` | 439 | StatusDownloadsScreen, SavedCreatorFilterRow, SavedStatusTile |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/statuses/StatusesScreen.kt` | 141 | StatusesScreen |
-| `app/src/main/kotlin/com/jtech/zemer/ui/screens/statuses/StoryScreen.kt` | 923 | StoryScreen, FabProgressRing, StatusPreviewFace, StatusDateCard |
+| `app/src/main/kotlin/com/jtech/zemer/ui/screens/statuses/StoryScreen.kt` | 929 | StoryScreen, FabProgressRing, StatusPreviewFace, StatusDateCard |
 | `app/src/main/kotlin/com/jtech/zemer/ui/theme/ChartColors.kt` | 30 | chartClimbColor, chartFallColor, isDarkSurface |
 | `app/src/main/kotlin/com/jtech/zemer/ui/theme/LogColors.kt` | 26 | logPriorityColor |
 | `app/src/main/kotlin/com/jtech/zemer/ui/theme/PlayerSliderColors.kt` | 129 | getSliderColors, defaultSliderColors, squigglySliderColors, slimSliderColors |
@@ -563,7 +563,7 @@ Key declarations are the first 12 `class`/`object`/`interface`/`fun`/`val`/`var`
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/statuses/SavedStatusScreen.kt` | 353 | val SAVED_IMAGE_HOLD_MS, fun SavedStatusScreen, val context, val creators, val scope, val onClose, val exoPlayer, var videoRendered, val listener, fun onRenderedFirstFrame, val lifecycleOwner, val observer, … (+26 more) |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/statuses/StatusDownloadsScreen.kt` | 439 | val TILE_WIDTH, fun statusSortLabel, fun StatusDownloadsScreen, val blockVideos, val _, val downloads, val menuState, var kind, var sort, var selectedCreator, val creatorReps, val filtered, … (+13 more) |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/statuses/StatusesScreen.kt` | 141 | fun StatusesScreen, val creators, val seenPostIds, val contentFilter, var query, val searchFocus, val sourcesConfig, val sections, fun open, fun androidx |
-| `app/src/main/kotlin/com/jtech/zemer/ui/screens/statuses/StoryScreen.kt` | 923 | val VIDEO_STALL_TIMEOUT_MS, val dowFmt, val dayFmt, fun prefetchStatusImage, val post, val url, fun StoryScreen, val context, val colorScheme, val viewModel, val creators, val seenPostIds, … (+107 more) |
+| `app/src/main/kotlin/com/jtech/zemer/ui/screens/statuses/StoryScreen.kt` | 929 | val VIDEO_STALL_TIMEOUT_MS, val dowFmt, val dayFmt, fun prefetchStatusImage, val post, val url, fun StoryScreen, val context, val colorScheme, val viewModel, val creators, val seenPostIds, … (+108 more) |
 | `app/src/main/kotlin/com/jtech/zemer/ui/theme/ChartColors.kt` | 30 | fun chartClimbColor, fun chartFallColor, fun isDarkSurface |
 | `app/src/main/kotlin/com/jtech/zemer/ui/theme/LogColors.kt` | 26 | fun logPriorityColor, val dark |
 | `app/src/main/kotlin/com/jtech/zemer/ui/theme/PlayerColorExtractor.kt` | 133 | object PlayerColorExtractor, fun extractGradientColors, val colorCandidates, val bestSwatch, val fallbackDominant, val primaryColor, val bestColor, fun isColorVibrant, val argb, val hsv, val saturation, val brightness, … (+13 more) |

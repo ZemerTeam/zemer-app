@@ -97,7 +97,10 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
+import androidx.media3.datasource.DefaultDataSource
+import androidx.media3.datasource.okhttp.OkHttpDataSource
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.navigation.NavController
 import coil3.compose.AsyncImage
 import coil3.imageLoader
@@ -112,6 +115,7 @@ import com.jtech.zemer.statuses.formatPostedAt
 import com.jtech.zemer.statuses.resumePos
 import com.jtech.zemer.statuses.statusAvatarUrl
 import com.jtech.zemer.statuses.statusDateGroups
+import com.jtech.zemer.statuses.statusHttp
 import com.jtech.zemer.statuses.statusMediaUrl
 import com.jtech.zemer.ui.theme.HeaderFontFamily
 import com.jtech.zemer.viewmodels.StoryViewModel
@@ -181,7 +185,9 @@ fun StoryScreen(
     BackHandler(onBack = onClose)
 
     val exoPlayer = remember {
-        ExoPlayer.Builder(context).build().apply {
+        // through the shared status client, so a video on a Zemer host is fetched with the request signature
+        val dataSource = DefaultDataSource.Factory(context, OkHttpDataSource.Factory(statusHttp))
+        ExoPlayer.Builder(context).setMediaSourceFactory(DefaultMediaSourceFactory(dataSource)).build().apply {
             repeatMode = Player.REPEAT_MODE_OFF
             volume = 1f
         }
