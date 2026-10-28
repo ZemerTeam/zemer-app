@@ -72,7 +72,11 @@ class ContentFilterSyncService @Inject constructor(
                 // A fresh install / data clear: onboarding's blocking restore gate does this lookup (one
                 // definitive lookup per install, not two).
                 Log.d("ZemerSync", "Onboarding pending - its restore gate checks for server preferences")
+            } else if (!authManager.isUserSignedIn && !userPreferencesRepository.needsInstallRestoreCheck()) {
+                // This install already has a definitive answer: an ordinary launch never looks the device up again.
+                Log.d("ZemerSync", "Not signed in - saved-settings check already done for this install")
             } else if (!authManager.isUserSignedIn) {
+                // A restored app backup (onboarding done, no sign-in) or a lookup that never got an answer
                 try {
                     Log.d("ZemerSync", "User not signed in locally - checking for server preferences to auto-restore")
                     val result = userPreferencesRepository.fetchDevicePreferencesByDeviceId()

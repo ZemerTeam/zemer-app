@@ -218,6 +218,10 @@ ISO-8601 written with millis (`IsoDateSerializer`), nulls explicit, an absent `b
   (`initialSyncUid`), never also from `initialize()`, and startup filter emissions before it are ignored. An
   upload reads the document once and sends nothing when this device's stored filters already match
   (`deviceFiltersChanged`, `lastServerFilters`); never add a periodic or on-resume upload of unchanged filters.
+  The device lookup (`GET /prefs/device`) runs only while this install has no definitive answer yet
+  (`needsInstallRestoreCheck`, a marker in `noBackupFilesDir` written on a 200/404, so a fresh install, a data
+  clear and a restored app backup all start without it); an ordinary launch never looks the device up, from
+  either the service or the onboarding flow (which is composed briefly on every launch).
 - **Content reads that fall back to Firestore report `fetch_fail`** (see §Tracking) so the fallback's
   reach is measured before it is removed.
 

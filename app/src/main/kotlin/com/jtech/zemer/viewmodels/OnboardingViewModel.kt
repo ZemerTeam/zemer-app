@@ -95,11 +95,13 @@ class OnboardingViewModel @Inject constructor(
     /**
      * Auto-restore for unregistered users with server preferences. Keeps retrying with backoff until the
      * server gives a definitive answer: 200 restores (and locks), 404 continues as a new user. Skipped when
-     * the filters are already set on this device: onboarding then never shows the filter step, so a restore
-     * would replace (and lock) the local filters unseen.
+     * the filters are already set on this device (onboarding then never shows the filter step, so a restore
+     * would replace and lock the local filters unseen), or when this install already got a definitive answer.
      */
     fun startAutoRestore(contentFiltersAlreadySet: Boolean) {
-        if (contentFiltersAlreadySet) {
+        // Also skipped once this install has its answer: the onboarding flow is composed briefly on every launch
+        // (before the onboarding flag loads), and an ordinary launch must not look the device up.
+        if (contentFiltersAlreadySet || !userPreferencesRepository.needsInstallRestoreCheck()) {
             _uiState.update { it.copy(isCheckingAutoRestore = false) }
             return
         }

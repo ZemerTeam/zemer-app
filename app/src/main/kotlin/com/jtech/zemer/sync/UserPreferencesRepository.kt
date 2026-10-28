@@ -77,6 +77,17 @@ class UserPreferencesRepository @Inject constructor(
     private val authManager: UserAuthManager,
     private val deviceIdGenerator: DeviceIdGenerator
 ) {
+    // Present once this install got a definitive saved-settings answer (restored, or none saved). It lives in
+    // noBackupFilesDir, so a fresh install, a data clear and a restored app backup all start without it: the
+    // device lookup is for those launches only, never ordinary ones (each lookup is server cost).
+    private val restoreCheckedMarker get() = java.io.File(context.noBackupFilesDir, "device_restore_checked")
+
+    fun needsInstallRestoreCheck(): Boolean = !restoreCheckedMarker.exists()
+
+    private fun markRestoreChecked() {
+        runCatching { restoreCheckedMarker.createNewFile() }.onFailure { Log.w("ZemerSync", "Restore marker not written", it) }
+    }
+
     // The account email of the last device-id restore, saved by [markAutoRestored] as the restore label.
     @Volatile
     private var lastRestoredEmail: String? = null
@@ -198,9 +209,11 @@ class UserPreferencesRepository @Inject constructor(
 
                 storeDeviceId(deviceId)
 
+                markRestoreChecked()
                 DeviceRestoreResult.Restored(restore.contentFilters.toConfig())
             } else {
                 Log.d("ZemerSync", "No device preferences found for device ID: $deviceId")
+                markRestoreChecked()
                 DeviceRestoreResult.NoPrefs
             }
         } catch (e: CancellationException) {
