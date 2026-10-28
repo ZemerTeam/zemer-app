@@ -208,6 +208,23 @@ class StatusesApiTest {
         )
         // a search drops the sections with no match; a creator from an unconfigured provider is not shown
         assertEquals(listOf("Zemer"), statusSections(creators + c("x1", "gone"), providers, " official ").map { it.first.name })
+        // a provider id listed twice gets one section, so no creator appears twice
+        assertEquals(
+            listOf("Zemer" to listOf("z1"), "JewishStatus" to listOf("j1", "j2")),
+            statusSections(creators, listOf(providers[0], providers[1], p("zemer", "Zemer again")), "")
+                .map { (p, list) -> p.name to list.map { it.id } },
+        )
+    }
+
+    @Test
+    fun `the config is observable, so a config change reaches the See-all screen`() {
+        StatusSourcesCache.resetForTest()
+        val config = StatusSourcesConfig(version = 7, providers = emptyList())
+        StatusSourcesCache.update(config)
+        assertEquals(config, StatusSourcesCache.state.value)
+        StatusSourcesCache.update(StatusSourcesConfig(version = 3, providers = emptyList())) // older: ignored
+        assertEquals(7L, StatusSourcesCache.state.value.version)
+        StatusSourcesCache.resetForTest()
     }
 
     @Test

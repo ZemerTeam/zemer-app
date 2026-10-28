@@ -139,6 +139,11 @@ object StatusSourcesCache {
     @Volatile
     private var installed: StatusSourcesConfig? = null
 
+    private val _state = kotlinx.coroutines.flow.MutableStateFlow(EMPTY)
+
+    /** [current] as observable state, so a screen built from the config follows a config change. */
+    val state: kotlinx.coroutines.flow.StateFlow<StatusSourcesConfig> = _state
+
     /**
      * Install a validated mirror config. Never pass null (null from the parser means "keep last-good").
      * Never rolls back: an older-versioned config is ignored, so the startup restore of the persisted
@@ -149,6 +154,7 @@ object StatusSourcesCache {
         val current = installed
         if (current != null && config.version < current.version) return
         installed = config
+        _state.value = config
     }
 
     /** The config to use now: the installed mirror config, else an empty config (feature hidden). */
@@ -161,5 +167,6 @@ object StatusSourcesCache {
     /** Test-only: clear the installed config (the object is process-wide; JVM tests need isolation). */
     internal fun resetForTest() {
         installed = null
+        _state.value = EMPTY
     }
 }

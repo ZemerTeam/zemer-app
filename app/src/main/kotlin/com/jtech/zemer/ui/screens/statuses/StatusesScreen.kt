@@ -65,9 +65,11 @@ fun StatusesScreen(
     var query by rememberSaveable { mutableStateOf("") }
     val searchFocus = remember { FocusRequester() }
 
-    // One section per configured provider, in the server's config order (a creator republish follows any config change)
-    val sections = remember(creators, seenPostIds, query, contentFilter) {
-        statusSections(creators, StatusSourcesCache.current().providers, query)
+    val sourcesConfig by StatusSourcesCache.state.collectAsState()
+
+    // One section per configured provider, in the server's config order
+    val sections = remember(creators, sourcesConfig, seenPostIds, query, contentFilter) {
+        statusSections(creators, sourcesConfig.providers, query)
             .map { (provider, list) -> provider to list.sortedByUnseenFirst(seenPostIds, contentFilter) }
     }
 

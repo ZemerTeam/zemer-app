@@ -53,7 +53,8 @@ data class StatusCreator(
 
 /**
  * The See-all screen's sections: one per configured provider, in config order, titled by its name, holding its
- * creators that match [query] (empty sections dropped). Creators keep their given order.
+ * creators that match [query] (empty sections dropped). Creators keep their given order. A provider id listed twice
+ * gets one section (the first): repeated items would crash the grid's keyed list.
  */
 fun statusSections(
     creators: List<StatusCreator>,
@@ -62,7 +63,9 @@ fun statusSections(
 ): List<Pair<StatusProvider, List<StatusCreator>>> {
     val q = query.trim()
     val matching = creators.filter { q.isEmpty() || it.displayName.contains(q, ignoreCase = true) }
-    return providers.map { p -> p to matching.filter { it.providerId == p.id } }.filter { it.second.isNotEmpty() }
+    return providers.distinctBy { it.id }
+        .map { p -> p to matching.filter { it.providerId == p.id } }
+        .filter { it.second.isNotEmpty() }
 }
 
 data class StatusPost(
