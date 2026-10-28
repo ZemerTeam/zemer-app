@@ -20,7 +20,6 @@ import com.metrolist.innertube.models.WatchEndpoint
 import com.metrolist.innertube.models.WatchEndpoint.WatchEndpointMusicSupportedConfigs.WatchEndpointMusicConfig.Companion.MUSIC_VIDEO_TYPE_ATV
 import com.metrolist.innertube.models.YTItem
 import com.metrolist.innertube.models.YouTubeClient
-import com.metrolist.innertube.models.YouTubeClient.Companion.WEB
 import com.metrolist.innertube.models.YouTubeClient.Companion.WEB_REMIX
 import com.metrolist.innertube.models.YouTubeLocale
 import com.metrolist.innertube.models.getContinuation
@@ -32,7 +31,6 @@ import com.metrolist.innertube.models.response.CreatePlaylistResponse
 import com.metrolist.innertube.models.response.EditPlaylistResponse
 import com.metrolist.innertube.models.response.FeedbackResponse
 import com.metrolist.innertube.models.response.GetQueueResponse
-import com.metrolist.innertube.models.response.GetTranscriptResponse
 import com.metrolist.innertube.models.response.ImageUploadResponse
 import com.metrolist.innertube.models.response.NextResponse
 import com.metrolist.innertube.models.response.PlayerResponse
@@ -768,23 +766,16 @@ object YouTube {
             }
     }
 
-    suspend fun transcript(videoId: String): Result<String> = runCatching {
-        val response = innerTube.getTranscript(WEB, videoId).body<GetTranscriptResponse>()
-        response.actions?.firstOrNull()?.updateEngagementPanelAction?.content?.transcriptRenderer?.body?.transcriptBodyRenderer?.cueGroups?.joinToString(separator = "\n") { group ->
-            val time = group.transcriptCueGroupRenderer.cues[0].transcriptCueRenderer.startOffsetMs
-            val text = group.transcriptCueGroupRenderer.cues[0].transcriptCueRenderer.cue.simpleText
-                .trim('♪')
-                .trim(' ')
-            "[%02d:%02d.%03d]$text".format(time / 60000, (time / 1000) % 60, time % 1000)
-        }!!
-    }
-
+    /** Fails with [NotSignedInException] when the cookie has no signed-in account (no account header). */
     suspend fun accountInfo(): Result<AccountInfo> = runCatching {
         innerTube.accountMenu(WEB_REMIX).body<AccountMenuResponse>()
-            .actions[0].openPopupAction.popup.multiPageMenuRenderer
-            .header?.activeAccountHeaderRenderer
-            ?.toAccountInfo()!!
+            .actions.firstOrNull()?.openPopupAction?.popup?.multiPageMenuRenderer
+            ?.header?.activeAccountHeaderRenderer
+            ?.toAccountInfo()
+            ?: throw NotSignedInException()
     }
+
+    class NotSignedInException : Exception("No signed-in account")
 
     suspend fun feedback(tokens: List<String>): Result<Boolean> = runCatching {
         innerTube.feedback(WEB_REMIX, tokens).body<FeedbackResponse>().feedbackResponses.all { it.isProcessed }

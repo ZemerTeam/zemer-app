@@ -324,7 +324,7 @@
     <string name="enable_zemer_lyrics_desc">Curated Jewish-music sources, cross-verified</string>
     <string name="enable_simpmusic_desc">Exact-track community lyrics</string>
     <string name="enable_lrclib_desc">Community synced-lyrics database</string>
-    <string name="enable_youtube_lyrics_desc">Subtitles and the Music lyrics tab; tried last</string>
+    <string name="enable_youtube_lyrics_desc">The Music lyrics tab; tried last</string>
     <string name="lyrics_provider_youtube_note">YouTube lyrics are lower trust and are tried last by default</string>
 
     <string name="backup_restore">Backup and restore</string>

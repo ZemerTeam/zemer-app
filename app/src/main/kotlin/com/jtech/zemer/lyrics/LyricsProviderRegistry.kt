@@ -4,7 +4,6 @@ import com.jtech.zemer.lyrics.zemer.ZemerLyricsProvider
 import com.jtech.zemer.lyrics.simpmusic.SimpMusicLyricsProvider
 import com.jtech.zemer.lyrics.lrclib.LrcLibLyricsProvider
 import com.jtech.zemer.lyrics.youtube.YouTubeLyricsProvider
-import com.jtech.zemer.lyrics.youtube.YouTubeSubtitleLyricsProvider
 
 /**
  * The lyrics providers by stable name, the default chain order, and the (de)serialisation of the user's
@@ -23,7 +22,6 @@ object LyricsProviderRegistry {
         "Zemer" to ZemerLyricsProvider,
         "SimpMusic" to SimpMusicLyricsProvider,
         "LrcLib" to LrcLibLyricsProvider,
-        "YouTubeSubtitle" to YouTubeSubtitleLyricsProvider,
         "YouTube" to YouTubeLyricsProvider,
     )
 

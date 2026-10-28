@@ -5,33 +5,33 @@ import org.junit.Test
 
 /** The priority dialog's order math: one row per toggle, enabled only; a drag keeps disabled providers behind the enabled ones. */
 class LyricsProviderOrderingTest {
-    private val groups = listOf(listOf("Zemer"), listOf("SimpMusic"), listOf("LrcLib"), listOf("YouTubeSubtitle", "YouTube"))
+    private val groups = listOf(listOf("Zemer"), listOf("SimpMusic"), listOf("LrcLib"), listOf("YouTube"))
     private val all = groups.flatten().toSet()
 
     @Test
-    fun `YouTube's two registry entries collapse into one row placed at the first-listed id`() {
-        val rows = LyricsProviderOrdering.enabledGroups("YouTube,Zemer,YouTubeSubtitle", groups, all)
-        assertEquals(listOf(listOf("YouTubeSubtitle", "YouTube"), listOf("Zemer"), listOf("SimpMusic"), listOf("LrcLib")), rows)
+    fun `rows follow the saved order`() {
+        val rows = LyricsProviderOrdering.enabledGroups("YouTube,Zemer", groups, all)
+        assertEquals(listOf(listOf("YouTube"), listOf("Zemer"), listOf("SimpMusic"), listOf("LrcLib")), rows)
     }
 
     @Test
     fun `disabled toggles are not rows`() {
-        val enabled = all - setOf("LrcLib", "YouTubeSubtitle", "YouTube")
+        val enabled = all - setOf("LrcLib", "YouTube")
         assertEquals(listOf(listOf("Zemer"), listOf("SimpMusic")), LyricsProviderOrdering.enabledGroups("", groups, enabled))
     }
 
     @Test
     fun `a drag rewrites the enabled order and keeps disabled providers behind it in their old order`() {
-        val enabled = all - setOf("YouTubeSubtitle", "YouTube")
-        val dragged = listOf(listOf("LrcLib"), listOf("Zemer"), listOf("SimpMusic"))
-        assertEquals("LrcLib,Zemer,SimpMusic,YouTubeSubtitle,YouTube", LyricsProviderOrdering.reordered("", dragged, enabled))
+        val enabled = all - setOf("LrcLib", "YouTube")
+        val dragged = listOf(listOf("SimpMusic"), listOf("Zemer"))
+        assertEquals("SimpMusic,Zemer,LrcLib,YouTube", LyricsProviderOrdering.reordered("", dragged, enabled))
         // the disabled tail keeps a previously saved relative order
-        assertEquals("LrcLib,Zemer,SimpMusic,YouTube,YouTubeSubtitle", LyricsProviderOrdering.reordered("YouTube", dragged, enabled))
+        assertEquals("SimpMusic,Zemer,YouTube,LrcLib", LyricsProviderOrdering.reordered("YouTube", dragged, enabled))
     }
 
     @Test
     fun `re-enabling a provider lands where it was`() {
         val saved = LyricsProviderOrdering.reordered("", listOf(listOf("SimpMusic"), listOf("Zemer")), setOf("Zemer", "SimpMusic"))
-        assertEquals(listOf(listOf("SimpMusic"), listOf("Zemer"), listOf("LrcLib"), listOf("YouTubeSubtitle", "YouTube")), LyricsProviderOrdering.enabledGroups(saved, groups, all))
+        assertEquals(listOf(listOf("SimpMusic"), listOf("Zemer"), listOf("LrcLib"), listOf("YouTube")), LyricsProviderOrdering.enabledGroups(saved, groups, all))
     }
 }

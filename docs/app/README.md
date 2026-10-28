@@ -15,8 +15,8 @@
 | BuildConfig fields visible in Gradle | `ARCHITECTURE`, `COMMIT_HASH`, `RUN_NUMBER`, `GOOGLE_TOKEN_EXCHANGE_URL`, `CONTENT_MIRROR_URL`, `ZEMER_LYRICS_BASE_URL` |
 | Room schema directory | `app/schemas` |
 | Native build | Yes (see `build-release.md`) |
-| Tracked app paths | `1125` |
-| Tracked app Kotlin files | `835` (`626` in `src/main`, `207` in `src/test`, `2` in `src/androidTest`) |
+| Tracked app paths | `1124` |
+| Tracked app Kotlin files | `834` (`625` in `src/main`, `207` in `src/test`, `2` in `src/androidTest`) |
 | Tracked app resource paths | `214` |
 | Tracked app asset paths | `0` in `src/main` (`3` test fixtures under `src/androidTest/assets`) |
 | Tracked app Room schema files | `36` |
@@ -65,7 +65,7 @@
 | `com.jtech.zemer.lyrics` | 13 |
 | `com.jtech.zemer.lyrics.lrclib` | 3 |
 | `com.jtech.zemer.lyrics.simpmusic` | 3 |
-| `com.jtech.zemer.lyrics.youtube` | 2 |
+| `com.jtech.zemer.lyrics.youtube` | 1 |
 | `com.jtech.zemer.lyrics.zemer` | 14 |
 | `com.jtech.zemer.models` | 5 |
 | `com.jtech.zemer.net` | 2 |
@@ -132,7 +132,7 @@
 | `com/jtech/zemer/lyrics` | 13 |
 | `com/jtech/zemer/lyrics/lrclib` | 3 |
 | `com/jtech/zemer/lyrics/simpmusic` | 3 |
-| `com/jtech/zemer/lyrics/youtube` | 2 |
+| `com/jtech/zemer/lyrics/youtube` | 1 |
 | `com/jtech/zemer/lyrics/zemer` | 14 |
 | `com/jtech/zemer/models` | 5 |
 | `com/jtech/zemer/net` | 2 |

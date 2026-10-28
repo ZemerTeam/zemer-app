@@ -2,7 +2,7 @@
 
 Every tracked Kotlin file is listed with hard metadata extracted from the file text: line count, package, whether it declares any `@Composable`, import count, top-level declaration count (`Decls` - a high value flags a god-file), and the external import roots it depends on. Declaration counting is regex-based (after stripping comments and string literals). For the actual declaration names, read the file or use your editor's outline - they are not duplicated here.
 
-## `app` Kotlin files (835)
+## `app` Kotlin files (834)
 
 | File | Lines | Package | Compose | Imports | Decls | External import roots |
 | --- | ---: | --- | --- | ---: | ---: | --- |
@@ -26,8 +26,8 @@ Every tracked Kotlin file is listed with hard metadata extracted from the file t
 | `app/src/main/kotlin/com/jtech/zemer/constants/MediaSessionConstants.kt` | 23 | `com.jtech.zemer.constants` | no | 2 | 14 | android.os, androidx.media3 |
 | `app/src/main/kotlin/com/jtech/zemer/constants/PlaybackMode.kt` | 11 | `com.jtech.zemer.constants` | no | 0 | 1 |  |
 | `app/src/main/kotlin/com/jtech/zemer/constants/PreferenceKeys.kt` | 667 | `com.jtech.zemer.constants` | no | 9 | 192 | androidx.annotation, androidx.datastore, java.time |
-| `app/src/main/kotlin/com/jtech/zemer/crash/CrashReport.kt` | 154 | `com.jtech.zemer.crash` | no | 7 | 39 | java.util, kotlinx.serialization |
-| `app/src/main/kotlin/com/jtech/zemer/crash/CrashReporter.kt` | 122 | `com.jtech.zemer.crash` | no | 9 | 35 | android.content, android.os, com.google, java.io, java.util, kotlinx.coroutines |
+| `app/src/main/kotlin/com/jtech/zemer/crash/CrashReport.kt` | 168 | `com.jtech.zemer.crash` | no | 7 | 42 | java.util, kotlinx.serialization |
+| `app/src/main/kotlin/com/jtech/zemer/crash/CrashReporter.kt` | 123 | `com.jtech.zemer.crash` | no | 9 | 35 | android.content, android.os, com.google, java.io, java.util, kotlinx.coroutines |
 | `app/src/main/kotlin/com/jtech/zemer/crash/CrashScrubber.kt` | 30 | `com.jtech.zemer.crash` | no | 0 | 9 |  |
 | `app/src/main/kotlin/com/jtech/zemer/crash/CrashUploader.kt` | 77 | `com.jtech.zemer.crash` | no | 13 | 18 | io.ktor, java.io, java.util, kotlinx.serialization, timber.log |
 | `app/src/main/kotlin/com/jtech/zemer/db/Converters.kt` | 20 | `com.jtech.zemer.db` | no | 4 | 3 | androidx.room, java.time |
@@ -100,7 +100,7 @@ Every tracked Kotlin file is listed with hard metadata extracted from the file t
 | `app/src/main/kotlin/com/jtech/zemer/lyrics/LyricsHttp.kt` | 29 | `com.jtech.zemer.lyrics` | no | 7 | 3 | io.ktor, kotlinx.serialization |
 | `app/src/main/kotlin/com/jtech/zemer/lyrics/LyricsProvider.kt` | 47 | `com.jtech.zemer.lyrics` | no | 2 | 11 | androidx.datastore |
 | `app/src/main/kotlin/com/jtech/zemer/lyrics/LyricsProviderOrdering.kt` | 20 | `com.jtech.zemer.lyrics` | no | 0 | 5 |  |
-| `app/src/main/kotlin/com/jtech/zemer/lyrics/LyricsProviderRegistry.kt` | 46 | `com.jtech.zemer.lyrics` | no | 5 | 9 |  |
+| `app/src/main/kotlin/com/jtech/zemer/lyrics/LyricsProviderRegistry.kt` | 44 | `com.jtech.zemer.lyrics` | no | 4 | 9 |  |
 | `app/src/main/kotlin/com/jtech/zemer/lyrics/LyricsStore.kt` | 177 | `com.jtech.zemer.lyrics` | no | 16 | 33 | javax.inject, kotlinx.coroutines, timber.log |
 | `app/src/main/kotlin/com/jtech/zemer/lyrics/LyricsUnavailableException.kt` | 9 | `com.jtech.zemer.lyrics` | no | 0 | 2 |  |
 | `app/src/main/kotlin/com/jtech/zemer/lyrics/LyricsUtils.kt` | 163 | `com.jtech.zemer.lyrics` | no | 2 | 42 | android.text, java.util |
@@ -112,7 +112,6 @@ Every tracked Kotlin file is listed with hard metadata extracted from the file t
 | `app/src/main/kotlin/com/jtech/zemer/lyrics/simpmusic/SimpMusicLyricsProvider.kt` | 21 | `com.jtech.zemer.lyrics.simpmusic` | no | 2 | 5 |  |
 | `app/src/main/kotlin/com/jtech/zemer/lyrics/simpmusic/SimpMusicModels.kt` | 29 | `com.jtech.zemer.lyrics.simpmusic` | no | 2 | 10 | kotlinx.serialization |
 | `app/src/main/kotlin/com/jtech/zemer/lyrics/youtube/YouTubeLyricsProvider.kt` | 31 | `com.jtech.zemer.lyrics.youtube` | no | 5 | 6 |  |
-| `app/src/main/kotlin/com/jtech/zemer/lyrics/youtube/YouTubeSubtitleLyricsProvider.kt` | 21 | `com.jtech.zemer.lyrics.youtube` | no | 3 | 5 |  |
 | `app/src/main/kotlin/com/jtech/zemer/lyrics/zemer/AppleTtmlLrc.kt` | 67 | `com.jtech.zemer.lyrics.zemer` | no | 3 | 22 | kotlinx.serialization |
 | `app/src/main/kotlin/com/jtech/zemer/lyrics/zemer/HtmlEntities.kt` | 12 | `com.jtech.zemer.lyrics.zemer` | no | 0 | 3 |  |
 | `app/src/main/kotlin/com/jtech/zemer/lyrics/zemer/JkaraokeLrc.kt` | 49 | `com.jtech.zemer.lyrics.zemer` | no | 3 | 25 | java.util, kotlinx.serialization |
@@ -560,7 +559,7 @@ Every tracked Kotlin file is listed with hard metadata extracted from the file t
 | `app/src/main/kotlin/com/jtech/zemer/utils/SyncUtils.kt` | 1159 | `com.jtech.zemer.utils` | no | 49 | 132 | android.content, android.util, androidx.datastore, dagger.hilt, java.time, javax.inject, kotlinx.coroutines, timber.log |
 | `app/src/main/kotlin/com/jtech/zemer/utils/UpdateChecker.kt` | 347 | `com.jtech.zemer.utils` | no | 26 | 72 | android.content, io.ktor, java.io, java.nio, java.security, kotlinx.coroutines, kotlinx.serialization, timber.log |
 | `app/src/main/kotlin/com/jtech/zemer/utils/UrlValidator.kt` | 82 | `com.jtech.zemer.utils` | no | 2 | 8 | okhttp3.HttpUrl |
-| `app/src/main/kotlin/com/jtech/zemer/utils/Utils.kt` | 30 | `com.jtech.zemer.utils` | no | 4 | 3 | android.content, java.util, timber.log |
+| `app/src/main/kotlin/com/jtech/zemer/utils/Utils.kt` | 35 | `com.jtech.zemer.utils` | no | 4 | 5 | android.content, java.util, timber.log |
 | `app/src/main/kotlin/com/jtech/zemer/utils/VideoLinkBuilder.kt` | 36 | `com.jtech.zemer.utils` | no | 0 | 8 |  |
 | `app/src/main/kotlin/com/jtech/zemer/utils/VideoMuxer.kt` | 138 | `com.jtech.zemer.utils` | no | 7 | 22 | android.media, java.io, java.nio, timber.log |
 | `app/src/main/kotlin/com/jtech/zemer/utils/WhitelistCache.kt` | 52 | `com.jtech.zemer.utils` | no | 4 | 11 | kotlinx.coroutines |
@@ -636,7 +635,7 @@ Every tracked Kotlin file is listed with hard metadata extracted from the file t
 | `app/src/main/kotlin/com/jtech/zemer/widget/WidgetLayout.kt` | 14 | `com.jtech.zemer.widget` | no | 0 | 3 |  |
 | `app/src/test/kotlin/com/dpi/DensityMathTest.kt` | 69 | `com.dpi` | no | 3 | 1 | org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/constants/PreferenceKeysTest.kt` | 26 | `com.jtech.zemer.constants` | no | 4 | 3 | androidx.datastore, java.lang, org.junit |
-| `app/src/test/kotlin/com/jtech/zemer/crash/CrashReportTest.kt` | 123 | `com.jtech.zemer.crash` | no | 13 | 20 | java.io, kotlinx.serialization, org.junit |
+| `app/src/test/kotlin/com/jtech/zemer/crash/CrashReportTest.kt` | 135 | `com.jtech.zemer.crash` | no | 13 | 21 | java.io, kotlinx.serialization, org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/db/SqliteBindLimitTest.kt` | 23 | `com.jtech.zemer.db` | no | 3 | 3 | org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/db/entities/LyricsCachePolicyTest.kt` | 83 | `com.jtech.zemer.db.entities` | no | 6 | 7 | org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/db/entities/ShareLinkTest.kt` | 41 | `com.jtech.zemer.db.entities` | no | 3 | 2 | org.junit |
@@ -651,7 +650,7 @@ Every tracked Kotlin file is listed with hard metadata extracted from the file t
 | `app/src/test/kotlin/com/jtech/zemer/lyrics/LyricsChainWalkTest.kt` | 111 | `com.jtech.zemer.lyrics` | no | 12 | 32 | androidx.datastore, java.util, kotlinx.coroutines, org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/lyrics/LyricsHttpDecodeTest.kt` | 68 | `com.jtech.zemer.lyrics` | no | 14 | 11 | io.ktor, java.io, java.net, java.util, kotlin.concurrent, kotlinx.coroutines, org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/lyrics/LyricsProviderOrderingTest.kt` | 37 | `com.jtech.zemer.lyrics` | no | 2 | 8 | org.junit |
-| `app/src/test/kotlin/com/jtech/zemer/lyrics/LyricsProviderRegistryTest.kt` | 31 | `com.jtech.zemer.lyrics` | no | 2 | 2 | org.junit |
+| `app/src/test/kotlin/com/jtech/zemer/lyrics/LyricsProviderRegistryTest.kt` | 36 | `com.jtech.zemer.lyrics` | no | 2 | 2 | org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/lyrics/LyricsStoreTest.kt` | 233 | `com.jtech.zemer.lyrics` | no | 15 | 54 | kotlinx.coroutines, org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/lyrics/LyricsUtilsTest.kt` | 102 | `com.jtech.zemer.lyrics` | no | 5 | 9 | org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/lyrics/SyncedFirstPickerTest.kt` | 87 | `com.jtech.zemer.lyrics` | no | 10 | 19 | androidx.datastore, org.junit |
@@ -842,12 +841,12 @@ Every tracked Kotlin file is listed with hard metadata extracted from the file t
 | `app/src/test/kotlin/com/jtech/zemer/viewmodels/StaleAlbumDeleteTest.kt` | 29 | `com.jtech.zemer.viewmodels` | no | 3 | 1 | org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/widget/WidgetLayoutTest.kt` | 26 | `com.jtech.zemer.widget` | no | 3 | 1 | org.junit |
 
-## `innertube` Kotlin files (88)
+## `innertube` Kotlin files (86)
 
 | File | Lines | Package | Compose | Imports | Decls | External import roots |
 | --- | ---: | --- | --- | ---: | ---: | --- |
-| `innertube/src/main/kotlin/com/metrolist/innertube/InnerTube.kt` | 728 | `com.metrolist.innertube` | no | 47 | 48 | io.ktor, java.util, kotlinx.serialization, okhttp3.ConnectionPool, okhttp3.Dispatcher |
-| `innertube/src/main/kotlin/com/metrolist/innertube/YouTube.kt` | 989 | `com.metrolist.innertube` | no | 56 | 154 | io.ktor, kotlin.random, kotlinx.coroutines, kotlinx.serialization |
+| `innertube/src/main/kotlin/com/metrolist/innertube/InnerTube.kt` | 710 | `com.metrolist.innertube` | no | 45 | 47 | io.ktor, java.util, kotlinx.serialization, okhttp3.ConnectionPool, okhttp3.Dispatcher |
+| `innertube/src/main/kotlin/com/metrolist/innertube/YouTube.kt` | 980 | `com.metrolist.innertube` | no | 54 | 151 | io.ktor, kotlin.random, kotlinx.coroutines, kotlinx.serialization |
 | `innertube/src/main/kotlin/com/metrolist/innertube/models/AccountInfo.kt` | 8 | `com.metrolist.innertube.models` | no | 0 | 5 |  |
 | `innertube/src/main/kotlin/com/metrolist/innertube/models/AutomixPreviewVideoRenderer.kt` | 18 | `com.metrolist.innertube.models` | no | 1 | 6 | kotlinx.serialization |
 | `innertube/src/main/kotlin/com/metrolist/innertube/models/Badges.kt` | 13 | `com.metrolist.innertube.models` | no | 1 | 4 | kotlinx.serialization |
@@ -896,7 +895,6 @@ Every tracked Kotlin file is listed with hard metadata extracted from the file t
 | `innertube/src/main/kotlin/com/metrolist/innertube/models/body/EditPlaylistBody.kt` | 79 | `com.metrolist.innertube.models.body` | no | 2 | 37 | kotlinx.serialization |
 | `innertube/src/main/kotlin/com/metrolist/innertube/models/body/FeedbackBody.kt` | 12 | `com.metrolist.innertube.models.body` | no | 2 | 5 | kotlinx.serialization |
 | `innertube/src/main/kotlin/com/metrolist/innertube/models/body/GetQueueBody.kt` | 11 | `com.metrolist.innertube.models.body` | no | 2 | 4 | kotlinx.serialization |
-| `innertube/src/main/kotlin/com/metrolist/innertube/models/body/GetTranscriptBody.kt` | 10 | `com.metrolist.innertube.models.body` | no | 2 | 3 | kotlinx.serialization |
 | `innertube/src/main/kotlin/com/metrolist/innertube/models/body/LikeBody.kt` | 18 | `com.metrolist.innertube.models.body` | no | 2 | 8 | kotlinx.serialization |
 | `innertube/src/main/kotlin/com/metrolist/innertube/models/body/NextBody.kt` | 15 | `com.metrolist.innertube.models.body` | no | 2 | 8 | kotlinx.serialization |
 | `innertube/src/main/kotlin/com/metrolist/innertube/models/body/PlayerBody.kt` | 30 | `com.metrolist.innertube.models.body` | no | 2 | 14 | kotlinx.serialization |
@@ -908,7 +906,6 @@ Every tracked Kotlin file is listed with hard metadata extracted from the file t
 | `innertube/src/main/kotlin/com/metrolist/innertube/models/response/EditPlaylistResponse.kt` | 8 | `com.metrolist.innertube.models.response` | no | 1 | 2 | kotlinx.serialization |
 | `innertube/src/main/kotlin/com/metrolist/innertube/models/response/FeedbackResponse.kt` | 13 | `com.metrolist.innertube.models.response` | no | 1 | 4 | kotlinx.serialization |
 | `innertube/src/main/kotlin/com/metrolist/innertube/models/response/GetQueueResponse.kt` | 14 | `com.metrolist.innertube.models.response` | no | 2 | 4 | kotlinx.serialization |
-| `innertube/src/main/kotlin/com/metrolist/innertube/models/response/GetTranscriptResponse.kt` | 65 | `com.metrolist.innertube.models.response` | no | 1 | 26 | kotlinx.serialization |
 | `innertube/src/main/kotlin/com/metrolist/innertube/models/response/ImageUploadResponse.kt` | 8 | `com.metrolist.innertube.models.response` | no | 1 | 2 | kotlinx.serialization |
 | `innertube/src/main/kotlin/com/metrolist/innertube/models/response/NextResponse.kt` | 40 | `com.metrolist.innertube.models.response` | no | 5 | 15 | kotlinx.serialization |
 | `innertube/src/main/kotlin/com/metrolist/innertube/models/response/PlayerResponse.kt` | 137 | `com.metrolist.innertube.models.response` | no | 4 | 72 | kotlinx.serialization |

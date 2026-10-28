@@ -961,7 +961,7 @@ class HomeViewModel @Inject constructor(
                                 accountName.value = info.name
                                 accountImageUrl.value = info.thumbnailUrl
                             }.onFailure {
-                                reportException(it)
+                                if (it !is YouTube.NotSignedInException) reportException(it)
                             }
                         } else {
                             accountName.value = "Guest"

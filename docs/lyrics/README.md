@@ -7,7 +7,7 @@ client + models + `LyricsProvider`), `ui/component/Lyrics.kt` (the pane), `ui/co
 
 ## Provider chain (`lyrics/LyricsHelper.kt`)
 Default order (`LyricsProviderRegistry`, user-reorderable in Content settings): `ZemerLyricsProvider` →
-`SimpMusicLyricsProvider` → `LrcLibLyricsProvider` → `YouTubeSubtitleLyricsProvider` → `YouTubeLyricsProvider`.
+`SimpMusicLyricsProvider` → `LrcLibLyricsProvider` → `YouTubeLyricsProvider`.
 `LyricsHelper.getLyrics` returns `Fetched(lyrics, provider, lineExtras)`; the provider label is part of every
 provider result (`LyricsProvider.getLabeledLyrics` → `LabeledLyrics`), so every path persists the same string in
 `LyricsEntity.provider` (nullable; Room `AutoMigration(35, 36)`). Every fetch-and-persist goes through
@@ -152,8 +152,8 @@ repeat button's content description follows `repeatModeContentDescriptionRes(rep
 ## Pick rule (`lyrics/SyncedFirstPicker`) and walk schedule (`lyrics/LyricsChainWalk`), both JVM-tested
 Providers come in the user's order from ONE DataStore snapshot (`LyricsHelper.enabledProviders(prefs)`: the order
 key plus every provider's `enabledKey`), never a blocking read per provider. Among trusted providers the pick stops
-at the first SYNCED body and otherwise serves the first plain one. The YouTube providers are `lowTrust` (an
-auto-caption transcript is timestamped but not identity-gated), so they are served only when no trusted provider
+at the first SYNCED body and otherwise serves the first plain one. The YouTube provider is `lowTrust` (its lyrics
+tab is not identity-gated), so it is served only when no trusted provider
 answered — never over a curated Zemer plain body (`SyncedFirstPickerTest`). `LyricsChainWalk` decides WHEN each
 provider is asked without changing that answer (`LyricsChainWalkTest` pins the equivalence): (1) the primary trusted
 provider alone — a synced answer ends the walk with no other request; (2) the remaining trusted providers

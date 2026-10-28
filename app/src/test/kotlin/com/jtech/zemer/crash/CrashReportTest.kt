@@ -100,6 +100,18 @@ class CrashReportTest {
     }
 
     @Test
+    fun `connectivity failures to other hosts are not reported, Zemer servers and real errors are`() {
+        val refused = java.net.ConnectException("Failed to connect to www.youtube.com/1.2.3.4:443")
+        assertTrue(CrashReport.isOffZemerConnectivityFailure(refused))
+        assertTrue(CrashReport.isOffZemerConnectivityFailure(IOException("wrap", IOException("connect failed: ECONNREFUSED (Connection refused)"))))
+        assertTrue(CrashReport.isOffZemerConnectivityFailure(java.net.UnknownHostException("Unable to resolve host \"www.youtube.com\"")))
+        assertTrue(CrashReport.isOffZemerConnectivityFailure(java.net.SocketTimeoutException("timeout")))
+        assertFalse(CrashReport.isOffZemerConnectivityFailure(java.net.ConnectException("Failed to connect to search.zemer.io/1.2.3.4:443")))
+        assertFalse(CrashReport.isOffZemerConnectivityFailure(IllegalStateException("search.zemer.io", java.net.SocketTimeoutException("timeout"))))
+        assertFalse(CrashReport.isOffZemerConnectivityFailure(IOException("HTTP 400")))
+    }
+
+    @Test
     fun `non-fatals are reported once per kind per launch, with their repeat count, up to the cap`() {
         val d = PerLaunchDedup<String>(max = 2)
         assertTrue(d.offer("a") { "A" })

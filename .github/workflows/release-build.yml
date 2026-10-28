@@ -96,6 +96,9 @@ jobs:
       - name: Check 16 KB page-size alignment
         run: bash scripts/check-16kb-alignment.sh app/build/outputs/apk/release/app-release.apk
 
+      - name: Check the saved-queue classes survived R8
+        run: bash scripts/check-persisted-queue-keep.sh app/build/outputs/apk/release/app-release.apk
+
       # The R8 mapping of a build that ships (main / manual, never a PR), so its crash reports decode to readable
       # stacks. Never fails the build: without the secret, or if the upload fails, the APK still ships.
       - name: Upload R8 mapping for crash reports
