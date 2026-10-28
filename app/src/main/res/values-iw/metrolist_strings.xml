@@ -131,4 +131,6 @@
     <string name="error_podcast_unsubscribe">ביטול המנוי לפודקאסט נכשל</string>
     <string name="view_channel">צפה בערוץ</string>
     <string name="action_sync">סינכרון</string>
+    <string name="onboarding_restore_check_failed">לא ניתן לבדוק את ההגדרות השמורות</string>
+    <string name="onboarding_restore_check_failed_detail">זמר צריך לבדוק אם המכשיר הזה שמר מסנני תוכן לפני שתמשיך. בדוק את חיבור האינטרנט שלך. מנסה שוב אוטומטית.</string>
 </resources>
