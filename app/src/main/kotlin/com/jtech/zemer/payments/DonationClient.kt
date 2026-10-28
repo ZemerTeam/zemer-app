@@ -3,6 +3,7 @@ package com.jtech.zemer.payments
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.cio.CIO
 import io.ktor.client.plugins.HttpTimeout
+import io.ktor.client.request.get
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
 import io.ktor.client.statement.bodyAsText
@@ -31,6 +32,7 @@ class DonationException(message: String?) : Exception(message)
  */
 object DonationClient {
     private const val ENDPOINT = "https://pay.zemer.io/app/v1/donation"
+    private const val CONFIG_ENDPOINT = "https://pay.zemer.io/app/v1/config"
     const val MIN_CENTS = 100
     const val MAX_CENTS = 1_000_000
     val PRESET_DOLLARS = listOf(5, 18, 36, 100)
@@ -55,6 +57,12 @@ object DonationClient {
         return parseResponse(response.status.value, response.bodyAsText())
     }
 
+    /** The Stripe publishable key, which Stripe's card field needs before a donation starts (never built into the app). */
+    suspend fun publishableKey(): String {
+        val response = client.get(CONFIG_ENDPOINT)
+        return parseConfig(response.status.value, response.bodyAsText())
+    }
+
     /** Whole cents for a typed dollar amount ("18", "$7.50", "7,50"), or null when it isn't a valid donation. */
     fun cents(text: String): Int? {
         // Plain digits only: BigDecimal would also take "1e999999999", which overflows or stalls the UI thread.
@@ -69,10 +77,18 @@ object DonationClient {
     /** The server's `amount` field: dollars with two decimals, never locale-formatted. */
     internal fun amountParam(cents: Int): String = String.format(Locale.US, "%d.%02d", cents / 100, cents % 100)
 
+    internal fun parseConfig(status: Int, body: String): String {
+        if (status !in 200..299) throw DonationException(field(body, "error"))
+        return field(body, "publishable_key") ?: throw DonationException(null)
+    }
+
+    // contentOrNull: a JSON null stays null instead of becoming the text "null".
+    private fun field(body: String, name: String): String? =
+        (runCatching { json.parseToJsonElement(body) as? JsonObject }.getOrNull()?.get(name) as? JsonPrimitive)
+            ?.contentOrNull?.takeIf { it.isNotBlank() }
+
     internal fun parseResponse(status: Int, body: String): DonationIntent {
-        val obj = runCatching { json.parseToJsonElement(body) as? JsonObject }.getOrNull()
-        // contentOrNull: a JSON null stays null instead of becoming the text "null".
-        fun field(name: String) = (obj?.get(name) as? JsonPrimitive)?.contentOrNull?.takeIf { it.isNotBlank() }
+        fun field(name: String) = field(body, name)
         if (status !in 200..299) throw DonationException(field("error"))
         val clientSecret = field("client_secret")
         val publishableKey = field("publishable_key")
