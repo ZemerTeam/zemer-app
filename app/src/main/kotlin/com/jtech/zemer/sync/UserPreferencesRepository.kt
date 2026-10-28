@@ -133,6 +133,14 @@ class UserPreferencesRepository @Inject constructor(
         syncDataStore.edit { if (uid != null) it[uploadPendingUidKey] = uid else it.remove(uploadPendingUidKey) }
     }
 
+    // What the server last held for this device's filters, keyed by account uid (read or written this process).
+    @Volatile
+    private var lastServerFilters: Pair<String, DeviceContentFilters>? = null
+
+    private fun rememberServerFilters(uid: String?, filters: DeviceContentFilters) {
+        if (uid != null) lastServerFilters = uid to filters
+    }
+
     // One upload at a time: each is GET then PUT then the pending flag, and an older one finishing last would
     // overwrite a newer change with a stale config (the retry loop races preference changes otherwise).
     private val uploadMutex = kotlinx.coroutines.sync.Mutex()
@@ -154,6 +162,7 @@ class UserPreferencesRepository @Inject constructor(
                 // Find current device in devices array, fallback to main contentFilters
                 val deviceData = entity.devices.find { it.deviceId == deviceId }
                 val config = deviceData?.contentFilters?.toConfig() ?: entity.contentFilters.toConfig()
+                deviceData?.let { rememberServerFilters(userId, it.contentFilters) }
 
                 updateLastSyncTime()
 
@@ -208,9 +217,10 @@ class UserPreferencesRepository @Inject constructor(
     }
 
     /**
-     * Upload device preferences to the server
+     * Add this device to the account document [existingPrefs] (as just read from the server), or create the
+     * document when there is none.
      */
-    suspend fun uploadDevicePreferences(config: ContentFilterConfig): Result<Unit> {
+    private suspend fun uploadDevicePreferences(config: ContentFilterConfig, existingPrefs: DevicePreferencesEntity?): Result<Unit> {
         return try {
             val userId = authManager.currentUserId
                 ?: return Result.failure(Exception("User not authenticated"))
@@ -232,9 +242,6 @@ class UserPreferencesRepository @Inject constructor(
 
             Log.d("ZemerSync", "Uploading device preferences for user: $userId, email: $userEmail, device: $deviceId")
             
-            // Check if user document already exists
-            val existingPrefs = withIdToken { api.getPrefs(it) }
-
             if (existingPrefs != null) {
                 // Update existing document - add/update this device
                 val updatedDevices = existingPrefs.devices.filter { it.deviceId != deviceId } + currentDeviceData
@@ -265,6 +272,7 @@ class UserPreferencesRepository @Inject constructor(
             }
 
             Log.d("ZemerSync", "Successfully uploaded to: devicePreferences/$userId")
+            rememberServerFilters(userId, contentFilters)
 
             updateLastSyncTime()
 
@@ -300,6 +308,7 @@ class UserPreferencesRepository @Inject constructor(
                 // server write, stamped lastSeen/updatedAt).
                 if (!deviceFiltersChanged(entity, deviceId, filters)) {
                     Log.d("ZemerSync", "Device filters unchanged on the server, not re-sent")
+                    rememberServerFilters(authManager.currentUserId, filters)
                     updateLastSyncTime()
                     return Result.success(Unit)
                 }
@@ -316,10 +325,11 @@ class UserPreferencesRepository @Inject constructor(
                 }
 
                 withIdToken { api.putPrefs(it, entity.copy(devices = updatedDevices, updatedAt = Date())) }
+                rememberServerFilters(authManager.currentUserId, filters)
             } else {
                 // No document yet, or one that does not list this device (e.g. a second device on the account):
                 // add this device, creating the document if needed. A failure must surface so the change stays pending.
-                uploadDevicePreferences(config).getOrThrow()
+                uploadDevicePreferences(config, entity).getOrThrow()
             }
 
             updateLastSyncTime()
@@ -410,14 +420,16 @@ class UserPreferencesRepository @Inject constructor(
                 femalePasscodeHash = prefs[FemalePasscodeHashKey]
             )
 
-            // Check if device preferences exist
-            val existingPrefs = fetchDevicePreferences()
-
-            val uploaded = if (existingPrefs.isSuccess) {
-                updateDevicePreferences(currentConfig)
-            } else {
-                uploadDevicePreferences(currentConfig)
+            // Already what the server holds for this device (e.g. the change a server-wins pull just applied): nothing
+            // to send, and no request at all.
+            val uid = authManager.currentUserId
+            if (uid != null && lastServerFilters == uid to currentConfig.toDeviceContentFilters()) {
+                setUploadPending(null)
+                return Result.success(Unit)
             }
+
+            // One read of the account document; the device is updated, added, or the document created from it
+            val uploaded = updateDevicePreferences(currentConfig)
             val failure = uploaded.exceptionOrNull()
             setUploadPending(if (failure != null && failure.isRetryableSyncFailure()) authManager.currentUserId else null)
 

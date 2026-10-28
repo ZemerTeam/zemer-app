@@ -15,6 +15,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import android.util.Log
 import javax.inject.Inject
@@ -36,6 +37,11 @@ class ContentFilterSyncService @Inject constructor(
     val syncState: StateFlow<SyncState> = _syncState.asStateFlow()
 
     private var _isApplyingServerPreferences = false
+
+    // The account the launch sync already ran for: the SignedIn event can repeat (token refresh), the sync need not.
+    @Volatile
+    private var initialSyncUid: String? = null
+    private val initialSyncMutex = kotlinx.coroutines.sync.Mutex()
 
     init {
         serviceScope.launch {
@@ -97,30 +103,8 @@ class ContentFilterSyncService @Inject constructor(
                 Log.d("ZemerSync", "User already signed in locally - no auto-restore")
             }
 
-            // If user is signed in, perform normal sync with retry mechanism
-            if (authManager.isUserSignedIn) {
-                Log.d("ZemerSync", "User is signed in, performing normal sync with retry")
-                Log.d("ZemerSync", "Attempting sync with auth ready check...")
-
-                _syncState.value = SyncState.SYNCING
-
-                val result = retryWithAuthTimeout {
-                    userPreferencesRepository.performSync()
-                }
-                Log.d("ZemerSync", "Sync result: ${result.isSuccess}, error: ${result.exceptionOrNull()?.message}")
-
-                retryPendingUpload()
-                if (result.isFailure) {
-                    val error = result.exceptionOrNull()
-                    Log.e("ZemerSync", "Initial sync failed", error)
-                    _syncState.value = SyncState.ERROR("Initial sync failed: ${error?.message}")
-                } else {
-                    Log.d("ZemerSync", "Initial sync completed successfully")
-                    _syncState.value = SyncState.IDLE
-                }
-            } else {
-                Log.d("ZemerSync", "User is not signed in, skipping normal sync")
-            }
+            // A signed-in account syncs on its SignedIn auth event (fired at every launch), once: running it here
+            // too doubled every launch's requests.
         }
     }
 
@@ -187,7 +171,12 @@ class ContentFilterSyncService @Inject constructor(
             is AuthState.SignedIn -> {
                 // Wait for auth to be fully ready (the uid the server keys the document by; an anonymous account has no email)
                 if (waitForAuthReady()) {
-                    performInitialSync()
+                    initialSyncMutex.withLock {
+                        if (initialSyncUid != authState.userId) {
+                            performInitialSync()
+                            initialSyncUid = authState.userId
+                        }
+                    }
                 } else {
                     _syncState.value = SyncState.ERROR("Authentication timeout")
                     Log.e("ZemerSync", "Auth not ready within timeout")
@@ -195,6 +184,7 @@ class ContentFilterSyncService @Inject constructor(
             }
             is AuthState.SignedOut -> {
                 // User signed out - clear sync state
+                initialSyncUid = null
                 _syncState.value = SyncState.IDLE
             }
             else -> {
@@ -222,7 +212,10 @@ class ContentFilterSyncService @Inject constructor(
     }
 
     private suspend fun handlePreferenceChange(config: ContentFilterConfig) {
+        // Until this launch's sync ran for the account, startup emissions (the default, then the loaded value) are not
+        // changes; the launch sync uploads the local filters itself.
         if (authManager.isUserSignedIn &&
+            initialSyncUid != null && initialSyncUid == authManager.currentUserId &&
             userPreferencesRepository.isSyncEnabled() &&
             !_isApplyingServerPreferences) {
             syncToServer()
@@ -240,10 +233,10 @@ class ContentFilterSyncService @Inject constructor(
             val result = retryWithAuthTimeout {
                 userPreferencesRepository.performSync()
             }
+            Log.d("ZemerSync", "Sync result: ${result.isSuccess}, error: ${result.exceptionOrNull()?.message}")
 
-            // After sync, always ensure current local preferences are uploaded to server
-            // This handles the case where user set preferences during onboarding before signing in
-            Log.d("ZemerSync", "Ensuring local preferences are uploaded after initial sync")
+            // After sync, ensure current local preferences are on the server (e.g. set during onboarding before
+            // signing in); free when they already match what the sync just read.
             val uploadResult = userPreferencesRepository.syncToServer()
             retryPendingUpload()
             if (uploadResult.isSuccess) {

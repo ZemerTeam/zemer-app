@@ -2,7 +2,7 @@
 
 Every tracked Kotlin file is listed with hard metadata extracted from the file text: line count, package, whether it declares any `@Composable`, import count, top-level declaration count (`Decls` - a high value flags a god-file), and the external import roots it depends on. Declaration counting is regex-based (after stripping comments and string literals). For the actual declaration names, read the file or use your editor's outline - they are not duplicated here.
 
-## `app` Kotlin files (828)
+## `app` Kotlin files (829)
 
 | File | Lines | Package | Compose | Imports | Decls | External import roots |
 | --- | ---: | --- | --- | ---: | ---: | --- |
@@ -262,11 +262,11 @@ Every tracked Kotlin file is listed with hard metadata extracted from the file t
 | `app/src/main/kotlin/com/jtech/zemer/statuses/StatusesApi.kt` | 288 | `com.jtech.zemer.statuses` | no | 9 | 67 | java.net, kotlinx.coroutines, org.json |
 | `app/src/main/kotlin/com/jtech/zemer/statuses/StatusesRepository.kt` | 293 | `com.jtech.zemer.statuses` | no | 22 | 51 | android.content, android.os, androidx.datastore, dagger.hilt, java.util, javax.inject, kotlinx.coroutines |
 | `app/src/main/kotlin/com/jtech/zemer/statuses/YidStatusApi.kt` | 146 | `com.jtech.zemer.statuses` | no | 8 | 29 | java.io, java.util, okhttp3.MediaType, okhttp3.OkHttpClient, okhttp3.Request, okhttp3.RequestBody, org.json |
-| `app/src/main/kotlin/com/jtech/zemer/sync/ContentFilterSyncService.kt` | 336 | `com.jtech.zemer.sync` | no | 20 | 43 | android.util, javax.inject, kotlin.math, kotlinx.coroutines |
+| `app/src/main/kotlin/com/jtech/zemer/sync/ContentFilterSyncService.kt` | 329 | `com.jtech.zemer.sync` | no | 21 | 43 | android.util, javax.inject, kotlin.math, kotlinx.coroutines |
 | `app/src/main/kotlin/com/jtech/zemer/sync/ContentReportRepository.kt` | 117 | `com.jtech.zemer.sync` | no | 21 | 18 | android.content, com.google, dagger.hilt, java.io, javax.inject, kotlinx.coroutines, kotlinx.serialization, timber.log |
 | `app/src/main/kotlin/com/jtech/zemer/sync/ContentServerApi.kt` | 157 | `com.jtech.zemer.sync` | no | 27 | 29 | io.ktor, java.io, javax.inject, kotlinx.serialization |
 | `app/src/main/kotlin/com/jtech/zemer/sync/PodcastSyncLogic.kt` | 105 | `com.jtech.zemer.sync` | no | 0 | 10 |  |
-| `app/src/main/kotlin/com/jtech/zemer/sync/UserPreferencesRepository.kt` | 631 | `com.jtech.zemer.sync` | no | 41 | 105 | android.content, android.util, androidx.datastore, dagger.hilt, java.io, java.util, javax.inject, kotlinx.coroutines, kotlinx.serialization |
+| `app/src/main/kotlin/com/jtech/zemer/sync/UserPreferencesRepository.kt` | 643 | `com.jtech.zemer.sync` | no | 41 | 106 | android.content, android.util, androidx.datastore, dagger.hilt, java.io, java.util, javax.inject, kotlinx.coroutines, kotlinx.serialization |
 | `app/src/main/kotlin/com/jtech/zemer/sync/models/DevicePreferencesEntity.kt` | 115 | `com.jtech.zemer.sync.models` | no | 10 | 36 | java.time, java.util, kotlinx.serialization |
 | `app/src/main/kotlin/com/jtech/zemer/tracking/FlushSchedule.kt` | 30 | `com.jtech.zemer.tracking` | no | 0 | 8 |  |
 | `app/src/main/kotlin/com/jtech/zemer/tracking/ImpressionReporter.kt` | 99 | `com.jtech.zemer.tracking` | yes | 9 | 5 | androidx.compose, kotlinx.coroutines |
@@ -759,6 +759,7 @@ Every tracked Kotlin file is listed with hard metadata extracted from the file t
 | `app/src/test/kotlin/com/jtech/zemer/statuses/YidStatusApiTest.kt` | 81 | `com.jtech.zemer.statuses` | no | 5 | 11 | org.json, org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/sync/ContentReportRepositoryTest.kt` | 92 | `com.jtech.zemer.sync` | no | 6 | 6 | kotlinx.serialization, org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/sync/ContentServerApiTest.kt` | 199 | `com.jtech.zemer.sync` | no | 20 | 31 | io.ktor, java.net, java.util, kotlin.concurrent, kotlinx.coroutines, kotlinx.serialization, org.junit |
+| `app/src/test/kotlin/com/jtech/zemer/sync/DeviceFiltersChangedTest.kt` | 33 | `com.jtech.zemer.sync` | no | 6 | 3 | org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/sync/PodcastSyncLogicTest.kt` | 171 | `com.jtech.zemer.sync` | no | 4 | 9 | org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/sync/ReportRetryTest.kt` | 57 | `com.jtech.zemer.sync` | no | 7 | 1 | java.io, java.nio, kotlinx.serialization, org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/sync/TokenRetryTest.kt` | 49 | `com.jtech.zemer.sync` | no | 4 | 4 | kotlinx.coroutines, org.junit |

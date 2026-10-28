@@ -213,6 +213,11 @@ ISO-8601 written with millis (`IsoDateSerializer`), nulls explicit, an absent `b
   account document does not list yet is added, never dropped. Such a report is queued in
   `filesDir/pending_reports.jsonl` and drained (one drain at a time) at launch and with backoff; any other
   status fails to the dialog as before.
+- **Every request is server cost (each `/prefs` read and write reaches the account store):** a signed-in
+  launch makes ONE `GET /prefs` - the sync runs once per account on the SignedIn auth event
+  (`initialSyncUid`), never also from `initialize()`, and startup filter emissions before it are ignored. An
+  upload reads the document once and sends nothing when this device's stored filters already match
+  (`deviceFiltersChanged`, `lastServerFilters`); never add a periodic or on-resume upload of unchanged filters.
 - **Content reads that fall back to Firestore report `fetch_fail`** (see §Tracking) so the fallback's
   reach is measured before it is removed.
 

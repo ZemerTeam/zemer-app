@@ -54,9 +54,9 @@ The following inventory is generated from repository files outside `.git`, `.gra
 
 ### Counts
 
-- Files counted: `1412`
+- Files counted: `1413`
 - By extension:
-  - `.kt`: `916`
+  - `.kt`: `917`
   - `.xml`: `196`
   - `.mjs`: `110`
   - `.md`: `64`
@@ -408,11 +408,11 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/main/kotlin/com/jtech/zemer/statuses/StatusesApi.kt` | 288 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/statuses/StatusesRepository.kt` | 293 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/statuses/YidStatusApi.kt` | 146 lines | `.kt` |
-| `app/src/main/kotlin/com/jtech/zemer/sync/ContentFilterSyncService.kt` | 336 lines | `.kt` |
+| `app/src/main/kotlin/com/jtech/zemer/sync/ContentFilterSyncService.kt` | 329 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/sync/ContentReportRepository.kt` | 117 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/sync/ContentServerApi.kt` | 157 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/sync/PodcastSyncLogic.kt` | 105 lines | `.kt` |
-| `app/src/main/kotlin/com/jtech/zemer/sync/UserPreferencesRepository.kt` | 631 lines | `.kt` |
+| `app/src/main/kotlin/com/jtech/zemer/sync/UserPreferencesRepository.kt` | 643 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/sync/models/DevicePreferencesEntity.kt` | 115 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/tracking/FlushSchedule.kt` | 30 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/tracking/ImpressionReporter.kt` | 99 lines | `.kt` |
@@ -1119,6 +1119,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/test/kotlin/com/jtech/zemer/statuses/YidStatusApiTest.kt` | 81 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/sync/ContentReportRepositoryTest.kt` | 92 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/sync/ContentServerApiTest.kt` | 199 lines | `.kt` |
+| `app/src/test/kotlin/com/jtech/zemer/sync/DeviceFiltersChangedTest.kt` | 33 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/sync/PodcastSyncLogicTest.kt` | 171 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/sync/ReportRetryTest.kt` | 57 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/sync/TokenRetryTest.kt` | 49 lines | `.kt` |
@@ -1258,7 +1259,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `docs/recognize_music/02-whitelist-guarantee.md` | 69 lines | `.md` |
 | `docs/recognize_music/03-entry-points-and-ui.md` | 80 lines | `.md` |
 | `docs/recognize_music/README.md` | 73 lines | `.md` |
-| `docs/reference/kotlin-files.md` | 929 lines | `.md` |
+| `docs/reference/kotlin-files.md` | 930 lines | `.md` |
 | `docs/reference/non-kotlin-files.md` | 445 lines | `.md` |
 | `docs/reference/resource-index.md` | 317 lines | `.md` |
 | `docs/remote_cipher_config/01-concepts-and-format.md` | 135 lines | `.md` |
@@ -1266,7 +1267,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `docs/remote_cipher_config/03-extraction-and-self-heal.md` | 102 lines | `.md` |
 | `docs/remote_cipher_config/04-operations.md` | 121 lines | `.md` |
 | `docs/remote_cipher_config/README.md` | 60 lines | `.md` |
-| `docs/repository-map.md` | 1505 lines | `.md` |
+| `docs/repository-map.md` | 1506 lines | `.md` |
 | `docs/sabr/README.md` | 369 lines | `.md` |
 | `docs/stations/README.md` | 67 lines | `.md` |
 | `docs/status/README.md` | 93 lines | `.md` |
