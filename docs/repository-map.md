@@ -54,12 +54,12 @@ The following inventory is generated from repository files outside `.git`, `.gra
 
 ### Counts
 
-- Files counted: `1413`
+- Files counted: `1417`
 - By extension:
   - `.kt`: `917`
   - `.xml`: `196`
   - `.mjs`: `110`
-  - `.md`: `64`
+  - `.md`: `68`
   - `.json`: `52`
   - `.webp`: `15`
   - `.html`: `6`
@@ -103,7 +103,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `LICENSE` | 674 lines | `[none]` |
 | `README.md` | 9 lines | `.md` |
 | `app/.gitignore` | 1 lines | `[none]` |
-| `app/build.gradle.kts` | 378 lines | `.kts` |
+| `app/build.gradle.kts` | 377 lines | `.kts` |
 | `app/lint.xml` | 11 lines | `.xml` |
 | `app/proguard-rules.pro` | 233 lines | `.pro` |
 | `app/schemas/com.jtech.zemer.db.InternalDatabase/1.json` | 297 lines | `.json` |
@@ -1261,13 +1261,17 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `docs/recognize_music/README.md` | 73 lines | `.md` |
 | `docs/reference/kotlin-files.md` | 930 lines | `.md` |
 | `docs/reference/non-kotlin-files.md` | 445 lines | `.md` |
+| `docs/reference/non-kotlin-files.md` | 445 lines | `.md` |
+| `docs/reference/non-kotlin-files.md` | 445 lines | `.md` |
 | `docs/reference/resource-index.md` | 317 lines | `.md` |
 | `docs/remote_cipher_config/01-concepts-and-format.md` | 135 lines | `.md` |
 | `docs/remote_cipher_config/02-runtime-store.md` | 94 lines | `.md` |
 | `docs/remote_cipher_config/03-extraction-and-self-heal.md` | 102 lines | `.md` |
 | `docs/remote_cipher_config/04-operations.md` | 121 lines | `.md` |
 | `docs/remote_cipher_config/README.md` | 60 lines | `.md` |
-| `docs/repository-map.md` | 1506 lines | `.md` |
+| `docs/repository-map.md` | 1510 lines | `.md` |
+| `docs/repository-map.md` | 1510 lines | `.md` |
+| `docs/repository-map.md` | 1510 lines | `.md` |
 | `docs/sabr/README.md` | 369 lines | `.md` |
 | `docs/stations/README.md` | 67 lines | `.md` |
 | `docs/status/README.md` | 93 lines | `.md` |
@@ -1281,7 +1285,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `docs/whitelist/README.md` | 227 lines | `.md` |
 | `docs/zemer_playlists/README.md` | 94 lines | `.md` |
 | `gradle.properties` | 26 lines | `.properties` |
-| `gradle/libs.versions.toml` | 151 lines | `.toml` |
+| `gradle/libs.versions.toml` | 150 lines | `.toml` |
 | `gradle/wrapper/gradle-wrapper.jar` | 45457 bytes | `.jar` |
 | `gradle/wrapper/gradle-wrapper.properties` | 8 lines | `.properties` |
 | `gradlew` | 248 lines | `[none]` |
