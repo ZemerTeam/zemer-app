@@ -254,7 +254,7 @@ Every `@Composable fun` per UI file (extension receivers dropped, so `BoxScope.X
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/HomeGenresRow.kt` | 118 | HomeGenreChipsStrip, HomeGenresRow, HomePodcastGenresRow |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/HomeScreen.kt` | 1521 | HomeScreen, rememberRowImpressionIds |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/HomeSeeAllScreen.kt` | 368 | HomeSeeAllScreen, YtItemGrid, SongList, LocalItemList |
-| `app/src/main/kotlin/com/jtech/zemer/ui/screens/HomeStatusesRow.kt` | 58 | HomeStatusesRow |
+| `app/src/main/kotlin/com/jtech/zemer/ui/screens/HomeStatusesRow.kt` | 59 | HomeStatusesRow |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/KidZoneScreen.kt` | 164 | KidZoneScreen, KidZonePodcastsContent |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/LatestReleasesScreen.kt` | 104 | LatestReleasesScreen |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/LoadingScreen.kt` | 187 | LoadingScreen, WhitelistLoadFailed, DisposableLifecycle, DisposableEffectWithLifecycle |
@@ -487,7 +487,7 @@ Key declarations are the first 12 `class`/`object`/`interface`/`fun`/`val`/`var`
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/HomeGenresRow.kt` | 118 | fun HomeGenreChipsStrip, val listState, val decay, val flingBehavior, fun HomeGenresRow, val chips, fun HomePodcastGenresRow, val chips |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/HomeScreen.kt` | 1521 | fun HomeScreen, val viewModel, val menuState, val database, val playerConnection, val haptic, val context, val isPlaying, val mediaMetadata, val homeUiState, val quickPicks, val featuredPlaylists, … (+92 more) |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/HomeSeeAllScreen.kt` | 368 | fun HomeSeeAllScreen, val data, val podcastData, val videoData, val blockVideos, val _, val rowIsEmpty, val menuState, val playerConnection, val haptic, val isPlaying, val mediaMetadata, … (+18 more) |
-| `app/src/main/kotlin/com/jtech/zemer/ui/screens/HomeStatusesRow.kt` | 58 | fun HomeStatusesRow, val ordered |
+| `app/src/main/kotlin/com/jtech/zemer/ui/screens/HomeStatusesRow.kt` | 59 | fun HomeStatusesRow, val ordered |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/KidZoneScreen.kt` | 164 | fun KidZoneScreen, val blockPodcasts, val _, val tabs, var selectedTab, val tab, val chips, fun KidZonePodcastsContent, var viewType, val filtered, fun openShow |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/KidZoneTab.kt` | 22 | class KidZoneTab, fun visibleKidZoneTabs, fun effectiveKidZoneTab |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/LatestReleasesScreen.kt` | 104 | fun LatestReleasesScreen, val context, val playerConnection, val isPlaying, val mediaMetadata, val releases, val lazyListState, var filter, val visibleReleases |

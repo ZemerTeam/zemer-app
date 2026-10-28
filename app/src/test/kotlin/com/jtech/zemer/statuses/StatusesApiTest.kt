@@ -209,6 +209,23 @@ class StatusesApiTest {
     }
 
     @Test
+    fun `Zemer leads the Home row only while it posted in the last 24 hours, others keep their order`() {
+        val now = java.time.OffsetDateTime.parse("2026-10-28T12:00:00Z").toInstant().toEpochMilli()
+        fun c(id: String, provider: String, at: String?) =
+            StatusCreator(id = id, slug = id, displayName = id, avatarPath = null, providerId = provider, latestPostedAt = at)
+        val j1 = c("j1", "jewish-status", "2026-10-28T11:59:00Z")
+        val y1 = c("y1", "yid-status", null)
+        fun row(zemerAt: String?) = listOf(j1, c("z1", "zemer", zemerAt), y1).zemerFirstIfRecent(now).map { it.id }
+
+        assertEquals(listOf("z1", "j1", "y1"), row("2026-10-28T02:00:00+02:00")) // 12 h ago (offset honored)
+        assertEquals(listOf("j1", "z1", "y1"), row("2026-10-27T11:00:00Z"))      // 25 h ago: unchanged
+        assertEquals(listOf("j1", "z1", "y1"), row(null))                        // no time: unchanged
+        assertEquals(listOf("j1", "z1", "y1"), row("not a date"))                // unreadable: unchanged
+        // another source's recent post never moves anything
+        assertEquals(listOf("j1", "y1"), listOf(j1, y1).zemerFirstIfRecent(now).map { it.id })
+    }
+
+    @Test
     fun `sortedByUnseenFirst sinks caught-up creators to the end, stable otherwise`() {
         fun c(id: String, vararg ids: String) = StatusCreator(
             id = id, slug = id, displayName = id, avatarPath = null,

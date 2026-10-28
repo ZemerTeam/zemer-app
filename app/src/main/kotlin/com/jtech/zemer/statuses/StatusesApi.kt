@@ -47,6 +47,8 @@ data class StatusCreator(
     // The configured provider ([StatusProvider.id]) it was loaded from: the See-all screen's section. Two
     // providers can share a platform shape ([source]), e.g. Zemer's own statuses and JewishStatus.
     val providerId: String = "",
+    // ISO-8601 time of the newest status (`latest_posted_at`); used for Zemer's own creators (zemerFirstIfRecent).
+    val latestPostedAt: String? = null,
 )
 
 /**
@@ -124,6 +126,26 @@ fun List<StatusCreator>.sortedByUnseenFirst(
     seenPostIds: Set<String>,
     filter: StatusContentFilter,
 ): List<StatusCreator> = sortedBy { it.caughtUpOnLatest(seenPostIds, filter) }
+
+/** Zemer's own status provider (`/status-sources` id). */
+const val ZEMER_STATUS_PROVIDER_ID = "zemer"
+
+private const val ZEMER_FIRST_WINDOW_MS = 24 * 60 * 60 * 1000L
+
+/**
+ * The Home row's lead: Zemer's own creators move to the front while one of them posted within the last 24 hours;
+ * otherwise the order is unchanged. Only Zemer's post time is read; every other creator keeps its place in order.
+ */
+fun List<StatusCreator>.zemerFirstIfRecent(nowMs: Long): List<StatusCreator> {
+    val zemerPostedRecently = any { c ->
+        c.providerId == ZEMER_STATUS_PROVIDER_ID && c.latestPostedAt
+            ?.let { runCatching { java.time.OffsetDateTime.parse(it).toInstant().toEpochMilli() }.getOrNull() }
+            ?.let { nowMs - it in 0 until ZEMER_FIRST_WINDOW_MS } == true
+    }
+    if (!zemerPostedRecently) return this
+    val (zemer, rest) = partition { it.providerId == ZEMER_STATUS_PROVIDER_ID }
+    return zemer + rest
+}
 
 /**
  * Merge two platforms' creators, dropping cross-platform DUPLICATES (the same real creator appears on
@@ -259,6 +281,7 @@ internal fun parseCreators(arr: JSONArray): List<StatusCreator> =
             recentPostIds = o.optJSONArray("recent_post_ids")?.let { arr ->
                 (0 until arr.length()).mapNotNull { arr.optString(it).takeIf { s -> s.isNotEmpty() } }
             } ?: emptyList(),
+            latestPostedAt = o.optStringOrNull("latest_posted_at"),
         )
     }
 
