@@ -2,8 +2,7 @@ name: Android Debug Build
 
 # Manual-only: produces a debug APK on demand and uploads it as a workflow artifact.
 # Mirrors release-build.yml's environment setup (JDK 21, submodules, Firebase config) but skips
-# release-only steps (release signing, Crashlytics symbol upload,
-# 16 KB alignment gate, Telegram). Build it from the Actions tab via "Run workflow".
+# release-only steps (release signing, 16 KB alignment gate, Telegram). Build it from the Actions tab via "Run workflow".
 on:
   workflow_dispatch:
 

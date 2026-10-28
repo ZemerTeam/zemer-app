@@ -122,7 +122,7 @@ fun UpdaterScreen(
             }
         }
         // Benign if Shizuku isn't installed/running (the binder is absent) — log, don't crash
-        // or report (it's an expected state, not an error worth Crashlytics noise).
+        // or report (it's an expected state, not an error worth crash-report noise).
         runCatching { Shizuku.addRequestPermissionResultListener(listener) }
             .onFailure { Timber.d(it, "Shizuku permission listener not registered (Shizuku unavailable)") }
         onDispose {

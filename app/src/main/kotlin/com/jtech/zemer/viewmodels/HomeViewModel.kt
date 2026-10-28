@@ -419,7 +419,7 @@ class HomeViewModel @Inject constructor(
             }
         } catch (e: java.util.concurrent.CancellationException) {
             // Cooperative cancellation (VM cleared while the fetch is in flight) must propagate — not be
-            // caught and logged as a Crashlytics non-fatal. Matches the load()/refresh() catch boundaries.
+            // caught and reported as a crash-report non-fatal. Matches the load()/refresh() catch boundaries.
             throw e
         } catch (e: Exception) {
             Timber.w(e, "HomeViewModel: /home-rows fetch failed — featured rows hide this load")

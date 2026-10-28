@@ -29,7 +29,7 @@ import com.metrolist.innertube.models.YouTubeLocale
 import com.jtech.zemer.constants.*
 import com.jtech.zemer.di.ApplicationScope
 import com.jtech.zemer.extensions.toast
-import com.google.firebase.crashlytics.FirebaseCrashlytics
+import com.jtech.zemer.crash.CrashReporter
 import com.jtech.zemer.utils.ContentFilterConfig
 import com.jtech.zemer.utils.CrashReportingTree
 import com.jtech.zemer.utils.BlockedIdsCache
@@ -79,20 +79,16 @@ class App : Application(), SingletonImageLoader.Factory {
     override fun onCreate() {
         super.onCreate()
 
-        // Initialize Timber for logging. The Crashlytics tree runs in all builds:
-        // every DEBUG+ log becomes a crash-report breadcrumb, ERROR throwables become
-        // non-fatal issues.
+        // Crash reporting to Zemer's server (crash/CrashReporter), in all builds: every DEBUG+ log becomes a
+        // breadcrumb, ERROR throwables become non-fatals. Reports carry the commit + CI run number, since nightly
+        // and stable builds share one versionCode/versionName.
+        CrashReporter.install(this)
         Timber.plant(
             CrashReportingTree(
-                logBreadcrumb = { FirebaseCrashlytics.getInstance().log(it) },
-                recordNonFatal = { FirebaseCrashlytics.getInstance().recordException(it) },
+                logBreadcrumb = CrashReporter::breadcrumb,
+                recordNonFatal = { CrashReporter.nonFatal(it) },
             )
         )
-        // Every main build ships as the same versionCode/versionName (nightly = stable's number), so
-        // Crashlytics buckets nightly and stable together; the commit + CI run number keys are what
-        // tell them apart (run number 0 = built outside CI).
-        FirebaseCrashlytics.getInstance().setCustomKey("commit", BuildConfig.COMMIT_HASH)
-        FirebaseCrashlytics.getInstance().setCustomKey("run_number", BuildConfig.RUN_NUMBER)
         if (BuildConfig.DEBUG) {
             Timber.plant(Timber.DebugTree())
             // Ring-buffer tree for the developer-mode Log viewer. Debug builds ONLY —

@@ -1060,10 +1060,17 @@ session; **gitignored**, never commit). Methodology + the symptom-indexed runboo
   `playback/queues/`. State: Room (`db/MusicDatabase.kt`, `song.db`) + DataStore (`utils/DataStore.kt` -
   cookie / visitorData / dataSyncId and all settings). Content filtering: `sync/` + `utils/SyncUtils.kt`.
   Offline search backup: `offline/` (store under `filesDir/subset/`). Downloads:
-  `MediaStoreDownloadManager` / `MediaStoreDownloadService`. Crash telemetry is Firebase Crashlytics via
-  `utils/CrashReportingTree.kt` (Timber DEBUG+ → breadcrumbs, `reportException()` → non-fatals) - report
-  errors via `reportException()`/`Timber`, never `printStackTrace`. `App.kt` sets custom keys `commit` and
-  `run_number` because nightly and stable builds share one versionCode/versionName.
+  `MediaStoreDownloadManager` / `MediaStoreDownloadService`. Crash reporting goes to Zemer's own server
+  (`crash/CrashReporter`, `POST tracking.zemer.io/v1/crash`, contract
+  `handoff-docs/zemer-app-crash-reporting-request.md`) via `utils/CrashReportingTree.kt` (Timber DEBUG+ →
+  breadcrumbs, `reportException()` → non-fatals) - report errors via `reportException()`/`Timber`, never
+  `printStackTrace`. Rules: every report is scrubbed on the device before it is queued (`CrashScrubber`: URL
+  query strings, ip/pot/visitorData/sig/n/key/token values, IPs, emails, the account uid) and carries no
+  identifiers; non-fatals are deduped per launch (one per fingerprint, with a `count`, at most 20 kinds); a
+  fatal is queued in the uncaught-exception handler and sent there (bounded wait), else on the next launch;
+  reports carry `commit` + `runNumber` because nightly and stable share one versionCode/versionName. Release
+  builds are NOT obfuscated (`-dontobfuscate`; shrinking and optimization stay on), so stacks are readable
+  with no mapping file - don't reintroduce renaming without a mapping upload on the server side.
 - **`:innertube`** (`com.metrolist.innertube`) - the Ktor InnerTube client (requests, auth context,
   renderer parsers) and the `YouTubeClient` definitions. The cipher is the single sts/decipher source (no
   NewPipe extractor - don't reintroduce it).

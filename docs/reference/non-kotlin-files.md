@@ -4,21 +4,21 @@ Every tracked non-Kotlin path outside `docs/` is listed. Text files report line 
 
 | Path | Size/status | Type metadata |
 | --- | ---: | --- |
-| `.github/workflows/debug-build.yml` | 66 lines | text `.yml` |
+| `.github/workflows/debug-build.yml` | 65 lines | text `.yml` |
 | `.github/workflows/docs-regenerate.yml` | 80 lines | text `.yml` |
 | `.github/workflows/player-monitor.yml` | 196 lines | text `.yml` |
 | `.github/workflows/regression.yml` | 84 lines | text `.yml` |
-| `.github/workflows/release-build.yml` | 170 lines | text `.yml` |
+| `.github/workflows/release-build.yml` | 167 lines | text `.yml` |
 | `.github/workflows/ui-audit.yml` | 55 lines | text `.yml` |
 | `.gitignore` | 117 lines | text `[none]` |
 | `.gitmodules` | 3 lines | text `[none]` |
-| `AGENTS.md` | 1093 lines | text `.md` |
+| `AGENTS.md` | 1100 lines | text `.md` |
 | `LICENSE` | 674 lines | text `[none]` |
 | `README.md` | 9 lines | text `.md` |
 | `app/.gitignore` | 1 lines | text `[none]` |
-| `app/build.gradle.kts` | 377 lines | text `.kts`; plugins `com.android.application, android, kotlin.serialization, hilt, kotlin.ksp, compose.compiler, google.gms.google.services, firebase.crashlytics, rikka.tools.refine` |
+| `app/build.gradle.kts` | 371 lines | text `.kts`; plugins `com.android.application, android, kotlin.serialization, hilt, kotlin.ksp, compose.compiler, google.gms.google.services, rikka.tools.refine` |
 | `app/lint.xml` | 11 lines | text `.xml`; XML root `lint` |
-| `app/proguard-rules.pro` | 233 lines | text `.pro` |
+| `app/proguard-rules.pro` | 235 lines | text `.pro` |
 | `app/schemas/com.jtech.zemer.db.InternalDatabase/1.json` | 297 lines | text `.json`; JSON keys `formatVersion, database` |
 | `app/schemas/com.jtech.zemer.db.InternalDatabase/10.json` | 814 lines | text `.json`; JSON keys `formatVersion, database` |
 | `app/schemas/com.jtech.zemer.db.InternalDatabase/11.json` | 796 lines | text `.json`; JSON keys `formatVersion, database` |
@@ -305,10 +305,10 @@ Every tracked non-Kotlin path outside `docs/` is listed. Text files report line 
 | `app/src/test/resources/sig/sig-vectors.json` | 65 lines | text `.json`; JSON keys `about, keyB64, vectors, derivation` |
 | `app/universal/release/baselineProfiles/0/app-universal-release.dm` | 10017 bytes | binary `.dm` |
 | `app/universal/release/baselineProfiles/1/app-universal-release.dm` | 9981 bytes | binary `.dm` |
-| `build.gradle.kts` | 37 lines | text `.kts`; plugins `hilt, kotlin.ksp, google.gms.google.services, firebase.crashlytics, rikka.tools.refine` |
+| `build.gradle.kts` | 36 lines | text `.kts`; plugins `hilt, kotlin.ksp, google.gms.google.services, rikka.tools.refine` |
 | `cipher` | gitlink/non-file | tracked path is not a regular file in this checkout |
 | `gradle.properties` | 26 lines | text `.properties` |
-| `gradle/libs.versions.toml` | 150 lines | text `.toml` |
+| `gradle/libs.versions.toml` | 146 lines | text `.toml` |
 | `gradle/wrapper/gradle-wrapper.jar` | 45457 bytes | binary `.jar` |
 | `gradle/wrapper/gradle-wrapper.properties` | 8 lines | text `.properties` |
 | `gradlew` | 248 lines | text `[none]` |
