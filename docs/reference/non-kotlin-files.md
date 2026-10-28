@@ -18,7 +18,7 @@ Every tracked non-Kotlin path outside `docs/` is listed. Text files report line 
 | `app/.gitignore` | 1 lines | text `[none]` |
 | `app/build.gradle.kts` | 371 lines | text `.kts`; plugins `com.android.application, android, kotlin.serialization, hilt, kotlin.ksp, compose.compiler, google.gms.google.services, rikka.tools.refine` |
 | `app/lint.xml` | 11 lines | text `.xml`; XML root `lint` |
-| `app/proguard-rules.pro` | 235 lines | text `.pro` |
+| `app/proguard-rules.pro` | 225 lines | text `.pro` |
 | `app/schemas/com.jtech.zemer.db.InternalDatabase/1.json` | 297 lines | text `.json`; JSON keys `formatVersion, database` |
 | `app/schemas/com.jtech.zemer.db.InternalDatabase/10.json` | 814 lines | text `.json`; JSON keys `formatVersion, database` |
 | `app/schemas/com.jtech.zemer.db.InternalDatabase/11.json` | 796 lines | text `.json`; JSON keys `formatVersion, database` |

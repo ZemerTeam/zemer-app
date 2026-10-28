@@ -102,6 +102,9 @@ internal object CrashReport {
             .joinToString("|")
     }
 
+    /** A cancellation anywhere in the cause chain: a coroutine being cancelled, not an error worth a report. */
+    fun isCancellation(throwable: Throwable): Boolean = chain(throwable).any { it is java.util.concurrent.CancellationException }
+
     private fun chain(throwable: Throwable): List<Throwable> {
         val seen = IdentityHashMap<Throwable, Unit>()
         return generateSequence(throwable) { it.cause }

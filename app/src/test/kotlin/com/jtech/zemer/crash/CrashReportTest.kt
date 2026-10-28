@@ -93,6 +93,13 @@ class CrashReportTest {
     }
 
     @Test
+    fun `a coroutine cancellation anywhere in the chain is not reported as an error`() {
+        assertTrue(CrashReport.isCancellation(kotlinx.coroutines.CancellationException("Job was cancelled")))
+        assertTrue(CrashReport.isCancellation(IllegalStateException("wrap", kotlinx.coroutines.CancellationException("x"))))
+        assertFalse(CrashReport.isCancellation(IOException("down")))
+    }
+
+    @Test
     fun `non-fatals are reported once per kind per launch, with their repeat count, up to the cap`() {
         val d = PerLaunchDedup<String>(max = 2)
         assertTrue(d.offer("a") { "A" })

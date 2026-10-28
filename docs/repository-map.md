@@ -105,7 +105,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/.gitignore` | 1 lines | `[none]` |
 | `app/build.gradle.kts` | 371 lines | `.kts` |
 | `app/lint.xml` | 11 lines | `.xml` |
-| `app/proguard-rules.pro` | 235 lines | `.pro` |
+| `app/proguard-rules.pro` | 225 lines | `.pro` |
 | `app/schemas/com.jtech.zemer.db.InternalDatabase/1.json` | 297 lines | `.json` |
 | `app/schemas/com.jtech.zemer.db.InternalDatabase/10.json` | 814 lines | `.json` |
 | `app/schemas/com.jtech.zemer.db.InternalDatabase/11.json` | 796 lines | `.json` |
@@ -172,8 +172,8 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/main/kotlin/com/jtech/zemer/constants/MediaSessionConstants.kt` | 23 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/constants/PlaybackMode.kt` | 11 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/constants/PreferenceKeys.kt` | 667 lines | `.kt` |
-| `app/src/main/kotlin/com/jtech/zemer/crash/CrashReport.kt` | 151 lines | `.kt` |
-| `app/src/main/kotlin/com/jtech/zemer/crash/CrashReporter.kt` | 121 lines | `.kt` |
+| `app/src/main/kotlin/com/jtech/zemer/crash/CrashReport.kt` | 154 lines | `.kt` |
+| `app/src/main/kotlin/com/jtech/zemer/crash/CrashReporter.kt` | 122 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/crash/CrashScrubber.kt` | 30 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/crash/CrashUploader.kt` | 77 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/db/Converters.kt` | 20 lines | `.kt` |
@@ -996,7 +996,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/test/cpp/hmac_host_harness.c` | 27 lines | `.c` |
 | `app/src/test/kotlin/com/dpi/DensityMathTest.kt` | 69 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/constants/PreferenceKeysTest.kt` | 26 lines | `.kt` |
-| `app/src/test/kotlin/com/jtech/zemer/crash/CrashReportTest.kt` | 116 lines | `.kt` |
+| `app/src/test/kotlin/com/jtech/zemer/crash/CrashReportTest.kt` | 123 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/db/SqliteBindLimitTest.kt` | 23 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/db/entities/LyricsCachePolicyTest.kt` | 83 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/db/entities/ShareLinkTest.kt` | 41 lines | `.kt` |
