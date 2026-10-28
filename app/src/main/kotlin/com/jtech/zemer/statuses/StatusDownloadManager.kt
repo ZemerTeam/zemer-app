@@ -9,7 +9,6 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.withContext
-import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.io.ByteArrayOutputStream
 import javax.inject.Inject
@@ -26,7 +25,8 @@ class StatusDownloadManager @Inject constructor(
     @ApplicationContext private val context: Context,
     private val store: StatusDownloadsStore,
 ) {
-    private val http by lazy { OkHttpClient() }
+    // the shared status client: signed when the media is on a Zemer host (Zemer's own statuses)
+    private val http get() = statusHttp
 
     val downloads: Flow<List<StatusDownload>> = store.downloads
     val savedIds: Flow<Set<String>> = store.savedIds

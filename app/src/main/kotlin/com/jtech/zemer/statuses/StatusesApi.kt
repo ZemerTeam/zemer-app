@@ -5,10 +5,15 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.withContext
+import com.jtech.zemer.net.ZemerHeaders.withZemerHeaders
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONArray
 import org.json.JSONObject
-import java.net.HttpURLConnection
-import java.net.URL
+import java.io.IOException
+import java.util.concurrent.TimeUnit
 
 /**
  * Self-contained client for JewishStatus.com — a platform of Jewish/kosher music creators posting
@@ -16,8 +21,8 @@ import java.net.URL
  * API + a Cloudflare R2 CDN. Ported from the standalone `jewishstatus` spike.
  *
  * This is a THIRD-PARTY service the app cannot guarantee is up, so every consumer treats a failure as
- * "no data" (the Home row hides itself). Kept deliberately dependency-free (raw [HttpURLConnection], no
- * coupling to the app's OkHttp client) — it talks to a different backend.
+ * "no data" (the Home row hides itself). It has its own small OkHttp client (not the app's), with the shared
+ * request-signing hook, which signs only requests that reach a Zemer host (the status sources are proxied there).
  *
  * The Supabase base URL, the **publishable** anon key (client-safe by design - the JewishStatus web app
  * ships the same one publicly, NOT a secret), and which category ids count as "music" are all supplied by
@@ -306,26 +311,24 @@ internal fun parsePosts(arr: JSONArray): List<StatusPost> =
         )
     }
 
-private fun postJson(url: String, body: String, key: String): String {
-    val conn = URL(url).openConnection() as HttpURLConnection
-    conn.requestMethod = "POST"
-    conn.connectTimeout = TIMEOUT_MS
-    conn.readTimeout = TIMEOUT_MS
-    conn.setRequestProperty("Content-Type", "application/json")
-    conn.setRequestProperty("apikey", key)
-    conn.setRequestProperty("Authorization", "Bearer $key")
-    conn.doOutput = true
-    conn.outputStream.use { it.write(body.toByteArray()) }
-    return conn.inputStream.use { it.reader().readText() }
+// The status feature's one HTTP client (API calls, media downloads, the story viewer's player), with the shared
+// request-signing hook: requests that reach a Zemer host are signed, others go out unchanged.
+internal val statusHttp: OkHttpClient by lazy {
+    OkHttpClient.Builder()
+        .connectTimeout(10, TimeUnit.SECONDS)
+        .readTimeout(10, TimeUnit.SECONDS)
+        .withZemerHeaders()
+        .build()
 }
 
-private fun getJson(url: String, key: String): String {
-    val conn = URL(url).openConnection() as HttpURLConnection
-    conn.connectTimeout = TIMEOUT_MS
-    conn.readTimeout = TIMEOUT_MS
-    conn.setRequestProperty("apikey", key)
-    conn.setRequestProperty("Authorization", "Bearer $key")
-    return conn.inputStream.use { it.reader().readText() }
-}
+private fun postJson(url: String, body: String, key: String): String =
+    call(Request.Builder().url(url).post(body.toRequestBody("application/json".toMediaType())), key)
 
-private const val TIMEOUT_MS = 10_000
+private fun getJson(url: String, key: String): String = call(Request.Builder().url(url), key)
+
+/** The body of a 2xx answer; anything else throws, so a failed source keeps its previous data. */
+private fun call(request: Request.Builder, key: String): String =
+    statusHttp.newCall(request.header("apikey", key).header("Authorization", "Bearer $key").build()).execute().use { r ->
+        if (!r.isSuccessful) throw IOException("HTTP ${r.code}")
+        r.body.string()
+    }
