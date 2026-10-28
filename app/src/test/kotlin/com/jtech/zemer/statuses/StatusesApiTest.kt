@@ -17,7 +17,7 @@ class StatusesApiTest {
     fun `parseCreators maps fields and treats empty avatar as null`() {
         val json = """
             [
-              {"id":"c1","slug":"shia","display_name":"Shia Scharf","avatar_path":"c1/a.jpg","live_now":true},
+              {"id":"c1","slug":"shia","display_name":"Shia Scharf","avatar_path":"c1/a.jpg","live_now":true,"last_posted_at":"2026-10-28T04:36:46+00:00"},
               {"id":"c2","slug":"anon","display_name":"No Avatar","avatar_path":"","live_now":false}
             ]
         """.trimIndent()
@@ -28,8 +28,10 @@ class StatusesApiTest {
         assertEquals("shia", a.slug)
         assertEquals("Shia Scharf", a.displayName)
         assertEquals("c1/a.jpg", a.avatarPath)
-        // Empty avatar_path -> null.
+        assertEquals("2026-10-28T04:36:46+00:00", a.latestPostedAt)
+        // Empty avatar_path -> null; no last_posted_at -> null.
         assertNull(creators[1].avatarPath)
+        assertNull(creators[1].latestPostedAt)
     }
 
     @Test
@@ -215,12 +217,13 @@ class StatusesApiTest {
             StatusCreator(id = id, slug = id, displayName = id, avatarPath = null, providerId = provider, latestPostedAt = at)
         val j1 = c("j1", "jewish-status", "2026-10-28T11:59:00Z")
         val y1 = c("y1", "yid-status", null)
-        fun row(zemerAt: String?) = listOf(j1, c("z1", "zemer", zemerAt), y1).zemerFirstIfRecent(now).map { it.id }
+        // the merged list starts with Zemer (first in the config)
+        fun row(zemerAt: String?) = listOf(c("z1", "zemer", zemerAt), j1, y1).zemerFirstIfRecent(now).map { it.id }
 
-        assertEquals(listOf("z1", "j1", "y1"), row("2026-10-28T02:00:00+02:00")) // 12 h ago (offset honored)
-        assertEquals(listOf("j1", "z1", "y1"), row("2026-10-27T11:00:00Z"))      // 25 h ago: unchanged
-        assertEquals(listOf("j1", "z1", "y1"), row(null))                        // no time: unchanged
-        assertEquals(listOf("j1", "z1", "y1"), row("not a date"))                // unreadable: unchanged
+        assertEquals(listOf("z1", "j1", "y1"), row("2026-10-28T02:00:00+02:00")) // 12 h ago (offset honored): first
+        assertEquals(listOf("j1", "y1", "z1"), row("2026-10-15T19:20:00+00:00")) // older: after everyone else
+        assertEquals(listOf("j1", "y1", "z1"), row(null))                        // no time: not first
+        assertEquals(listOf("j1", "y1", "z1"), row("not a date"))                // unreadable: not first
         // another source's recent post never moves anything
         assertEquals(listOf("j1", "y1"), listOf(j1, y1).zemerFirstIfRecent(now).map { it.id })
     }
