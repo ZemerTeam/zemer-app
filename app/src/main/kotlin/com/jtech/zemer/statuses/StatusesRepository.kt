@@ -31,7 +31,7 @@ import javax.inject.Singleton
  * until the first successful sync - there is no baked-in fallback), grouped by handler [StatusProviderType]:
  *  - [StatusProviderType.SUPABASE_CATEGORY] providers (JewishStatus shape) load via [loadJewish];
  *  - [StatusProviderType.KEYWORD_FEED] providers (YidStatus shape) load via [loadYid].
- * Each creator carries its [StatusCreator.source] so the See-all screen groups by platform, and each is
+ * Each creator carries its [StatusCreator.providerId] so the See-all screen groups by configured provider, and each is
  * mapped to the provider it came from ([providerByCreator]) so [posts] fetches with the right backend.
  *
  * Both families are fetched CONCURRENTLY and independently fail-soft: one platform being down still shows
@@ -200,7 +200,9 @@ class StatusesRepository @Inject constructor(
                     .getOrNull()
                 if (list != null) {
                     anySuccess = true
-                    list.forEach { c -> if (byId.putIfAbsent(c.id, c) == null) providerByCreator[c.id] = provider }
+                    list.forEach { c ->
+                        if (byId.putIfAbsent(c.id, c.copy(providerId = provider.id)) == null) providerByCreator[c.id] = provider
+                    }
                 } else {
                     // Fail-soft PER provider: keep THIS provider's previously-loaded creators so one
                     // source's outage never blanks its rows while its siblings refresh.
@@ -259,7 +261,9 @@ class StatusesRepository @Inject constructor(
                     .getOrNull()
                 if (feed != null) {
                     anySuccess = true
-                    feed.creators.forEach { c -> if (byId.putIfAbsent(c.id, c) == null) providerByCreator[c.id] = provider }
+                    feed.creators.forEach { c ->
+                        if (byId.putIfAbsent(c.id, c.copy(providerId = provider.id)) == null) providerByCreator[c.id] = provider
+                    }
                     // FIRST provider wins for posts too, matching the creator merge: the published
                     // creator's ring came from its provider's keyword-filtered posts, so its posts must
                     // come from the same provider (last-wins here would skew ring vs viewer content).

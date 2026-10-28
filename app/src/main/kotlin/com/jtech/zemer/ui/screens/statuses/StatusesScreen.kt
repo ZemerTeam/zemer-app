@@ -31,9 +31,10 @@ import androidx.navigation.NavController
 import com.jtech.zemer.LocalPlayerAwareWindowInsets
 import com.jtech.zemer.R
 import com.jtech.zemer.statuses.StatusCreator
-import com.jtech.zemer.statuses.StatusSource
 import com.jtech.zemer.statuses.StatusContentFilter
+import com.jtech.zemer.statuses.StatusSourcesCache
 import com.jtech.zemer.statuses.sortedByUnseenFirst
+import com.jtech.zemer.statuses.statusSections
 import com.jtech.zemer.ui.component.AppBarTitle
 import com.jtech.zemer.ui.component.ArtistSearchField
 import com.jtech.zemer.ui.component.BackNavigationIcon
@@ -46,8 +47,8 @@ import com.jtech.zemer.viewmodels.ZemerStatusesViewModel
 
 /**
  * The "See all" screen for the Home "Music Status" row. A search field (filtering ALL sources) sits on
- * top, then the creators grouped into SEPARATE sections by platform (JewishStatus, YidStatus) - the Home
- * row is uniform, this screen shows the split. Reuses the shared [ZemerStatusesViewModel] state (same
+ * top, then the creators grouped into SEPARATE sections, one per configured provider in the server's order and
+ * titled by its name (e.g. Zemer, JewishStatus, YidStatus) - the Home row is uniform, this screen shows the split. Reuses the shared [ZemerStatusesViewModel] state (same
  * creators + seen the row shows), so it is instant from Home and self-populates if entered cold.
  * Fully-viewed creators sink to the end within each section, matching the row.
  */
@@ -64,11 +65,12 @@ fun StatusesScreen(
     var query by rememberSaveable { mutableStateOf("") }
     val searchFocus = remember { FocusRequester() }
 
-    val jewish = remember(creators, seenPostIds, query, contentFilter) {
-        creators.filterSourceAndQuery(StatusSource.JEWISH_STATUS, query).sortedByUnseenFirst(seenPostIds, contentFilter)
-    }
-    val yid = remember(creators, seenPostIds, query, contentFilter) {
-        creators.filterSourceAndQuery(StatusSource.YID_STATUS, query).sortedByUnseenFirst(seenPostIds, contentFilter)
+    val sourcesConfig by StatusSourcesCache.state.collectAsState()
+
+    // One section per configured provider, in the server's config order
+    val sections = remember(creators, sourcesConfig, seenPostIds, query, contentFilter) {
+        statusSections(creators, sourcesConfig.providers, query)
+            .map { (provider, list) -> provider to list.sortedByUnseenFirst(seenPostIds, contentFilter) }
     }
 
     LaunchedEffect(Unit) { viewModel.refresh() }
@@ -90,8 +92,9 @@ fun StatusesScreen(
                     modifier = Modifier.padding(top = 8.dp), // sit a bit lower under the app bar
                 )
             }
-            statusSection(R.string.status_source_jewishstatus, jewish, seenPostIds, contentFilter, ::open)
-            statusSection(R.string.status_source_yidstatus, yid, seenPostIds, contentFilter, ::open)
+            sections.forEach { (provider, list) ->
+                statusSection(provider.id, provider.name, list, seenPostIds, contentFilter, ::open)
+            }
         }
     }
 
@@ -111,20 +114,18 @@ fun StatusesScreen(
     )
 }
 
-private fun List<StatusCreator>.filterSourceAndQuery(source: StatusSource, query: String) =
-    filter { it.source == source && (query.isBlank() || it.displayName.contains(query.trim(), ignoreCase = true)) }
-
-/** One platform section: the shared Home-row section title (only when it has matches) then its circles. */
+/** One provider section: the shared Home-row section title (the provider's configured name) then its circles. */
 private fun androidx.compose.foundation.lazy.grid.LazyGridScope.statusSection(
-    titleRes: Int,
+    key: String,
+    title: String,
     creators: List<StatusCreator>,
     seenPostIds: Set<String>,
     contentFilter: StatusContentFilter,
     onOpen: (StatusCreator) -> Unit,
 ) {
     if (creators.isEmpty()) return
-    item(span = { GridItemSpan(maxLineSpan) }, key = "header_$titleRes") {
-        NavigationTitle(title = stringResource(titleRes))
+    item(span = { GridItemSpan(maxLineSpan) }, key = "header_$key") {
+        NavigationTitle(title = title)
     }
     items(items = creators, key = { it.id }) { creator ->
         Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.TopCenter) {

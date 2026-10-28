@@ -405,12 +405,12 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/main/kotlin/com/jtech/zemer/statuses/StatusDownloadsView.kt` | 30 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/statuses/StatusGallery.kt` | 107 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/statuses/StatusSeenStore.kt` | 31 lines | `.kt` |
-| `app/src/main/kotlin/com/jtech/zemer/statuses/StatusSourcesConfig.kt` | 162 lines | `.kt` |
+| `app/src/main/kotlin/com/jtech/zemer/statuses/StatusSourcesConfig.kt` | 172 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/statuses/StatusText.kt` | 45 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/statuses/StatusTextImage.kt` | 60 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/statuses/StatusTimeline.kt` | 76 lines | `.kt` |
-| `app/src/main/kotlin/com/jtech/zemer/statuses/StatusesApi.kt` | 288 lines | `.kt` |
-| `app/src/main/kotlin/com/jtech/zemer/statuses/StatusesRepository.kt` | 293 lines | `.kt` |
+| `app/src/main/kotlin/com/jtech/zemer/statuses/StatusesApi.kt` | 331 lines | `.kt` |
+| `app/src/main/kotlin/com/jtech/zemer/statuses/StatusesRepository.kt` | 297 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/statuses/YidStatusApi.kt` | 146 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/sync/ContentFilterSyncService.kt` | 338 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/sync/ContentReportRepository.kt` | 117 lines | `.kt` |
@@ -570,7 +570,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/HomeGenresRow.kt` | 118 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/HomeScreen.kt` | 1521 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/HomeSeeAllScreen.kt` | 368 lines | `.kt` |
-| `app/src/main/kotlin/com/jtech/zemer/ui/screens/HomeStatusesRow.kt` | 58 lines | `.kt` |
+| `app/src/main/kotlin/com/jtech/zemer/ui/screens/HomeStatusesRow.kt` | 59 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/KidZoneScreen.kt` | 164 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/KidZoneTab.kt` | 22 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/LatestReleasesScreen.kt` | 104 lines | `.kt` |
@@ -645,7 +645,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/settings/UpdaterSettings.kt` | 408 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/statuses/SavedStatusScreen.kt` | 353 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/statuses/StatusDownloadsScreen.kt` | 439 lines | `.kt` |
-| `app/src/main/kotlin/com/jtech/zemer/ui/screens/statuses/StatusesScreen.kt` | 140 lines | `.kt` |
+| `app/src/main/kotlin/com/jtech/zemer/ui/screens/statuses/StatusesScreen.kt` | 141 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/statuses/StoryScreen.kt` | 923 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/theme/ChartColors.kt` | 30 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/theme/LogColors.kt` | 26 lines | `.kt` |
@@ -982,7 +982,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/main/res/values-v31/styles.xml` | 22 lines | `.xml` |
 | `app/src/main/res/values/app_name.xml` | 4 lines | `.xml` |
 | `app/src/main/res/values/colors.xml` | 9 lines | `.xml` |
-| `app/src/main/res/values/metrolist_strings.xml` | 703 lines | `.xml` |
+| `app/src/main/res/values/metrolist_strings.xml` | 701 lines | `.xml` |
 | `app/src/main/res/values/strings.xml` | 464 lines | `.xml` |
 | `app/src/main/res/values/styles.xml` | 26 lines | `.xml` |
 | `app/src/main/res/values/values.xml` | 8 lines | `.xml` |
@@ -1118,9 +1118,9 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/test/kotlin/com/jtech/zemer/statuses/StatusDownloadNamingTest.kt` | 39 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/statuses/StatusDownloadTest.kt` | 40 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/statuses/StatusDownloadsViewTest.kt` | 40 lines | `.kt` |
-| `app/src/test/kotlin/com/jtech/zemer/statuses/StatusSourcesConfigTest.kt` | 156 lines | `.kt` |
+| `app/src/test/kotlin/com/jtech/zemer/statuses/StatusSourcesConfigTest.kt` | 163 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/statuses/StatusTimelineTest.kt` | 105 lines | `.kt` |
-| `app/src/test/kotlin/com/jtech/zemer/statuses/StatusesApiTest.kt` | 206 lines | `.kt` |
+| `app/src/test/kotlin/com/jtech/zemer/statuses/StatusesApiTest.kt` | 260 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/statuses/YidStatusApiTest.kt` | 81 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/sync/ContentReportRepositoryTest.kt` | 92 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/sync/ContentServerApiTest.kt` | 200 lines | `.kt` |

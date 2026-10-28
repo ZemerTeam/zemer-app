@@ -51,6 +51,8 @@ enum class StatusProviderType(val slug: String) {
 data class StatusProvider(
     val id: String,
     val type: StatusProviderType,
+    /** Display name (the See-all section title); the config's `name`, else the id. */
+    val name: String = id,
     val baseUrl: String,
     val apiKey: String,
     val categoryIds: List<String> = emptyList(),
@@ -107,6 +109,7 @@ fun parseStatusSourcesConfig(text: String?): StatusSourcesConfig? {
             StatusProvider(
                 id = id,
                 type = type,
+                name = o.optStringOrNull("name") ?: id,
                 baseUrl = baseUrl,
                 apiKey = apiKey,
                 categoryIds = o.optJSONArray("categoryIds").toStringList(),
@@ -136,6 +139,11 @@ object StatusSourcesCache {
     @Volatile
     private var installed: StatusSourcesConfig? = null
 
+    private val _state = kotlinx.coroutines.flow.MutableStateFlow(EMPTY)
+
+    /** [current] as observable state, so a screen built from the config follows a config change. */
+    val state: kotlinx.coroutines.flow.StateFlow<StatusSourcesConfig> = _state
+
     /**
      * Install a validated mirror config. Never pass null (null from the parser means "keep last-good").
      * Never rolls back: an older-versioned config is ignored, so the startup restore of the persisted
@@ -146,6 +154,7 @@ object StatusSourcesCache {
         val current = installed
         if (current != null && config.version < current.version) return
         installed = config
+        _state.value = config
     }
 
     /** The config to use now: the installed mirror config, else an empty config (feature hidden). */
@@ -158,5 +167,6 @@ object StatusSourcesCache {
     /** Test-only: clear the installed config (the object is process-wide; JVM tests need isolation). */
     internal fun resetForTest() {
         installed = null
+        _state.value = EMPTY
     }
 }

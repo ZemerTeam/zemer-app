@@ -17,7 +17,7 @@ class StatusesApiTest {
     fun `parseCreators maps fields and treats empty avatar as null`() {
         val json = """
             [
-              {"id":"c1","slug":"shia","display_name":"Shia Scharf","avatar_path":"c1/a.jpg","live_now":true},
+              {"id":"c1","slug":"shia","display_name":"Shia Scharf","avatar_path":"c1/a.jpg","live_now":true,"last_posted_at":"2026-10-28T04:36:46+00:00"},
               {"id":"c2","slug":"anon","display_name":"No Avatar","avatar_path":"","live_now":false}
             ]
         """.trimIndent()
@@ -28,8 +28,10 @@ class StatusesApiTest {
         assertEquals("shia", a.slug)
         assertEquals("Shia Scharf", a.displayName)
         assertEquals("c1/a.jpg", a.avatarPath)
-        // Empty avatar_path -> null.
+        assertEquals("2026-10-28T04:36:46+00:00", a.latestPostedAt)
+        // Empty avatar_path -> null; no last_posted_at -> null.
         assertNull(creators[1].avatarPath)
+        assertNull(creators[1].latestPostedAt)
     }
 
     @Test
@@ -189,6 +191,58 @@ class StatusesApiTest {
         )
         // Neither -> untouched.
         assertEquals(3, posts.applyStatusFilter(StatusContentFilter(hideText = false, hideImage = false)).size)
+    }
+
+    @Test
+    fun `the See-all sections follow the configured providers, one each, titled by name`() {
+        fun p(id: String, name: String, type: StatusProviderType = StatusProviderType.SUPABASE_CATEGORY) =
+            StatusProvider(id = id, type = type, name = name, baseUrl = "https://x", apiKey = "k", categoryIds = listOf("c"))
+        fun c(id: String, provider: String, name: String = id) =
+            StatusCreator(id = id, slug = id, displayName = name, avatarPath = null, providerId = provider)
+        val providers = listOf(p("zemer", "Zemer"), p("jewish-status", "JewishStatus"), p("yid-status", "YidStatus", StatusProviderType.KEYWORD_FEED))
+        // the merged list has JewishStatus creators interleaved with Zemer's (they share the platform shape)
+        val creators = listOf(c("j1", "jewish-status"), c("z1", "zemer", "Zemer Official"), c("y1", "yid-status"), c("j2", "jewish-status"))
+        assertEquals(
+            listOf("Zemer" to listOf("z1"), "JewishStatus" to listOf("j1", "j2"), "YidStatus" to listOf("y1")),
+            statusSections(creators, providers, "").map { (p, list) -> p.name to list.map { it.id } },
+        )
+        // a search drops the sections with no match; a creator from an unconfigured provider is not shown
+        assertEquals(listOf("Zemer"), statusSections(creators + c("x1", "gone"), providers, " official ").map { it.first.name })
+        // a provider id listed twice gets one section, so no creator appears twice
+        assertEquals(
+            listOf("Zemer" to listOf("z1"), "JewishStatus" to listOf("j1", "j2")),
+            statusSections(creators, listOf(providers[0], providers[1], p("zemer", "Zemer again")), "")
+                .map { (p, list) -> p.name to list.map { it.id } },
+        )
+    }
+
+    @Test
+    fun `the config is observable, so a config change reaches the See-all screen`() {
+        StatusSourcesCache.resetForTest()
+        val config = StatusSourcesConfig(version = 7, providers = emptyList())
+        StatusSourcesCache.update(config)
+        assertEquals(config, StatusSourcesCache.state.value)
+        StatusSourcesCache.update(StatusSourcesConfig(version = 3, providers = emptyList())) // older: ignored
+        assertEquals(7L, StatusSourcesCache.state.value.version)
+        StatusSourcesCache.resetForTest()
+    }
+
+    @Test
+    fun `Zemer leads the Home row only while it posted in the last 24 hours, others keep their order`() {
+        val now = java.time.OffsetDateTime.parse("2026-10-28T12:00:00Z").toInstant().toEpochMilli()
+        fun c(id: String, provider: String, at: String?) =
+            StatusCreator(id = id, slug = id, displayName = id, avatarPath = null, providerId = provider, latestPostedAt = at)
+        val j1 = c("j1", "jewish-status", "2026-10-28T11:59:00Z")
+        val y1 = c("y1", "yid-status", null)
+        // the merged list starts with Zemer (first in the config)
+        fun row(zemerAt: String?) = listOf(c("z1", "zemer", zemerAt), j1, y1).zemerFirstIfRecent(now).map { it.id }
+
+        assertEquals(listOf("z1", "j1", "y1"), row("2026-10-28T02:00:00+02:00")) // 12 h ago (offset honored): first
+        assertEquals(listOf("j1", "y1", "z1"), row("2026-10-15T19:20:00+00:00")) // older: after everyone else
+        assertEquals(listOf("j1", "y1", "z1"), row(null))                        // no time: not first
+        assertEquals(listOf("j1", "y1", "z1"), row("not a date"))                // unreadable: not first
+        // another source's recent post never moves anything
+        assertEquals(listOf("j1", "y1"), listOf(j1, y1).zemerFirstIfRecent(now).map { it.id })
     }
 
     @Test
