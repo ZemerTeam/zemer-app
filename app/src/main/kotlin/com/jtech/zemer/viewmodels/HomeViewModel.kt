@@ -348,7 +348,7 @@ class HomeViewModel @Inject constructor(
     /** Artist profiles for Home from the content server. Booleans stay nullable (null = unknown, distinct from false). */
     private suspend fun fetchArtistProfiles(): List<HomeArtistProfile> =
         // the same read as the whitelist sync, so one outage is one fetch_fail
-        contentRead("whitelist") { ZemerContentClient.whitelist().mapNotNull { it.toHomeArtistProfile() } }.getOrThrow()
+        contentRead("whitelist") { ZemerContentClient.whitelist(reuseRecent = true).mapNotNull { it.toHomeArtistProfile() } }.getOrThrow()
 
     private fun ContentWhitelistDoc.toHomeArtistProfile(): HomeArtistProfile? {
         val resolvedId = id.takeIf { it.isNotBlank() } ?: artistId?.takeIf { it.isNotBlank() } ?: return null

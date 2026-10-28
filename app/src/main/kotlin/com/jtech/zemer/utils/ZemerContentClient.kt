@@ -88,9 +88,14 @@ object ZemerContentClient {
      * `/whitelist` → already whitelist docs. **Throws on an empty list** so an empty/broken mirror can
      * never replace a good whitelist (the caller keeps its last-good table).
      */
-    suspend fun whitelist(): List<ContentWhitelistDoc> = whitelistMutex.withLock {
-        // The sync and Home both read it at startup: one download serves both (only a success is kept).
-        whitelistMemo?.takeIf { System.nanoTime() - it.first < WHITELIST_MEMO_NS }?.let { return@withLock it.second }
+    /**
+     * [reuseRecent]: accept a download from the last minute (Home's profiles, read right after the sync's). The sync
+     * never does: it saves the version it just read alongside this list, so the list must be at least that new.
+     */
+    suspend fun whitelist(reuseRecent: Boolean = false): List<ContentWhitelistDoc> = whitelistMutex.withLock {
+        if (reuseRecent) {
+            whitelistMemo?.takeIf { System.nanoTime() - it.first < WHITELIST_MEMO_NS }?.let { return@withLock it.second }
+        }
         val docs = json.decodeFromString(ListSerializer(ContentWhitelistDoc.serializer()), getText("/whitelist", WHITELIST_TIMEOUT_MS))
         if (docs.isEmpty()) error("content mirror: empty /whitelist")
         Timber.d("ZemerContentClient: /whitelist %d docs", docs.size)
