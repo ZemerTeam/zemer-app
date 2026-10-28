@@ -192,6 +192,23 @@ class StatusesApiTest {
     }
 
     @Test
+    fun `the See-all sections follow the configured providers, one each, titled by name`() {
+        fun p(id: String, name: String, type: StatusProviderType = StatusProviderType.SUPABASE_CATEGORY) =
+            StatusProvider(id = id, type = type, name = name, baseUrl = "https://x", apiKey = "k", categoryIds = listOf("c"))
+        fun c(id: String, provider: String, name: String = id) =
+            StatusCreator(id = id, slug = id, displayName = name, avatarPath = null, providerId = provider)
+        val providers = listOf(p("zemer", "Zemer"), p("jewish-status", "JewishStatus"), p("yid-status", "YidStatus", StatusProviderType.KEYWORD_FEED))
+        // the merged list has JewishStatus creators interleaved with Zemer's (they share the platform shape)
+        val creators = listOf(c("j1", "jewish-status"), c("z1", "zemer", "Zemer Official"), c("y1", "yid-status"), c("j2", "jewish-status"))
+        assertEquals(
+            listOf("Zemer" to listOf("z1"), "JewishStatus" to listOf("j1", "j2"), "YidStatus" to listOf("y1")),
+            statusSections(creators, providers, "").map { (p, list) -> p.name to list.map { it.id } },
+        )
+        // a search drops the sections with no match; a creator from an unconfigured provider is not shown
+        assertEquals(listOf("Zemer"), statusSections(creators + c("x1", "gone"), providers, " official ").map { it.first.name })
+    }
+
+    @Test
     fun `sortedByUnseenFirst sinks caught-up creators to the end, stable otherwise`() {
         fun c(id: String, vararg ids: String) = StatusCreator(
             id = id, slug = id, displayName = id, avatarPath = null,

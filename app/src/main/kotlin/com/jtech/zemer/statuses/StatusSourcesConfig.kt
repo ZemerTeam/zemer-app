@@ -51,6 +51,8 @@ enum class StatusProviderType(val slug: String) {
 data class StatusProvider(
     val id: String,
     val type: StatusProviderType,
+    /** Display name (the See-all section title); the config's `name`, else the id. */
+    val name: String = id,
     val baseUrl: String,
     val apiKey: String,
     val categoryIds: List<String> = emptyList(),
@@ -107,6 +109,7 @@ fun parseStatusSourcesConfig(text: String?): StatusSourcesConfig? {
             StatusProvider(
                 id = id,
                 type = type,
+                name = o.optStringOrNull("name") ?: id,
                 baseUrl = baseUrl,
                 apiKey = apiKey,
                 categoryIds = o.optJSONArray("categoryIds").toStringList(),

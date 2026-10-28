@@ -49,6 +49,13 @@ class StatusSourcesConfigTest {
         assertEquals(listOf("music", "singer"), config.providersOfType(StatusProviderType.KEYWORD_FEED).single().musicKeywords)
     }
 
+    @Test
+    fun `providers keep config order and their display name, falling back to the id`() {
+        val named = """{"id":"zemer","type":"supabase-category","name":"Zemer","baseUrl":"https://x","apiKey":"k","categoryIds":["z"]}"""
+        val config = parseStatusSourcesConfig(doc(named, descriptor(id = "jewish-status")))!!
+        assertEquals(listOf("zemer" to "Zemer", "jewish-status" to "jewish-status"), config.providers.map { it.id to it.name })
+    }
+
     // --- Non-fatal skips ---
 
     @Test

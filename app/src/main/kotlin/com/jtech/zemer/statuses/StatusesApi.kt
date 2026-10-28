@@ -44,7 +44,24 @@ data class StatusCreator(
     // nothing regresses when kinds could not be resolved.
     val recentPostKinds: List<String> = emptyList(),
     val source: StatusSource = StatusSource.JEWISH_STATUS,
+    // The configured provider ([StatusProvider.id]) it was loaded from: the See-all screen's section. Two
+    // providers can share a platform shape ([source]), e.g. Zemer's own statuses and JewishStatus.
+    val providerId: String = "",
 )
+
+/**
+ * The See-all screen's sections: one per configured provider, in config order, titled by its name, holding its
+ * creators that match [query] (empty sections dropped). Creators keep their given order.
+ */
+fun statusSections(
+    creators: List<StatusCreator>,
+    providers: List<StatusProvider>,
+    query: String,
+): List<Pair<StatusProvider, List<StatusCreator>>> {
+    val q = query.trim()
+    val matching = creators.filter { q.isEmpty() || it.displayName.contains(q, ignoreCase = true) }
+    return providers.map { p -> p to matching.filter { it.providerId == p.id } }.filter { it.second.isNotEmpty() }
+}
 
 data class StatusPost(
     val id: String,
