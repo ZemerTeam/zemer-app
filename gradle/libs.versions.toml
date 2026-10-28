@@ -128,7 +128,6 @@ firebase-bom = { module = "com.google.firebase:firebase-bom", version.ref = "fir
 firebase-auth = { module = "com.google.firebase:firebase-auth-ktx", version = "23.2.1" }
 firebase-crashlytics = { module = "com.google.firebase:firebase-crashlytics" }
 firebase-crashlytics-ndk = { module = "com.google.firebase:firebase-crashlytics-ndk" }
-firebase-analytics = { module = "com.google.firebase:firebase-analytics" }
 play-services-auth = { module = "com.google.android.gms:play-services-auth", version.ref = "playServicesAuth" }
 kotlinx-coroutines-play-services = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-play-services", version.ref = "coroutinesPlayServices" }
 glance-appwidget = { module = "androidx.glance:glance-appwidget", version.ref = "glance" }
