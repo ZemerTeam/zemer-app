@@ -105,6 +105,21 @@ internal object CrashReport {
     /** A cancellation anywhere in the cause chain: a coroutine being cancelled, not an error worth a report. */
     fun isCancellation(throwable: Throwable): Boolean = chain(throwable).any { it is java.util.concurrent.CancellationException }
 
+    /**
+     * A plain connectivity failure (refused, unresolved, timed out) that names no Zemer server: expected on filtered
+     * or offline networks, not an app bug. Failed reads of Zemer's own servers are counted by the fetch_fail event.
+     */
+    fun isOffZemerConnectivityFailure(throwable: Throwable): Boolean {
+        val causes = chain(throwable)
+        val connectivity = causes.any {
+            it is java.net.ConnectException || it is java.net.UnknownHostException ||
+                it is java.net.SocketTimeoutException || it is io.ktor.client.plugins.HttpRequestTimeoutException ||
+                it is java.nio.channels.UnresolvedAddressException ||
+                it.message?.contains("ECONNREFUSED") == true
+        }
+        return connectivity && causes.none { it.message?.contains("zemer.io", ignoreCase = true) == true }
+    }
+
     private fun chain(throwable: Throwable): List<Throwable> {
         val seen = IdentityHashMap<Throwable, Unit>()
         return generateSequence(throwable) { it.cause }

@@ -26,7 +26,7 @@ import com.jtech.zemer.ui.component.SwitchPreference
 
 /** One lyrics provider as the settings dialogs see it: registry name(s), display strings, and its enable preference. */
 class LyricsProviderToggle(
-    val ids: List<String>,            // registry names this toggle governs (YouTube covers subtitles + the lyrics tab)
+    val ids: List<String>,            // registry names this toggle governs
     val title: Int,
     val description: Int,
     val enabled: Boolean,

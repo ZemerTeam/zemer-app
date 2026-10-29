@@ -74,11 +74,10 @@
 }
 
 ## Queue Persistence Rules
-# Keep queue-related classes to prevent serialization issues in release builds
--keep class com.jtech.zemer.models.PersistQueue { *; }
--keep class com.jtech.zemer.models.PersistPlayerState { *; }
--keep class com.jtech.zemer.models.QueueData { *; }
--keep class com.jtech.zemer.models.QueueType { *; }
+# Keep every class in the persisted-queue graph whole. Without this R8 strips the unused
+# serialVersionUID, readResolve and unread fields, and the retained compat classes, so each build
+# writes a different class shape and an updating user's saved queue fails to restore.
+-keep class com.jtech.zemer.models.** implements java.io.Serializable { *; }
 -keep class com.jtech.zemer.playback.queues.** { *; }
 
 ## UCrop Rules

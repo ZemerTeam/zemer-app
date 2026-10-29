@@ -63,6 +63,7 @@ object CrashReporter {
 
     fun nonFatal(throwable: Throwable) = runCatching {
         if (CrashReport.isCancellation(throwable)) return@runCatching // normal coroutine cancellation, not an error
+        if (CrashReport.isOffZemerConnectivityFailure(throwable)) return@runCatching
         val key = CrashReport.fingerprint(throwable)
         synchronized(lock) {
             val isNew = nonFatals.offer(key) {

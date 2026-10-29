@@ -15,12 +15,17 @@ import java.util.Locale
  * @param context Optional context message for debugging
  */
 fun reportException(throwable: Throwable, context: String? = null) {
+    // An explicit tag: release builds strip Timber.d but keep its preceding Timber.tag(), whose
+    // one-shot tag would otherwise land on this report.
+    val tree = Timber.tag(REPORT_TAG)
     if (context != null) {
-        Timber.e(throwable, "[Exception] %s - thread: %s", context, Thread.currentThread().name)
+        tree.e(throwable, "[Exception] %s - thread: %s", context, Thread.currentThread().name)
     } else {
-        Timber.e(throwable)
+        tree.e(throwable)
     }
 }
+
+private const val REPORT_TAG = "Zemer_Report"
 
 @Suppress("DEPRECATION", "AppBundleLocaleChanges")
 fun setAppLocale(context: Context, locale: Locale) {

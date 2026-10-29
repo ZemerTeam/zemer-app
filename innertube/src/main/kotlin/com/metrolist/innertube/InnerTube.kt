@@ -12,7 +12,6 @@ import com.metrolist.innertube.models.body.CreatePlaylistBody
 import com.metrolist.innertube.models.body.EditPlaylistBody
 import com.metrolist.innertube.models.body.FeedbackBody
 import com.metrolist.innertube.models.body.GetQueueBody
-import com.metrolist.innertube.models.body.GetTranscriptBody
 import com.metrolist.innertube.models.body.LikeBody
 import com.metrolist.innertube.models.body.NextBody
 import com.metrolist.innertube.models.body.PlayerBody
@@ -40,7 +39,6 @@ import io.ktor.http.ContentType
 import io.ktor.http.contentType
 import io.ktor.http.userAgent
 import io.ktor.serialization.kotlinx.json.json
-import io.ktor.util.encodeBase64
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.json.Json
 import okhttp3.ConnectionPool
@@ -352,22 +350,6 @@ class InnerTube {
                 context = client.toContext(locale, visitorData, null),
                 videoIds = videoIds,
                 playlistId = playlistId
-            )
-        )
-    }
-
-    suspend fun getTranscript(
-        client: YouTubeClient,
-        videoId: String,
-    ) = httpClient.post("https://music.youtube.com/youtubei/v1/get_transcript") {
-        parameter("key", "AIzaSyC9XL3ZjWddXya6X74dJoCTL-WEYFDNX3")
-        headers {
-            append("Content-Type", "application/json")
-        }
-        setBody(
-            GetTranscriptBody(
-                context = client.toContext(locale, null, null),
-                params = "\n${11.toChar()}$videoId".encodeBase64()
             )
         )
     }

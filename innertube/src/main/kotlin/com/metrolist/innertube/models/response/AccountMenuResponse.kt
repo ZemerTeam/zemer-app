@@ -28,7 +28,7 @@ data class AccountMenuResponse(
                 ) {
                     @Serializable
                     data class Header(
-                        val activeAccountHeaderRenderer: ActiveAccountHeaderRenderer,
+                        val activeAccountHeaderRenderer: ActiveAccountHeaderRenderer? = null,
                     ) {
                         @Serializable
                         data class ActiveAccountHeaderRenderer(
