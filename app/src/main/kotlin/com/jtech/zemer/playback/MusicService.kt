@@ -1882,7 +1882,8 @@ class MusicService :
         // cached spans and fetch it fresh, once. A downloaded
         // file and RELAY are left to the paths below (a file is not re-fetched here; relay has no cache).
         val failedId = player.currentMediaItem?.mediaId
-        if (failedId != null && relayModeNow != true && currentQueue !is StationQueue &&
+        // SABR keeps its own stream registry and replay spool, which this cache purge would not reach.
+        if (failedId != null && relayModeNow != true && sabrModeNow != true && currentQueue !is StationQueue &&
             playbackSourceIsLocal[failedId] != true && corruptMediaRetry.shouldRetry(failedId, error)
         ) {
             Timber.w("Unparseable media or stale range for $failedId; refetching it once")
@@ -2390,6 +2391,9 @@ class MusicService :
     // Mirror of PlaybackModeKey; null = not yet observed (the dispatcher resolves that below).
     @Volatile
     private var relayModeNow: Boolean? = null
+
+    /** False in RELAY, whose URLs are deterministic: an expired-URL error there is skipped, not re-resolved. */
+    val reResolvesExpiredUrls: Boolean get() = relayModeNow != true
 
     // Issue #109: media3 posts the media notification for ANY prepared player with a queue, and the
     // persisted queue is restored + prepared on EVERY creation - including the post-boot

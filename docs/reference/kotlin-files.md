@@ -180,12 +180,12 @@ Every tracked Kotlin file is listed with hard metadata extracted from the file t
 | `app/src/main/kotlin/com/jtech/zemer/playback/MediaLibrarySessionCallback.kt` | 809 | `com.jtech.zemer.playback` | no | 58 | 80 | android.content, android.net, android.os, androidx.annotation, androidx.core, androidx.media3, com.google, dagger.hilt, javax.inject, kotlinx.coroutines |
 | `app/src/main/kotlin/com/jtech/zemer/playback/MediaStoreDownloadManager.kt` | 1225 | `com.jtech.zemer.playback` | no | 68 | 147 | android.content, android.media, android.net, androidx.core, dagger.hilt, java.io, java.time, java.util, javax.inject, kotlin.math, kotlinx.coroutines, okhttp3.OkHttpClient, okhttp3.Request, timber.log |
 | `app/src/main/kotlin/com/jtech/zemer/playback/MediaStoreDownloadService.kt` | 297 | `com.jtech.zemer.playback` | no | 27 | 48 | android.app, android.content, android.os, androidx.core, dagger.hilt, javax.inject, kotlin.math, kotlinx.coroutines, timber.log |
-| `app/src/main/kotlin/com/jtech/zemer/playback/MusicService.kt` | 3299 | `com.jtech.zemer.playback` | no | 194 | 350 | android.app, android.content, android.database, android.media, android.net, android.os, androidx.core, androidx.datastore, androidx.media3, com.zemer, dagger.hilt, java.io, java.time, java.util, javax.inject, kotlin.time, kotlinx.coroutines, okhttp3.OkHttpClient, org.fcast, timber.log |
+| `app/src/main/kotlin/com/jtech/zemer/playback/MusicService.kt` | 3303 | `com.jtech.zemer.playback` | no | 194 | 351 | android.app, android.content, android.database, android.media, android.net, android.os, androidx.core, androidx.datastore, androidx.media3, com.zemer, dagger.hilt, java.io, java.time, java.util, javax.inject, kotlin.time, kotlinx.coroutines, okhttp3.OkHttpClient, org.fcast, timber.log |
 | `app/src/main/kotlin/com/jtech/zemer/playback/NotificationGate.kt` | 40 | `com.jtech.zemer.playback` | no | 0 | 2 |  |
 | `app/src/main/kotlin/com/jtech/zemer/playback/PlaybackErrors.kt` | 55 | `com.jtech.zemer.playback` | no | 4 | 10 | androidx.media3, java.io |
 | `app/src/main/kotlin/com/jtech/zemer/playback/PlaybackNonceRegistry.kt` | 76 | `com.jtech.zemer.playback` | no | 1 | 13 |  |
 | `app/src/main/kotlin/com/jtech/zemer/playback/PlaybackProbe.kt` | 31 | `com.jtech.zemer.playback` | no | 0 | 8 |  |
-| `app/src/main/kotlin/com/jtech/zemer/playback/PlayerConnection.kt` | 416 | `com.jtech.zemer.playback` | no | 30 | 71 | android.content, androidx.media3, kotlinx.coroutines, org.fcast |
+| `app/src/main/kotlin/com/jtech/zemer/playback/PlayerConnection.kt` | 417 | `com.jtech.zemer.playback` | no | 30 | 72 | android.content, androidx.media3, kotlinx.coroutines, org.fcast |
 | `app/src/main/kotlin/com/jtech/zemer/playback/PlayerVideoUiLogic.kt` | 81 | `com.jtech.zemer.playback` | no | 0 | 8 |  |
 | `app/src/main/kotlin/com/jtech/zemer/playback/QueuePersist.kt` | 46 | `com.jtech.zemer.playback` | no | 1 | 4 |  |
 | `app/src/main/kotlin/com/jtech/zemer/playback/RemoteVolumeTracker.kt` | 54 | `com.jtech.zemer.playback` | no | 3 | 9 | kotlinx.coroutines |
@@ -244,7 +244,7 @@ Every tracked Kotlin file is listed with hard metadata extracted from the file t
 | `app/src/main/kotlin/com/jtech/zemer/search/ZemerPodcastGenresModels.kt` | 81 | `com.jtech.zemer.search` | no | 1 | 26 | kotlinx.serialization |
 | `app/src/main/kotlin/com/jtech/zemer/search/ZemerResultMapper.kt` | 699 | `com.jtech.zemer.search` | no | 20 | 106 |  |
 | `app/src/main/kotlin/com/jtech/zemer/search/ZemerRoutes.kt` | 75 | `com.jtech.zemer.search` | no | 1 | 16 |  |
-| `app/src/main/kotlin/com/jtech/zemer/search/ZemerSearchClient.kt` | 657 | `com.jtech.zemer.search` | no | 18 | 65 | io.ktor, java.io, javax.inject, kotlinx.serialization, timber.log |
+| `app/src/main/kotlin/com/jtech/zemer/search/ZemerSearchClient.kt` | 664 | `com.jtech.zemer.search` | no | 20 | 68 | io.ktor, java.io, javax.inject, kotlinx.coroutines, kotlinx.serialization, timber.log |
 | `app/src/main/kotlin/com/jtech/zemer/search/ZemerSearchModels.kt` | 422 | `com.jtech.zemer.search` | no | 2 | 160 | kotlinx.serialization |
 | `app/src/main/kotlin/com/jtech/zemer/search/ZemerSearchOptions.kt` | 31 | `com.jtech.zemer.search` | no | 2 | 6 | android.content |
 | `app/src/main/kotlin/com/jtech/zemer/search/ZemerSearchRepository.kt` | 509 | `com.jtech.zemer.search` | no | 37 | 69 | android.content, dagger.hilt, java.io, java.nio, javax.inject, kotlinx.coroutines |
@@ -753,7 +753,7 @@ Every tracked Kotlin file is listed with hard metadata extracted from the file t
 | `app/src/test/kotlin/com/jtech/zemer/search/ZemerRoutesTest.kt` | 83 | `com.jtech.zemer.search` | no | 3 | 3 | org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/search/ZemerSearchJsonTest.kt` | 89 | `com.jtech.zemer.search` | no | 3 | 10 | org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/search/ZemerSearchParametersTest.kt` | 72 | `com.jtech.zemer.search` | no | 2 | 4 | org.junit |
-| `app/src/test/kotlin/com/jtech/zemer/search/ZemerSearchRetryTest.kt` | 89 | `com.jtech.zemer.search` | no | 14 | 13 | io.ktor, java.net, java.util, kotlin.concurrent, kotlinx.coroutines, org.junit |
+| `app/src/test/kotlin/com/jtech/zemer/search/ZemerSearchRetryTest.kt` | 108 | `com.jtech.zemer.search` | no | 14 | 15 | io.ktor, java.net, java.util, kotlin.concurrent, kotlinx.coroutines, org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/search/ZemerSearchRoutingTest.kt` | 82 | `com.jtech.zemer.search` | no | 8 | 8 | java.io, java.nio, kotlinx.coroutines, org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/search/ZemerStationsTest.kt` | 127 | `com.jtech.zemer.search` | no | 5 | 11 | org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/sig/SigCanonicalTest.kt` | 61 | `com.jtech.zemer.sig` | no | 8 | 18 | java.util, javax.crypto, kotlinx.serialization, org.junit |
@@ -922,7 +922,7 @@ Every tracked Kotlin file is listed with hard metadata extracted from the file t
 | `innertube/src/main/kotlin/com/metrolist/innertube/pages/HomePage.kt` | 151 | `com.metrolist.innertube.pages` | no | 12 | 22 |  |
 | `innertube/src/main/kotlin/com/metrolist/innertube/pages/LibraryContinuationPage.kt` | 8 | `com.metrolist.innertube.pages` | no | 1 | 3 |  |
 | `innertube/src/main/kotlin/com/metrolist/innertube/pages/LibraryPage.kt` | 165 | `com.metrolist.innertube.pages` | no | 13 | 7 |  |
-| `innertube/src/main/kotlin/com/metrolist/innertube/pages/NextPage.kt` | 119 | `com.metrolist.innertube.pages` | no | 11 | 21 |  |
+| `innertube/src/main/kotlin/com/metrolist/innertube/pages/NextPage.kt` | 121 | `com.metrolist.innertube.pages` | no | 11 | 21 |  |
 | `innertube/src/main/kotlin/com/metrolist/innertube/pages/PageHelper.kt` | 38 | `com.metrolist.innertube.pages` | no | 3 | 8 |  |
 | `innertube/src/main/kotlin/com/metrolist/innertube/pages/PlaylistContinuationPage.kt` | 8 | `com.metrolist.innertube.pages` | no | 1 | 3 |  |
 | `innertube/src/main/kotlin/com/metrolist/innertube/pages/PlaylistPage.kt` | 49 | `com.metrolist.innertube.pages` | no | 7 | 6 |  |

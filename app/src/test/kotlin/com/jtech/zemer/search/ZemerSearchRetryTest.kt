@@ -32,8 +32,14 @@ class ZemerSearchRetryTest {
                     while (reader.readLine()?.isNotEmpty() == true) Unit
                     hits.incrementAndGet()
                     val status = statuses.poll() ?: 200
+                    // a 302 redirects to the same path; a 503 asks for a long wait the client must not honor
+                    val extra = when (status) {
+                        302 -> "Location: /home-rows\r\n"
+                        503 -> "Retry-After: 60\r\n"
+                        else -> ""
+                    }
                     s.getOutputStream().apply {
-                        write("HTTP/1.1 $status X\r\nContent-Length: 0\r\nConnection: close\r\n\r\n".toByteArray())
+                        write("HTTP/1.1 $status X\r\n${extra}Content-Length: 0\r\nConnection: close\r\n\r\n".toByteArray())
                         flush()
                     }
                 }
@@ -44,10 +50,10 @@ class ZemerSearchRetryTest {
     @After
     fun stop() = server.close()
 
-    private fun get(vararg script: Int): Int = runBlocking {
+    private fun get(vararg script: Int, path: String = "/home-rows"): Int = runBlocking {
         statuses.addAll(script.toList())
-        HttpClient(CIO) { retryRestartingServer(delayMs = 10) }.use { client ->
-            client.get("http://127.0.0.1:${server.localPort}/home-rows").status.value
+        HttpClient(CIO).also { it.retryRestartingServer(delayMs = 10) }.use { client ->
+            client.get("http://127.0.0.1:${server.localPort}$path").status.value
         }
     }
 
@@ -56,8 +62,11 @@ class ZemerSearchRetryTest {
         assertEquals(200, get(502))
         assertEquals(2, hits.get())
         hits.set(0)
+        val started = System.nanoTime()
         assertEquals(200, get(503))
         assertEquals(2, hits.get())
+        // the fixed delay, not the 60 s Retry-After
+        assertTrue((System.nanoTime() - started) / 1_000_000 < 5_000)
     }
 
     @Test
@@ -67,10 +76,20 @@ class ZemerSearchRetryTest {
     }
 
     @Test
-    fun `other errors are not retried`() {
+    fun `redirect hops do not use up the retry`() {
+        assertEquals(200, get(302, 502))
+        assertEquals(3, hits.get())
+        hits.set(0)
+        assertEquals(200, get(302, 302))
+        assertEquals(3, hits.get())
+    }
+
+    @Test
+    fun `other errors and an off-air station are not retried`() {
         assertEquals(500, get(500))
         assertEquals(404, get(404))
-        assertEquals(2, hits.get())
+        assertEquals(503, get(503, path = "/station"))
+        assertEquals(3, hits.get())
     }
 
     @Test
@@ -79,7 +98,7 @@ class ZemerSearchRetryTest {
         server.close()
         val started = System.nanoTime()
         val result = runBlocking {
-            HttpClient(CIO) { retryRestartingServer(delayMs = 5_000) }.use { client ->
+            HttpClient(CIO).also { it.retryRestartingServer(delayMs = 5_000) }.use { client ->
                 runCatching { client.get("http://127.0.0.1:$port/home-rows") }
             }
         }

@@ -326,12 +326,12 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/main/kotlin/com/jtech/zemer/playback/MediaLibrarySessionCallback.kt` | 809 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/playback/MediaStoreDownloadManager.kt` | 1225 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/playback/MediaStoreDownloadService.kt` | 297 lines | `.kt` |
-| `app/src/main/kotlin/com/jtech/zemer/playback/MusicService.kt` | 3299 lines | `.kt` |
+| `app/src/main/kotlin/com/jtech/zemer/playback/MusicService.kt` | 3303 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/playback/NotificationGate.kt` | 40 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/playback/PlaybackErrors.kt` | 55 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/playback/PlaybackNonceRegistry.kt` | 76 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/playback/PlaybackProbe.kt` | 31 lines | `.kt` |
-| `app/src/main/kotlin/com/jtech/zemer/playback/PlayerConnection.kt` | 416 lines | `.kt` |
+| `app/src/main/kotlin/com/jtech/zemer/playback/PlayerConnection.kt` | 417 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/playback/PlayerVideoUiLogic.kt` | 81 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/playback/QueuePersist.kt` | 46 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/playback/RemoteVolumeTracker.kt` | 54 lines | `.kt` |
@@ -390,7 +390,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/main/kotlin/com/jtech/zemer/search/ZemerPodcastGenresModels.kt` | 81 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/search/ZemerResultMapper.kt` | 699 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/search/ZemerRoutes.kt` | 75 lines | `.kt` |
-| `app/src/main/kotlin/com/jtech/zemer/search/ZemerSearchClient.kt` | 657 lines | `.kt` |
+| `app/src/main/kotlin/com/jtech/zemer/search/ZemerSearchClient.kt` | 664 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/search/ZemerSearchModels.kt` | 422 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/search/ZemerSearchOptions.kt` | 31 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/search/ZemerSearchRepository.kt` | 509 lines | `.kt` |
@@ -1113,7 +1113,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/test/kotlin/com/jtech/zemer/search/ZemerRoutesTest.kt` | 83 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/search/ZemerSearchJsonTest.kt` | 89 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/search/ZemerSearchParametersTest.kt` | 72 lines | `.kt` |
-| `app/src/test/kotlin/com/jtech/zemer/search/ZemerSearchRetryTest.kt` | 89 lines | `.kt` |
+| `app/src/test/kotlin/com/jtech/zemer/search/ZemerSearchRetryTest.kt` | 108 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/search/ZemerSearchRoutingTest.kt` | 82 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/search/ZemerStationsTest.kt` | 127 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/sig/SigCanonicalTest.kt` | 61 lines | `.kt` |
@@ -1370,7 +1370,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `innertube/src/main/kotlin/com/metrolist/innertube/pages/HomePage.kt` | 151 lines | `.kt` |
 | `innertube/src/main/kotlin/com/metrolist/innertube/pages/LibraryContinuationPage.kt` | 8 lines | `.kt` |
 | `innertube/src/main/kotlin/com/metrolist/innertube/pages/LibraryPage.kt` | 165 lines | `.kt` |
-| `innertube/src/main/kotlin/com/metrolist/innertube/pages/NextPage.kt` | 119 lines | `.kt` |
+| `innertube/src/main/kotlin/com/metrolist/innertube/pages/NextPage.kt` | 121 lines | `.kt` |
 | `innertube/src/main/kotlin/com/metrolist/innertube/pages/PageHelper.kt` | 38 lines | `.kt` |
 | `innertube/src/main/kotlin/com/metrolist/innertube/pages/PlaylistContinuationPage.kt` | 8 lines | `.kt` |
 | `innertube/src/main/kotlin/com/metrolist/innertube/pages/PlaylistPage.kt` | 49 lines | `.kt` |
