@@ -473,7 +473,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/main/kotlin/com/jtech/zemer/ui/component/LibraryFilterChip.kt` | 43 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/component/Lyrics.kt` | 1005 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/component/LyricsImageCard.kt` | 286 lines | `.kt` |
-| `app/src/main/kotlin/com/jtech/zemer/ui/component/MarkdownText.kt` | 89 lines | `.kt` |
+| `app/src/main/kotlin/com/jtech/zemer/ui/component/MarkdownText.kt` | 90 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/component/Marquee.kt` | 65 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/component/Material3MenuItem.kt` | 135 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/component/Material3SettingsGroup.kt` | 194 lines | `.kt` |
@@ -1387,7 +1387,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `scripts/dead-resources-baseline.txt` | 4 lines | `.txt` |
 | `scripts/telegram-chats.sh` | 38 lines | `.sh` |
 | `scripts/ui-audit-baseline.tsv` | 14 lines | `.tsv` |
-| `scripts/ui-audit.sh` | 255 lines | `.sh` |
+| `scripts/ui-audit.sh` | 262 lines | `.sh` |
 | `scripts/ui-strings-scan.py` | 96 lines | `.py` |
 | `settings.gradle.kts` | 33 lines | `.kts` |
 | `tests/INVESTIGATION.md` | 226 lines | `.md` |

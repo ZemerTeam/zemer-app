@@ -165,7 +165,7 @@ Every `@Composable fun` per UI file (extension receivers dropped, so `BoxScope.X
 | `app/src/main/kotlin/com/jtech/zemer/ui/component/LibraryFilterChip.kt` | 43 | LibraryFilterChip |
 | `app/src/main/kotlin/com/jtech/zemer/ui/component/Lyrics.kt` | 1005 | Lyrics |
 | `app/src/main/kotlin/com/jtech/zemer/ui/component/LyricsImageCard.kt` | 286 | rememberAdjustedFontSize, LyricsImageCard |
-| `app/src/main/kotlin/com/jtech/zemer/ui/component/MarkdownText.kt` | 89 | MarkdownText |
+| `app/src/main/kotlin/com/jtech/zemer/ui/component/MarkdownText.kt` | 90 | MarkdownText |
 | `app/src/main/kotlin/com/jtech/zemer/ui/component/Marquee.kt` | 65 | gentleMarquee |
 | `app/src/main/kotlin/com/jtech/zemer/ui/component/Material3MenuItem.kt` | 135 | Material3MenuGroup, Material3MenuItemRow |
 | `app/src/main/kotlin/com/jtech/zemer/ui/component/Material3SettingsGroup.kt` | 194 | Material3SettingsGroup, Material3SettingsItemRow |
@@ -391,7 +391,7 @@ Key declarations are the first 12 `class`/`object`/`interface`/`fun`/`val`/`var`
 | `app/src/main/kotlin/com/jtech/zemer/ui/component/LibraryFilterChip.kt` | 43 | fun LibraryFilterChip |
 | `app/src/main/kotlin/com/jtech/zemer/ui/component/Lyrics.kt` | 1005 | val ACTIVE_LINE_ANCHOR, val LYRICS_TOP_FADE, fun Lyrics, val playerConnection, val isStationBroadcast, val density, val context, val configuration, val lyricsTextPosition, val changeLyrics, val scrollLyrics, val wordSyncLyrics, … (+112 more) |
 | `app/src/main/kotlin/com/jtech/zemer/ui/component/LyricsImageCard.kt` | 286 | fun rememberAdjustedFontSize, val measurer, var calculatedFontSize, val initialSize, val targetWidthPx, val targetHeightPx, val largerSize, val result, val largerSize, val result, var minSize, var maxSize, … (+22 more) |
-| `app/src/main/kotlin/com/jtech/zemer/ui/component/MarkdownText.kt` | 89 | fun MarkdownText, val uriHandler, val openLink, val linkColor, val codeBackground, val blocks, fun List |
+| `app/src/main/kotlin/com/jtech/zemer/ui/component/MarkdownText.kt` | 90 | fun MarkdownText, val context, val openLink, val linkColor, val codeBackground, val blocks, fun List |
 | `app/src/main/kotlin/com/jtech/zemer/ui/component/Marquee.kt` | 65 | fun Modifier, var everFocused, val params, class GentleMarqueeParams, val iterations, val initialDelayMillis, fun gentleMarqueeParams |
 | `app/src/main/kotlin/com/jtech/zemer/ui/component/Material3MenuItem.kt` | 135 | fun Material3MenuGroup, val shape, fun Material3MenuItemRow, var isFocused, val backgroundColor, val borderColor, class Material3MenuItemData, val icon, val title, val description, val onClick, val cardColors, … (+1 more) |
 | `app/src/main/kotlin/com/jtech/zemer/ui/component/Material3SettingsGroup.kt` | 194 | fun Material3SettingsGroup, fun Material3SettingsItemRow, var isFocused, val backgroundColor, val borderColor, class Material3SettingsItem, val icon, val title, val description, val trailingContent, val showBadge, val isHighlighted, … (+1 more) |

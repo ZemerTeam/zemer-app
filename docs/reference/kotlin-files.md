@@ -327,7 +327,7 @@ Every tracked Kotlin file is listed with hard metadata extracted from the file t
 | `app/src/main/kotlin/com/jtech/zemer/ui/component/LibraryFilterChip.kt` | 43 | `com.jtech.zemer.ui.component` | yes | 13 | 1 | androidx.compose |
 | `app/src/main/kotlin/com/jtech/zemer/ui/component/Lyrics.kt` | 1005 | `com.jtech.zemer.ui.component` | yes | 125 | 124 | android.annotation, android.content, android.os, androidx.activity, androidx.annotation, androidx.compose, androidx.hilt, androidx.lifecycle, androidx.palette, coil3.imageLoader, coil3.request, coil3.toBitmap, kotlin.time, kotlinx.coroutines |
 | `app/src/main/kotlin/com/jtech/zemer/ui/component/LyricsImageCard.kt` | 286 | `com.jtech.zemer.ui.component` | yes | 28 | 34 | android.annotation, androidx.compose, coil3.compose, coil3.request |
-| `app/src/main/kotlin/com/jtech/zemer/ui/component/MarkdownText.kt` | 89 | `com.jtech.zemer.ui.component` | yes | 26 | 7 | androidx.compose |
+| `app/src/main/kotlin/com/jtech/zemer/ui/component/MarkdownText.kt` | 90 | `com.jtech.zemer.ui.component` | yes | 27 | 7 | androidx.compose |
 | `app/src/main/kotlin/com/jtech/zemer/ui/component/Marquee.kt` | 65 | `com.jtech.zemer.ui.component` | yes | 9 | 7 | androidx.compose |
 | `app/src/main/kotlin/com/jtech/zemer/ui/component/Material3MenuItem.kt` | 135 | `com.jtech.zemer.ui.component` | yes | 31 | 13 | androidx.compose |
 | `app/src/main/kotlin/com/jtech/zemer/ui/component/Material3SettingsGroup.kt` | 194 | `com.jtech.zemer.ui.component` | yes | 36 | 13 | androidx.compose |

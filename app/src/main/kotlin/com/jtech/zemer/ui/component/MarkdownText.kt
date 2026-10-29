@@ -11,7 +11,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.LinkAnnotation
 import androidx.compose.ui.text.SpanStyle
@@ -23,6 +23,7 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.withLink
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
+import com.jtech.zemer.extensions.openUrlOrCopy
 import com.jtech.zemer.utils.markdown.LiteMarkdown
 import com.jtech.zemer.utils.markdown.MarkdownBlock
 import com.jtech.zemer.utils.markdown.MarkdownInline
@@ -38,8 +39,8 @@ fun MarkdownText(
     modifier: Modifier = Modifier,
     onLinkClick: ((String) -> Unit)? = null,
 ) {
-    val uriHandler = LocalUriHandler.current
-    val openLink: (String) -> Unit = onLinkClick ?: { url -> runCatching { uriHandler.openUri(url) }.getOrNull() ?: Unit }
+    val context = LocalContext.current
+    val openLink: (String) -> Unit = onLinkClick ?: context::openUrlOrCopy
     val linkColor = MaterialTheme.colorScheme.primary
     val codeBackground = MaterialTheme.colorScheme.surfaceContainerHighest
     val blocks = remember(markdown) { LiteMarkdown.parse(markdown) }

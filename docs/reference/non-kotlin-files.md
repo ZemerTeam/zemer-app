@@ -323,7 +323,7 @@ Every tracked non-Kotlin path outside `docs/` is listed. Text files report line 
 | `scripts/dead-resources-baseline.txt` | 4 lines | text `.txt` |
 | `scripts/telegram-chats.sh` | 38 lines | text `.sh` |
 | `scripts/ui-audit-baseline.tsv` | 14 lines | text `.tsv` |
-| `scripts/ui-audit.sh` | 255 lines | text `.sh` |
+| `scripts/ui-audit.sh` | 262 lines | text `.sh` |
 | `scripts/ui-strings-scan.py` | 96 lines | text `.py` |
 | `settings.gradle.kts` | 33 lines | text `.kts` |
 | `tests/INVESTIGATION.md` | 226 lines | text `.md` |
