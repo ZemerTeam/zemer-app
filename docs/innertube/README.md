@@ -19,8 +19,8 @@
 | Transport wrapper | `InnerTube.kt` / `class InnerTube` | Creates the Ktor OkHttp client (with `ResilientDns`), manages locale, visitor data, data sync ID, cookie, `useLoginForBrowse`, and request methods for YouTube endpoints. |
 | Public facade | `YouTube.kt` / `object YouTube` | Exposes app-facing functions that call `InnerTube`, deserialize responses, and convert raw renderer trees into typed page/domain models. |
 | Domain models | `models/*.kt` | Kotlin serialization models and app-level item types such as `SongItem`, `AlbumItem`, `ArtistItem`, `PlaylistItem`, endpoints, thumbnails, runs, clients, and response-context structures. |
-| Request bodies | `models/body/*.kt` | Bodies for browse, search, next, player, queue, playlist mutations, feedback, like, subscribe, transcript, account menu, and playlist creation/editing. |
-| Response models | `models/response/*.kt` | Top-level response wrappers for account menu, browse, playlist create/edit, feedback, queue, transcript, image upload, next, player, and search. |
+| Request bodies | `models/body/*.kt` | Bodies for browse, search, next, player, queue, playlist mutations, feedback, like, subscribe, account menu, and playlist creation/editing. |
+| Response models | `models/response/*.kt` | Top-level response wrappers for account menu, browse, playlist create/edit, feedback, queue, image upload, next, player, and search. |
 | Page parsers | `pages/*.kt` | Converts YouTube Music renderers/responses into page objects: home, search, album, artist, playlist, podcast, library, history, related, next, and continuations. |
 | Utilities | `utils/*.kt` | Resilient DNS (`ResilientDns`) and `Utils.kt` helpers (playlist/library continuation completion, `sha1`, `parseCookieString`, `parseTime`). |
 
@@ -57,7 +57,7 @@
 | Library/history | `library`, `libraryContinuation`, `musicHistory` |
 | Podcasts (account) | `savePodcast`, `addEpisodeToSavedEpisodes`, `removeEpisodeFromSavedEpisodes`, `libraryPodcastChannels`, `libraryPodcastEpisodes`, `savedPodcastShows`, `episodesForLater` |
 | Mutations | `likeVideo`, `likePlaylist`, `subscribeChannel`, `addToPlaylist`, `addPlaylistToPlaylist`, `removeFromPlaylist`, `moveSongPlaylist`, `createPlaylist`, `renamePlaylist`, `uploadCustomThumbnailLink`, `removeThumbnailPlaylist`, `deletePlaylist`, `feedback` |
-| Playback | `player`, `registerPlayback`, `registerWatchtime`, `generateCpn`, `next`, `lyrics`, `related`, `queue`, `transcript`, `getMediaInfo` |
+| Playback | `player`, `registerPlayback`, `registerWatchtime`, `generateCpn`, `next`, `lyrics`, `related`, `queue`, `getMediaInfo` |
 | Account | `accountInfo`, `getChannelId` |
 
 ## InnerTube consumers in `app`

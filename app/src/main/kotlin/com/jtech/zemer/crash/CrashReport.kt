@@ -113,7 +113,8 @@ internal object CrashReport {
         val causes = chain(throwable)
         val connectivity = causes.any {
             it is java.net.ConnectException || it is java.net.UnknownHostException ||
-                it is java.net.SocketTimeoutException || it is java.nio.channels.UnresolvedAddressException ||
+                it is java.net.SocketTimeoutException || it is io.ktor.client.plugins.HttpRequestTimeoutException ||
+                it is java.nio.channels.UnresolvedAddressException ||
                 it.message?.contains("ECONNREFUSED") == true
         }
         return connectivity && causes.none { it.message?.contains("zemer.io", ignoreCase = true) == true }

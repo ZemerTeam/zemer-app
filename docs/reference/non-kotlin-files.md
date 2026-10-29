@@ -1,6 +1,6 @@
 # Non-Kotlin file reference
 
-Every tracked non-Kotlin path outside `docs/` is listed. Text files report line counts; binary files report byte counts; gitlinks are recorded as non-file tracked paths. Total paths: `439`.
+Every tracked non-Kotlin path outside `docs/` is listed. Text files report line counts; binary files report byte counts; gitlinks are recorded as non-file tracked paths. Total paths: `440`.
 
 | Path | Size/status | Type metadata |
 | --- | ---: | --- |
@@ -319,6 +319,7 @@ Every tracked non-Kotlin path outside `docs/` is listed. Text files report line 
 | `scripts/check-16kb-alignment.sh` | 67 lines | text `.sh` |
 | `scripts/check-dead-resources.sh` | 93 lines | text `.sh` |
 | `scripts/check-download-unification.sh` | 53 lines | text `.sh` |
+| `scripts/check-persisted-queue-keep.sh` | 61 lines | text `.sh` |
 | `scripts/dead-resources-baseline.txt` | 4 lines | text `.txt` |
 | `scripts/telegram-chats.sh` | 38 lines | text `.sh` |
 | `scripts/ui-audit-baseline.tsv` | 14 lines | text `.tsv` |

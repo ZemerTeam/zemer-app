@@ -106,6 +106,8 @@ class CrashReportTest {
         assertTrue(CrashReport.isOffZemerConnectivityFailure(IOException("wrap", IOException("connect failed: ECONNREFUSED (Connection refused)"))))
         assertTrue(CrashReport.isOffZemerConnectivityFailure(java.net.UnknownHostException("Unable to resolve host \"www.youtube.com\"")))
         assertTrue(CrashReport.isOffZemerConnectivityFailure(java.net.SocketTimeoutException("timeout")))
+        assertTrue(CrashReport.isOffZemerConnectivityFailure(io.ktor.client.plugins.HttpRequestTimeoutException("https://music.youtube.com/youtubei/v1/next", 15_000)))
+        assertFalse(CrashReport.isOffZemerConnectivityFailure(io.ktor.client.plugins.HttpRequestTimeoutException("https://search.zemer.io/radio", 15_000)))
         assertFalse(CrashReport.isOffZemerConnectivityFailure(java.net.ConnectException("Failed to connect to search.zemer.io/1.2.3.4:443")))
         assertFalse(CrashReport.isOffZemerConnectivityFailure(IllegalStateException("search.zemer.io", java.net.SocketTimeoutException("timeout"))))
         assertFalse(CrashReport.isOffZemerConnectivityFailure(IOException("HTTP 400")))
