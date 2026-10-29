@@ -257,4 +257,11 @@ class StatusesApiTest {
         val ordered = listOf(a, b, d).sortedByUnseenFirst(setOf("b2", "a1"), showAll)
         assertEquals(listOf("a", "d", "b"), ordered.map { it.id })
     }
+
+    @Test
+    fun `only a platform's 5xx counts as its own outage`() {
+        assertTrue(StatusFeedHttpException("HTTP 502", 502).isServerOutage)
+        assertTrue(StatusFeedHttpException("YidStatus feed HTTP 546", 546).isServerOutage)
+        assertFalse(StatusFeedHttpException("HTTP 401", 401).isServerOutage)
+    }
 }

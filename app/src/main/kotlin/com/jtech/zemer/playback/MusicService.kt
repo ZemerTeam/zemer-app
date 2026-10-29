@@ -1872,7 +1872,7 @@ class MusicService :
         // is deterministic, so the YouTube cipher/URL-refresh path would re-resolve to the SAME url and 403
         // again, looping forever instead of advancing. A relay 403 falls through to the relay skip in
         // handleUnrecoverablePlayerError.
-        if (isExpiredUrlError(error) && relayModeNow != true) {
+        if (PlaybackErrors.isExpiredStreamUrl(error) && relayModeNow != true) {
             Timber.d("Expired URL detected (403), refreshing stream URL")
             handleExpiredUrlError()
             return
@@ -1954,7 +1954,7 @@ class MusicService :
         // A video-URL 404 for an audio-only id is handled earlier by videoModeController.onPlayerError
         // (revert to audio), so it never reaches here. Runs on the main thread (see onPlayerError).
         if (relayModeNow == true) {
-            when (getHttpResponseCode(error)) {
+            when (PlaybackErrors.httpStatus(error)) {
                 404 -> toast(R.string.relay_error_unavailable)
                 502, 503 -> toast(R.string.relay_error_retry)
             }
@@ -1997,30 +1997,6 @@ class MusicService :
         } else {
             stopOnError()
         }
-    }
-
-    /**
-     * Extracts the HTTP response code from an error's cause chain.
-     * Returns null if no HTTP response code is found.
-     */
-    private fun getHttpResponseCode(error: PlaybackException): Int? {
-        var cause: Throwable? = error.cause
-        while (cause != null) {
-            if (cause is HttpDataSource.InvalidResponseCodeException) {
-                return cause.responseCode
-            }
-            cause = cause.cause
-        }
-        return null
-    }
-
-    /**
-     * Checks if the error is caused by an expired/invalid URL.
-     * HTTP 403 (Forbidden) and 410 (Gone) typically indicate expired YouTube stream URLs.
-     */
-    private fun isExpiredUrlError(error: PlaybackException): Boolean {
-        val code = getHttpResponseCode(error)
-        return code == 403 || code == 410
     }
 
     /**

@@ -329,6 +329,11 @@ private fun getJson(url: String, key: String): String = call(Request.Builder().u
 /** The body of a 2xx answer; anything else throws, so a failed source keeps its previous data. */
 private fun call(request: Request.Builder, key: String): String =
     statusHttp.newCall(request.header("apikey", key).header("Authorization", "Bearer $key").build()).execute().use { r ->
-        if (!r.isSuccessful) throw IOException("HTTP ${r.code}")
+        if (!r.isSuccessful) throw StatusFeedHttpException("HTTP ${r.code}", r.code)
         r.body.string()
     }
+
+/** A status platform answered with an HTTP error. A 5xx is the platform's own outage, not worth a crash report. */
+class StatusFeedHttpException(message: String, val code: Int) : IOException(message) {
+    val isServerOutage: Boolean get() = code >= 500
+}

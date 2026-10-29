@@ -66,7 +66,9 @@ object AudioRemux {
             muxer.stop()
             output.isFile && output.length() > 0
         } catch (t: Throwable) {
-            Timber.e(t, "AudioRemux: remux failed (${input.name} -> ${output.name})")
+            // A device muxer/extractor refusing the stream is expected on some phones; every caller falls back
+            // to the original file, so this is a warning, not a report.
+            Timber.w(t, "AudioRemux: remux failed (${input.name} -> ${output.name})")
             output.delete()
             false
         } finally {

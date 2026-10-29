@@ -46,6 +46,8 @@ Two hard-won facts that govern this area - always verify against the live CDN vi
 - **googlevideo serves the first 1 MiB of a stream free, then 403s every new connection** unless the URL's `&pot=` is bound to the **videoId** (not visitorData). Clients whose attestation the web poToken can't satisfy (the reason IOS/IPADOS/MWEB were removed) 403 past the wall under every binding.
 - **`validateStatus` does a HEAD that false-negatives** (403 on URLs that GET fine), so WEB_REMIX streaming intentionally skips it.
 
+Player errors are classified by the pure, tested `playback/PlaybackErrors`: an expired stream URL (HTTP 403/410) is re-resolved by `MusicService` and not reported by `PlayerConnection` (a failure that persists ends in the resolver's own reported error); bytes the extractor cannot parse (`isCorruptMedia`) purge the item's cached spans and are fetched again once (`CorruptMediaRetry`), never for a downloaded file, RELAY or a station.
+
 ### RELAY playback mode (`playback/relay/` - the filtered-device bypass)
 
 An **opt-in, login-less** mode for devices whose kosher filter blocks `music.youtube.com` / `googlevideo.com`: discovery already rides `*.zemer.io`, so RELAY moves **only the media source** onto the whitelisted relay host `stream.zemer.io`. Contract + app↔server thread: the handoff doc `zemer-app-filtered-playback-relay-request.md`. Rules that must not regress:
@@ -499,7 +501,8 @@ config are in `docs/status/`. The feature is **fail-soft and isolated**; the rul
   of an existing type is config-only; a new `type` needs an app change.
 - **Fail-soft + isolated.** `ZemerStatusesViewModel` (Stations pattern): a failure leaves the row empty
   and hidden; one failed source still lets the other populate (progressive `republish`). Gated by
-  `ShowHomeStatusesKey`.
+  `ShowHomeStatusesKey`. A platform's own outage (`StatusFeedHttpException.isServerOutage`, HTTP 5xx) is
+  logged, not reported; any other feed failure is reported.
 - **Hidden when videos are blocked** (statuses are video-first): gate BOTH the Home row AND the Music
   Status group in Appearance settings on `BlockVideosKey` together (else an un-hideable row or an orphan
   settings group).
@@ -1019,7 +1022,9 @@ detail: `docs/ui/standards.md §12`. Rules:
 - **Opus needs API 29+** (`AudioRemux.oggMuxSupported`; `minSdk` 26): `MediaStoreDownloadManager` sets
   `downloadOpusOk = !videoDownload && oggMuxSupported && DownloadAudioFormat == BEST`, and `YTPlayerUtils`
   allows itag 251 for a download only then; 26-28 get best AAC/m4a. Never save a raw `.webm`
-  (MediaStore.Audio rejects it).
+  (MediaStore.Audio rejects it): when a device's muxer refuses the WebM->Ogg rewrap, the file is saved
+  untagged under the sniffed `.opus` label, like relay audio, instead of failing the download. Only the
+  download attempt that gives up is reported (each retry resolves the stream afresh).
 - **`OggExtractor` MUST stay registered** in `createMediaSourceFactory` (else downloaded `.ogg` files hit
   "Source error" → a self-repair re-download loop).
 - **`DownloadAudioFormatKey` ("downloadAudioFormat") is permanent** (Player settings, API 29+): `BEST`

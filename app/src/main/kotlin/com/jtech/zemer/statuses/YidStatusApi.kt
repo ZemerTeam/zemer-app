@@ -142,7 +142,7 @@ private fun postFeed(feedUrl: String, key: String, body: String): String {
         .header("Origin", YID_ORIGIN) // required; see docs/status/yidstatus-api.md
         .build()
     yidHttpClient.newCall(request).execute().use { resp ->
-        if (!resp.isSuccessful) throw IOException("YidStatus feed HTTP ${resp.code}")
+        if (!resp.isSuccessful) throw StatusFeedHttpException("YidStatus feed HTTP ${resp.code}", resp.code)
         return resp.body?.string() ?: throw IOException("YidStatus feed empty body")
     }
 }

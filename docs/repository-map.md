@@ -54,12 +54,12 @@ The following inventory is generated from repository files outside `.git`, `.gra
 
 ### Counts
 
-- Files counted: `1431`
+- Files counted: `1433`
 - By extension:
   - `.kt`: `926`
   - `.xml`: `196`
   - `.mjs`: `110`
-  - `.md`: `72`
+  - `.md`: `74`
   - `.json`: `52`
   - `.webp`: `15`
   - `.html`: `6`
@@ -99,7 +99,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `.github/workflows/ui-audit.yml` | 55 lines | `.yml` |
 | `.gitignore` | 117 lines | `[none]` |
 | `.gitmodules` | 3 lines | `[none]` |
-| `AGENTS.md` | 1114 lines | `.md` |
+| `AGENTS.md` | 1119 lines | `.md` |
 | `LICENSE` | 674 lines | `[none]` |
 | `README.md` | 9 lines | `.md` |
 | `app/.gitignore` | 1 lines | `[none]` |
@@ -312,7 +312,6 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/main/kotlin/com/jtech/zemer/playback/CastSessionLocks.kt` | 48 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/playback/CastStreamRelay.kt` | 375 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/playback/CastVolumeKeys.kt` | 57 lines | `.kt` |
-| `app/src/main/kotlin/com/jtech/zemer/playback/CorruptMediaRetry.kt` | 35 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/playback/DeferredStatsPush.kt` | 51 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/playback/DeferredStatsQueue.kt` | 127 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/playback/DeferredStatsRecord.kt` | 53 lines | `.kt` |
@@ -325,13 +324,14 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/main/kotlin/com/jtech/zemer/playback/ForegroundSafeNotificationProvider.kt` | 48 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/playback/ListenAccumulator.kt` | 69 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/playback/MediaLibrarySessionCallback.kt` | 809 lines | `.kt` |
-| `app/src/main/kotlin/com/jtech/zemer/playback/MediaStoreDownloadManager.kt` | 1219 lines | `.kt` |
+| `app/src/main/kotlin/com/jtech/zemer/playback/MediaStoreDownloadManager.kt` | 1225 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/playback/MediaStoreDownloadService.kt` | 297 lines | `.kt` |
-| `app/src/main/kotlin/com/jtech/zemer/playback/MusicService.kt` | 3322 lines | `.kt` |
+| `app/src/main/kotlin/com/jtech/zemer/playback/MusicService.kt` | 3298 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/playback/NotificationGate.kt` | 40 lines | `.kt` |
+| `app/src/main/kotlin/com/jtech/zemer/playback/PlaybackErrors.kt` | 48 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/playback/PlaybackNonceRegistry.kt` | 76 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/playback/PlaybackProbe.kt` | 31 lines | `.kt` |
-| `app/src/main/kotlin/com/jtech/zemer/playback/PlayerConnection.kt` | 414 lines | `.kt` |
+| `app/src/main/kotlin/com/jtech/zemer/playback/PlayerConnection.kt` | 416 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/playback/PlayerVideoUiLogic.kt` | 81 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/playback/QueuePersist.kt` | 46 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/playback/RemoteVolumeTracker.kt` | 54 lines | `.kt` |
@@ -410,8 +410,8 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/main/kotlin/com/jtech/zemer/statuses/StatusText.kt` | 45 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/statuses/StatusTextImage.kt` | 60 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/statuses/StatusTimeline.kt` | 76 lines | `.kt` |
-| `app/src/main/kotlin/com/jtech/zemer/statuses/StatusesApi.kt` | 334 lines | `.kt` |
-| `app/src/main/kotlin/com/jtech/zemer/statuses/StatusesRepository.kt` | 297 lines | `.kt` |
+| `app/src/main/kotlin/com/jtech/zemer/statuses/StatusesApi.kt` | 339 lines | `.kt` |
+| `app/src/main/kotlin/com/jtech/zemer/statuses/StatusesRepository.kt` | 307 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/statuses/YidStatusApi.kt` | 148 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/sync/ContentFilterSyncService.kt` | 338 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/sync/ContentReportRepository.kt` | 117 lines | `.kt` |
@@ -716,7 +716,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/main/kotlin/com/jtech/zemer/utils/YTPlayerUtils.kt` | 793 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/utils/ZemerContentClient.kt` | 308 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/utils/markdown/LiteMarkdown.kt` | 199 lines | `.kt` |
-| `app/src/main/kotlin/com/jtech/zemer/utils/mp4/AudioRemux.kt` | 94 lines | `.kt` |
+| `app/src/main/kotlin/com/jtech/zemer/utils/mp4/AudioRemux.kt` | 96 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/utils/mp4/Mp4MetadataWriter.kt` | 303 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/utils/ogg/OggOpusTagger.kt` | 306 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/utils/updater/ApkInstallController.kt` | 103 lines | `.kt` |
@@ -1058,7 +1058,6 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/test/kotlin/com/jtech/zemer/playback/CastRelayProtocolTest.kt` | 125 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/playback/CastStreamRelayTest.kt` | 342 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/playback/CastVolumeKeysTest.kt` | 93 lines | `.kt` |
-| `app/src/test/kotlin/com/jtech/zemer/playback/CorruptMediaRetryTest.kt` | 33 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/playback/DeferredStatsPushTest.kt` | 98 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/playback/DeferredStatsQueueTest.kt` | 209 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/playback/DeferredStatsRecordTest.kt` | 58 lines | `.kt` |
@@ -1069,6 +1068,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/test/kotlin/com/jtech/zemer/playback/ForegroundSafeNotificationProviderTest.kt` | 34 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/playback/ListenAccumulatorTest.kt` | 68 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/playback/NotificationGateTest.kt` | 46 lines | `.kt` |
+| `app/src/test/kotlin/com/jtech/zemer/playback/PlaybackErrorsTest.kt` | 55 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/playback/PlaybackNonceRegistryTest.kt` | 134 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/playback/PlayerVideoUiLogicTest.kt` | 128 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/playback/QueueContinuationTest.kt` | 42 lines | `.kt` |
@@ -1124,7 +1124,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/test/kotlin/com/jtech/zemer/statuses/StatusDownloadsViewTest.kt` | 40 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/statuses/StatusSourcesConfigTest.kt` | 163 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/statuses/StatusTimelineTest.kt` | 105 lines | `.kt` |
-| `app/src/test/kotlin/com/jtech/zemer/statuses/StatusesApiTest.kt` | 260 lines | `.kt` |
+| `app/src/test/kotlin/com/jtech/zemer/statuses/StatusesApiTest.kt` | 267 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/statuses/YidStatusApiTest.kt` | 81 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/sync/ContentReportRepositoryTest.kt` | 92 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/sync/ContentServerApiTest.kt` | 200 lines | `.kt` |
@@ -1283,9 +1283,9 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `docs/remote_cipher_config/03-extraction-and-self-heal.md` | 102 lines | `.md` |
 | `docs/remote_cipher_config/04-operations.md` | 121 lines | `.md` |
 | `docs/remote_cipher_config/README.md` | 60 lines | `.md` |
-| `docs/repository-map.md` | 1524 lines | `.md` |
-| `docs/repository-map.md` | 1524 lines | `.md` |
-| `docs/repository-map.md` | 1524 lines | `.md` |
+| `docs/repository-map.md` | 1526 lines | `.md` |
+| `docs/repository-map.md` | 1526 lines | `.md` |
+| `docs/repository-map.md` | 1526 lines | `.md` |
 | `docs/sabr/README.md` | 369 lines | `.md` |
 | `docs/stations/README.md` | 67 lines | `.md` |
 | `docs/status/README.md` | 93 lines | `.md` |
