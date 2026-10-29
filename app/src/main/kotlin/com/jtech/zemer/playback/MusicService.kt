@@ -528,15 +528,17 @@ class MusicService :
         // picker — not here — so we don't run NSD discovery on every launch.
         // Media3's MediaLibraryService handles foreground notification automatically
         setMediaNotificationProvider(
-            DefaultMediaNotificationProvider(
-                this,
-                { NOTIFICATION_ID },
-                CHANNEL_ID,
-                R.string.music_player
-            )
-                .apply {
-                    setSmallIcon(R.drawable.small_icon)
-                },
+            ForegroundSafeNotificationProvider(
+                DefaultMediaNotificationProvider(
+                    this,
+                    { NOTIFICATION_ID },
+                    CHANNEL_ID,
+                    R.string.music_player
+                )
+                    .apply {
+                        setSmallIcon(R.drawable.small_icon)
+                    },
+            ),
         )
         player =
             ExoPlayer
