@@ -34,7 +34,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
@@ -52,6 +51,7 @@ import kotlinx.coroutines.launch
 import org.fcast.sender_sdk.DeviceInfo
 import com.jtech.zemer.extensions.shareText
 import com.jtech.zemer.extensions.copyToClipboard
+import com.jtech.zemer.extensions.openUrlOrCopy
 import com.jtech.zemer.extensions.toast
 
 private const val FCAST_DOWNLOADS_URL = "https://fcast.org/#downloads"
@@ -88,7 +88,6 @@ fun CastPicker(
     val connectedDevice by handler.connectedDeviceFlow.collectAsState()
     val devices by handler.discoveredDevicesFlow.collectAsState()
     val libState by service.castLibState.collectAsState()
-    val uriHandler = LocalUriHandler.current
     val context = LocalContext.current
 
     val refreshing by service.castDeviceRefresher.refreshing.collectAsState()
@@ -189,7 +188,7 @@ fun CastPicker(
                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
                     )
                     Spacer(Modifier.height(16.dp))
-                    CastFcastSection(uriHandler = uriHandler, context = context)
+                    CastFcastSection(context = context)
                 }
 
                 else -> {
@@ -204,7 +203,7 @@ fun CastPicker(
                         )
                     }
                     Spacer(Modifier.height(12.dp))
-                    CastFcastSection(uriHandler = uriHandler, context = context)
+                    CastFcastSection(context = context)
                 }
             }
         }
@@ -306,7 +305,7 @@ private fun CastHeader(
 
 /** Receiver-install link with share + copy, so users can take the URL to their TV. */
 @Composable
-private fun CastFcastSection(uriHandler: androidx.compose.ui.platform.UriHandler, context: Context) {
+private fun CastFcastSection(context: Context) {
     Column(
         modifier = Modifier.fillMaxWidth(),
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -320,7 +319,7 @@ private fun CastFcastSection(uriHandler: androidx.compose.ui.platform.UriHandler
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(12.dp))
                 .focusBorder(RoundedCornerShape(12.dp))
-                .clickable { uriHandler.openUri(FCAST_DOWNLOADS_URL) }
+                .clickable { context.openUrlOrCopy(FCAST_DOWNLOADS_URL) }
                 .padding(vertical = 12.dp, horizontal = 8.dp),
         )
         Spacer(Modifier.height(8.dp))

@@ -124,6 +124,7 @@
     <string name="file_size">File size</string>
     <string name="unknown">Unknown</string>
     <string name="copied">Copied to clipboard</string>
+    <string name="no_browser_link_copied">No app can open this link, so it was copied to the clipboard</string>
 
 
     <string name="edit_song">Edit song</string>

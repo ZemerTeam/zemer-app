@@ -211,6 +211,7 @@ import com.jtech.zemer.extensions.toast
 import com.jtech.zemer.models.DpadDirection
 import com.jtech.zemer.models.toMediaMetadata
 import com.jtech.zemer.playback.CastVolumeKeyAction
+import com.jtech.zemer.search.searchQueryFromRouteArg
 import com.jtech.zemer.search.zemerSearchRoute
 import com.jtech.zemer.playback.CastVolumeKeys
 import com.jtech.zemer.playback.DownloadUtil
@@ -305,7 +306,6 @@ import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
-import java.net.URLDecoder
 import java.net.URLEncoder
 import java.util.Locale
 import timber.log.Timber
@@ -1152,27 +1152,7 @@ class MainActivity : ComponentActivity() {
                     // Navigation tracking
                     LaunchedEffect(navBackStackEntry) {
                         if (inSearchScreen) {
-                            val searchQuery =
-                                withContext(Dispatchers.IO) {
-                                    if (navBackStackEntry
-                                            ?.arguments
-                                            ?.getString(
-                                                "query",
-                                            )!!
-                                            .contains(
-                                                "%",
-                                            )
-                                    ) {
-                                        navBackStackEntry?.arguments?.getString(
-                                            "query",
-                                        )!!
-                                    } else {
-                                        URLDecoder.decode(
-                                            navBackStackEntry?.arguments?.getString("query")!!,
-                                            "UTF-8"
-                                        )
-                                    }
-                                }
+                            val searchQuery = searchQueryFromRouteArg(navBackStackEntry?.arguments?.getString("query"))
                             onQueryChange(
                                 TextFieldValue(
                                     searchQuery,

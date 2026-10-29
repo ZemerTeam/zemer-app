@@ -68,6 +68,14 @@ class ZemerRoutesTest {
         assertEquals("podcast_genre/machshava-mussar", zemerPodcastGenreRoute("machshava-mussar"))
     }
 
+    // A search route without its query argument crashed MainActivity (v39 crash report).
+    @Test
+    fun `a missing search route argument is an empty query`() {
+        assertEquals("", searchQueryFromRouteArg(null))
+        assertEquals("avraham fried", searchQueryFromRouteArg("avraham+fried"))
+        assertEquals("100%", searchQueryFromRouteArg("100%"))
+    }
+
     @Test
     fun `the search telemetry provider wire value is pinned`() {
         assertEquals("zemer", com.jtech.zemer.viewmodels.SEARCH_TRACKED_PROVIDER)

@@ -68,6 +68,8 @@
 #   R27-playpause  a raw `player.togglePlayPause()` in UI code -> use PlayerConnection.playPause(), which
 #                  routes the toggle to the cast receiver while casting (the raw toggle resumes LOCAL
 #                  audio on top of a cast). Baseline 0.
+#   R28-openuri    a raw `UriHandler.openUri(...)` (crashes with no browser) -> use
+#                  Context.openUrlOrCopy(url) (extensions/ContextExt.kt). Baseline 0.
 #   R22-home-shimmer (positive assertion, not a shrink-count) the Home loading skeleton is shaped like
 #                  the MUSIC home (title + card row) and is driven by music-VM state, so it MUST be
 #                  scoped to `homeTab == HomeContentTab.MUSIC` — else it paints an inaccurate skeleton
@@ -181,6 +183,11 @@ violations() {
   # PlayerConnection.playPause() - while casting it resumes LOCAL audio on top of the cast. Baseline 0.
   grep -rnE "\.togglePlayPause\(\)" "$UI" --include=*.kt 2>/dev/null \
     | grep -v "/theme/" | sed -E 's/:.*//' | sed 's/$/\tR27-playpause/'
+  # R28: a raw UriHandler.openUri(...) throws ActivityNotFoundException on the many filtered phones with
+  # no browser (a fatal crash) -> use Context.openUrlOrCopy(url) (extensions/ContextExt.kt), which copies
+  # the link when nothing can open it. Baseline 0.
+  grep -rnE "\.openUri\(|::openUri" "$UI" --include=*.kt 2>/dev/null \
+    | grep -v "/theme/" | sed -E 's/:.*//' | sed 's/$/\tR28-openuri/'
 }
 
 # Aggregate to "<path>\t<rule>\t<count>", sorted.
@@ -230,7 +237,7 @@ improved="$(awk -F'\t' '
 ' <(printf "%s\n" "$cur") "$BASELINE")"
 
 if [ -n "$new" ]; then
-  echo "UI audit FAILED — new Rule 5/7/8/11/12/13/14/15/16/17/18/19/20/21/23-27 violations (docs/ui/standards.md sections 1, 5, 7-8, 11, 12):"
+  echo "UI audit FAILED — new Rule 5/7/8/11/12/13/14/15/16/17/18/19/20/21/23-28 violations (docs/ui/standards.md sections 1, 5, 7-8, 11, 12):"
   echo "$new"
   echo
   echo "Route font sizes through MaterialTheme.typography (Type.kt), colors through"
@@ -247,7 +254,7 @@ if [ -n "$new" ]; then
 fi
 
 total="$(violations | grep -c .)"
-echo "UI audit passed — no new Rule 5/7/8/11/12/13/14/15/16/17/18/19/20/21/23-27 violations (baseline: $total known, only allowed to shrink)."
+echo "UI audit passed — no new Rule 5/7/8/11/12/13/14/15/16/17/18/19/20/21/23-28 violations (baseline: $total known, only allowed to shrink)."
 if [ -n "$improved" ]; then
   echo "Burned down since the baseline — tighten it with \`bash scripts/ui-audit.sh --update\`:"
   echo "$improved"

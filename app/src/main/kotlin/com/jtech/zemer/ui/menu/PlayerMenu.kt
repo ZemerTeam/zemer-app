@@ -73,6 +73,7 @@ import com.jtech.zemer.utils.rememberPreference
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlin.math.log2
 import kotlin.math.pow
 import kotlin.math.round
@@ -121,9 +122,8 @@ fun PlayerMenu(
     AddToPlaylistDialog(
         isVisible = showChoosePlaylistDialog,
         onGetSong = { _ ->
-            database.transaction {
-                insert(mediaMetadata)
-            }
+            // Awaited: the dialog inserts the playlist rows right after, and they reference this song row.
+            withContext(Dispatchers.IO) { database.insert(mediaMetadata) }
             // The remote write is owned by AddToPlaylistDialog (single writer); callers return ids only.
             listOf(mediaMetadata.id)
         },
