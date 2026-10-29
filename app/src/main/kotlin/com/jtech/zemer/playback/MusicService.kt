@@ -425,6 +425,12 @@ class MusicService :
     private var isAudioEffectSessionOpened = false
     private var loudnessEnhancer: LoudnessEnhancer? = null
 
+    // Audio session whose effect engine refused the enhancer: normalization stays off for it instead of
+    // recreating (and failing) on every track.
+    private var loudnessUnsupportedSessionId = C.AUDIO_SESSION_ID_UNSET
+
+    private val corruptMediaRetry = CorruptMediaRetry()
+
     private var lastPlaybackSpeed = 1.0f
     // Tracks whether the item that just finished was a podcast episode, so episode playback speed can be
     // reset ONLY when leaving an episode — never on an ordinary music-to-music transition (which would
@@ -785,7 +791,7 @@ class MusicService :
                     onLoaded = ::onQueueRestored,
                 )
             }.onFailure {
-                if (it !is FileNotFoundException) reportException(it)
+                discardUnreadablePersistFile(PERSISTENT_QUEUE_FILE, it)
             }
 
             // Restore player state
@@ -807,7 +813,7 @@ class MusicService :
                     }
                 }
             }.onFailure {
-                if (it !is FileNotFoundException) reportException(it)
+                discardUnreadablePersistFile(PERSISTENT_PLAYER_STATE_FILE, it)
             }
         }
 
@@ -1468,7 +1474,9 @@ class MusicService :
     private fun setupLoudnessEnhancer() {
         val audioSessionId = player.audioSessionId
 
-        if (audioSessionId == C.AUDIO_SESSION_ID_UNSET || audioSessionId <= 0) {
+        if (audioSessionId == C.AUDIO_SESSION_ID_UNSET || audioSessionId <= 0 ||
+            audioSessionId == loudnessUnsupportedSessionId
+        ) {
             return
         }
 
@@ -1477,8 +1485,7 @@ class MusicService :
             try {
                 loudnessEnhancer = LoudnessEnhancer(audioSessionId)
             } catch (e: Exception) {
-                reportException(e)
-                loudnessEnhancer = null
+                disableLoudnessForSession(audioSessionId, e)
                 return
             }
         }
@@ -1508,8 +1515,7 @@ class MusicService :
                                 loudnessEnhancer?.setTargetGain(clampedGain)
                                 loudnessEnhancer?.enabled = true
                             } catch (e: Exception) {
-                                reportException(e)
-                                releaseLoudnessEnhancer()
+                                disableLoudnessForSession(audioSessionId, e)
                             }
                         } else {
                             loudnessEnhancer?.enabled = false
@@ -1527,6 +1533,13 @@ class MusicService :
         }
     }
 
+
+    // Some devices' audio effect engines reject the enhancer or its gain: a device limitation, not a bug.
+    private fun disableLoudnessForSession(audioSessionId: Int, e: Exception) {
+        Timber.w(e, "Loudness normalization unavailable for audio session %d", audioSessionId)
+        loudnessUnsupportedSessionId = audioSessionId
+        releaseLoudnessEnhancer()
+    }
 
     private fun releaseLoudnessEnhancer() {
         try {
@@ -1862,6 +1875,20 @@ class MusicService :
         if (isExpiredUrlError(error) && relayModeNow != true) {
             Timber.d("Expired URL detected (403), refreshing stream URL")
             handleExpiredUrlError()
+            return
+        }
+
+        // Bytes the extractor cannot parse: drop this item's cached spans and fetch it fresh, once. A downloaded
+        // file and RELAY are left to the paths below (a file is not re-fetched here; relay has no cache).
+        val failedId = player.currentMediaItem?.mediaId
+        if (failedId != null && relayModeNow != true && currentQueue !is StationQueue &&
+            playbackSourceIsLocal[failedId] != true && corruptMediaRetry.shouldRetry(failedId, error)
+        ) {
+            Timber.w("Unparseable media for $failedId; refetching it once")
+            runCatching { playerCache.removeResource(failedId) }
+            DownloadUtil.invalidateUrl(failedId)
+            player.seekTo(player.currentMediaItemIndex, player.currentPosition)
+            player.prepare()
             return
         }
 
@@ -2953,6 +2980,17 @@ class MusicService :
             stationWaitJob?.cancel()
             currentQueue = EmptyQueue
         }
+    }
+
+    /**
+     * A persisted snapshot that cannot be read (a layout from an older build, a torn write) is reported
+     * once and deleted: left in place it was re-read and re-reported on every launch until a save happened
+     * to replace it. A missing file is a first run and stays quiet.
+     */
+    private fun discardUnreadablePersistFile(name: String, failure: Throwable) {
+        if (failure is FileNotFoundException) return
+        reportException(failure)
+        runCatching { AtomicFile(filesDir.resolve(name)).delete() }
     }
 
     /**

@@ -1,8 +1,10 @@
 package com.jtech.zemer.search
 
 import io.ktor.client.HttpClient
+import io.ktor.client.HttpClientConfig
 import io.ktor.client.engine.cio.CIO
 import timber.log.Timber
+import io.ktor.client.plugins.HttpRequestRetry
 import io.ktor.client.plugins.HttpTimeout
 import io.ktor.client.plugins.timeout
 import io.ktor.client.request.HttpRequestBuilder
@@ -147,6 +149,7 @@ class ZemerSearchClient @Inject constructor() {
             connectTimeoutMillis = CONNECT_TIMEOUT_MS
         }
         install(com.jtech.zemer.net.ZemerHeaders.KtorPlugin)
+        retryRestartingServer()
     }
 
     suspend fun search(
@@ -596,6 +599,8 @@ class ZemerSearchClient @Inject constructor() {
     ): ZemerPodcastHomeRowsResponse {
         val response: HttpResponse = client.get("$BASE_URL/podcast-home-rows") {
             applyParams(zemerContentFlagParameters(allowFemale, blockVideos, kidZone = kidZone))
+            // live-only (no offline fallback to fall to): wait out a slow link instead of hiding the rows
+            timeout { requestTimeoutMillis = LARGE_REQUEST_TIMEOUT_MS }
         }
         if (!response.status.isSuccess()) {
             throw IOException("Zemer podcast-home-rows returned HTTP ${response.status.value}")
@@ -615,6 +620,7 @@ class ZemerSearchClient @Inject constructor() {
     ): ZemerVideoHomeRowsResponse {
         val response: HttpResponse = client.get("$BASE_URL/video-home-rows") {
             applyParams(zemerContentFlagParameters(allowFemale, blockVideos, kidZone = kidZone))
+            timeout { requestTimeoutMillis = LARGE_REQUEST_TIMEOUT_MS } // live-only, as podcast-home-rows
         }
         if (!response.status.isSuccess()) {
             throw IOException("Zemer video-home-rows returned HTTP ${response.status.value}")
@@ -632,5 +638,20 @@ class ZemerSearchClient @Inject constructor() {
         // The facet see-all page size (server max is 200) — one round-trip covers the largest
         // album/single facet, and a genre with more pages via the returned nextOffset.
         private const val GENRE_FACET_LIMIT = 200
+    }
+}
+
+/**
+ * A 502/503 is the server restarting (it is back within seconds): retried once after [delayMs] instead of
+ * failing the screen. Nothing else is retried, so an unreachable server still reaches the offline fallback
+ * at once.
+ */
+internal fun HttpClientConfig<*>.retryRestartingServer(delayMs: Long = 2_000L) {
+    install(HttpRequestRetry) {
+        retryOnExceptionIf(maxRetries = 1) { _, _ -> false }
+        retryIf(maxRetries = 1) { _, response ->
+            response.status == HttpStatusCode.BadGateway || response.status == HttpStatusCode.ServiceUnavailable
+        }
+        constantDelay(millis = delayMs, randomizationMs = 0)
     }
 }

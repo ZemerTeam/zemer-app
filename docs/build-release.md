@@ -59,4 +59,4 @@ pure Kotlin (`utils/mp4/`, `utils/ogg/`).
 
 | Module | Package | Plugins | Dependencies (`libs.*`) | Kotlin files |
 | --- | --- | --- | --- | --- |
-| `:innertube` | `com.metrolist.innertube` | `kotlin.serialization`, `jvm`; jvmToolchain `21` | `ktor.client.core`, `ktor.client.okhttp`, `ktor.client.content.negotiation`, `ktor.serialization.json`, `ktor.client.encoding`, `okhttp.dnsoverhttps`, `junit` | 86 files (see `reference/kotlin-files.md`) |
+| `:innertube` | `com.metrolist.innertube` | `kotlin.serialization`, `jvm`; jvmToolchain `21` | `ktor.client.core`, `ktor.client.okhttp`, `ktor.client.content.negotiation`, `ktor.serialization.json`, `ktor.client.encoding`, `okhttp.dnsoverhttps`, `junit` | 87 files (see `reference/kotlin-files.md`) |

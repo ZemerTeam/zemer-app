@@ -96,21 +96,48 @@ class CrashReportTest {
     fun `a coroutine cancellation anywhere in the chain is not reported as an error`() {
         assertTrue(CrashReport.isCancellation(kotlinx.coroutines.CancellationException("Job was cancelled")))
         assertTrue(CrashReport.isCancellation(IllegalStateException("wrap", kotlinx.coroutines.CancellationException("x"))))
+        assertTrue(CrashReport.isCancellation(InterruptedException()))
         assertFalse(CrashReport.isCancellation(IOException("down")))
     }
 
     @Test
-    fun `connectivity failures to other hosts are not reported, Zemer servers and real errors are`() {
+    fun `reportedFrom keeps the reporting app frames, without the reporting machinery`() {
+        fun frame(cls: String) = StackTraceElement(cls, "m", "F.kt", 1)
+        val stack = arrayOf(
+            frame("com.jtech.zemer.crash.CrashReporter"),
+            frame("com.jtech.zemer.utils.CrashReportingTree"),
+            frame("timber.log.Timber\$Forest"),
+            frame("com.jtech.zemer.utils.UtilsKt"),
+            frame("com.jtech.zemer.utils.SyncUtils\$syncAlbums\$1"),
+            frame("kotlinx.coroutines.DispatchedTask"),
+            frame("com.metrolist.innertube.YouTube"),
+        )
+        assertEquals(
+            listOf("com.jtech.zemer.utils.SyncUtils\$syncAlbums\$1.m(F.kt:1)", "com.metrolist.innertube.YouTube.m(F.kt:1)"),
+            CrashReport.reportedFrom(stack),
+        )
+        assertEquals(1, CrashReport.reportedFrom(stack, max = 1).size)
+        val report = CrashReport.build("nonfatal", IOException("x"), "main", 1L, 1, emptyList(), env, reportedFrom = listOf("a.b(C.kt:1)"))
+        assertEquals("a.b(C.kt:1)", report["reportedFrom"]!!.jsonArray[0].jsonPrimitive.content)
+        assertTrue("reportedFrom" !in build(IOException("x")))
+    }
+
+    @Test
+    fun `connectivity failures to any host are not reported, real errors are`() {
         val refused = java.net.ConnectException("Failed to connect to www.youtube.com/1.2.3.4:443")
-        assertTrue(CrashReport.isOffZemerConnectivityFailure(refused))
-        assertTrue(CrashReport.isOffZemerConnectivityFailure(IOException("wrap", IOException("connect failed: ECONNREFUSED (Connection refused)"))))
-        assertTrue(CrashReport.isOffZemerConnectivityFailure(java.net.UnknownHostException("Unable to resolve host \"www.youtube.com\"")))
-        assertTrue(CrashReport.isOffZemerConnectivityFailure(java.net.SocketTimeoutException("timeout")))
-        assertTrue(CrashReport.isOffZemerConnectivityFailure(io.ktor.client.plugins.HttpRequestTimeoutException("https://music.youtube.com/youtubei/v1/next", 15_000)))
-        assertFalse(CrashReport.isOffZemerConnectivityFailure(io.ktor.client.plugins.HttpRequestTimeoutException("https://search.zemer.io/radio", 15_000)))
-        assertFalse(CrashReport.isOffZemerConnectivityFailure(java.net.ConnectException("Failed to connect to search.zemer.io/1.2.3.4:443")))
-        assertFalse(CrashReport.isOffZemerConnectivityFailure(IllegalStateException("search.zemer.io", java.net.SocketTimeoutException("timeout"))))
-        assertFalse(CrashReport.isOffZemerConnectivityFailure(IOException("HTTP 400")))
+        assertTrue(CrashReport.isConnectivityFailure(refused))
+        assertTrue(CrashReport.isConnectivityFailure(IOException("wrap", IOException("connect failed: ECONNREFUSED (Connection refused)"))))
+        assertTrue(CrashReport.isConnectivityFailure(java.net.UnknownHostException("Unable to resolve host \"content.zemer.io\"")))
+        assertTrue(CrashReport.isConnectivityFailure(java.net.SocketTimeoutException("timeout")))
+        assertTrue(CrashReport.isConnectivityFailure(io.ktor.client.plugins.HttpRequestTimeoutException("https://search.zemer.io/podcast-home-rows", 8_000)))
+        assertTrue(CrashReport.isConnectivityFailure(java.net.ConnectException("Failed to connect to search.zemer.io/1.2.3.4:443")))
+        assertTrue(CrashReport.isConnectivityFailure(java.net.SocketException("Connection reset")))
+        assertTrue(CrashReport.isConnectivityFailure(java.nio.channels.UnresolvedAddressException()))
+        assertTrue(CrashReport.isConnectivityFailure(javax.net.ssl.SSLHandshakeException("Connection closed by peer")))
+        assertTrue(CrashReport.isConnectivityFailure(IOException("wrap", java.security.cert.CertPathValidatorException("Trust anchor not found"))))
+        assertFalse(CrashReport.isConnectivityFailure(IllegalStateException("search.zemer.io")))
+        assertFalse(CrashReport.isConnectivityFailure(IOException("Zemer home-rows returned HTTP 502")))
+        assertFalse(CrashReport.isConnectivityFailure(IOException("HTTP 400")))
     }
 
     @Test

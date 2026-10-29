@@ -68,6 +68,7 @@ internal object CrashReport {
         breadcrumbs: List<String>,
         env: CrashEnvironment,
         secrets: Collection<String> = emptyList(),
+        reportedFrom: List<String> = emptyList(),
     ): JsonObject = buildJsonObject {
         put("kind", kind)
         put("occurredAt", occurredAt)
@@ -88,9 +89,29 @@ internal object CrashReport {
         })
         put("thread", thread)
         put("exception", JsonArray(causeChain(throwable, secrets)))
+        if (reportedFrom.isNotEmpty()) put("reportedFrom", buildJsonArray { reportedFrom.forEach { add(JsonPrimitive(it)) } })
         put("breadcrumbs", buildJsonArray { capBreadcrumbs(breadcrumbs, secrets).forEach { add(JsonPrimitive(it)) } })
         put("debug", env.debug)
     }
+
+    /**
+     * The app frames of the code that reported a non-fatal, for `reportedFrom`. The exception's own stack often ends
+     * in the coroutine dispatcher, which hides who caught it. The reporting machinery itself is left out.
+     */
+    fun reportedFrom(stack: Array<StackTraceElement>, max: Int = MAX_REPORTED_FROM): List<String> = stack
+        .filter { f ->
+            (f.className.startsWith("com.jtech.zemer.") || f.className.startsWith("com.metrolist.")) &&
+                REPORTING_CLASSES.none { f.className.startsWith(it) }
+        }
+        .take(max)
+        .map { it.toString() }
+
+    private const val MAX_REPORTED_FROM = 8
+    private val REPORTING_CLASSES = listOf(
+        "com.jtech.zemer.crash.",
+        "com.jtech.zemer.utils.CrashReportingTree",
+        "com.jtech.zemer.utils.UtilsKt",
+    )
 
     /** With a new `sentAt`: a queued report is stamped when it actually goes out. */
     fun withSentAt(report: JsonObject, sentAt: Long) = JsonObject(report + ("sentAt" to JsonPrimitive(sentAt)))
@@ -102,22 +123,26 @@ internal object CrashReport {
             .joinToString("|")
     }
 
-    /** A cancellation anywhere in the cause chain: a coroutine being cancelled, not an error worth a report. */
-    fun isCancellation(throwable: Throwable): Boolean = chain(throwable).any { it is java.util.concurrent.CancellationException }
+    /**
+     * A cancellation anywhere in the cause chain: a coroutine being cancelled (an interrupted blocking wait is the same
+     * thing on a thread), not an error worth a report.
+     */
+    fun isCancellation(throwable: Throwable): Boolean = chain(throwable).any {
+        it is java.util.concurrent.CancellationException || it is InterruptedException
+    }
 
     /**
-     * A plain connectivity failure (refused, unresolved, timed out) that names no Zemer server: expected on filtered
-     * or offline networks, not an app bug. Failed reads of Zemer's own servers are counted by the fetch_fail event.
+     * A plain connectivity failure (refused, unresolved, timed out, reset, a TLS handshake a filtering network broke)
+     * to any host: expected on filtered, slow or offline networks, not an app bug, and the screens already handle it.
+     * Failed reads of Zemer's content server are counted by the fetch_fail event.
      */
-    fun isOffZemerConnectivityFailure(throwable: Throwable): Boolean {
-        val causes = chain(throwable)
-        val connectivity = causes.any {
-            it is java.net.ConnectException || it is java.net.UnknownHostException ||
-                it is java.net.SocketTimeoutException || it is io.ktor.client.plugins.HttpRequestTimeoutException ||
-                it is java.nio.channels.UnresolvedAddressException ||
-                it.message?.contains("ECONNREFUSED") == true
-        }
-        return connectivity && causes.none { it.message?.contains("zemer.io", ignoreCase = true) == true }
+    fun isConnectivityFailure(throwable: Throwable): Boolean = chain(throwable).any {
+        it is java.net.SocketException || it is java.net.UnknownHostException ||
+            it is java.net.SocketTimeoutException || it is io.ktor.client.plugins.HttpRequestTimeoutException ||
+            it is io.ktor.client.network.sockets.ConnectTimeoutException ||
+            it is java.nio.channels.UnresolvedAddressException || it is javax.net.ssl.SSLException ||
+            it is java.security.cert.CertPathValidatorException ||
+            it.message?.contains("ECONNREFUSED") == true
     }
 
     private fun chain(throwable: Throwable): List<Throwable> {
