@@ -287,7 +287,7 @@
     <string name="enable_zemer_lyrics_desc">Sources de musique juive sélectionnées et recoupées</string>
     <string name="enable_simpmusic_desc">Paroles de la communauté pour Exact-track</string>
     <string name="enable_lrclib_desc">Base de données communautaire de paroles synchronisées</string>
-    <string name="enable_youtube_lyrics_desc">Sous-titres et onglet Paroles de la musique ; essayé en dernier</string>
+    <string name="enable_youtube_lyrics_desc">Sous-titres et onglet Paroles de la musique ; essayé en dernier</string>
     <string name="lyrics_provider_youtube_note">Les paroles provenant de YouTube sont considérées comme moins fiables et ne sont testées qu\'en dernier par défaut</string>
     <string name="content_filters">Filtres de contenu</string>
     <string name="allow_female_singers">Autoriser le contenu féminin</string>
