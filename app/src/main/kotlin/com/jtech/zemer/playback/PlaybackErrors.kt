@@ -28,6 +28,12 @@ object PlaybackErrors {
                     (it.cause is IllegalStateException || it.cause is IndexOutOfBoundsException))
         }
 
+    /**
+     * HTTP 416: a range at or past the end of the resource, i.e. cached spans or a resume position that no longer
+     * match the stream (a re-resolved URL for another format/size). Fixed the same way as corrupt bytes.
+     */
+    fun isStaleRange(error: Throwable): Boolean = httpStatus(error) == 416
+
     private const val MAX_CAUSES = 10
 }
 
@@ -41,7 +47,8 @@ class CorruptMediaRetry {
     private var lastRetriedMediaId: String? = null
 
     fun shouldRetry(mediaId: String, error: Throwable): Boolean {
-        if (!PlaybackErrors.isCorruptMedia(error) || mediaId == lastRetriedMediaId) return false
+        val refetchFixes = PlaybackErrors.isCorruptMedia(error) || PlaybackErrors.isStaleRange(error)
+        if (!refetchFixes || mediaId == lastRetriedMediaId) return false
         lastRetriedMediaId = mediaId
         return true
     }

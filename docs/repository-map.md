@@ -54,12 +54,12 @@ The following inventory is generated from repository files outside `.git`, `.gra
 
 ### Counts
 
-- Files counted: `1433`
+- Files counted: `1423`
 - By extension:
   - `.kt`: `926`
   - `.xml`: `196`
   - `.mjs`: `110`
-  - `.md`: `74`
+  - `.md`: `64`
   - `.json`: `52`
   - `.webp`: `15`
   - `.html`: `6`
@@ -326,9 +326,9 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/main/kotlin/com/jtech/zemer/playback/MediaLibrarySessionCallback.kt` | 809 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/playback/MediaStoreDownloadManager.kt` | 1225 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/playback/MediaStoreDownloadService.kt` | 297 lines | `.kt` |
-| `app/src/main/kotlin/com/jtech/zemer/playback/MusicService.kt` | 3298 lines | `.kt` |
+| `app/src/main/kotlin/com/jtech/zemer/playback/MusicService.kt` | 3299 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/playback/NotificationGate.kt` | 40 lines | `.kt` |
-| `app/src/main/kotlin/com/jtech/zemer/playback/PlaybackErrors.kt` | 48 lines | `.kt` |
+| `app/src/main/kotlin/com/jtech/zemer/playback/PlaybackErrors.kt` | 55 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/playback/PlaybackNonceRegistry.kt` | 76 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/playback/PlaybackProbe.kt` | 31 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/playback/PlayerConnection.kt` | 416 lines | `.kt` |
@@ -1068,7 +1068,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/test/kotlin/com/jtech/zemer/playback/ForegroundSafeNotificationProviderTest.kt` | 34 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/playback/ListenAccumulatorTest.kt` | 68 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/playback/NotificationGateTest.kt` | 46 lines | `.kt` |
-| `app/src/test/kotlin/com/jtech/zemer/playback/PlaybackErrorsTest.kt` | 55 lines | `.kt` |
+| `app/src/test/kotlin/com/jtech/zemer/playback/PlaybackErrorsTest.kt` | 58 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/playback/PlaybackNonceRegistryTest.kt` | 134 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/playback/PlayerVideoUiLogicTest.kt` | 128 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/playback/QueueContinuationTest.kt` | 42 lines | `.kt` |
@@ -1234,11 +1234,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `build.gradle.kts` | 36 lines | `.kts` |
 | `docs/README.md` | 44 lines | `.md` |
 | `docs/app/README.md` | 197 lines | `.md` |
-| `docs/app/README.md` | 197 lines | `.md` |
-| `docs/app/README.md` | 197 lines | `.md` |
 | `docs/app/database.md` | 657 lines | `.md` |
-| `docs/app/playback.md` | 121 lines | `.md` |
-| `docs/app/playback.md` | 121 lines | `.md` |
 | `docs/app/playback.md` | 121 lines | `.md` |
 | `docs/app/preferences-sync-auth.md` | 220 lines | `.md` |
 | `docs/app/viewmodels.md` | 134 lines | `.md` |
@@ -1274,8 +1270,6 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `docs/recognize_music/03-entry-points-and-ui.md` | 80 lines | `.md` |
 | `docs/recognize_music/README.md` | 73 lines | `.md` |
 | `docs/reference/kotlin-files.md` | 939 lines | `.md` |
-| `docs/reference/kotlin-files.md` | 939 lines | `.md` |
-| `docs/reference/kotlin-files.md` | 939 lines | `.md` |
 | `docs/reference/non-kotlin-files.md` | 446 lines | `.md` |
 | `docs/reference/resource-index.md` | 317 lines | `.md` |
 | `docs/remote_cipher_config/01-concepts-and-format.md` | 135 lines | `.md` |
@@ -1283,9 +1277,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `docs/remote_cipher_config/03-extraction-and-self-heal.md` | 102 lines | `.md` |
 | `docs/remote_cipher_config/04-operations.md` | 121 lines | `.md` |
 | `docs/remote_cipher_config/README.md` | 60 lines | `.md` |
-| `docs/repository-map.md` | 1526 lines | `.md` |
-| `docs/repository-map.md` | 1526 lines | `.md` |
-| `docs/repository-map.md` | 1526 lines | `.md` |
+| `docs/repository-map.md` | 1516 lines | `.md` |
 | `docs/sabr/README.md` | 369 lines | `.md` |
 | `docs/stations/README.md` | 67 lines | `.md` |
 | `docs/status/README.md` | 93 lines | `.md` |

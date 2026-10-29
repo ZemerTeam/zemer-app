@@ -51,5 +51,8 @@ class PlaybackErrorsTest {
         assertFalse(retry.shouldRetry("a", mkvVarint))
         assertTrue(retry.shouldRetry("b", mkvVarint))
         assertFalse(retry.shouldRetry("c", http(403)))
+        // a range past the end of a changed resource is refetched the same way
+        assertTrue(retry.shouldRetry("c", http(416)))
+        assertFalse(retry.shouldRetry("c", http(416)))
     }
 }

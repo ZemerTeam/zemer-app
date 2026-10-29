@@ -1878,13 +1878,14 @@ class MusicService :
             return
         }
 
-        // Bytes the extractor cannot parse: drop this item's cached spans and fetch it fresh, once. A downloaded
+        // Bytes the extractor cannot parse, or a range past the end of a changed resource (416): drop this item's
+        // cached spans and fetch it fresh, once. A downloaded
         // file and RELAY are left to the paths below (a file is not re-fetched here; relay has no cache).
         val failedId = player.currentMediaItem?.mediaId
         if (failedId != null && relayModeNow != true && currentQueue !is StationQueue &&
             playbackSourceIsLocal[failedId] != true && corruptMediaRetry.shouldRetry(failedId, error)
         ) {
-            Timber.w("Unparseable media for $failedId; refetching it once")
+            Timber.w("Unparseable media or stale range for $failedId; refetching it once")
             runCatching { playerCache.removeResource(failedId) }
             DownloadUtil.invalidateUrl(failedId)
             player.seekTo(player.currentMediaItemIndex, player.currentPosition)

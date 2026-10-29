@@ -46,7 +46,7 @@ Two hard-won facts that govern this area - always verify against the live CDN vi
 - **googlevideo serves the first 1 MiB of a stream free, then 403s every new connection** unless the URL's `&pot=` is bound to the **videoId** (not visitorData). Clients whose attestation the web poToken can't satisfy (the reason IOS/IPADOS/MWEB were removed) 403 past the wall under every binding.
 - **`validateStatus` does a HEAD that false-negatives** (403 on URLs that GET fine), so WEB_REMIX streaming intentionally skips it.
 
-Player errors are classified by the pure, tested `playback/PlaybackErrors`: an expired stream URL (HTTP 403/410) is re-resolved by `MusicService` and not reported by `PlayerConnection` (a failure that persists ends in the resolver's own reported error); bytes the extractor cannot parse (`isCorruptMedia`) purge the item's cached spans and are fetched again once (`CorruptMediaRetry`), never for a downloaded file, RELAY or a station.
+Player errors are classified by the pure, tested `playback/PlaybackErrors`: an expired stream URL (HTTP 403/410) is re-resolved by `MusicService` and not reported by `PlayerConnection` (a failure that persists ends in the resolver's own reported error); bytes the extractor cannot parse (`isCorruptMedia`) and a range past the end of a changed resource (HTTP 416, `isStaleRange`) purge the item's cached spans and are fetched again once (`CorruptMediaRetry`), never for a downloaded file, RELAY or a station.
 
 ### RELAY playback mode (`playback/relay/` - the filtered-device bypass)
 
