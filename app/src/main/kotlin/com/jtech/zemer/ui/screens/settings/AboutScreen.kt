@@ -43,7 +43,6 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -56,6 +55,7 @@ import com.jtech.zemer.BuildConfig
 import com.jtech.zemer.LocalPlayerAwareWindowInsets
 import com.jtech.zemer.R
 import com.jtech.zemer.constants.DeveloperModeEnabledKey
+import com.jtech.zemer.extensions.openUrlOrCopy
 import com.jtech.zemer.extensions.toast
 import com.jtech.zemer.ui.component.AppBarTitle
 import com.jtech.zemer.ui.component.BackNavigationIcon
@@ -124,7 +124,6 @@ fun AboutScreen(
     navController: NavController,
     scrollBehavior: TopAppBarScrollBehavior,
 ) {
-    val uriHandler = LocalUriHandler.current
     val context = LocalContext.current
     val backFocus = remember { FocusRequester() }
     val firstFocus = remember { FocusRequester() }
@@ -199,7 +198,7 @@ fun AboutScreen(
 
                     // The ZemerTeam GitHub org owns the app, so its link sits with the app identity.
                     AssistChip(
-                        onClick = { uriHandler.openUri(ZEMER_TEAM_URL) },
+                        onClick = { context.openUrlOrCopy(ZEMER_TEAM_URL) },
                         label = { Text(stringResource(R.string.about_zemer_team)) },
                         colors = aboutChipColors(),
                         leadingIcon = {
@@ -242,7 +241,7 @@ fun AboutScreen(
         leadDevelopers.forEachIndexed { index, contributor ->
             ContributorCard(
                 contributor = contributor,
-                onOpen = uriHandler::openUri,
+                onOpen = context::openUrlOrCopy,
                 firstChipFocus = if (index == 0) firstFocus else null,
             )
             Spacer(Modifier.height(12.dp))
@@ -253,7 +252,7 @@ fun AboutScreen(
         // Collaborators.
         SectionTitle(stringResource(R.string.about_collaborators))
         collaborators.forEach { contributor ->
-            ContributorCard(contributor = contributor, onOpen = uriHandler::openUri)
+            ContributorCard(contributor = contributor, onOpen = context::openUrlOrCopy)
             Spacer(Modifier.height(12.dp))
         }
 
@@ -267,28 +266,28 @@ fun AboutScreen(
                     PreferenceEntry(
                         title = { Text(stringResource(R.string.about_releases)) },
                         icon = { Icon(painterResource(R.drawable.link), null) },
-                        onClick = { uriHandler.openUri(RELEASES_URL) },
+                        onClick = { context.openUrlOrCopy(RELEASES_URL) },
                     )
                 },
                 {
                     PreferenceEntry(
                         title = { Text(stringResource(R.string.about_discussion)) },
                         icon = { Icon(painterResource(R.drawable.link), null) },
-                        onClick = { uriHandler.openUri(DISCUSSION_URL) },
+                        onClick = { context.openUrlOrCopy(DISCUSSION_URL) },
                     )
                 },
                 {
                     PreferenceEntry(
                         title = { Text(stringResource(R.string.about_source_code)) },
                         icon = { Icon(painterResource(R.drawable.github), null) },
-                        onClick = { uriHandler.openUri(SOURCE_URL) },
+                        onClick = { context.openUrlOrCopy(SOURCE_URL) },
                     )
                 },
                 {
                     PreferenceEntry(
                         title = { Text(stringResource(R.string.about_based_on)) },
                         icon = { Icon(painterResource(R.drawable.github), null) },
-                        onClick = { uriHandler.openUri(METROLIST_URL) },
+                        onClick = { context.openUrlOrCopy(METROLIST_URL) },
                     )
                 },
             ),

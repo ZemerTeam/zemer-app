@@ -113,9 +113,8 @@ fun YouTubePlaylistMenu(
                 }.map {
                     it.toMediaMetadata()
                 }
-            database.transaction {
-                allSongs.forEach(::insert)
-            }
+            // Awaited: the dialog inserts the playlist rows right after, and they reference these song rows.
+            withContext(Dispatchers.IO) { allSongs.forEach(database::insert) }
             // Remote playlist-to-playlist copy is a personal-account write; never issue it under the
             // shared anonymous (pooled) account.
             if (isPersonalAccountSignedIn) {

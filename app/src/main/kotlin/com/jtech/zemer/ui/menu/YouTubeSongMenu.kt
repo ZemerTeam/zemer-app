@@ -80,6 +80,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.time.LocalDateTime
 import com.jtech.zemer.tracking.Tracker
 import com.jtech.zemer.tracking.TrackingActionKind
@@ -132,9 +133,8 @@ fun YouTubeSongMenu(
     AddToPlaylistDialog(  
         isVisible = showChoosePlaylistDialog,  
         onGetSong = { _ ->
-            database.transaction {
-                insert(song.toMediaMetadata())
-            }
+            // Awaited: the dialog inserts the playlist rows right after, and they reference this song row.
+            withContext(Dispatchers.IO) { database.insert(song.toMediaMetadata()) }
             // The remote write is owned by AddToPlaylistDialog (single writer); callers return ids only.
             listOf(song.id)
         },

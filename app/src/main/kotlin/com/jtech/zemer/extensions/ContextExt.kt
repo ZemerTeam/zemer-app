@@ -1,5 +1,6 @@
 package com.jtech.zemer.extensions
 
+import android.content.ActivityNotFoundException
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
@@ -79,6 +80,18 @@ fun Context.copyToClipboard(
     val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
     clipboard.setPrimaryClip(ClipData.newPlainText(label, text))
     toast(confirmationRes)
+}
+
+/**
+ * Open [url] in whatever app handles it. Many filtered phones have no browser at all, so with no handler the
+ * link is copied instead (a crash before: `LocalUriHandler.openUri` throws ActivityNotFoundException).
+ */
+fun Context.openUrlOrCopy(url: String) {
+    try {
+        startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+    } catch (_: ActivityNotFoundException) {
+        copyToClipboard(url, url, R.string.no_browser_link_copied)
+    }
 }
 
 /**

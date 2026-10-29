@@ -61,6 +61,15 @@ fun zemerSearchRoute(query: String, filter: String? = null): String {
     return if (filter == null) "search/$encoded" else "search/$encoded?filter=$filter"
 }
 
+/**
+ * The search-bar text for a `search/{query}` route argument. The argument can be missing (a crash
+ * when it was read with `!!`), so null is an empty query.
+ */
+fun searchQueryFromRouteArg(arg: String?): String {
+    val query = arg.orEmpty()
+    return if (query.contains("%")) query else java.net.URLDecoder.decode(query, "UTF-8")
+}
+
 const val SEARCH_FILTER_SONGS = "songs"
 const val SEARCH_FILTER_ALBUMS = "albums"
 const val SEARCH_FILTER_EPISODES = "episodes"
