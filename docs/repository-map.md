@@ -54,12 +54,12 @@ The following inventory is generated from repository files outside `.git`, `.gra
 
 ### Counts
 
-- Files counted: `1421`
+- Files counted: `1417`
 - By extension:
   - `.kt`: `920`
   - `.xml`: `196`
   - `.mjs`: `110`
-  - `.md`: `68`
+  - `.md`: `64`
   - `.json`: `52`
   - `.webp`: `15`
   - `.html`: `6`
@@ -737,7 +737,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/main/kotlin/com/jtech/zemer/viewmodels/DownloadedVideosViewModel.kt` | 39 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/viewmodels/HistoryViewModel.kt` | 108 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/viewmodels/HomeSeeAllStore.kt` | 131 lines | `.kt` |
-| `app/src/main/kotlin/com/jtech/zemer/viewmodels/HomeViewModel.kt` | 982 lines | `.kt` |
+| `app/src/main/kotlin/com/jtech/zemer/viewmodels/HomeViewModel.kt` | 988 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/viewmodels/KidZoneViewModel.kt` | 99 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/viewmodels/LatestReleasesViewModel.kt` | 83 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/viewmodels/LibraryVideosViewModel.kt` | 41 lines | `.kt` |
@@ -1266,17 +1266,13 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `docs/recognize_music/README.md` | 73 lines | `.md` |
 | `docs/reference/kotlin-files.md` | 933 lines | `.md` |
 | `docs/reference/non-kotlin-files.md` | 446 lines | `.md` |
-| `docs/reference/non-kotlin-files.md` | 446 lines | `.md` |
-| `docs/reference/non-kotlin-files.md` | 446 lines | `.md` |
 | `docs/reference/resource-index.md` | 317 lines | `.md` |
 | `docs/remote_cipher_config/01-concepts-and-format.md` | 135 lines | `.md` |
 | `docs/remote_cipher_config/02-runtime-store.md` | 94 lines | `.md` |
 | `docs/remote_cipher_config/03-extraction-and-self-heal.md` | 102 lines | `.md` |
 | `docs/remote_cipher_config/04-operations.md` | 121 lines | `.md` |
 | `docs/remote_cipher_config/README.md` | 60 lines | `.md` |
-| `docs/repository-map.md` | 1514 lines | `.md` |
-| `docs/repository-map.md` | 1514 lines | `.md` |
-| `docs/repository-map.md` | 1514 lines | `.md` |
+| `docs/repository-map.md` | 1510 lines | `.md` |
 | `docs/sabr/README.md` | 369 lines | `.md` |
 | `docs/stations/README.md` | 67 lines | `.md` |
 | `docs/status/README.md` | 93 lines | `.md` |

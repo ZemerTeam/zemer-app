@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.jtech.zemer.constants.ArtistProfilesCacheKey
 import com.jtech.zemer.constants.ArtistProfilesCacheTimestampKey
 import com.jtech.zemer.constants.HomeRecentArtistsKey
+import com.jtech.zemer.constants.DataSyncIdKey
 import com.jtech.zemer.constants.InnerTubeCookieKey
 import com.jtech.zemer.constants.OnboardingCompleteKey
 import com.jtech.zemer.constants.QuickPicks
@@ -50,6 +51,7 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import io.ktor.client.plugins.ClientRequestException
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import timber.log.Timber
@@ -950,18 +952,22 @@ class HomeViewModel @Inject constructor(
 
         viewModelScope.launch(Dispatchers.IO) {
             context.dataStore.data
-                .map { it[InnerTubeCookieKey] }
-                .collect { cookie ->
+                .map { it[InnerTubeCookieKey] to it[DataSyncIdKey] }
+                .collect { (cookie, dataSyncId) ->
                     if (isProcessingAccountData) return@collect
                     isProcessingAccountData = true
                     try {
-                        if (!cookie.isNullOrEmpty()) {
-                            YouTube.cookie = cookie
+                        if (!cookie.isNullOrEmpty()) YouTube.cookie = cookie
+                        // Only a personal login has an account to show: the anonymous pooled session is
+                        // answered 401, and an expired personal session is the user's state, not a bug.
+                        if (!cookie.isNullOrEmpty() && !dataSyncId.isNullOrEmpty()) {
                             YouTube.accountInfo().onSuccess { info ->
                                 accountName.value = info.name
                                 accountImageUrl.value = info.thumbnailUrl
                             }.onFailure {
-                                if (it !is YouTube.NotSignedInException) reportException(it)
+                                val signedOut = it is YouTube.NotSignedInException ||
+                                    (it as? ClientRequestException)?.response?.status?.value == 401
+                                if (!signedOut) reportException(it)
                             }
                         } else {
                             accountName.value = "Guest"
