@@ -54,9 +54,9 @@ The following inventory is generated from repository files outside `.git`, `.gra
 
 ### Counts
 
-- Files counted: `1417`
+- Files counted: `1419`
 - By extension:
-  - `.kt`: `920`
+  - `.kt`: `922`
   - `.xml`: `196`
   - `.mjs`: `110`
   - `.md`: `64`
@@ -321,6 +321,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/main/kotlin/com/jtech/zemer/playback/EpisodePositionTracker.kt` | 157 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/playback/EpisodeResume.kt` | 39 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/playback/FCastDiscoveryHandler.kt` | 390 lines | `.kt` |
+| `app/src/main/kotlin/com/jtech/zemer/playback/ForegroundSafeNotificationProvider.kt` | 48 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/playback/ListenAccumulator.kt` | 69 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/playback/MediaLibrarySessionCallback.kt` | 809 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/playback/MediaStoreDownloadManager.kt` | 1219 lines | `.kt` |
@@ -1063,6 +1064,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/test/kotlin/com/jtech/zemer/playback/DownloadMenuLogicTest.kt` | 140 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/playback/DownloadStateResolverTest.kt` | 186 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/playback/EpisodeResumeTest.kt` | 69 lines | `.kt` |
+| `app/src/test/kotlin/com/jtech/zemer/playback/ForegroundSafeNotificationProviderTest.kt` | 34 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/playback/ListenAccumulatorTest.kt` | 68 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/playback/NotificationGateTest.kt` | 46 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/playback/PlaybackNonceRegistryTest.kt` | 134 lines | `.kt` |
@@ -1230,7 +1232,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `docs/README.md` | 44 lines | `.md` |
 | `docs/app/README.md` | 197 lines | `.md` |
 | `docs/app/database.md` | 657 lines | `.md` |
-| `docs/app/playback.md` | 119 lines | `.md` |
+| `docs/app/playback.md` | 120 lines | `.md` |
 | `docs/app/preferences-sync-auth.md` | 220 lines | `.md` |
 | `docs/app/viewmodels.md` | 134 lines | `.md` |
 | `docs/build-release.md` | 62 lines | `.md` |
@@ -1264,7 +1266,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `docs/recognize_music/02-whitelist-guarantee.md` | 69 lines | `.md` |
 | `docs/recognize_music/03-entry-points-and-ui.md` | 80 lines | `.md` |
 | `docs/recognize_music/README.md` | 73 lines | `.md` |
-| `docs/reference/kotlin-files.md` | 933 lines | `.md` |
+| `docs/reference/kotlin-files.md` | 935 lines | `.md` |
 | `docs/reference/non-kotlin-files.md` | 446 lines | `.md` |
 | `docs/reference/resource-index.md` | 317 lines | `.md` |
 | `docs/remote_cipher_config/01-concepts-and-format.md` | 135 lines | `.md` |
@@ -1272,7 +1274,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `docs/remote_cipher_config/03-extraction-and-self-heal.md` | 102 lines | `.md` |
 | `docs/remote_cipher_config/04-operations.md` | 121 lines | `.md` |
 | `docs/remote_cipher_config/README.md` | 60 lines | `.md` |
-| `docs/repository-map.md` | 1510 lines | `.md` |
+| `docs/repository-map.md` | 1512 lines | `.md` |
 | `docs/sabr/README.md` | 369 lines | `.md` |
 | `docs/stations/README.md` | 67 lines | `.md` |
 | `docs/status/README.md` | 93 lines | `.md` |
