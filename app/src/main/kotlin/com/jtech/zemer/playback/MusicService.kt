@@ -1490,6 +1490,13 @@ class MusicService :
             }
         }
 
+        // Turning the effect off can throw on the same engines that reject it on.
+        fun disableEnhancer() = try {
+            loudnessEnhancer?.enabled = false
+        } catch (e: Exception) {
+            disableLoudnessForSession(audioSessionId, e)
+        }
+
         scope.launch {
             try {
                 val currentMediaId = withContext(Dispatchers.Main) {
@@ -1518,12 +1525,12 @@ class MusicService :
                                 disableLoudnessForSession(audioSessionId, e)
                             }
                         } else {
-                            loudnessEnhancer?.enabled = false
+                            disableEnhancer()
                         }
                     }
                 } else {
                     withContext(Dispatchers.Main) {
-                        loudnessEnhancer?.enabled = false
+                        disableEnhancer()
                     }
                 }
             } catch (e: Exception) {

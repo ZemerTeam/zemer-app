@@ -1004,6 +1004,9 @@ detail: `docs/ui/standards.md §12`. Rules:
   `playbackData.videoDetails`.
 - **`requestedVideoBitrate` survives a failed attempt** - cleared on success/cancel/delete, never in the
   per-attempt `finally` (else `retryDownload` falls back to uncapped quality).
+- **No shared storage volume = fail up front:** a download whose save needs the primary shared volume (every
+  MediaStore save on API 29+; only an audio download to a custom folder does not) fails at once when that volume is
+  missing or unmounted (`MediaStoreHelper.canSaveDownload`, warn-logged, nothing fetched); a device state, not a bug.
 - **Remove deletes the file on every backend:** `MediaStoreHelper.deleteFromMediaStore` routes SAF
   document uris (custom download path) through `DocumentsContract.deleteDocument`.
 - **Downloaded video-songs appear in downloaded MUSIC by default** (`VideoDownloadsInMusicKey`, default

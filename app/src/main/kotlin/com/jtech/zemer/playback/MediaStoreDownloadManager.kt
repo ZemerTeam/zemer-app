@@ -444,6 +444,22 @@ constructor(
                 context.dataStore.getSuspend(PlaybackModeKey).toEnum(PlaybackMode.DIRECT) == PlaybackMode.RELAY
             val videoDownload = isVideoDownload && !relayMode
 
+            // No shared storage volume (missing or unmounted) is a device state: fail without fetching a file
+            // that cannot be saved, and without reporting it.
+            if (!mediaStoreHelper.canSaveDownload(video = videoDownload)) {
+                Timber.w("Shared storage unavailable; not downloading ${song.id}")
+                updateDownloadState(
+                    song.id,
+                    DownloadState(
+                        songId = song.id,
+                        status = DownloadState.Status.FAILED,
+                        error = "Storage unavailable",
+                        retryAttempt = retryAttempt,
+                    ),
+                )
+                return@withContext
+            }
+
             // SABR downloads mirror RELAY: there is no on-device stream URL, so run the SABR session to
             // reassemble the whole byte-exact file(s). Active when SABR mode is on and not a relay download.
             // AUDIO downloads pull one track; VIDEO downloads pull the dual-track session and remux on-device
