@@ -122,6 +122,9 @@ val AudioQualityKey = stringPreferencesKey("audioQuality")
 /** Audio DOWNLOAD format/quality: best-available Opus vs maximum-compatibility AAC. */
 val DownloadAudioFormatKey = stringPreferencesKey("downloadAudioFormat")
 
+/** Consecutive Ogg rewraps this device's muxer refused (AudioRemux.oggMuxRefusals); at 2, audio downloads use AAC. */
+val OggMuxRefusalsKey = intPreferencesKey("oggMuxRefusals")
+
 // Default video-mode quality: VideoQualityLogic.AUTO ("auto" — the automatic progressive pick, the
 // pre-quality-switcher behavior) or a target rung label ("1080p", "720p", ...). The in-player
 // switcher overrides this per play; see VideoModeController.
