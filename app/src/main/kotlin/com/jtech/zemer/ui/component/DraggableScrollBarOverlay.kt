@@ -163,7 +163,7 @@ fun DraggableScrollbar(
         val viewportHeight = with(density) { this@BoxWithConstraints.maxHeight.toPx() }
         val constThumbHeight = with(density) { thumbHeight.toPx() }
 
-        val targetThumbY by remember {
+        val targetThumbY by remember(viewportHeight, constThumbHeight) {
             derivedStateOf {
                 val layoutInfo = scrollState.layoutInfo
                 val visibleItems = layoutInfo.visibleItemsInfo

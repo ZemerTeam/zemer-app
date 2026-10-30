@@ -144,7 +144,7 @@ internal object CrashReport {
             it is java.security.cert.CertPathValidatorException ||
             it.message?.contains("ECONNREFUSED") == true ||
             // okhttp: the connection dropped mid-response
-            it.message?.contains("unexpected end of stream") == true
+            (it is java.io.IOException && it.message?.contains("unexpected end of stream") == true)
     }
 
     private fun chain(throwable: Throwable): List<Throwable> {

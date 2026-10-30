@@ -138,6 +138,7 @@ class CrashReportTest {
         // okhttp's message for a connection dropped mid-response, as a ProtocolException or a plain IOException
         assertTrue(CrashReport.isConnectivityFailure(IOException("wrap", java.net.ProtocolException("unexpected end of stream"))))
         assertTrue(CrashReport.isConnectivityFailure(IOException("unexpected end of stream on https://rr4---sn-x.googlevideo.com/...")))
+        assertFalse(CrashReport.isConnectivityFailure(IllegalStateException("unexpected end of stream")))
         assertFalse(CrashReport.isConnectivityFailure(IllegalStateException("search.zemer.io")))
         assertFalse(CrashReport.isConnectivityFailure(IOException("Zemer home-rows returned HTTP 502")))
         assertFalse(CrashReport.isConnectivityFailure(IOException("HTTP 400")))
