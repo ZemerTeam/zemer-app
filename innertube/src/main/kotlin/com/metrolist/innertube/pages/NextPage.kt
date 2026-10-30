@@ -104,10 +104,12 @@ object NextPage {
                     ?.firstOrNull()
                     ?.text
                     ?.parseTime() ?: return null,
+            // A row without thumbnails keeps its place (dropping it can drop the selected song and start the
+            // queue on the wrong one); the video's own thumbnail stands in.
             thumbnail =
                 renderer.thumbnail.thumbnails
                     .lastOrNull()
-                    ?.url ?: return null,
+                    ?.url ?: "https://i.ytimg.com/vi/${renderer.videoId ?: renderer.navigationEndpoint.watchEndpoint?.videoId}/hqdefault.jpg",
             libraryAddToken = PageHelper.extractFeedbackToken(renderer.menu?.menuRenderer?.items?.find {
                 it.toggleMenuServiceItemRenderer?.defaultIcon?.iconType?.startsWith("LIBRARY_") == true
             }?.toggleMenuServiceItemRenderer, "LIBRARY_ADD"),

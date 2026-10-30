@@ -634,6 +634,10 @@ constructor(
                         onContainerChanged = { newExt -> saveExtension = newExt },
                     )
                 }
+                // WebM/Opus the Ogg rewrap could not convert (some devices' muxers refuse the track) is saved
+                // like relay audio, untagged under a MediaStore-accepted label, instead of failing the download
+                // on MediaStore's .webm rejection.
+                if (!videoDownload && saveExtension == "webm") saveExtension = sniffAudioExtension(tempFile)
 
                 val fileName = "$title.$saveExtension"
                 val uri: Uri?
@@ -725,9 +729,10 @@ constructor(
                 ),
             )
         } catch (e: Exception) {
-            Timber.e(e, "Download failed for song ${song.id}: ${e.message}")
-            // Retry logic with exponential backoff
+            // Retry logic with exponential backoff. Each attempt resolves the stream afresh (an expired-URL 403
+            // usually clears), so only the attempt that gives up is reported.
             if (retryAttempt < MAX_RETRY_ATTEMPTS) {
+                Timber.w(e, "Download attempt ${retryAttempt + 1} failed for song ${song.id}: ${e.message}")
                 val delayMs: Long = (INITIAL_RETRY_DELAY_MS * RETRY_BACKOFF_MULTIPLIER.pow(retryAttempt)).toLong()
 
                 updateDownloadState(
@@ -743,6 +748,7 @@ constructor(
                 delay(delayMs)
                 performDownload(song, retryAttempt + 1)
             } else {
+                Timber.e(e, "Download failed for song ${song.id}: ${e.message}")
                 updateDownloadState(
                     song.id,
                     DownloadState(

@@ -29,7 +29,13 @@ object CrashReporter {
     private const val FATAL_SEND_WAIT_MS = 3_000L
     private const val STARTUP_SEND_DELAY_MS = 5_000L
 
-    private class Pending(val throwable: Throwable, val thread: String, val occurredAt: Long, val breadcrumbs: List<String>)
+    private class Pending(
+        val throwable: Throwable,
+        val thread: String,
+        val occurredAt: Long,
+        val breadcrumbs: List<String>,
+        val reportedFrom: List<String>,
+    )
 
     private val lock = Any()
     private val breadcrumbs = ArrayDeque<String>()
@@ -63,11 +69,14 @@ object CrashReporter {
 
     fun nonFatal(throwable: Throwable) = runCatching {
         if (CrashReport.isCancellation(throwable)) return@runCatching // normal coroutine cancellation, not an error
-        if (CrashReport.isOffZemerConnectivityFailure(throwable)) return@runCatching
+        if (CrashReport.isConnectivityFailure(throwable)) return@runCatching
         val key = CrashReport.fingerprint(throwable)
         synchronized(lock) {
             val isNew = nonFatals.offer(key) {
-                Pending(throwable, Thread.currentThread().name, System.currentTimeMillis(), breadcrumbs.toList())
+                Pending(
+                    throwable, Thread.currentThread().name, System.currentTimeMillis(), breadcrumbs.toList(),
+                    CrashReport.reportedFrom(Throwable().stackTrace),
+                )
             }
             if (isNew && flushTask == null) {
                 flushTask = executor.schedule({ flush(); sendQueued() }, NON_FATAL_FLUSH_MS, TimeUnit.MILLISECONDS)
@@ -91,7 +100,7 @@ object CrashReporter {
             nonFatals.drain()
         }
         for ((p, count) in batch) {
-            runCatching { q.add(report("nonfatal", p.throwable, p.thread, p.occurredAt, count, p.breadcrumbs)) }
+            runCatching { q.add(report("nonfatal", p.throwable, p.thread, p.occurredAt, count, p.breadcrumbs, p.reportedFrom)) }
         }
     }
 
@@ -103,8 +112,15 @@ object CrashReporter {
         synchronized(sendLock) { runCatching { runBlocking { u.sendAll() } } }
     }
 
-    private fun report(kind: String, t: Throwable, thread: String, at: Long, count: Int, crumbs: List<String>) =
-        CrashReport.build(kind, t, thread, at, count, crumbs, environment(), secrets())
+    private fun report(
+        kind: String,
+        t: Throwable,
+        thread: String,
+        at: Long,
+        count: Int,
+        crumbs: List<String>,
+        reportedFrom: List<String> = emptyList(),
+    ) = CrashReport.build(kind, t, thread, at, count, crumbs, environment(), secrets(), reportedFrom)
 
     private fun secrets(): List<String> = listOfNotNull(runCatching { FirebaseAuth.getInstance().currentUser?.uid }.getOrNull())
 

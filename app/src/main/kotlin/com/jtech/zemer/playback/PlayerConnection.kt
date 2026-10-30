@@ -376,7 +376,10 @@ class PlayerConnection(
 
     override fun onPlayerErrorChanged(playbackError: PlaybackException?) {
         if (playbackError != null) {
-            reportException(playbackError)
+            // An expired stream URL is re-resolved by the service (not in RELAY); if that fails for good, the
+            // resolver's own error is the one reported.
+            val recovered = PlaybackErrors.isExpiredStreamUrl(playbackError) && service.reResolvesExpiredUrls
+            if (!recovered) reportException(playbackError)
             clearPreparing()
         }
         error.value = playbackError

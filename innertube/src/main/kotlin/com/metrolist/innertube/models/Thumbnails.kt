@@ -4,7 +4,8 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 data class Thumbnails(
-    val thumbnails: List<Thumbnail>,
+    // YouTube sometimes sends a thumbnail object without the list; that must not fail the whole response.
+    val thumbnails: List<Thumbnail> = emptyList(),
 )
 
 @Serializable

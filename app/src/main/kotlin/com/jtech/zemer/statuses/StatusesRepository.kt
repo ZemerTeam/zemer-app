@@ -19,6 +19,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+import timber.log.Timber
 import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -134,7 +135,7 @@ class StatusesRepository @Inject constructor(
         val provider = providerByCreator[creatorId]
         if (provider?.type != StatusProviderType.SUPABASE_CATEGORY) return postsCache[creatorId] ?: emptyList()
         return runCatching { withContext(Dispatchers.IO) { fetchStatusPosts(provider.baseUrl, provider.apiKey, creatorId) } }
-            .onFailure { reportException(it) }
+            .onFailure(::reportFeedFailure)
             .getOrNull()?.also { postsCache[creatorId] = it }
             ?: (postsCache[creatorId] ?: emptyList())
     }
@@ -196,7 +197,7 @@ class StatusesRepository @Inject constructor(
         withContext(Dispatchers.IO) {
             providers.forEach { provider ->
                 val list = runCatching { fetchStatusCreators(provider.baseUrl, provider.apiKey, provider.categoryIds) }
-                    .onFailure { reportException(it) }
+                    .onFailure(::reportFeedFailure)
                     .getOrNull()
                 if (list != null) {
                     anySuccess = true
@@ -257,7 +258,7 @@ class StatusesRepository @Inject constructor(
         withContext(Dispatchers.IO) {
             providers.forEach { provider ->
                 val feed = runCatching { fetchYidStatusFeed(provider.baseUrl, provider.apiKey, provider.musicKeywords) }
-                    .onFailure { reportException(it) }
+                    .onFailure(::reportFeedFailure)
                     .getOrNull()
                 if (feed != null) {
                     anySuccess = true
@@ -293,5 +294,14 @@ class StatusesRepository @Inject constructor(
     @Synchronized
     private fun republish() {
         _creators.value = mergeStatusCreators(jewishCache ?: emptyList(), yidCache?.creators ?: emptyList())
+    }
+
+    /** A platform's own outage (HTTP 5xx) keeps the previous data quietly; anything else may be ours and is reported. */
+    private fun reportFeedFailure(e: Throwable) {
+        if ((e as? StatusFeedHttpException)?.isServerOutage == true) {
+            Timber.w(e, "Status feed unavailable")
+        } else {
+            reportException(e)
+        }
     }
 }

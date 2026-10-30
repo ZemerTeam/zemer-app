@@ -73,6 +73,12 @@
     public void d(...);
 }
 
+## Our exception types stay distinct classes: R8 otherwise merges a plain Exception(message) subclass into another
+## of the same shape (a cipher PoTokenException reached crash reports as Ktor's URLDecodeException).
+-keep class com.jtech.zemer.** extends java.lang.Throwable
+-keep class com.metrolist.** extends java.lang.Throwable
+-keep class com.zemer.** extends java.lang.Throwable
+
 ## Queue Persistence Rules
 # Keep every class in the persisted-queue graph whole. Without this R8 strips the unused
 # serialVersionUID, readResolve and unread fields, and the retained compat classes, so each build

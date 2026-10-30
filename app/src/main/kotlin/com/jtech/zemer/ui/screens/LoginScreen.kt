@@ -2,13 +2,16 @@ package com.jtech.zemer.ui.screens
 
 import android.annotation.SuppressLint
 import android.content.Intent
+import android.view.View
 import android.webkit.CookieManager
 import android.webkit.JavascriptInterface
 import android.webkit.WebResourceRequest
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.TopAppBar
@@ -18,9 +21,11 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.navigation.NavController
 import com.jtech.zemer.LocalPlayerAwareWindowInsets
@@ -33,6 +38,7 @@ import com.jtech.zemer.constants.InnerTubeCookieKey
 import com.jtech.zemer.constants.VisitorDataKey
 import com.jtech.zemer.ui.component.AppBarTitle
 import com.jtech.zemer.ui.component.BackNavigationIcon
+import com.jtech.zemer.ui.component.InlineErrorPanel
 import com.jtech.zemer.ui.component.zemerTopAppBarColors
 import com.jtech.zemer.ui.utils.backToMain
 import com.jtech.zemer.utils.rememberPreference
@@ -40,6 +46,7 @@ import com.jtech.zemer.utils.reportException
 import com.jtech.zemer.extensions.toast
 import com.metrolist.innertube.YouTube
 import kotlinx.coroutines.launch
+import timber.log.Timber
 
 @SuppressLint("SetJavaScriptEnabled")
 @OptIn(ExperimentalMaterial3Api::class)
@@ -62,12 +69,33 @@ fun LoginScreen(
     // Cookie clearing should only happen during logout, not before login (it interferes with the
     // Google login flow).
 
-    AndroidView(
+    // Some filtered phones ship without Android System WebView: constructing one there throws, which crashed
+    // this screen. The probe catches the usual case, the factory's catch a provider that fails to load.
+    var webViewMissing by remember { mutableStateOf(!webViewInstalled()) }
+
+    if (webViewMissing) {
+        Box(
+            modifier = Modifier
+                .windowInsetsPadding(LocalPlayerAwareWindowInsets.current)
+                .fillMaxSize()
+                .padding(16.dp),
+            contentAlignment = Alignment.Center,
+        ) {
+            InlineErrorPanel(stringResource(R.string.login_needs_webview))
+        }
+    } else AndroidView(
         modifier = Modifier
             .windowInsetsPadding(LocalPlayerAwareWindowInsets.current)
             .fillMaxSize(),
         factory = { context ->
-            WebView(context).apply {
+            val created = try {
+                WebView(context)
+            } catch (e: RuntimeException) {
+                Timber.w(e, "Login WebView unavailable")
+                webViewMissing = true
+                return@AndroidView View(context)
+            }
+            created.apply {
                 webViewClient = object : WebViewClient() {
                     override fun shouldOverrideUrlLoading(view: WebView?, request: android.webkit.WebResourceRequest?): Boolean {
                         val url = request?.url?.toString()
@@ -218,6 +246,9 @@ fun LoginScreen(
         webView?.goBack()
     }
 }
+
+// The provider package is null when no WebView is installed; a probe failure is not proof, so the factory decides.
+private fun webViewInstalled(): Boolean = runCatching { WebView.getCurrentWebViewPackage() != null }.getOrDefault(true)
 
 private fun cleanupWebView(webView: WebView?) {
     try {

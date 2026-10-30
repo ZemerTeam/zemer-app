@@ -3,7 +3,10 @@ package com.jtech.zemer.search
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.cio.CIO
 import timber.log.Timber
+import io.ktor.client.plugins.HttpSend
 import io.ktor.client.plugins.HttpTimeout
+import io.ktor.client.plugins.plugin
+import kotlinx.coroutines.delay
 import io.ktor.client.plugins.timeout
 import io.ktor.client.request.HttpRequestBuilder
 import io.ktor.client.request.get
@@ -11,6 +14,7 @@ import io.ktor.client.request.parameter
 import io.ktor.client.statement.HttpResponse
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.HttpStatusCode
+import io.ktor.http.encodedPath
 import io.ktor.http.isSuccess
 import kotlinx.serialization.json.Json
 import java.io.IOException
@@ -147,7 +151,7 @@ class ZemerSearchClient @Inject constructor() {
             connectTimeoutMillis = CONNECT_TIMEOUT_MS
         }
         install(com.jtech.zemer.net.ZemerHeaders.KtorPlugin)
-    }
+    }.also { it.retryRestartingServer() }
 
     suspend fun search(
         query: String,
@@ -596,6 +600,8 @@ class ZemerSearchClient @Inject constructor() {
     ): ZemerPodcastHomeRowsResponse {
         val response: HttpResponse = client.get("$BASE_URL/podcast-home-rows") {
             applyParams(zemerContentFlagParameters(allowFemale, blockVideos, kidZone = kidZone))
+            // live-only (no offline fallback to fall to): wait out a slow link instead of hiding the rows
+            timeout { requestTimeoutMillis = LARGE_REQUEST_TIMEOUT_MS }
         }
         if (!response.status.isSuccess()) {
             throw IOException("Zemer podcast-home-rows returned HTTP ${response.status.value}")
@@ -615,6 +621,7 @@ class ZemerSearchClient @Inject constructor() {
     ): ZemerVideoHomeRowsResponse {
         val response: HttpResponse = client.get("$BASE_URL/video-home-rows") {
             applyParams(zemerContentFlagParameters(allowFemale, blockVideos, kidZone = kidZone))
+            timeout { requestTimeoutMillis = LARGE_REQUEST_TIMEOUT_MS } // live-only, as podcast-home-rows
         }
         if (!response.status.isSuccess()) {
             throw IOException("Zemer video-home-rows returned HTTP ${response.status.value}")
@@ -632,5 +639,26 @@ class ZemerSearchClient @Inject constructor() {
         // The facet see-all page size (server max is 200) — one round-trip covers the largest
         // album/single facet, and a genre with more pages via the returned nextOffset.
         private const val GENRE_FACET_LIMIT = 200
+    }
+}
+
+/**
+ * A 502/503 is the server restarting (it is back within seconds): retried once after [delayMs] instead of
+ * failing the screen. Nothing else is retried, so an unreachable server still reaches the offline fallback
+ * at once. A plain send interceptor, not Ktor's HttpRequestRetry: that one caps all sends, redirect hops
+ * included, at retries + 1 and honors Retry-After, which could stretch the wait far past [delayMs]. `/station`
+ * answers 503 for an off-air station, which is not a restart.
+ */
+internal fun HttpClient.retryRestartingServer(delayMs: Long = 2_000L) {
+    plugin(HttpSend).intercept { request ->
+        val call = execute(request)
+        val status = call.response.status
+        val restarting = status == HttpStatusCode.BadGateway || status == HttpStatusCode.ServiceUnavailable
+        if (restarting && request.url.encodedPath != "/station") {
+            delay(delayMs)
+            execute(request)
+        } else {
+            call
+        }
     }
 }

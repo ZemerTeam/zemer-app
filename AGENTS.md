@@ -46,6 +46,8 @@ Two hard-won facts that govern this area - always verify against the live CDN vi
 - **googlevideo serves the first 1 MiB of a stream free, then 403s every new connection** unless the URL's `&pot=` is bound to the **videoId** (not visitorData). Clients whose attestation the web poToken can't satisfy (the reason IOS/IPADOS/MWEB were removed) 403 past the wall under every binding.
 - **`validateStatus` does a HEAD that false-negatives** (403 on URLs that GET fine), so WEB_REMIX streaming intentionally skips it.
 
+Player errors are classified by the pure, tested `playback/PlaybackErrors`: an expired stream URL (HTTP 403/410) is re-resolved by `MusicService` and not reported by `PlayerConnection` (a failure that persists ends in the resolver's own reported error); bytes the extractor cannot parse (`isCorruptMedia`) and a range past the end of a changed resource (HTTP 416, `isStaleRange`) purge the item's cached spans and are fetched again once (`CorruptMediaRetry`), never for a downloaded file, RELAY or a station.
+
 ### RELAY playback mode (`playback/relay/` - the filtered-device bypass)
 
 An **opt-in, login-less** mode for devices whose kosher filter blocks `music.youtube.com` / `googlevideo.com`: discovery already rides `*.zemer.io`, so RELAY moves **only the media source** onto the whitelisted relay host `stream.zemer.io`. Contract + app↔server thread: the handoff doc `zemer-app-filtered-playback-relay-request.md`. Rules that must not regress:
@@ -101,7 +103,7 @@ Every listen (music, video-songs, episodes) emulates a genuine YouTube Music sta
 
 ### Queue persistence (`saveQueueToDisk` - crash-safe resume; issue #515)
 
-The queue + player-state snapshots persist to two files under `filesDir`. The player is snapshotted on the main thread, but serialization + writes run on the single-threaded `queuePersistScope` - the TEARDOWN write also goes THROUGH that scope (joined), never inline, so it queues FIFO behind any in-flight write (inline raced it: concurrent truncating writes corrupt the file, a stale snapshot finishing last rolled the position back). Every write is ATOMIC (`AtomicFile`; reads via `AtomicFile.openRead` for the rollback). Restore failures are REPORTED (`reportException`; a missing file stays quiet) - silent queue loss must never be invisible. Write decisions are the pure, tested `QueuePersist` helpers against the last WRITTEN snapshot: the queue file rewrites only on content change (`signature`), the state file only when the state moved or the queue file rewrites (a paused idle service is write-silent); teardown always writes. The persisted classes pin `serialVersionUID` (`models/PersistQueue.kt`) - an unpinned edit breaks every updating user's restore, guarded by `PersistQueueCompatTest`'s v37 blob. The pins only hold in release because `proguard-rules.pro` keeps every `Serializable` class under `models/` whole: R8 otherwise strips the UID fields, unread data fields, `readResolve` and the compat-only classes, so each build computed a new UID and wrote a different field layout (v39 could not restore queues saved by v38). That test runs on the JVM and cannot see R8, so the release workflow runs `scripts/check-persisted-queue-keep.sh` (dexdumps the APK; a new class in the graph is added to its list). A Zemer Station broadcast is never persisted (see §Zemer Stations).
+The queue + player-state snapshots persist to two files under `filesDir`. The player is snapshotted on the main thread, but serialization + writes run on the single-threaded `queuePersistScope` - the TEARDOWN write also goes THROUGH that scope (joined), never inline, so it queues FIFO behind any in-flight write (inline raced it: concurrent truncating writes corrupt the file, a stale snapshot finishing last rolled the position back). Every write is ATOMIC (`AtomicFile`; reads via `AtomicFile.openRead` for the rollback). Restore failures are REPORTED (`reportException`; a missing file stays quiet) - silent queue loss must never be invisible - and the unreadable file is then DELETED (`discardUnreadablePersistFile`), so it is reported once, not on every launch until a save replaces it. Write decisions are the pure, tested `QueuePersist` helpers against the last WRITTEN snapshot: the queue file rewrites only on content change (`signature`), the state file only when the state moved or the queue file rewrites (a paused idle service is write-silent); teardown always writes. The persisted classes pin `serialVersionUID` (`models/PersistQueue.kt`) - an unpinned edit breaks every updating user's restore, guarded by `PersistQueueCompatTest`'s v37 blob. The pins only hold in release because `proguard-rules.pro` keeps every `Serializable` class under `models/` whole: R8 otherwise strips the UID fields, unread data fields, `readResolve` and the compat-only classes, so each build computed a new UID and wrote a different field layout (v39 could not restore queues saved by v38). That test runs on the JVM and cannot see R8, so the release workflow runs `scripts/check-persisted-queue-keep.sh` (dexdumps the APK; a new class in the graph is added to its list). A Zemer Station broadcast is never persisted (see §Zemer Stations).
 
 ### The media notification is gated on user intent (#109)
 
@@ -499,7 +501,8 @@ config are in `docs/status/`. The feature is **fail-soft and isolated**; the rul
   of an existing type is config-only; a new `type` needs an app change.
 - **Fail-soft + isolated.** `ZemerStatusesViewModel` (Stations pattern): a failure leaves the row empty
   and hidden; one failed source still lets the other populate (progressive `republish`). Gated by
-  `ShowHomeStatusesKey`.
+  `ShowHomeStatusesKey`. A platform's own outage (`StatusFeedHttpException.isServerOutage`, HTTP 5xx) is
+  logged, not reported; any other feed failure is reported.
 - **Hidden when videos are blocked** (statuses are video-first): gate BOTH the Home row AND the Music
   Status group in Appearance settings on `BlockVideosKey` together (else an un-hideable row or an orphan
   settings group).
@@ -661,7 +664,9 @@ Full detail (shards, layers, tests): `docs/offline/README.md`. Invariants:
 
 - **Server-first, always.** `serverOrOffline` falls back only on `isZemerServerUnreachable()` -
   `IOException` **or** `UnresolvedAddressException` (Ktor CIO's no-network/DNS signal, NOT an
-  IOException). A 404-null is returned as-is; a non-network exception is never masked. Only SERVER
+  IOException). A 404-null is returned as-is; a non-network exception is never masked. The search client
+  retries only a 502/503 (a server restart), once after 2 s (`retryRestartingServer`), so an unreachable server
+  still reaches the fallback at once. Only SERVER
   responses enter the search LRU (a cached offline result would outlive the outage). Live-only:
   `/playlist`, `/genres`, `/stations`, `/podcast-home-rows`, `/video-home-rows`, `/podcast-channel` paging.
 - **Offline `/radio` is PARTIAL** (`SubsetRadio.kt`): `song`/`artist`/`album`/`playlist`/`shuffle` run a
@@ -1017,7 +1022,9 @@ detail: `docs/ui/standards.md §12`. Rules:
 - **Opus needs API 29+** (`AudioRemux.oggMuxSupported`; `minSdk` 26): `MediaStoreDownloadManager` sets
   `downloadOpusOk = !videoDownload && oggMuxSupported && DownloadAudioFormat == BEST`, and `YTPlayerUtils`
   allows itag 251 for a download only then; 26-28 get best AAC/m4a. Never save a raw `.webm`
-  (MediaStore.Audio rejects it).
+  (MediaStore.Audio rejects it): when a device's muxer refuses the WebM->Ogg rewrap, the file is saved
+  untagged under the sniffed `.opus` label, like relay audio, instead of failing the download. Only the
+  download attempt that gives up is reported (each retry resolves the stream afresh).
 - **`OggExtractor` MUST stay registered** in `createMediaSourceFactory` (else downloaded `.ogg` files hit
   "Source error" → a self-repair re-download loop).
 - **`DownloadAudioFormatKey` ("downloadAudioFormat") is permanent** (Player settings, API 29+): `BEST`
@@ -1071,9 +1078,13 @@ session; **gitignored**, never commit). Methodology + the symptom-indexed runboo
   identifiers; non-fatals are deduped per launch (one per fingerprint, with a `count`, at most 20 kinds); a
   fatal is queued in the uncaught-exception handler and sent there (bounded wait), else on the next launch;
   reports carry `commit` + `runNumber` because nightly and stable share one versionCode/versionName; a
-  cancellation in the cause chain is never reported, nor is a plain connectivity failure (refused, unresolved,
-  timed out) naming no `zemer.io` host (`CrashReport.isOffZemerConnectivityFailure`: expected on filtered
-  networks; Zemer reads are counted by `fetch_fail`). Release builds keep Timber i/w/e (only v/d are stripped
+  cancellation (or an `InterruptedException`) in the cause chain is never reported, nor is a plain connectivity
+  failure to any host, Zemer's included (refused, unresolved, timed out, reset, a TLS handshake or certificate
+  check a filtering network broke; `CrashReport.isConnectivityFailure`: the screens handle it, and content reads
+  are counted by `fetch_fail`). A non-fatal carries `reportedFrom`, the app frames of the code that reported it
+  (`CrashReport.reportedFrom`; a coroutine's own stack ends in the dispatcher). `proguard-rules.pro` keeps our
+  exception classes distinct, since R8 merged a same-shape one into a library class and reports showed the wrong
+  type. Release builds keep Timber i/w/e (only v/d are stripped
   by R8): stripping e silences `reportException()` and every release non-fatal. A stripped `Timber.tag(X).d()`
   still sets the one-shot tag, so `reportException()` logs under its own tag. Release builds are not
   obfuscated (`-dontobfuscate`), but R8's optimizations still merge classes and remap lines, so a release stack
