@@ -426,21 +426,6 @@ constructor(
     private suspend fun performDownload(song: Song, retryAttempt: Int = 0): Unit = withContext(Dispatchers.IO) {
         val isVideoDownload = song.song.isVideo
         Timber.d("performDownload: id=${song.id}, isVideo=${isVideoDownload}, title=${song.song.title}")
-        // No shared storage volume (missing or unmounted) is a device state: fail without fetching a file
-        // that cannot be saved, and without reporting it.
-        if (!mediaStoreHelper.canSaveDownload(video = isVideoDownload)) {
-            Timber.w("Shared storage unavailable; not downloading ${song.id}")
-            updateDownloadState(
-                song.id,
-                DownloadState(
-                    songId = song.id,
-                    status = DownloadState.Status.FAILED,
-                    error = "Storage unavailable",
-                    retryAttempt = retryAttempt,
-                ),
-            )
-            return@withContext
-        }
         try {
             updateDownloadState(
                 song.id,
@@ -458,6 +443,22 @@ constructor(
             val relayMode =
                 context.dataStore.getSuspend(PlaybackModeKey).toEnum(PlaybackMode.DIRECT) == PlaybackMode.RELAY
             val videoDownload = isVideoDownload && !relayMode
+
+            // No shared storage volume (missing or unmounted) is a device state: fail without fetching a file
+            // that cannot be saved, and without reporting it.
+            if (!mediaStoreHelper.canSaveDownload(video = videoDownload)) {
+                Timber.w("Shared storage unavailable; not downloading ${song.id}")
+                updateDownloadState(
+                    song.id,
+                    DownloadState(
+                        songId = song.id,
+                        status = DownloadState.Status.FAILED,
+                        error = "Storage unavailable",
+                        retryAttempt = retryAttempt,
+                    ),
+                )
+                return@withContext
+            }
 
             // SABR downloads mirror RELAY: there is no on-device stream URL, so run the SABR session to
             // reassemble the whole byte-exact file(s). Active when SABR mode is on and not a relay download.
