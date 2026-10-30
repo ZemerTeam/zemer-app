@@ -142,7 +142,9 @@ internal object CrashReport {
             it is io.ktor.client.network.sockets.ConnectTimeoutException ||
             it is java.nio.channels.UnresolvedAddressException || it is javax.net.ssl.SSLException ||
             it is java.security.cert.CertPathValidatorException ||
-            it.message?.contains("ECONNREFUSED") == true
+            it.message?.contains("ECONNREFUSED") == true ||
+            // okhttp: the connection dropped mid-response
+            it.message?.contains("unexpected end of stream") == true
     }
 
     private fun chain(throwable: Throwable): List<Throwable> {

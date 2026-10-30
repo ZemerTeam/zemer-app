@@ -1082,7 +1082,7 @@ session; **gitignored**, never commit). Methodology + the symptom-indexed runboo
   fatal is queued in the uncaught-exception handler and sent there (bounded wait), else on the next launch;
   reports carry `commit` + `runNumber` because nightly and stable share one versionCode/versionName; a
   cancellation (or an `InterruptedException`) in the cause chain is never reported, nor is a plain connectivity
-  failure to any host, Zemer's included (refused, unresolved, timed out, reset, a TLS handshake or certificate
+  failure to any host, Zemer's included (refused, unresolved, timed out, reset, dropped mid-response, a TLS handshake or certificate
   check a filtering network broke; `CrashReport.isConnectivityFailure`: the screens handle it, and content reads
   are counted by `fetch_fail`). A non-fatal carries `reportedFrom`, the app frames of the code that reported it
   (`CrashReport.reportedFrom`; a coroutine's own stack ends in the dispatcher). `proguard-rules.pro` keeps our

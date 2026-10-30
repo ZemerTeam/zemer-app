@@ -141,7 +141,7 @@ Every `@Composable fun` per UI file (extension receivers dropped, so `BoxScope.X
 | `app/src/main/kotlin/com/jtech/zemer/ui/component/CreatePlaylistDialog.kt` | 123 | CreatePlaylistDialog |
 | `app/src/main/kotlin/com/jtech/zemer/ui/component/Dialog.kt` | 393 | dialogContainerColor, DefaultDialog, ActionPromptDialog, ListDialog, InfoLabel, TextFieldDialog |
 | `app/src/main/kotlin/com/jtech/zemer/ui/component/DownloadStatusUi.kt` | 170 | rememberSongDownloadStatus, rememberSongDownloadStatus, rememberSongDownloadProgress, rememberAggregateDownloadStatus, rememberAggregateDownloadProgress, DownloadStatusIcon, SongDownloadBadge, AggregateDownloadButton |
-| `app/src/main/kotlin/com/jtech/zemer/ui/component/DraggableScrollBarOverlay.kt` | 246 | DraggableScrollbar |
+| `app/src/main/kotlin/com/jtech/zemer/ui/component/DraggableScrollBarOverlay.kt` | 251 | DraggableScrollbar |
 | `app/src/main/kotlin/com/jtech/zemer/ui/component/DrawerEntry.kt` | 56 | DrawerEntry, DrawerEntry |
 | `app/src/main/kotlin/com/jtech/zemer/ui/component/EmptyPlaceholder.kt` | 47 | EmptyPlaceholder |
 | `app/src/main/kotlin/com/jtech/zemer/ui/component/ErrorRetryState.kt` | 58 | ErrorRetryState |
@@ -366,7 +366,7 @@ Key declarations are the first 12 `class`/`object`/`interface`/`fun`/`val`/`var`
 | `app/src/main/kotlin/com/jtech/zemer/ui/component/CreatePlaylistDialog.kt` | 123 | fun CreatePlaylistDialog, val database, val coroutineScope, var syncedPlaylist, val context, val isSignedIn, val isSyncEnabled, val browseId |
 | `app/src/main/kotlin/com/jtech/zemer/ui/component/Dialog.kt` | 393 | fun dialogContainerColor, fun DefaultDialog, fun ActionPromptDialog, fun ListDialog, fun InfoLabel, fun TextFieldDialog, val legacyFieldState, val focusRequester, val isValid |
 | `app/src/main/kotlin/com/jtech/zemer/ui/component/DownloadStatusUi.kt` | 170 | fun rememberSongDownloadStatus, val live, fun rememberSongDownloadStatus, fun rememberSongDownloadProgress, val live, fun rememberAggregateDownloadStatus, val live, fun rememberAggregateDownloadProgress, val live, fun RowScope, fun RowScope, val status, … (+6 more) |
-| `app/src/main/kotlin/com/jtech/zemer/ui/component/DraggableScrollBarOverlay.kt` | 246 | val MIN_ITEMS_FOR_FAST_SCROLL, fun DraggableScrollbar, val density, val coroutineScope, var isDragging, var lastScrollTime, var smoothedY, var smoothedThumbY, var lastThumbPosition, val animatedThumbY, val isUserScrolling, val isScrollable, … (+40 more) |
+| `app/src/main/kotlin/com/jtech/zemer/ui/component/DraggableScrollBarOverlay.kt` | 251 | val MIN_ITEMS_FOR_FAST_SCROLL, fun DraggableScrollbar, val density, val coroutineScope, var isDragging, var lastScrollTime, var smoothedY, var smoothedThumbY, var lastThumbPosition, val animatedThumbY, val isUserScrolling, val isScrollable, … (+41 more) |
 | `app/src/main/kotlin/com/jtech/zemer/ui/component/DrawerEntry.kt` | 56 | fun DrawerEntry, fun DrawerEntry |
 | `app/src/main/kotlin/com/jtech/zemer/ui/component/EmptyPlaceholder.kt` | 47 | fun EmptyPlaceholder |
 | `app/src/main/kotlin/com/jtech/zemer/ui/component/ErrorRetryState.kt` | 58 | fun ErrorRetryState |
