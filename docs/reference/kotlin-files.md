@@ -26,7 +26,7 @@ Every tracked Kotlin file is listed with hard metadata extracted from the file t
 | `app/src/main/kotlin/com/jtech/zemer/constants/MediaSessionConstants.kt` | 23 | `com.jtech.zemer.constants` | no | 2 | 14 | android.os, androidx.media3 |
 | `app/src/main/kotlin/com/jtech/zemer/constants/PlaybackMode.kt` | 11 | `com.jtech.zemer.constants` | no | 0 | 1 |  |
 | `app/src/main/kotlin/com/jtech/zemer/constants/PreferenceKeys.kt` | 667 | `com.jtech.zemer.constants` | no | 9 | 192 | androidx.annotation, androidx.datastore, java.time |
-| `app/src/main/kotlin/com/jtech/zemer/crash/CrashReport.kt` | 194 | `com.jtech.zemer.crash` | no | 7 | 43 | java.util, kotlinx.serialization |
+| `app/src/main/kotlin/com/jtech/zemer/crash/CrashReport.kt` | 196 | `com.jtech.zemer.crash` | no | 7 | 43 | java.util, kotlinx.serialization |
 | `app/src/main/kotlin/com/jtech/zemer/crash/CrashReporter.kt` | 139 | `com.jtech.zemer.crash` | no | 9 | 36 | android.content, android.os, com.google, java.io, java.util, kotlinx.coroutines |
 | `app/src/main/kotlin/com/jtech/zemer/crash/CrashScrubber.kt` | 30 | `com.jtech.zemer.crash` | no | 0 | 9 |  |
 | `app/src/main/kotlin/com/jtech/zemer/crash/CrashUploader.kt` | 77 | `com.jtech.zemer.crash` | no | 13 | 18 | io.ktor, java.io, java.util, kotlinx.serialization, timber.log |
@@ -304,7 +304,7 @@ Every tracked Kotlin file is listed with hard metadata extracted from the file t
 | `app/src/main/kotlin/com/jtech/zemer/ui/component/CreatePlaylistDialog.kt` | 123 | `com.jtech.zemer.ui.component` | yes | 34 | 8 | androidx.compose, java.time, java.util, kotlinx.coroutines |
 | `app/src/main/kotlin/com/jtech/zemer/ui/component/Dialog.kt` | 393 | `com.jtech.zemer.ui.component` | yes | 49 | 9 | androidx.compose, kotlinx.coroutines |
 | `app/src/main/kotlin/com/jtech/zemer/ui/component/DownloadStatusUi.kt` | 170 | `com.jtech.zemer.ui.component` | yes | 28 | 18 | androidx.compose |
-| `app/src/main/kotlin/com/jtech/zemer/ui/component/DraggableScrollBarOverlay.kt` | 246 | `com.jtech.zemer.ui.component` | yes | 34 | 52 | androidx.compose, kotlin.math, kotlinx.coroutines |
+| `app/src/main/kotlin/com/jtech/zemer/ui/component/DraggableScrollBarOverlay.kt` | 251 | `com.jtech.zemer.ui.component` | yes | 34 | 53 | androidx.compose, kotlin.math, kotlinx.coroutines |
 | `app/src/main/kotlin/com/jtech/zemer/ui/component/DrawerEntry.kt` | 56 | `com.jtech.zemer.ui.component` | yes | 12 | 2 | androidx.annotation, androidx.compose |
 | `app/src/main/kotlin/com/jtech/zemer/ui/component/EmptyPlaceholder.kt` | 47 | `com.jtech.zemer.ui.component` | yes | 16 | 1 | androidx.annotation, androidx.compose |
 | `app/src/main/kotlin/com/jtech/zemer/ui/component/ErrorRetryState.kt` | 58 | `com.jtech.zemer.ui.component` | yes | 14 | 1 | androidx.compose |
@@ -637,7 +637,7 @@ Every tracked Kotlin file is listed with hard metadata extracted from the file t
 | `app/src/main/kotlin/com/jtech/zemer/widget/WidgetLayout.kt` | 14 | `com.jtech.zemer.widget` | no | 0 | 3 |  |
 | `app/src/test/kotlin/com/dpi/DensityMathTest.kt` | 69 | `com.dpi` | no | 3 | 1 | org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/constants/PreferenceKeysTest.kt` | 26 | `com.jtech.zemer.constants` | no | 4 | 3 | androidx.datastore, java.lang, org.junit |
-| `app/src/test/kotlin/com/jtech/zemer/crash/CrashReportTest.kt` | 164 | `com.jtech.zemer.crash` | no | 13 | 24 | java.io, kotlinx.serialization, org.junit |
+| `app/src/test/kotlin/com/jtech/zemer/crash/CrashReportTest.kt` | 167 | `com.jtech.zemer.crash` | no | 13 | 24 | java.io, kotlinx.serialization, org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/db/SqliteBindLimitTest.kt` | 23 | `com.jtech.zemer.db` | no | 3 | 3 | org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/db/entities/LyricsCachePolicyTest.kt` | 83 | `com.jtech.zemer.db.entities` | no | 6 | 7 | org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/db/entities/ShareLinkTest.kt` | 41 | `com.jtech.zemer.db.entities` | no | 3 | 2 | org.junit |
