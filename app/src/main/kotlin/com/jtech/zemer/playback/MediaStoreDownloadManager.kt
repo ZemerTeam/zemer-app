@@ -11,6 +11,7 @@ import com.jtech.zemer.constants.AudioQuality
 import com.jtech.zemer.constants.AudioQualityKey
 import com.jtech.zemer.constants.DownloadAudioFormat
 import com.jtech.zemer.constants.DownloadAudioFormatKey
+import com.jtech.zemer.constants.OggMuxRefusalsKey
 import com.jtech.zemer.constants.PlaybackMode
 import com.jtech.zemer.constants.PlaybackModeKey
 import com.jtech.zemer.constants.StreamSabrKey
@@ -32,6 +33,7 @@ import com.jtech.zemer.db.entities.SongAlbumMap
 import com.jtech.zemer.db.entities.SongArtistMap
 import com.jtech.zemer.utils.CoverArtEmbedder
 import com.jtech.zemer.utils.mp4.AudioRemux
+import androidx.datastore.preferences.core.edit
 import com.jtech.zemer.utils.dataStore
 import com.jtech.zemer.utils.getSuspend
 import com.jtech.zemer.utils.MediaStoreHelper
@@ -103,6 +105,7 @@ constructor(
         ?: throw IllegalStateException("ConnectivityManager not available on this device")
     private val audioQuality by enumPreference(context, AudioQualityKey, AudioQuality.AUTO)
     private val downloadAudioFormat by enumPreference(context, DownloadAudioFormatKey, DownloadAudioFormat.BEST)
+    @Volatile private var oggMuxRefusalsSeeded = false
     private val httpClient = OkHttpClient.Builder()
         .dns(ResilientDns())
         .build()
@@ -478,6 +481,13 @@ constructor(
             // dual-track download below and used to pick the saved file's extension.
             var sabrVideoWebm = false
 
+            if (!oggMuxRefusalsSeeded) {
+                runCatching { context.dataStore.getSuspend(OggMuxRefusalsKey, 0) }.onSuccess {
+                    AudioRemux.oggMuxRefusals = it
+                    oggMuxRefusalsSeeded = true
+                }
+            }
+
             // Get playback URL. DIRECT: resolve via YTPlayerUtils (video stream when preferVideo=true).
             Timber.d("Starting download for ${if (videoDownload) "video" else "song"} ${song.id}: ${song.song.title}, relay=$relayMode")
             val playbackData = if (relayMode || sabrAudioMode || sabrVideoMode) null else YTPlayerUtils.playerResponseForPlayback(
@@ -498,9 +508,9 @@ constructor(
                 },
                 forDownload = true,
                 // Audio downloads may keep Opus (itag 251, higher quality than AAC/m4a) when the
-                // device can rewrap WebM->Ogg + tag on-device (API 29+); the embedder saves it as
-                // .ogg. Video downloads keep their own container path.
-                downloadOpusOk = !videoDownload && AudioRemux.oggMuxSupported &&
+                // device can rewrap WebM->Ogg + tag on-device (API 29+, and its muxer has not refused the
+                // rewrap); the embedder saves it as .ogg. Video downloads keep their own container path.
+                downloadOpusOk = !videoDownload && AudioRemux.oggOpusUsable &&
                     downloadAudioFormat == DownloadAudioFormat.BEST,
                 // The requested quality TARGET ("1080p"/"2160p") — resolves to the best remux-capable
                 // rung at or below it; null/AUTO keeps the automatic progressive pick. An adaptive
@@ -575,7 +585,7 @@ constructor(
                         // DIRECT's download parity: highest bitrate (HIGH), and Opus only when the device
                         // can rewrap Ogg AND the user chose BEST — else AAC/m4a for COMPATIBLE / pre-29.
                         audioQuality = AudioQuality.HIGH,
-                        opusAllowed = AudioRemux.oggMuxSupported && downloadAudioFormat == DownloadAudioFormat.BEST,
+                        opusAllowed = AudioRemux.oggOpusUsable && downloadAudioFormat == DownloadAudioFormat.BEST,
                     ) ?: throw Exception("SABR download failed for ${song.id}")
                 } else {
                     downloadFile(downloadUrl, tempFile, song.id)
@@ -633,6 +643,7 @@ constructor(
                     val exactLyrics = runCatching {
                         SimpMusicLyrics.getLyrics(song.id, effectiveDurationSec).getOrNull()
                     }.getOrNull()?.let(LyricsUtils::stripWordTags)
+                    val refusalsBefore = AudioRemux.oggMuxRefusals
                     CoverArtEmbedder.embedMetadataIntoFile(
                         context = context,
                         audioFile = tempFile,
@@ -649,6 +660,8 @@ constructor(
                         // must then be .ogg (audio/ogg), not the rejected .webm.
                         onContainerChanged = { newExt -> saveExtension = newExt },
                     )
+                    val refusals = AudioRemux.oggMuxRefusals
+                    if (refusals != refusalsBefore) runCatching { context.dataStore.edit { it[OggMuxRefusalsKey] = refusals } }
                 }
                 // WebM/Opus the Ogg rewrap could not convert (some devices' muxers refuse the track) is saved
                 // like relay audio, untagged under a MediaStore-accepted label, instead of failing the download
