@@ -55,9 +55,28 @@ class MediaStoreHelper(private val context: Context) {
             "mkv" to "video/x-matroska",
             "3gp" to "video/3gpp"
         )
+
+        /**
+         * Whether a download can be saved. A MediaStore save on API 29+ goes to the primary shared volume, which
+         * some devices lack or have unmounted; an audio download to a custom folder does not use it.
+         */
+        internal fun canSaveDownload(primaryVolumePresent: Boolean, video: Boolean, customPath: Boolean): Boolean =
+            primaryVolumePresent || (customPath && !video)
     }
 
     private val customDownloadPathKey = CustomDownloadPathKey
+
+    private fun primaryVolumePresent(): Boolean =
+        Build.VERSION.SDK_INT < Build.VERSION_CODES.Q ||
+            MediaStore.VOLUME_EXTERNAL_PRIMARY in MediaStore.getExternalVolumeNames(context)
+
+    /** [canSaveDownload] for this device. Reads a preference: call off the main thread. */
+    fun canSaveDownload(video: Boolean): Boolean =
+        canSaveDownload(
+            primaryVolumePresent = primaryVolumePresent(),
+            video = video,
+            customPath = context.dataStore[customDownloadPathKey]?.isNotBlank() == true,
+        )
 
     /**
      * Save a downloaded audio file to MediaStore in the Music/Zemer folder
@@ -408,6 +427,8 @@ class MediaStoreHelper(private val context: Context) {
             try {
                 // Only check for files in Zemer folder to avoid false positives from other apps
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    // Every query on a missing volume throws; nothing can exist there.
+                    if (!primaryVolumePresent()) return@withContext null
                     val projection = arrayOf(
                         MediaStore.Audio.Media._ID,
                         MediaStore.Audio.Media.TITLE,
