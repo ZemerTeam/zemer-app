@@ -30,6 +30,7 @@ class SigNativeHostTest {
             "-I", File(root, "src/main/cpp/zemersig").path,
             File(root, "src/test/cpp/$harness").path,
             File(root, "src/main/cpp/zemersig/hmac_sha256.c").path,
+            File(root, "src/main/cpp/zemersig/apk_cert.c").path,
             "-o", out.path,
         ).redirectErrorStream(true).start()
         val log = p.inputStream.bufferedReader().readText()
@@ -59,6 +60,20 @@ class SigNativeHostTest {
         val masked = ByteArray(32)
         for (i in 0 until 32) masked[order[i]] = (key[i].toInt() xor mask[i].toInt() xor certDigest[i].toInt()).toByte()
         return "${hex.formatHex(masked)} ${hex.formatHex(mask)} ${hex.formatHex(ByteArray(32) { order[it].toByte() })}"
+    }
+
+    @Test
+    fun `the certificate is read from an APK's own signing block`() {
+        val exe = compile("apk_cert_harness.c")
+        assumeTrue("no C compiler on this host", exe != null)
+        // signed-fixture.bin: a minimal APK signed (v2 + v3) with the repo's public persistent-debug key (named .bin:
+        // the build drops .apk files from test resources)
+        val fixture = javaClass.classLoader!!.getResourceAsStream("sig/signed-fixture.bin")!!.readBytes()
+        val apk = File.createTempFile("fixture", ".apk").apply { deleteOnExit(); writeBytes(fixture) }
+        val unsigned = File.createTempFile("unsigned", ".apk").apply { deleteOnExit(); writeBytes(apk.readBytes().copyOf(4_000)) }
+        val p = ProcessBuilder(exe!!.path, apk.path, unsigned.path, "/nonexistent").start()
+        val out = p.inputStream.bufferedReader().readLines().also { check(p.waitFor() == 0) }
+        assertEquals(listOf("52c741171548b6a41f0b29e9e7c3af854a42a04ea261e8a67d47544929c6834a", "-", "-"), out)
     }
 
     @Test

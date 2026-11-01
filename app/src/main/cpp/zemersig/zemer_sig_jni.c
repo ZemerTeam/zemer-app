@@ -4,7 +4,9 @@
 // certificate, and this library XORs back in the digest of the certificate the running APK is signed with, read
 // here from the package manager (bind), so an APK signed with another certificate computes a wrong key.
 #include <jni.h>
+#include <stdio.h>
 #include <string.h>
+#include "apk_cert.h"
 #include "hmac_sha256.h"
 #include "zemer_sig_key.h"
 #include "zemer_sig_unmask.h"
@@ -69,15 +71,65 @@ done:
     return ok;
 }
 
-// Reads the signing certificate once per process. Until it succeeds a bound key signs with an all-zero digest,
-// which the server rejects as an invalid signature; a request is never dropped for it.
+// This process's own APK, found in its memory map (the app's code is mapped from it) by the package name in its
+// command line, without asking any Java API: "/data/app/[~~…/]<package>-…/base.apk".
+static int own_apk_path(char *out, size_t cap) {
+    char pkg[256] = {0}, line[1024], needle[260];
+    FILE *f = fopen("/proc/self/cmdline", "r");
+    if (f == NULL) return 0;
+    size_t n = fread(pkg, 1, sizeof pkg - 1, f);
+    fclose(f);
+    if (n == 0) return 0;
+    char *colon = strchr(pkg, ':'); // a ":service" process
+    if (colon != NULL) *colon = 0;
+    snprintf(needle, sizeof needle, "/%s-", pkg);
+    int found = 0;
+    if ((f = fopen("/proc/self/maps", "r")) == NULL) return 0;
+    while (!found && fgets(line, sizeof line, f) != NULL) {
+        char *path = strchr(line, '/');
+        if (path == NULL) continue;
+        path[strcspn(path, "\n")] = 0;
+        size_t len = strlen(path);
+        if (len > 9 && len < cap && strcmp(path + len - 9, "/base.apk") == 0 && strstr(path, needle) != NULL) {
+            memcpy(out, path, len + 1);
+            found = 1;
+        }
+    }
+    fclose(f);
+    return found;
+}
+
+static int cert_mismatch;
+
+// Reads the signing certificate once per process, twice and independently: from the package manager and from the
+// APK file's own signing block. Both readable but different = a wrong digest (the server sees an invalid
+// signature) and a mismatch; one unreadable = the other is used (a read failure never invalidates a request); none
+// = a bound key signs with an all-zero digest (invalid), a request is never dropped for it. A release build also
+// compares with the certificate it was bound to.
 JNIEXPORT void JNICALL
 Java_com_jtech_zemer_sig_NativeSig_bind(JNIEnv *env, jclass clazz, jobject context) {
     (void)clazz;
-    uint8_t digest[32];
-    if (__atomic_load_n(&cert_ready, __ATOMIC_ACQUIRE) || !read_cert_digest(env, context, digest)) return;
+    if (__atomic_load_n(&cert_ready, __ATOMIC_ACQUIRE)) return;
+    uint8_t from_pm[32], from_apk[32], digest[32];
+    char path[512];
+    int has_pm = read_cert_digest(env, context, from_pm);
+    int has_apk = own_apk_path(path, sizeof path) && zemer_apk_cert_digest(path, from_apk);
+    int disagree = has_pm && has_apk && memcmp(from_pm, from_apk, 32) != 0;
+    if (!has_pm && !has_apk) return;
+    for (int i = 0; i < 32; i++) {
+        digest[i] = has_pm && has_apk ? (disagree ? from_pm[i] ^ from_apk[i] : from_pm[i]) : (has_pm ? from_pm[i] : from_apk[i]);
+    }
+    cert_mismatch = disagree || (ZEMER_SIG_CERT_BOUND && memcmp(digest, zemer_sig_cert, 32) != 0);
     memcpy(cert_digest, digest, 32);
     __atomic_store_n(&cert_ready, 1, __ATOMIC_RELEASE);
+}
+
+// The two certificate reads disagreed, or (release) the APK is not signed with the certificate the key is bound to.
+JNIEXPORT jboolean JNICALL
+Java_com_jtech_zemer_sig_NativeSig_nativeCertMismatch(JNIEnv *env, jclass clazz) {
+    (void)env;
+    (void)clazz;
+    return __atomic_load_n(&cert_ready, __ATOMIC_ACQUIRE) && cert_mismatch ? JNI_TRUE : JNI_FALSE;
 }
 
 JNIEXPORT jbyteArray JNICALL

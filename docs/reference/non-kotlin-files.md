@@ -12,11 +12,11 @@ Every tracked non-Kotlin path outside `docs/` is listed. Text files report line 
 | `.github/workflows/ui-audit.yml` | 55 lines | text `.yml` |
 | `.gitignore` | 117 lines | text `[none]` |
 | `.gitmodules` | 3 lines | text `[none]` |
-| `AGENTS.md` | 1141 lines | text `.md` |
+| `AGENTS.md` | 1150 lines | text `.md` |
 | `LICENSE` | 674 lines | text `[none]` |
 | `README.md` | 9 lines | text `.md` |
 | `app/.gitignore` | 1 lines | text `[none]` |
-| `app/build.gradle.kts` | 396 lines | text `.kts`; plugins `com.android.application, android, kotlin.serialization, hilt, kotlin.ksp, compose.compiler, google.gms.google.services, rikka.tools.refine` |
+| `app/build.gradle.kts` | 397 lines | text `.kts`; plugins `com.android.application, android, kotlin.serialization, hilt, kotlin.ksp, compose.compiler, google.gms.google.services, rikka.tools.refine` |
 | `app/lint.xml` | 11 lines | text `.xml`; XML root `lint` |
 | `app/proguard-rules.pro` | 230 lines | text `.pro` |
 | `app/schemas/com.jtech.zemer.db.InternalDatabase/1.json` | 297 lines | text `.json`; JSON keys `formatVersion, database` |
@@ -63,7 +63,7 @@ Every tracked non-Kotlin path outside `docs/` is listed. Text files report line 
 | `app/src/main/cpp/zemersig/CMakeLists.txt` | 14 lines | text `.txt` |
 | `app/src/main/cpp/zemersig/hmac_sha256.c` | 82 lines | text `.c` |
 | `app/src/main/cpp/zemersig/hmac_sha256.h` | 9 lines | text `.h` |
-| `app/src/main/cpp/zemersig/zemer_sig_jni.c` | 99 lines | text `.c` |
+| `app/src/main/cpp/zemersig/zemer_sig_jni.c` | 151 lines | text `.c` |
 | `app/src/main/cpp/zemersig/zemer_sig_unmask.h` | 12 lines | text `.h` |
 | `app/src/main/ic_launcher-playstore.png` | 23742 bytes | binary `.png` |
 | `app/src/main/res/drawable-night/widget_background.xml` | 6 lines | text `.xml`; XML root `shape` |
