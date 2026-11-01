@@ -48,4 +48,15 @@ class UnofficialCopyTest {
         assertTrue(UnofficialCopy.refused)
         assertEquals(msg, UnofficialCopy.message.value)
     }
+
+    @Test
+    fun `a clock-skew refusal neither counts nor resets the count`() {
+        assertNull(of(403, body = """{"error":"clock_skew","message":"Your phone's clock is off."}"""))
+        UnofficialCopy.onResponse(403, null, json) { refusal }
+        UnofficialCopy.onResponse(403, null, json) { """{"error":"clock_skew"}""" }
+        UnofficialCopy.onResponse(403, "clock_skew", "text/plain") { "Your phone's clock is off." }
+        assertFalse(UnofficialCopy.refused)
+        UnofficialCopy.onResponse(403, null, json) { refusal }
+        assertTrue(UnofficialCopy.refused)
+    }
 }

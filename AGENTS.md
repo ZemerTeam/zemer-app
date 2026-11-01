@@ -216,6 +216,12 @@ must not regress:
   `SocketException`, so it is never reported). Memory only, never persisted: each launch checks again, so a server
   mistake can never lock an install for good. `update_required` and every other error never count. Ktor bodies are
   read only when saved (never a streaming body); OkHttp peeks at most 4 KiB.
+- **A clock-skew refusal is resent once** (`net/ZemerRefusal`, in the same hook): a Zemer-host 403 whose `error` (or
+  `X-Zemer-Refusal`) is `clock_skew` is sent again exactly once, re-signed with the clock just taken from its `Date`
+  and a fresh nonce (Ktor via the `Send` hook, OkHttp via an APPLICATION interceptor around the signing one, which
+  re-signs the resend; a stream / one-shot body is never resent). Refused again, the request fails with
+  `ZemerRefusal.ClockSkew` (a `SocketException`: a network failure, never reported). It never counts toward, nor
+  resets, the unofficial-copy count.
 - **No key = no header, never a failure.** A build type without its key source gets no native library
   (`ZEMER_SIG_SKIP`) and behaves identically, unsigned; a load or signing failure only drops the header.
 - **The canonical message is byte-exact with the server.** Any change to `SigCanonical` must keep

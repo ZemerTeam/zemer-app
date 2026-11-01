@@ -108,6 +108,10 @@ class ZemerHeadersTest {
                                 """{"error":"unofficial_copy","message":"json message"}"""
                             target.startsWith("/unofficial-relay") -> "403 Forbidden\r\nContent-Type: text/plain\r\nX-Zemer-Refusal: unofficial_copy" to "relay message"
                             target.startsWith("/update-required") -> "403 Forbidden\r\nContent-Type: application/json" to """{"error":"update_required"}"""
+                            // clock skew: /skew-once refuses only its first request, /skew-always every one
+                            target.startsWith("/skew-") && (target.startsWith("/skew-always") || synchronized(seen) { seen.count { it.target == target } } == 1) ->
+                                if (target.contains("relay")) "403 Forbidden\r\nContent-Type: text/plain\r\nX-Zemer-Refusal: clock_skew" to "clock message"
+                                else "403 Forbidden\r\nContent-Type: application/json" to """{"error":"clock_skew","message":"clock message"}"""
                             else -> "200 OK" to "ok"
                         }
                         s.getOutputStream().apply {
@@ -172,6 +176,67 @@ class ZemerHeadersTest {
             client.get("http://content.zemer.io:${server.localPort}/unofficial-json")
         }
         assertEquals("json message", UnofficialCopy.message.value)
+    }
+
+    /** Every request to [target] was signed; the resend has its own nonce and the server's clock from the refusal. */
+    private fun assertResentOnce(target: String, requests: Int) {
+        val sent = seenSnapshot().filter { it.target == target }
+        assertEquals(requests, sent.size)
+        sent.forEach { assertTrue(it.target, verify(it)) }
+        val f = sent.map { fields(it)!! }
+        assertEquals(requests, f.map { it["n"] }.toSet().size)
+        assertTrue("signed with the wrong clock first", kotlin.math.abs(f.first().getValue("t").toLong() - SERVER_SEC) > 1_000_000)
+        assertEquals(SERVER_SEC.toDouble(), f.last().getValue("t").toDouble(), 2.0)
+    }
+
+    private val SERVER_SEC = 1_793_041_200L // dateHeader
+
+    private fun wrongClock() {
+        ZemerSig.clockOffsetSec = -100_000_000 // the device clock is years off
+    }
+
+    @Test
+    fun `a clock-skew refusal is resent once with the server clock and never counts toward the unofficial copy`() = runBlocking {
+        val port = server.localPort
+        HttpClient(OkHttp) {
+            engine { config { dns(dns) } }
+            install(ZemerHeaders.KtorPlugin)
+        }.use { client ->
+            wrongClock()
+            assertEquals("ok", client.get("http://content.zemer.io:$port/skew-once").bodyAsText())
+            assertResentOnce("/skew-once", 2)
+            wrongClock()
+            assertEquals("ok", client.post("http://tracking.zemer.io:$port/skew-once-post") { setBody("""{"a":1}""") }.bodyAsText())
+            assertResentOnce("/skew-once-post", 2)
+            client.get("http://content.zemer.io:$port/unofficial-json")
+            wrongClock()
+            val failed = runCatching { client.get("http://search.zemer.io:$port/skew-always") }.exceptionOrNull()
+            assertTrue("$failed", failed is ZemerRefusal.ClockSkew && failed is java.io.IOException)
+            assertResentOnce("/skew-always", 2)
+            assertFalse(UnofficialCopy.refused)
+            client.get("http://content.zemer.io:$port/unofficial-json")
+        }
+        assertTrue("the clock refusals in between did not reset the count", UnofficialCopy.refused)
+    }
+
+    @Test
+    fun `okhttp resends a clock-skew refusal once, the relay's header answer too`() {
+        val port = server.localPort
+        wrongClock()
+        val body = okhttp().newCall(Request.Builder().url("http://stream.zemer.io:$port/skew-once-relay").build()).execute().use { it.body.string() }
+        assertEquals("ok", body)
+        assertResentOnce("/skew-once-relay", 2)
+        okGet("http://content.zemer.io:$port/unofficial-json")
+        wrongClock()
+        val failed = runCatching { okGet("http://content.zemer.io:$port/skew-always") }.exceptionOrNull()
+        assertTrue("$failed", failed is ZemerRefusal.ClockSkew)
+        assertResentOnce("/skew-always", 2)
+        assertFalse(UnofficialCopy.refused)
+        okGet("http://stream.zemer.io:$port/unofficial-relay")
+        assertTrue(UnofficialCopy.refused)
+        // a non-Zemer host's 403 is never resent
+        okGet("http://example.org:$port/skew-always-away")
+        assertEquals(1, seenSnapshot().count { it.target == "/skew-always-away" })
     }
 
     private fun okhttp() = OkHttpClient.Builder().dns(dns).withZemerHeaders().build()

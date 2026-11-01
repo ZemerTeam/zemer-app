@@ -99,7 +99,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `.github/workflows/ui-audit.yml` | 55 lines | `.yml` |
 | `.gitignore` | 117 lines | `[none]` |
 | `.gitmodules` | 3 lines | `[none]` |
-| `AGENTS.md` | 1176 lines | `.md` |
+| `AGENTS.md` | 1182 lines | `.md` |
 | `LICENSE` | 674 lines | `[none]` |
 | `README.md` | 9 lines | `.md` |
 | `app/.gitignore` | 1 lines | `[none]` |
@@ -282,8 +282,8 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/main/kotlin/com/jtech/zemer/models/PersistQueue.kt` | 91 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/net/ContentSignature.kt` | 80 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/net/EnvSignals.kt` | 60 lines | `.kt` |
-| `app/src/main/kotlin/com/jtech/zemer/net/UnofficialCopy.kt` | 69 lines | `.kt` |
-| `app/src/main/kotlin/com/jtech/zemer/net/ZemerHeaders.kt` | 101 lines | `.kt` |
+| `app/src/main/kotlin/com/jtech/zemer/net/UnofficialCopy.kt` | 58 lines | `.kt` |
+| `app/src/main/kotlin/com/jtech/zemer/net/ZemerHeaders.kt` | 150 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/net/ZemerHosts.kt` | 23 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/offline/OfflineReadProvider.kt` | 170 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/offline/OfflineSubsetSyncer.kt` | 194 lines | `.kt` |
@@ -1049,8 +1049,8 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/test/kotlin/com/jtech/zemer/models/PersistQueueCompatTest.kt` | 77 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/net/ContentSignatureTest.kt` | 65 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/net/EnvSignalsTest.kt` | 41 lines | `.kt` |
-| `app/src/test/kotlin/com/jtech/zemer/net/UnofficialCopyTest.kt` | 51 lines | `.kt` |
-| `app/src/test/kotlin/com/jtech/zemer/net/ZemerHeadersTest.kt` | 359 lines | `.kt` |
+| `app/src/test/kotlin/com/jtech/zemer/net/UnofficialCopyTest.kt` | 62 lines | `.kt` |
+| `app/src/test/kotlin/com/jtech/zemer/net/ZemerHeadersTest.kt` | 424 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/offline/SubsetDecoderTest.kt` | 201 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/offline/SubsetFemaleSynonymsTest.kt` | 57 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/offline/SubsetLiveWhitelistTest.kt` | 121 lines | `.kt` |
