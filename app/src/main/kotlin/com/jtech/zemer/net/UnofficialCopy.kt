@@ -3,9 +3,6 @@ package com.jtech.zemer.net
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.JsonPrimitive
 import java.net.SocketException
 
 /**
@@ -19,12 +16,8 @@ import java.net.SocketException
  */
 object UnofficialCopy {
     const val ERROR = "unofficial_copy"
-    const val REFUSAL_HEADER = "X-Zemer-Refusal"
     const val SITE_URL = "https://zemer.io"
     private const val ANSWERS_TO_SHOW = 2
-    private const val MAX_MESSAGE_CHARS = 500
-
-    private val json = Json { ignoreUnknownKeys = true }
     private var inARow = 0
     private val _message = MutableStateFlow<String?>(null)
 
@@ -36,29 +29,25 @@ object UnofficialCopy {
     /** Thrown for a Zemer-host request after the copy was refused: no network is used. */
     class Refused : SocketException("refused locally: unofficial copy")
 
-    /** One Zemer-host response. [body] is read only for a 403 that may carry the answer. */
+    /**
+     * One Zemer-host response. [body] is read only for a 403 that may carry the answer. A clock-skew refusal is
+     * neither counted nor resets the count: the request is resent and that answer counts.
+     */
     @Synchronized
     fun onResponse(status: Int, refusalHeader: String?, contentType: String?, body: () -> String?) {
         if (refused) return
-        val text = unofficialMessage(status, refusalHeader, contentType, body)
-        if (text == null) {
+        val refusal = ZemerRefusal.parse(status, refusalHeader, contentType, body)
+        if (refusal?.error == ZemerRefusal.CLOCK_SKEW) return
+        if (refusal?.error != ERROR) {
             inARow = 0
             return
         }
-        if (++inARow >= ANSWERS_TO_SHOW) _message.value = text
+        if (++inARow >= ANSWERS_TO_SHOW) _message.value = refusal.message
     }
 
     /** The answer's message (blank = none given) when this response is an unofficial-copy refusal, else null. */
-    fun unofficialMessage(status: Int, refusalHeader: String?, contentType: String?, body: () -> String?): String? {
-        if (status != 403) return null
-        if (refusalHeader.equals(ERROR, ignoreCase = true)) {
-            return if (contentType?.startsWith("text/plain") == true) body()?.trim()?.take(MAX_MESSAGE_CHARS).orEmpty() else ""
-        }
-        if (contentType?.contains("json", ignoreCase = true) != true) return null
-        val obj = runCatching { json.parseToJsonElement(body() ?: return null) as? JsonObject }.getOrNull() ?: return null
-        if ((obj["error"] as? JsonPrimitive)?.content != ERROR) return null
-        return (obj["message"] as? JsonPrimitive)?.takeIf { it.isString }?.content?.trim()?.take(MAX_MESSAGE_CHARS).orEmpty()
-    }
+    fun unofficialMessage(status: Int, refusalHeader: String?, contentType: String?, body: () -> String?): String? =
+        ZemerRefusal.parse(status, refusalHeader, contentType, body)?.takeIf { it.error == ERROR }?.message
 
     /** Tests only. */
     @Synchronized
