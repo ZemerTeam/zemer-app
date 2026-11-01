@@ -2,7 +2,7 @@
 
 Every tracked Kotlin file is listed with hard metadata extracted from the file text: line count, package, whether it declares any `@Composable`, import count, top-level declaration count (`Decls` - a high value flags a god-file), and the external import roots it depends on. Declaration counting is regex-based (after stripping comments and string literals). For the actual declaration names, read the file or use your editor's outline - they are not duplicated here.
 
-## `app` Kotlin files (853)
+## `app` Kotlin files (854)
 
 | File | Lines | Package | Compose | Imports | Decls | External import roots |
 | --- | ---: | --- | --- | ---: | ---: | --- |
@@ -136,6 +136,7 @@ Every tracked Kotlin file is listed with hard metadata extracted from the file t
 | `app/src/main/kotlin/com/jtech/zemer/net/UnofficialCopy.kt` | 58 | `com.jtech.zemer.net` | no | 4 | 13 | java.net, kotlinx.coroutines |
 | `app/src/main/kotlin/com/jtech/zemer/net/ZemerHeaders.kt` | 150 | `com.jtech.zemer.net` | no | 15 | 27 | io.ktor, kotlinx.coroutines, okhttp3.OkHttpClient, okhttp3.RequestBody, okhttp3.Response, okio.Buffer |
 | `app/src/main/kotlin/com/jtech/zemer/net/ZemerHosts.kt` | 23 | `com.jtech.zemer.net` | no | 2 | 3 | java.net |
+| `app/src/main/kotlin/com/jtech/zemer/net/ZemerRefusal.kt` | 44 | `com.jtech.zemer.net` | no | 5 | 15 | java.net, kotlinx.serialization, timber.log |
 | `app/src/main/kotlin/com/jtech/zemer/offline/OfflineReadProvider.kt` | 170 | `com.jtech.zemer.offline` | no | 25 | 33 | android.content, dagger.hilt, java.lang, javax.inject, kotlinx.coroutines |
 | `app/src/main/kotlin/com/jtech/zemer/offline/OfflineSubsetSyncer.kt` | 194 | `com.jtech.zemer.offline` | no | 25 | 32 | android.content, androidx.datastore, dagger.hilt, java.io, javax.inject, kotlinx.coroutines, timber.log |
 | `app/src/main/kotlin/com/jtech/zemer/offline/SubsetCategories.kt` | 440 | `com.jtech.zemer.offline` | no | 9 | 166 | java.util |
