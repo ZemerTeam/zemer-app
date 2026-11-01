@@ -1312,7 +1312,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `docs/ui/standards.md` | 405 lines | `.md` |
 | `docs/video_quality/README.md` | 128 lines | `.md` |
 | `docs/watchtime/README.md` | 180 lines | `.md` |
-| `docs/whitelist/README.md` | 235 lines | `.md` |
+| `docs/whitelist/README.md` | 238 lines | `.md` |
 | `docs/zemer_playlists/README.md` | 94 lines | `.md` |
 | `gradle.properties` | 26 lines | `.properties` |
 | `gradle/libs.versions.toml` | 148 lines | `.toml` |
