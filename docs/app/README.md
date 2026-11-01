@@ -15,8 +15,8 @@
 | BuildConfig fields visible in Gradle | `ARCHITECTURE`, `COMMIT_HASH`, `RUN_NUMBER`, `GOOGLE_TOKEN_EXCHANGE_URL`, `CONTENT_MIRROR_URL`, `ZEMER_LYRICS_BASE_URL` |
 | Room schema directory | `app/schemas` |
 | Native build | Yes (see `build-release.md`) |
-| Tracked app paths | `1137` |
-| Tracked app Kotlin files | `844` (`628` in `src/main`, `214` in `src/test`, `2` in `src/androidTest`) |
+| Tracked app paths | `1141` |
+| Tracked app Kotlin files | `848` (`631` in `src/main`, `215` in `src/test`, `2` in `src/androidTest`) |
 | Tracked app resource paths | `214` |
 | Tracked app asset paths | `0` in `src/main` (`3` test fixtures under `src/androidTest/assets`) |
 | Tracked app Room schema files | `36` |
@@ -79,7 +79,7 @@
 | `com.jtech.zemer.recognition.shazam` | 2 |
 | `com.jtech.zemer.repositories` | 1 |
 | `com.jtech.zemer.search` | 10 |
-| `com.jtech.zemer.sig` | 3 |
+| `com.jtech.zemer.sig` | 6 |
 | `com.jtech.zemer.stats` | 1 |
 | `com.jtech.zemer.statuses` | 14 |
 | `com.jtech.zemer.sync` | 5 |
@@ -146,7 +146,7 @@
 | `com/jtech/zemer/recognition/shazam` | 2 |
 | `com/jtech/zemer/repositories` | 1 |
 | `com/jtech/zemer/search` | 10 |
-| `com/jtech/zemer/sig` | 3 |
+| `com/jtech/zemer/sig` | 6 |
 | `com/jtech/zemer/stats` | 1 |
 | `com/jtech/zemer/statuses` | 14 |
 | `com/jtech/zemer/sync` | 5 |

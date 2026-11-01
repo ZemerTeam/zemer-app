@@ -11,8 +11,10 @@ import io.ktor.client.plugins.HttpTimeoutConfig
 import io.ktor.client.plugins.compression.ContentEncoding
 import io.ktor.client.plugins.timeout
 import io.ktor.client.request.get
+import io.ktor.client.request.post
 import io.ktor.client.statement.HttpResponse
 import io.ktor.client.statement.bodyAsBytes
+import io.ktor.client.statement.bodyAsText
 import com.jtech.zemer.net.ContentSignature
 import com.jtech.zemer.net.ContentSignatureException
 import io.ktor.http.isSuccess
@@ -204,6 +206,22 @@ object ZemerContentClient {
      * raw text here so the parse/validate/fail-soft logic lives in one place (the `statuses` package).
      */
     suspend fun statusSourcesRaw(firstSync: Boolean = false): String = getText("/status-sources", "statusSources", SMALL_TIMEOUT_MS, firstSync = firstSync)
+
+    /**
+     * `POST /install` (empty body, always signed with the version key) → this install's `{id, key}` as raw JSON, read
+     * by [com.jtech.zemer.sig.InstallCredential.parse]. Throws on any non-2xx (403 / 429 / 503: retried on a later
+     * start).
+     */
+    suspend fun registerInstall(): String {
+        check(enabled) { "content mirror disabled" }
+        val response = client.post("$baseUrl${com.jtech.zemer.sig.ZemerSig.INSTALL_PATH}") {
+            timeout { contentReadTimeouts(SMALL_TIMEOUT_MS, null) }
+        }
+        if (!response.status.isSuccess()) {
+            throw ContentServerException(response.status.value, "install registration -> HTTP ${response.status.value}", response.isCloudflareChallenge())
+        }
+        return response.bodyAsText()
+    }
 
     private const val CONNECT_TIMEOUT_MS = 3_000L
     private const val DEFAULT_TIMEOUT_MS = 4_000L

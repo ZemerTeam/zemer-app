@@ -30,6 +30,7 @@ import com.jtech.zemer.constants.*
 import com.jtech.zemer.di.ApplicationScope
 import com.jtech.zemer.extensions.toast
 import com.jtech.zemer.crash.CrashReporter
+import com.jtech.zemer.sig.InstallRegistration
 import com.jtech.zemer.sig.NativeSig
 import com.jtech.zemer.utils.ContentFilterConfig
 import com.jtech.zemer.utils.CrashReportingTree
@@ -119,6 +120,9 @@ class App : Application(), SingletonImageLoader.Factory {
             delay(5000)
             runCatching { offlineSubsetSyncer.maybeSync() }
         }
+
+        // This install's own signing key (stored, or registered once per start); the version key until then.
+        applicationScope.launch(Dispatchers.IO) { InstallRegistration.ensure(this@App) }
 
         // Initialize cipher library for WEB_REMIX streaming
         ZemerCipher.initialize(

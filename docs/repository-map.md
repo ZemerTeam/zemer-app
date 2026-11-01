@@ -54,12 +54,12 @@ The following inventory is generated from repository files outside `.git`, `.gra
 
 ### Counts
 
-- Files counted: `1431`
+- Files counted: `1441`
 - By extension:
-  - `.kt`: `931`
+  - `.kt`: `935`
   - `.xml`: `196`
   - `.mjs`: `110`
-  - `.md`: `64`
+  - `.md`: `70`
   - `.json`: `53`
   - `.webp`: `15`
   - `.html`: `6`
@@ -99,7 +99,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `.github/workflows/ui-audit.yml` | 55 lines | `.yml` |
 | `.gitignore` | 117 lines | `[none]` |
 | `.gitmodules` | 3 lines | `[none]` |
-| `AGENTS.md` | 1152 lines | `.md` |
+| `AGENTS.md` | 1159 lines | `.md` |
 | `LICENSE` | 674 lines | `[none]` |
 | `README.md` | 9 lines | `.md` |
 | `app/.gitignore` | 1 lines | `[none]` |
@@ -160,7 +160,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/main/kotlin/com/dpi/DensityConfiguration.kt` | 121 lines | `.kt` |
 | `app/src/main/kotlin/com/dpi/DensityMath.kt` | 25 lines | `.kt` |
 | `app/src/main/kotlin/com/dpi/DensityScaler.kt` | 80 lines | `.kt` |
-| `app/src/main/kotlin/com/jtech/zemer/App.kt` | 409 lines | `.kt` |
+| `app/src/main/kotlin/com/jtech/zemer/App.kt` | 413 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/MainActivity.kt` | 2411 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ResumePlaybackActivity.kt` | 25 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/accessibility/ButtonMapperAccessibilityService.kt` | 45 lines | `.kt` |
@@ -397,9 +397,12 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/main/kotlin/com/jtech/zemer/search/ZemerSearchOptions.kt` | 31 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/search/ZemerSearchRepository.kt` | 509 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/search/ZemerStationsModels.kt` | 135 lines | `.kt` |
+| `app/src/main/kotlin/com/jtech/zemer/sig/InstallCredential.kt` | 35 lines | `.kt` |
+| `app/src/main/kotlin/com/jtech/zemer/sig/InstallKeyStore.kt` | 61 lines | `.kt` |
+| `app/src/main/kotlin/com/jtech/zemer/sig/InstallRegistration.kt` | 37 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/sig/NativeSig.kt` | 25 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/sig/SigCanonical.kt` | 93 lines | `.kt` |
-| `app/src/main/kotlin/com/jtech/zemer/sig/ZemerSig.kt` | 71 lines | `.kt` |
+| `app/src/main/kotlin/com/jtech/zemer/sig/ZemerSig.kt` | 89 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/stats/ListeningStats.kt` | 25 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/statuses/StatusDownload.kt` | 65 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/statuses/StatusDownloadManager.kt` | 118 lines | `.kt` |
@@ -716,7 +719,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/main/kotlin/com/jtech/zemer/utils/WhitelistFetcher.kt` | 103 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/utils/WhitelistFilter.kt` | 330 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/utils/YTPlayerUtils.kt` | 793 lines | `.kt` |
-| `app/src/main/kotlin/com/jtech/zemer/utils/ZemerContentClient.kt` | 330 lines | `.kt` |
+| `app/src/main/kotlin/com/jtech/zemer/utils/ZemerContentClient.kt` | 348 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/utils/markdown/LiteMarkdown.kt` | 199 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/utils/mp4/AudioRemux.kt` | 129 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/utils/mp4/Mp4MetadataWriter.kt` | 303 lines | `.kt` |
@@ -1120,6 +1123,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/test/kotlin/com/jtech/zemer/search/ZemerSearchRetryTest.kt` | 108 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/search/ZemerSearchRoutingTest.kt` | 82 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/search/ZemerStationsTest.kt` | 127 lines | `.kt` |
+| `app/src/test/kotlin/com/jtech/zemer/sig/InstallCredentialTest.kt` | 67 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/sig/SigCanonicalTest.kt` | 108 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/sig/SigNativeHostTest.kt` | 114 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/stats/ListeningStatsTest.kt` | 31 lines | `.kt` |
@@ -1277,7 +1281,11 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `docs/recognize_music/02-whitelist-guarantee.md` | 69 lines | `.md` |
 | `docs/recognize_music/03-entry-points-and-ui.md` | 80 lines | `.md` |
 | `docs/recognize_music/README.md` | 73 lines | `.md` |
-| `docs/reference/kotlin-files.md` | 944 lines | `.md` |
+| `docs/reference/kotlin-files.md` | 948 lines | `.md` |
+| `docs/reference/kotlin-files.md` | 948 lines | `.md` |
+| `docs/reference/kotlin-files.md` | 948 lines | `.md` |
+| `docs/reference/non-kotlin-files.md` | 449 lines | `.md` |
+| `docs/reference/non-kotlin-files.md` | 449 lines | `.md` |
 | `docs/reference/non-kotlin-files.md` | 449 lines | `.md` |
 | `docs/reference/resource-index.md` | 317 lines | `.md` |
 | `docs/remote_cipher_config/01-concepts-and-format.md` | 135 lines | `.md` |
@@ -1285,7 +1293,9 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `docs/remote_cipher_config/03-extraction-and-self-heal.md` | 102 lines | `.md` |
 | `docs/remote_cipher_config/04-operations.md` | 121 lines | `.md` |
 | `docs/remote_cipher_config/README.md` | 60 lines | `.md` |
-| `docs/repository-map.md` | 1524 lines | `.md` |
+| `docs/repository-map.md` | 1534 lines | `.md` |
+| `docs/repository-map.md` | 1534 lines | `.md` |
+| `docs/repository-map.md` | 1534 lines | `.md` |
 | `docs/sabr/README.md` | 369 lines | `.md` |
 | `docs/stations/README.md` | 67 lines | `.md` |
 | `docs/status/README.md` | 93 lines | `.md` |

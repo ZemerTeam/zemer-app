@@ -2,7 +2,7 @@
 
 Every tracked Kotlin file is listed with hard metadata extracted from the file text: line count, package, whether it declares any `@Composable`, import count, top-level declaration count (`Decls` - a high value flags a god-file), and the external import roots it depends on. Declaration counting is regex-based (after stripping comments and string literals). For the actual declaration names, read the file or use your editor's outline - they are not duplicated here.
 
-## `app` Kotlin files (844)
+## `app` Kotlin files (848)
 
 | File | Lines | Package | Compose | Imports | Decls | External import roots |
 | --- | ---: | --- | --- | ---: | ---: | --- |
@@ -13,7 +13,7 @@ Every tracked Kotlin file is listed with hard metadata extracted from the file t
 | `app/src/main/kotlin/com/dpi/DensityConfiguration.kt` | 121 | `com.dpi` | no | 7 | 14 | android.annotation, android.app, android.content, android.util, timber.log |
 | `app/src/main/kotlin/com/dpi/DensityMath.kt` | 25 | `com.dpi` | no | 1 | 3 | kotlin.math |
 | `app/src/main/kotlin/com/dpi/DensityScaler.kt` | 80 | `com.dpi` | no | 4 | 13 | android.app, android.content, timber.log |
-| `app/src/main/kotlin/com/jtech/zemer/App.kt` | 409 | `com.jtech.zemer` | no | 62 | 29 | android.app, android.content, android.os, android.util, android.webkit, androidx.datastore, coil3.ImageLoader, coil3.PlatformContext, coil3.SingletonImageLoader, coil3.disk, coil3.network, coil3.request, coil3.svg, com.zemer, dagger.hilt, java.util, javax.inject, kotlinx.coroutines, okhttp3.Dispatcher, okhttp3.OkHttpClient, timber.log |
+| `app/src/main/kotlin/com/jtech/zemer/App.kt` | 413 | `com.jtech.zemer` | no | 63 | 29 | android.app, android.content, android.os, android.util, android.webkit, androidx.datastore, coil3.ImageLoader, coil3.PlatformContext, coil3.SingletonImageLoader, coil3.disk, coil3.network, coil3.request, coil3.svg, com.zemer, dagger.hilt, java.util, javax.inject, kotlinx.coroutines, okhttp3.Dispatcher, okhttp3.OkHttpClient, timber.log |
 | `app/src/main/kotlin/com/jtech/zemer/MainActivity.kt` | 2411 | `com.jtech.zemer` | no | 310 | 245 | android.annotation, android.content, android.os, android.view, androidx.activity, androidx.compose, androidx.core, androidx.datastore, androidx.hilt, androidx.lifecycle, androidx.media3, androidx.navigation, coil3.compose, coil3.imageLoader, coil3.request, coil3.toBitmap, com.google, com.valentinilk, dagger.hilt, java.net, java.util, javax.inject, kotlinx.coroutines, timber.log |
 | `app/src/main/kotlin/com/jtech/zemer/ResumePlaybackActivity.kt` | 25 | `com.jtech.zemer` | no | 5 | 3 | android.app, android.content, android.os |
 | `app/src/main/kotlin/com/jtech/zemer/accessibility/ButtonMapperAccessibilityService.kt` | 45 | `com.jtech.zemer.accessibility` | no | 7 | 6 | android.accessibilityservice, android.annotation, android.view |
@@ -250,9 +250,12 @@ Every tracked Kotlin file is listed with hard metadata extracted from the file t
 | `app/src/main/kotlin/com/jtech/zemer/search/ZemerSearchOptions.kt` | 31 | `com.jtech.zemer.search` | no | 2 | 6 | android.content |
 | `app/src/main/kotlin/com/jtech/zemer/search/ZemerSearchRepository.kt` | 509 | `com.jtech.zemer.search` | no | 37 | 69 | android.content, dagger.hilt, java.io, java.nio, javax.inject, kotlinx.coroutines |
 | `app/src/main/kotlin/com/jtech/zemer/search/ZemerStationsModels.kt` | 135 | `com.jtech.zemer.search` | no | 1 | 39 | kotlinx.serialization |
+| `app/src/main/kotlin/com/jtech/zemer/sig/InstallCredential.kt` | 35 | `com.jtech.zemer.sig` | no | 3 | 13 | java.util, kotlinx.serialization |
+| `app/src/main/kotlin/com/jtech/zemer/sig/InstallKeyStore.kt` | 61 | `com.jtech.zemer.sig` | no | 10 | 18 | android.content, android.security, android.util, java.io, java.security, javax.crypto |
+| `app/src/main/kotlin/com/jtech/zemer/sig/InstallRegistration.kt` | 37 | `com.jtech.zemer.sig` | no | 4 | 5 | android.content, kotlinx.coroutines, timber.log |
 | `app/src/main/kotlin/com/jtech/zemer/sig/NativeSig.kt` | 25 | `com.jtech.zemer.sig` | no | 1 | 5 | android.content |
 | `app/src/main/kotlin/com/jtech/zemer/sig/SigCanonical.kt` | 93 | `com.jtech.zemer.sig` | no | 1 | 20 | java.io |
-| `app/src/main/kotlin/com/jtech/zemer/sig/ZemerSig.kt` | 71 | `com.jtech.zemer.sig` | no | 6 | 16 | java.security, java.time, java.util |
+| `app/src/main/kotlin/com/jtech/zemer/sig/ZemerSig.kt` | 89 | `com.jtech.zemer.sig` | no | 8 | 22 | java.security, java.time, java.util, javax.crypto |
 | `app/src/main/kotlin/com/jtech/zemer/stats/ListeningStats.kt` | 25 | `com.jtech.zemer.stats` | no | 2 | 10 |  |
 | `app/src/main/kotlin/com/jtech/zemer/statuses/StatusDownload.kt` | 65 | `com.jtech.zemer.statuses` | no | 2 | 16 | org.json |
 | `app/src/main/kotlin/com/jtech/zemer/statuses/StatusDownloadManager.kt` | 118 | `com.jtech.zemer.statuses` | no | 13 | 26 | android.content, android.graphics, android.net, androidx.core, dagger.hilt, java.io, javax.inject, kotlinx.coroutines, okhttp3.Request |
@@ -569,7 +572,7 @@ Every tracked Kotlin file is listed with hard metadata extracted from the file t
 | `app/src/main/kotlin/com/jtech/zemer/utils/WhitelistFetcher.kt` | 103 | `com.jtech.zemer.utils` | no | 4 | 19 | java.time, timber.log |
 | `app/src/main/kotlin/com/jtech/zemer/utils/WhitelistFilter.kt` | 330 | `com.jtech.zemer.utils` | no | 10 | 32 | java.util, kotlinx.coroutines, timber.log |
 | `app/src/main/kotlin/com/jtech/zemer/utils/YTPlayerUtils.kt` | 793 | `com.jtech.zemer.utils` | no | 32 | 102 | android.net, androidx.core, androidx.media3, com.zemer, kotlinx.coroutines, okhttp3.OkHttpClient, timber.log |
-| `app/src/main/kotlin/com/jtech/zemer/utils/ZemerContentClient.kt` | 330 | `com.jtech.zemer.utils` | no | 34 | 73 | io.ktor, java.io, java.nio, kotlinx.coroutines, kotlinx.serialization, timber.log |
+| `app/src/main/kotlin/com/jtech/zemer/utils/ZemerContentClient.kt` | 348 | `com.jtech.zemer.utils` | no | 36 | 75 | io.ktor, java.io, java.nio, kotlinx.coroutines, kotlinx.serialization, timber.log |
 | `app/src/main/kotlin/com/jtech/zemer/utils/markdown/LiteMarkdown.kt` | 199 | `com.jtech.zemer.utils.markdown` | no | 0 | 64 |  |
 | `app/src/main/kotlin/com/jtech/zemer/utils/mp4/AudioRemux.kt` | 129 | `com.jtech.zemer.utils.mp4` | no | 8 | 22 | android.media, android.os, java.io, java.nio, timber.log |
 | `app/src/main/kotlin/com/jtech/zemer/utils/mp4/Mp4MetadataWriter.kt` | 303 | `com.jtech.zemer.utils.mp4` | no | 3 | 76 | java.io, java.nio |
@@ -758,6 +761,7 @@ Every tracked Kotlin file is listed with hard metadata extracted from the file t
 | `app/src/test/kotlin/com/jtech/zemer/search/ZemerSearchRetryTest.kt` | 108 | `com.jtech.zemer.search` | no | 14 | 15 | io.ktor, java.net, java.util, kotlin.concurrent, kotlinx.coroutines, org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/search/ZemerSearchRoutingTest.kt` | 82 | `com.jtech.zemer.search` | no | 8 | 8 | java.io, java.nio, kotlinx.coroutines, org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/search/ZemerStationsTest.kt` | 127 | `com.jtech.zemer.search` | no | 5 | 11 | org.junit |
+| `app/src/test/kotlin/com/jtech/zemer/sig/InstallCredentialTest.kt` | 67 | `com.jtech.zemer.sig` | no | 9 | 12 | java.util, javax.crypto, org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/sig/SigCanonicalTest.kt` | 108 | `com.jtech.zemer.sig` | no | 9 | 38 | java.security, java.util, javax.crypto, kotlinx.serialization, org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/sig/SigNativeHostTest.kt` | 114 | `com.jtech.zemer.sig` | no | 11 | 32 | java.io, java.security, java.util, javax.crypto, kotlin.random, org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/stats/ListeningStatsTest.kt` | 31 | `com.jtech.zemer.stats` | no | 7 | 4 | org.junit |
