@@ -70,9 +70,10 @@ object ZemerContentClient {
 
     /**
      * Every read's content signature is checked before it is returned ([ContentSignature]): [firstSync] says the
-     * caller has no previous copy to keep, the only case an unsigned body may be applied.
+     * caller has no previous copy to keep, the only case an unsigned body may be applied. [label] names the read in
+     * `fetch_fail` (the same labels as [contentRead]).
      */
-    private suspend fun getText(path: String, timeoutMs: Long, stallMs: Long? = null, firstSync: Boolean): String {
+    private suspend fun getText(path: String, label: String, timeoutMs: Long, stallMs: Long? = null, firstSync: Boolean): String {
         check(enabled) { "content mirror disabled" }
         val response: HttpResponse = client.get("$baseUrl$path") {
             timeout { contentReadTimeouts(timeoutMs, stallMs) }
@@ -81,13 +82,13 @@ object ZemerContentClient {
             throw ContentServerException(response.status.value, "content mirror $path -> HTTP ${response.status.value}", response.isCloudflareChallenge())
         }
         val body = response.bodyAsBytes()
-        ContentSignature.requireApplicable("content", response, body, firstSync)
+        ContentSignature.requireApplicable("content", label, response, body, firstSync)
         return body.decodeToString()
     }
 
     /** `/whitelist/version` → the monotonic gate the version-skip compares against (same value the app derives today). */
     suspend fun version(firstSync: Boolean = false): Long {
-        val dto = json.decodeFromString(ContentVersionDto.serializer(), getText("/whitelist/version", SMALL_TIMEOUT_MS, firstSync = firstSync))
+        val dto = json.decodeFromString(ContentVersionDto.serializer(), getText("/whitelist/version", "version", SMALL_TIMEOUT_MS, firstSync = firstSync))
         val gate = dto.gate ?: error("content mirror: missing gate in /whitelist/version")
         Timber.d("ZemerContentClient: /whitelist/version gate=%d", gate)
         return gate
@@ -107,7 +108,7 @@ object ZemerContentClient {
         }
         val docs = json.decodeFromString(
             ListSerializer(ContentWhitelistDoc.serializer()),
-            getText("/whitelist", WHITELIST_TIMEOUT_MS, WHITELIST_STALL_MS, firstSync),
+            getText("/whitelist", "whitelist", WHITELIST_TIMEOUT_MS, WHITELIST_STALL_MS, firstSync),
         )
         if (docs.isEmpty()) error("content mirror: empty /whitelist")
         Timber.d("ZemerContentClient: /whitelist %d docs", docs.size)
@@ -128,7 +129,7 @@ object ZemerContentClient {
     suspend fun podcastsWhitelistVersion(firstSync: Boolean = false): Long {
         val dto = json.decodeFromString(
             ContentVersionDto.serializer(),
-            getText("/podcastChannelsWhitelist/version", SMALL_TIMEOUT_MS, firstSync = firstSync),
+            getText("/podcastChannelsWhitelist/version", "podcastVersion", SMALL_TIMEOUT_MS, firstSync = firstSync),
         )
         val gate = dto.gate ?: error("content mirror: missing gate in /podcastChannelsWhitelist/version")
         Timber.d("ZemerContentClient: /podcastChannelsWhitelist/version gate=%d", gate)
@@ -139,7 +140,7 @@ object ZemerContentClient {
     suspend fun podcastsWhitelist(firstSync: Boolean = false): List<ContentPodcastDoc> {
         val docs = json.decodeFromString(
             ListSerializer(ContentPodcastDoc.serializer()),
-            getText("/podcastChannelsWhitelist", WHITELIST_TIMEOUT_MS, WHITELIST_STALL_MS, firstSync),
+            getText("/podcastChannelsWhitelist", "podcastWhitelist", WHITELIST_TIMEOUT_MS, WHITELIST_STALL_MS, firstSync),
         )
         if (docs.isEmpty()) error("content mirror: empty /podcastChannelsWhitelist")
         Timber.d("ZemerContentClient: /podcastChannelsWhitelist %d docs", docs.size)
@@ -152,7 +153,7 @@ object ZemerContentClient {
      * already treats as "hide for everyone", so this is behavior-preserving). Empty is a legitimate state.
      */
     suspend fun blockedIds(firstSync: Boolean = false): Map<String, String> {
-        val dto = json.decodeFromString(ContentBlockedDto.serializer(), getText("/blockedContentIds", SMALL_TIMEOUT_MS, firstSync = firstSync))
+        val dto = json.decodeFromString(ContentBlockedDto.serializer(), getText("/blockedContentIds", "blockedIds", SMALL_TIMEOUT_MS, firstSync = firstSync))
         val map = buildMap {
             dto.female.forEach { id -> id.trim().takeIf { it.isNotEmpty() }?.let { put(it, "female") } }
             dto.global.forEach { id -> id.trim().takeIf { it.isNotEmpty() }?.let { put(it, "global") } }
@@ -167,7 +168,7 @@ object ZemerContentClient {
      * than trusting an unverified shape. Empty is legitimate (same as today).
      */
     suspend fun israeliArtists(firstSync: Boolean = false): Set<String> {
-        val ids = json.parseToJsonElement(getText("/israeliArtists", SMALL_TIMEOUT_MS, firstSync = firstSync)).jsonArray
+        val ids = json.parseToJsonElement(getText("/israeliArtists", "israeliArtists", SMALL_TIMEOUT_MS, firstSync = firstSync)).jsonArray
             .mapNotNull { element ->
                 when (element) {
                     is JsonPrimitive -> element.contentOrNull
@@ -190,7 +191,7 @@ object ZemerContentClient {
     suspend fun statusSourcesVersion(firstSync: Boolean = false): Long {
         val dto = json.decodeFromString(
             StatusSourcesVersionDto.serializer(),
-            getText("/status-sources/version", SMALL_TIMEOUT_MS, firstSync = firstSync),
+            getText("/status-sources/version", "statusSourcesVersion", SMALL_TIMEOUT_MS, firstSync = firstSync),
         )
         val version = dto.version ?: error("content mirror: missing version in /status-sources/version")
         Timber.d("ZemerContentClient: /status-sources/version version=%d", version)
@@ -202,7 +203,7 @@ object ZemerContentClient {
      * [com.jtech.zemer.statuses.parseStatusSourcesConfig] (org.json, shared with the unit tests). Kept as
      * raw text here so the parse/validate/fail-soft logic lives in one place (the `statuses` package).
      */
-    suspend fun statusSourcesRaw(firstSync: Boolean = false): String = getText("/status-sources", SMALL_TIMEOUT_MS, firstSync = firstSync)
+    suspend fun statusSourcesRaw(firstSync: Boolean = false): String = getText("/status-sources", "statusSources", SMALL_TIMEOUT_MS, firstSync = firstSync)
 
     private const val CONNECT_TIMEOUT_MS = 3_000L
     private const val DEFAULT_TIMEOUT_MS = 4_000L

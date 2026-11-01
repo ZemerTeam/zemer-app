@@ -1,6 +1,6 @@
 # Non-Kotlin file reference
 
-Every tracked non-Kotlin path outside `docs/` is listed. Text files report line counts; binary files report byte counts; gitlinks are recorded as non-file tracked paths. Total paths: `442`.
+Every tracked non-Kotlin path outside `docs/` is listed. Text files report line counts; binary files report byte counts; gitlinks are recorded as non-file tracked paths. Total paths: `443`.
 
 | Path | Size/status | Type metadata |
 | --- | ---: | --- |
@@ -12,7 +12,7 @@ Every tracked non-Kotlin path outside `docs/` is listed. Text files report line 
 | `.github/workflows/ui-audit.yml` | 55 lines | text `.yml` |
 | `.gitignore` | 117 lines | text `[none]` |
 | `.gitmodules` | 3 lines | text `[none]` |
-| `AGENTS.md` | 1144 lines | text `.md` |
+| `AGENTS.md` | 1145 lines | text `.md` |
 | `LICENSE` | 674 lines | text `[none]` |
 | `README.md` | 9 lines | text `.md` |
 | `app/.gitignore` | 1 lines | text `[none]` |
@@ -281,6 +281,7 @@ Every tracked non-Kotlin path outside `docs/` is listed. Text files report line 
 | `app/src/main/res/xml/provider_paths.xml` | 12 lines | text `.xml`; XML root `paths` |
 | `app/src/test/cpp/hmac_host_harness.c` | 27 lines | text `.c` |
 | `app/src/test/cpp/sig_unmask_harness.c` | 31 lines | text `.c` |
+| `app/src/test/resources/contentsig/content-sig-vectors.json` | 36 lines | text `.json`; JSON keys `about, keyId, privatePkcs8Pem, publicSpkiB64, vectors` |
 | `app/src/test/resources/lyrics/apple-1571752969.expected.lrc` | 51 lines | text `.lrc` |
 | `app/src/test/resources/lyrics/apple-1571752969.json` | 1 lines | text `.json`; JSON keys `ttmlContent` |
 | `app/src/test/resources/lyrics/apple-1571752969.paxsenix.lrc` | 52 lines | text `.lrc` |

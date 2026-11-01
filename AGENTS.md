@@ -246,7 +246,8 @@ ISO-8601 written with millis (`IsoDateSerializer`), nulls explicit, an absent `b
   in `ContentSignature.KEYS`) over the decoded path, time and SHA-256 of the body as received. An INVALID signature
   is never applied; a MISSING one is applied only on a first sync (`firstSync`: no local copy yet - never strand a
   fresh install behind a network that strips the header), else the previous copy is kept. Both report `fetch_fail`
-  `bad_sig` / `no_sig` once (under the path; `contentRead` does not report them again). Only a bad signature is
+  `bad_sig` / `no_sig` once (under the read's camelCase label, as `contentRead`'s - tracking refuses a path with a
+  slash; `contentRead` does not report them again). Only a bad signature is
   INVALID: any other verifier error propagates as a failed read. Pinned by the server's vectors in
   `ContentSignatureTest`.
 

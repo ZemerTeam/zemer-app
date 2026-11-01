@@ -46,7 +46,7 @@ class SubsetSyncClient @Inject constructor() {
             throw IOException("subset manifest returned HTTP ${response.status.value}")
         }
         val body = response.bodyAsBytes()
-        ContentSignature.requireApplicable("search", response, body, firstSync)
+        ContentSignature.requireApplicable("search", "subsetManifest", response, body, firstSync)
         return json.decodeFromString(SubsetManifest.serializer(), body.decodeToString())
     }
 

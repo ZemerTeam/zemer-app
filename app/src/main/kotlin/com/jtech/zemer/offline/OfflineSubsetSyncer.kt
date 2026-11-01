@@ -120,7 +120,7 @@ class OfflineSubsetSyncer @Inject constructor(
                     val bytes = client.downloadShard(shard.name)
                     val actual = subsetShardHash(bytes)
                     if (actual != shard.hash) {
-                        Tracker.fetchFail(host = "search", path = "subset/shard", kind = ContentSignature.BAD_SIG)
+                        Tracker.fetchFail(host = "search", path = "subsetShard", kind = ContentSignature.BAD_SIG)
                         throw IOException("shard ${shard.name} hash mismatch (expected ${shard.hash}, got $actual)")
                     }
                     store.stageShard(shard.name, bytes)

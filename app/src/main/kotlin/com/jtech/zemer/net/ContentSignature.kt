@@ -61,13 +61,14 @@ object ContentSignature {
 
     /**
      * Checks [response]'s [body] before the caller applies it; throws [ContentSignatureException] when it must not
-     * be, and reports any unsigned or badly signed response once per session ([host] as in `fetch_fail`).
+     * be, and reports any unsigned or badly signed response once per session ([host] and [label] as in
+     * `fetch_fail`: a camelCase label, never a URL path, which tracking refuses).
      */
-    fun requireApplicable(host: String, response: HttpResponse, body: ByteArray, firstSync: Boolean) {
+    fun requireApplicable(host: String, label: String, response: HttpResponse, body: ByteArray, firstSync: Boolean) {
         val path = SigCanonical.decodePath(response.call.request.url.encodedPath.ifEmpty { "/" })
         val verdict = verify(path, response.headers[HEADER], body)
         if (verdict == Verdict.VALID) return
-        Tracker.fetchFail(host = host, path = path.removePrefix("/"), kind = if (verdict == Verdict.MISSING) NO_SIG else BAD_SIG)
+        Tracker.fetchFail(host = host, path = label, kind = if (verdict == Verdict.MISSING) NO_SIG else BAD_SIG)
         rejection(verdict, firstSync)?.let { throw ContentSignatureException(it, path) }
     }
 
