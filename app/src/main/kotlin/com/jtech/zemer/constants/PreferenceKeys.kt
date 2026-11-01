@@ -114,6 +114,8 @@ val LastWhitelistVersionKey = longPreferencesKey("lastWhitelistVersion")
 // already-synced install backfills the split names on its first sync after updating, without waiting
 // for a server whitelist-version bump.
 val DisplayNamesBackfilledKey = booleanPreferencesKey("displayNamesBackfilled")
+// True while the last `/whitelist/removed` read failed: the next whitelist sync retries just that read.
+val WhitelistRemovalPendingKey = booleanPreferencesKey("whitelistRemovalPending")
 val LastPodcastWhitelistSyncTimeKey = longPreferencesKey("lastPodcastWhitelistSyncTime")
 val LastPodcastWhitelistVersionKey = longPreferencesKey("lastPodcastWhitelistVersion")
 

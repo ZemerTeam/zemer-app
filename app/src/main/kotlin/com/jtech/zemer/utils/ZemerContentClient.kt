@@ -154,6 +154,19 @@ object ZemerContentClient {
      * (disabled entries already dropped, unknown reasons already folded into `global` — which the app
      * already treats as "hide for everyone", so this is behavior-preserving). Empty is a legitimate state.
      */
+    /**
+     * `/whitelist/removed` → ids of artists the server removed from the whitelist (and not whitelisted
+     * now): the ONLY input that may delete an artist's local data. Never read unsigned (`firstSync`
+     * false): a missing signature must not be able to delete anything.
+     */
+    suspend fun removedArtists(): Set<String> {
+        val docs = json.decodeFromString(
+            ListSerializer(ContentRemovedArtistDto.serializer()),
+            getText("/whitelist/removed", "whitelistRemoved", SMALL_TIMEOUT_MS, firstSync = false),
+        )
+        return docs.mapNotNull { it.id.trim().takeIf(String::isNotEmpty) }.toSet()
+    }
+
     suspend fun blockedIds(firstSync: Boolean = false): Map<String, String> {
         val dto = json.decodeFromString(ContentBlockedDto.serializer(), getText("/blockedContentIds", "blockedIds", SMALL_TIMEOUT_MS, firstSync = firstSync))
         val map = buildMap {
@@ -242,6 +255,10 @@ data class ContentVersionDto(
     val updatedAtMs: Long? = null,
     val gate: Long? = null,
 )
+
+/** One `/whitelist/removed` row (`removedAt` is informational and not read). */
+@Serializable
+data class ContentRemovedArtistDto(val id: String)
 
 /** `/blockedContentIds` — already bucketed by reason, disabled entries already dropped server-side. */
 @Serializable

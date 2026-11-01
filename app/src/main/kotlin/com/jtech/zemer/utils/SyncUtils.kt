@@ -6,6 +6,7 @@ import androidx.datastore.preferences.core.edit
 import com.jtech.zemer.constants.BlockedContentIdsKey
 import com.jtech.zemer.constants.DisplayNamesBackfilledKey
 import com.jtech.zemer.constants.LastWhitelistVersionKey
+import com.jtech.zemer.constants.WhitelistRemovalPendingKey
 import com.jtech.zemer.constants.LastPodcastWhitelistVersionKey
 import com.jtech.zemer.constants.LastPodcastWhitelistSyncTimeKey
 import timber.log.Timber
@@ -868,6 +869,9 @@ class SyncUtils @Inject constructor(
                     )
                 ) {
                     runCatching { WhitelistCache.updateAll(database.getWhitelistEntriesSync()) }
+                    if (context.dataStore.get(WhitelistRemovalPendingKey, false)) {
+                        applyServerRemovals(whitelisted = database.getAllWhitelistedArtistIdsSync().toSet())
+                    }
                     refreshBlockedIds()
                     _whitelistSyncProgress.value = WhitelistSyncProgress(isComplete = true)
                     return@withContext
@@ -886,9 +890,9 @@ class SyncUtils @Inject constructor(
                 )
 
                 // Never apply an empty allow-set over a good local table: a successfully-parsed
-                // empty response (mirror bug, empty snapshot) would otherwise diff EVERY artist as
-                // removed and deleteRemovedArtists their songs/albums/history. Keep the last-good
-                // table instead (same fail-safe as syncPodcastWhitelist).
+                // empty response (mirror bug, empty snapshot) would otherwise clear the table and hide
+                // the whole library. Keep the last-good table instead (same fail-safe as
+                // syncPodcastWhitelist). Deletes never come from a fetch, see applyServerRemovals.
                 if (whitelistEntries.isEmpty()) {
                     runCatching { WhitelistCache.updateAll(database.getWhitelistEntriesSync()) }
                     refreshBlockedIds()
@@ -896,13 +900,10 @@ class SyncUtils @Inject constructor(
                     return@withContext
                 }
 
-                val currentWhitelistIds = database.getAllWhitelistedArtistIdsSync()
-                val newWhitelistIds = whitelistEntries.map { it.artistId }.toSet()
-                val removedArtistIds = currentWhitelistIds.filterNot { it in newWhitelistIds }
-
-                if (removedArtistIds.isNotEmpty()) {
-                    deleteRemovedArtists(removedArtistIds)
-                }
+                // An artist merely missing from this fetch only drops out of the whitelist table (and so
+                // out of the INNER JOIN views); its songs, history and downloads stay on the phone until
+                // the server NAMES it removed.
+                applyServerRemovals(whitelisted = whitelistEntries.map { it.artistId }.toSet())
 
                 database.transaction {
                     clearWhitelist()
@@ -1048,59 +1049,79 @@ class SyncUtils @Inject constructor(
         }
     }
 
-        /**
-     * Deletes artists and all their associated content from the database.
-     * This includes: songs, albums, play history, cached formats, lyrics, and user data.
-     * Deletion follows proper order to respect foreign key constraints.
+    /**
+     * Deletes the local data of the artists `/whitelist/removed` names (see [artistsToDelete]). The
+     * removals stay pending (the next sync retries just this call) until the read succeeds AND every
+     * named artist is deleted; the flag is raised before deleting, so a process kill mid-way retries too.
      */
-    suspend fun deleteRemovedArtists(removedArtistIds: List<String>) {
-        if (removedArtistIds.isEmpty()) return
+    private suspend fun applyServerRemovals(whitelisted: Set<String>) {
+        val removed = WhitelistFetcher.fetchRemovedArtists().getOrNull()
+        val ids = artistsToDelete(removed, whitelisted, local = database.getAllArtistIdsSync().toSet())
+        if (ids.isNotEmpty()) context.dataStore.edit { it[WhitelistRemovalPendingKey] = true }
+        val allDeleted = ids.isEmpty() || deleteRemovedArtists(ids)
+        context.dataStore.edit { it[WhitelistRemovalPendingKey] = removed == null || !allDeleted }
+    }
 
-        try {
-            for (artistId in removedArtistIds) {
-                try {
-                    // Step 1: Get all song IDs for this artist
-                    val songIds = database.getSongIdsByArtist(artistId)
+    /**
+     * Deletes each artist and its content (songs, emptied albums, play counts, formats, lyrics; the
+     * song deletes cascade to history and playlist entries), in foreign-key order. True when every
+     * artist was deleted; a failure is reported and leaves the rest of the list to run.
+     */
+    private suspend fun deleteRemovedArtists(removedArtistIds: List<String>): Boolean {
+        var allDeleted = true
+        for (artistId in removedArtistIds) {
+            try {
+                // Step 1: Get all song IDs for this artist
+                val songIds = database.getSongIdsByArtist(artistId)
 
-                    // Step 2: Get all album IDs for this artist
-                    val albumIds = database.getAlbumIdsByArtist(artistId)
+                // Step 2: Get all album IDs for this artist
+                val albumIds = database.getAlbumIdsByArtist(artistId)
 
-                    // Step 3: Delete song-related data without foreign keys (must be done first)
-                    if (songIds.isNotEmpty()) {
-                        database.deletePlayCountBySongs(songIds)
-                        database.deleteFormatBySongs(songIds)
-                        database.deleteLyricsBySongs(songIds)
-                    }
-
-                    // Step 4: Delete songs (this will CASCADE DELETE to related tables)
-                    // Cascades: song_artist_map, song_album_map, playlist_song_map, related_song_map, event
-                    if (songIds.isNotEmpty()) {
-                        database.deleteSongsByIds(songIds)
-                    }
-
-                    // Step 5: Check and delete albums that have no songs left
-                    val albumsToDelete = mutableListOf<String>()
-                    for (albumId in albumIds) {
-                        val remainingSongCount = database.getAlbumSongCount(albumId)
-                        if (remainingSongCount == 0) {
-                            albumsToDelete.add(albumId)
-                        }
-                    }
-                    if (albumsToDelete.isNotEmpty()) {
-                        database.deleteAlbumsByIds(albumsToDelete)
-                    }
-
-                    // Step 6: Delete the artist (this will CASCADE DELETE remaining mappings)
-                    database.deleteArtistById(artistId)
-
-                } catch (e: Exception) {
+                // Step 3: Delete song-related data without foreign keys (must be done first)
+                if (songIds.isNotEmpty()) {
+                    database.deletePlayCountBySongs(songIds)
+                    database.deleteFormatBySongs(songIds)
+                    database.deleteLyricsBySongs(songIds)
                 }
-            }
 
-        } catch (e: Exception) {
+                // Step 4: Delete songs (this will CASCADE DELETE to related tables)
+                // Cascades: song_artist_map, song_album_map, playlist_song_map, related_song_map, event
+                if (songIds.isNotEmpty()) {
+                    database.deleteSongsByIds(songIds)
+                }
+
+                // Step 5: Check and delete albums that have no songs left
+                val albumsToDelete = mutableListOf<String>()
+                for (albumId in albumIds) {
+                    val remainingSongCount = database.getAlbumSongCount(albumId)
+                    if (remainingSongCount == 0) {
+                        albumsToDelete.add(albumId)
+                    }
+                }
+                if (albumsToDelete.isNotEmpty()) {
+                    database.deleteAlbumsByIds(albumsToDelete)
+                }
+
+                // Step 6: Delete the artist (this will CASCADE DELETE remaining mappings)
+                database.deleteArtistById(artistId)
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                allDeleted = false
+                reportException(e, "deleteRemovedArtists")
+            }
         }
+        return allDeleted
     }
 }
+
+/**
+ * The artists whose local data may be deleted: only ids the server NAMES as removed ([serverRemoved]; null
+ * when `/whitelist/removed` failed, which deletes nothing), never one the whitelist still lists, and only
+ * ones stored on this device ([local]). An id merely missing from a fetched `/whitelist` is never deleted.
+ */
+internal fun artistsToDelete(serverRemoved: Set<String>?, whitelisted: Set<String>, local: Set<String>): List<String> =
+    serverRemoved.orEmpty().filter { it !in whitelisted && it in local }
 
 /**
  * If at least this many whitelisted artists lack a thumbnail, the version-gate is bypassed once so a
