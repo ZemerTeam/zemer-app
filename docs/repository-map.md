@@ -221,7 +221,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/main/kotlin/com/jtech/zemer/di/SyncModule.kt` | 112 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/di/ZemerSearchRepositoryEntryPoint.kt` | 29 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/extensions/AccountState.kt` | 29 lines | `.kt` |
-| `app/src/main/kotlin/com/jtech/zemer/extensions/ContextExt.kt` | 210 lines | `.kt` |
+| `app/src/main/kotlin/com/jtech/zemer/extensions/ContextExt.kt` | 211 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/extensions/CoroutineExt.kt` | 27 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/extensions/FileExt.kt` | 13 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/extensions/ListExt.kt` | 11 lines | `.kt` |

@@ -75,7 +75,7 @@ Every tracked Kotlin file is listed with hard metadata extracted from the file t
 | `app/src/main/kotlin/com/jtech/zemer/di/SyncModule.kt` | 112 | `com.jtech.zemer.di` | no | 16 | 8 | android.content, androidx.datastore, dagger.Module, dagger.Provides, dagger.hilt, javax.inject |
 | `app/src/main/kotlin/com/jtech/zemer/di/ZemerSearchRepositoryEntryPoint.kt` | 29 | `com.jtech.zemer.di` | no | 6 | 3 | android.content, dagger.hilt |
 | `app/src/main/kotlin/com/jtech/zemer/extensions/AccountState.kt` | 29 | `com.jtech.zemer.extensions` | no | 6 | 2 | android.content, kotlinx.coroutines |
-| `app/src/main/kotlin/com/jtech/zemer/extensions/ContextExt.kt` | 210 | `com.jtech.zemer.extensions` | no | 19 | 26 | android.content, android.net, android.widget, androidx.annotation, kotlin.contracts, kotlinx.coroutines |
+| `app/src/main/kotlin/com/jtech/zemer/extensions/ContextExt.kt` | 211 | `com.jtech.zemer.extensions` | no | 18 | 26 | android.content, android.net, android.widget, androidx.annotation, kotlin.contracts, kotlinx.coroutines |
 | `app/src/main/kotlin/com/jtech/zemer/extensions/CoroutineExt.kt` | 27 | `com.jtech.zemer.extensions` | no | 5 | 1 | kotlinx.coroutines |
 | `app/src/main/kotlin/com/jtech/zemer/extensions/FileExt.kt` | 13 | `com.jtech.zemer.extensions` | no | 5 | 3 | java.io, java.util |
 | `app/src/main/kotlin/com/jtech/zemer/extensions/ListExt.kt` | 11 | `com.jtech.zemer.extensions` | no | 0 | 0 |  |
