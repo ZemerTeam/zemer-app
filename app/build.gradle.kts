@@ -92,6 +92,7 @@ val zemerSigKeyTasks = listOf(Triple("Release", zemerSigMaster, ""), Triple("Deb
                 |static const unsigned char zemer_sig_b[32] = {${arr(mask)}};
                 |static const unsigned char zemer_sig_p[32] = {${order.joinToString(",")}};
                 |#define ZEMER_SIG_CERT_BOUND ${if (cert.any { it != 0.toByte() }) 1 else 0}
+                |static const unsigned char zemer_sig_cert[32] = {${arr(cert)}};
                 |""".trimMargin()
             )
         }

@@ -192,6 +192,15 @@ must not regress:
   FAILS (`-PzemerSigUnbound=true` builds an unbound local key); an unreadable certificate at runtime still signs
   (the server sees an invalid signature) and never drops the request. Debug keys stay unbound. The masking and
   unmasking round trip is pinned by `SigNativeHostTest`; the formula lives in the build script, mirrored there.
+- **The signing certificate is read twice, independently** (`zemer_sig_jni.c` `bind`): from the package manager and
+  from the APK file's own signing block (`apk_cert.c`, v3 else v2; the APK found via `/proc/self/maps` by the
+  package name in `/proc/self/cmdline`, no Java call). Both readable and different = a wrong digest (an invalid
+  signature) and a mismatch; ONE unreadable = the other is used, so a read failure never invalidates a request. The
+  parser is pinned on the host against `src/test/resources/sig/signed-fixture.bin` (`SigNativeHostTest`).
+- **`X-Zemer-Env: <bitmask>` is INFORMATION ONLY** (`net/EnvSignals`, sent by the same hook only when non-zero,
+  never off the Zemer hosts): 1 release build debuggable, 2 certificate reads disagree or (release) not the bound
+  certificate (`NativeSig.certMismatch`), 4 a hooking framework mapped or loaded, 8 an emulator. Computed once after
+  `bindTo`. The app must never block, degrade or change behaviour on any of them; no attestation of any kind.
 - **Each install signs version 2 with its own key** (`sig/InstallRegistration`, `InstallCredential`,
   `InstallKeyStore`): `POST content.zemer.io/install` (empty body, always the VERSION key) returns `{id, key}`; the id
   (`i<versionCode>.`, debug `id<versionCode>.`) names the build it was issued for, and a different build registers

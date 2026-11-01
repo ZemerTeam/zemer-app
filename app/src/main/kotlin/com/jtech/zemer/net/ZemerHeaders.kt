@@ -12,15 +12,18 @@ import okio.Buffer
 
 /**
  * The one hook every client to a Zemer server installs: on a Zemer-host request ([ZemerHosts]) it adds the
- * build's versionCode ([BUILD_HEADER]) and the request signature (builds with a signing key only), and it takes
- * the server clock from the response's `Date` so the signature time is right on a device with a wrong clock.
- * Every HOP is judged on its own: a redirect is re-signed for its own path when it stays on a Zemer host and
- * carries neither header when it leaves one. Requests to any other host pass through untouched. Nothing here can
+ * build's versionCode ([BUILD_HEADER]), the environment signals when any is set ([EnvSignals]) and the request
+ * signature (builds with a signing key only), and it takes the server clock from the response's `Date` so the
+ * signature time is right on a device with a wrong clock. Every HOP is judged on its own: a redirect is re-signed
+ * for its own path when it stays on a Zemer host and carries none of these headers when it leaves one. Requests to any other host pass through untouched. Nothing here can
  * fail a request.
  */
 object ZemerHeaders {
     const val BUILD_HEADER = "X-Zemer-Build"
     private val build = BuildConfig.VERSION_CODE.toString()
+
+    /** Everything this hook adds, all removed on a hop to any other host. */
+    private val OWN_HEADERS = listOf(ZemerSig.HEADER, BUILD_HEADER, EnvSignals.HEADER)
 
     /**
      * Ktor clients. Signs at [SendingRequest], so the URL is final (query parameters included); Ktor's redirect
@@ -30,11 +33,11 @@ object ZemerHeaders {
      */
     val KtorPlugin = createClientPlugin("ZemerHeaders") {
         on(SendingRequest) { request, content ->
-            request.headers.remove(ZemerSig.HEADER)
-            request.headers.remove(BUILD_HEADER)
+            OWN_HEADERS.forEach(request.headers::remove)
             val url = request.url.build()
             if (!ZemerHosts.isZemerHost(url.host)) return@on
             request.headers[BUILD_HEADER] = build
+            EnvSignals.mask.takeIf { it != 0 }?.let { request.headers[EnvSignals.HEADER] = it.toString() }
             val body = when (content) {
                 is OutgoingContent.ByteArrayContent -> content.bytes()
                 is OutgoingContent.NoContent -> ByteArray(0)
@@ -57,12 +60,11 @@ object ZemerHeaders {
         override fun intercept(chain: okhttp3.Interceptor.Chain): Response {
             val request = chain.request()
             if (!ZemerHosts.isZemerHost(request.url.host)) {
-                if (request.header(ZemerSig.HEADER) == null && request.header(BUILD_HEADER) == null) {
-                    return chain.proceed(request)
-                }
-                return chain.proceed(request.newBuilder().removeHeader(ZemerSig.HEADER).removeHeader(BUILD_HEADER).build())
+                if (OWN_HEADERS.none { request.header(it) != null }) return chain.proceed(request)
+                return chain.proceed(request.newBuilder().apply { OWN_HEADERS.forEach(::removeHeader) }.build())
             }
             val builder = request.newBuilder().header(BUILD_HEADER, build)
+            EnvSignals.mask.takeIf { it != 0 }?.let { builder.header(EnvSignals.HEADER, it.toString()) }
             ZemerSig.headerFor(request.method, request.url.encodedPath, request.url.encodedQuery, bodyBytes(request.body))
                 ?.let { builder.header(ZemerSig.HEADER, it) }
             return chain.proceed(builder.build()).also { ZemerSig.onServerDate(it.header("Date")) }

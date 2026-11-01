@@ -20,6 +20,15 @@ internal object NativeSig {
     @JvmStatic
     private external fun bind(context: Context)
 
+    /**
+     * The package manager and the APK's own signing block named different certificates, or (a release build) not
+     * the one the key is bound to. Information only ([com.jtech.zemer.net.EnvSignals]); false without the library.
+     */
+    fun certMismatch(): Boolean = available && runCatching { nativeCertMismatch() }.getOrDefault(false)
+
+    @JvmStatic
+    private external fun nativeCertMismatch(): Boolean
+
     @JvmStatic
     external fun hmac(message: ByteArray): ByteArray?
 }
