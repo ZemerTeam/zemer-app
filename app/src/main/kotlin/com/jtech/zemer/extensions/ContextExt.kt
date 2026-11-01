@@ -1,6 +1,5 @@
 package com.jtech.zemer.extensions
 
-import android.content.ActivityNotFoundException
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
@@ -84,12 +83,14 @@ fun Context.copyToClipboard(
 
 /**
  * Open [url] in whatever app handles it. Many filtered phones have no browser at all, so with no handler the
- * link is copied instead (a crash before: `LocalUriHandler.openUri` throws ActivityNotFoundException).
+ * link is copied instead (a crash before: `LocalUriHandler.openUri` throws ActivityNotFoundException). Some filtered
+ * ROMs resolve the link to a broken handler and the system throws back other exceptions (a NullPointerException
+ * from the activity starter), so any failure to start falls back the same way.
  */
 fun Context.openUrlOrCopy(url: String) {
     try {
         startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
-    } catch (_: ActivityNotFoundException) {
+    } catch (_: RuntimeException) {
         copyToClipboard(url, url, R.string.no_browser_link_copied)
     }
 }

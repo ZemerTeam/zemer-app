@@ -295,7 +295,7 @@ Every entry is the ONE implementation; files are under `ui/component/` unless st
 - **Zemer repository in a leaf composable/queue:** `context.zemerSearchRepository()` (`di/ZemerSearchRepositoryEntryPoint.kt`). Ratchet `R17-entrypoint`.
 - **Text share:** `context.shareText(url)` (`extensions/ContextExt.kt`); `Tracker.action(SHARE, …)` + `onDismiss()` stay at the call site; file/stream shares keep their own builder. Ratchet `R19-share` (lyric-image share in `component/Lyrics.kt` excluded).
 - **Clipboard:** `context.copyToClipboard(label, text, confirmationRes = R.string.copied)` (also toasts; `text` is a `CharSequence`). Ratchet `R20-clipboard`.
-- **External link:** `context.openUrlOrCopy(url)` (`extensions/ContextExt.kt`) over `LocalUriHandler.openUri`, which throws `ActivityNotFoundException` on the many filtered phones with no browser; with no handler it copies the link and says so. User-content links in statuses keep `openStatusLink`. Ratchet `R28-openuri`.
+- **External link:** `context.openUrlOrCopy(url)` (`extensions/ContextExt.kt`) over `LocalUriHandler.openUri`, which throws `ActivityNotFoundException` on the many filtered phones with no browser; with no handler (or a broken one the system throws on) it copies the link and says so. User-content links in statuses keep `openStatusLink`. Ratchet `R28-openuri`.
 - **Toast:** `context.toast(resId | text, long = false)` from any `Context`. Ratchet `R21-toast`.
 - **Play/pause:** `PlayerConnection.playPause()` (cast-aware) over a raw `player.togglePlayPause()` in UI code, which resumes LOCAL audio while casting. Ratchet `R27-playpause`.
 - **Focus:** every focus visual conditions on `focusVisualsEnabled()` and every screen-open grab uses `RequestInitialDpadFocus(requester, enabled, keys)`; a focusable row in a scroller uses `Modifier.bringIntoViewOnFocus()` (all `ui/component/FocusBorder.kt`). Functional focus (text fields, key-event moves, cast volume keys) is never gated. Ratchets `R23-focusgate`, `R24-initialfocus`. Full rules: `docs/ui/standards.md` §11.
@@ -1023,10 +1023,12 @@ detail: `docs/ui/standards.md §12`. Rules:
   truncated page yields no output. Tests: `Mp4MetadataWriterTest`, `OggOpusTaggerTest`, on-device
   `OpusDevicePipelineTest`.
 - **Opus needs API 29+** (`AudioRemux.oggMuxSupported`; `minSdk` 26): `MediaStoreDownloadManager` sets
-  `downloadOpusOk = !videoDownload && oggMuxSupported && DownloadAudioFormat == BEST`, and `YTPlayerUtils`
+  `downloadOpusOk = !videoDownload && oggOpusUsable && DownloadAudioFormat == BEST`, and `YTPlayerUtils`
   allows itag 251 for a download only then; 26-28 get best AAC/m4a. Never save a raw `.webm`
   (MediaStore.Audio rejects it): when a device's muxer refuses the WebM->Ogg rewrap, the file is saved
-  untagged under the sniffed `.opus` label, like relay audio, instead of failing the download. Only the
+  untagged under the sniffed `.opus` label, like relay audio, instead of failing the download. Two refused
+  tracks in a row (`AudioRemux.oggMuxRefusals`, persisted as `OggMuxRefusalsKey`; a working rewrap resets it)
+  turn `oggOpusUsable` off, so that device downloads tagged AAC from then on. Only the
   download attempt that gives up is reported (each retry resolves the stream afresh).
 - **`OggExtractor` MUST stay registered** in `createMediaSourceFactory` (else downloaded `.ogg` files hit
   "Source error" → a self-repair re-download loop).

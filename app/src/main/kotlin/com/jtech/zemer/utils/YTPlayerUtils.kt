@@ -185,7 +185,7 @@ object YTPlayerUtils {
         forDownload: Boolean = false,
         // When true, an AUDIO download may select Opus/WebM (itag 251) instead of being forced to
         // AAC/m4a. The container is rewrapped to Ogg + tagged on-device (needs API 29+); the caller
-        // sets this from AudioRemux.oggMuxSupported so higher-quality Opus downloads are possible.
+        // sets this from AudioRemux.oggOpusUsable so higher-quality Opus downloads are possible.
         downloadOpusOk: Boolean = false,
         // Explicit video-quality selection (preferVideo only; both null = the automatic progressive
         // pick, the pre-switcher behavior). videoItag = the EXACT rung a streaming quality swap
