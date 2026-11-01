@@ -1049,68 +1049,69 @@ class SyncUtils @Inject constructor(
         }
     }
 
-        /**
-     * Deletes artists and all their associated content from the database.
-     * This includes: songs, albums, play history, cached formats, lyrics, and user data.
-     * Deletion follows proper order to respect foreign key constraints.
-     */
     /**
-     * Deletes the local data of the artists `/whitelist/removed` names (see [artistsToDelete]). A failed
-     * read deletes nothing and marks the removals pending, so the next sync retries just this call.
+     * Deletes the local data of the artists `/whitelist/removed` names (see [artistsToDelete]). The
+     * removals stay pending (the next sync retries just this call) until the read succeeds AND every
+     * named artist is deleted; the flag is raised before deleting, so a process kill mid-way retries too.
      */
     private suspend fun applyServerRemovals(whitelisted: Set<String>) {
         val removed = WhitelistFetcher.fetchRemovedArtists().getOrNull()
-        context.dataStore.edit { it[WhitelistRemovalPendingKey] = removed == null }
         val ids = artistsToDelete(removed, whitelisted, local = database.getAllArtistIdsSync().toSet())
-        if (ids.isNotEmpty()) deleteRemovedArtists(ids)
+        if (ids.isNotEmpty()) context.dataStore.edit { it[WhitelistRemovalPendingKey] = true }
+        val allDeleted = ids.isEmpty() || deleteRemovedArtists(ids)
+        context.dataStore.edit { it[WhitelistRemovalPendingKey] = removed == null || !allDeleted }
     }
 
-    suspend fun deleteRemovedArtists(removedArtistIds: List<String>) {
-        if (removedArtistIds.isEmpty()) return
+    /**
+     * Deletes each artist and its content (songs, emptied albums, play counts, formats, lyrics; the
+     * song deletes cascade to history and playlist entries), in foreign-key order. True when every
+     * artist was deleted; a failure is reported and leaves the rest of the list to run.
+     */
+    private suspend fun deleteRemovedArtists(removedArtistIds: List<String>): Boolean {
+        var allDeleted = true
+        for (artistId in removedArtistIds) {
+            try {
+                // Step 1: Get all song IDs for this artist
+                val songIds = database.getSongIdsByArtist(artistId)
 
-        try {
-            for (artistId in removedArtistIds) {
-                try {
-                    // Step 1: Get all song IDs for this artist
-                    val songIds = database.getSongIdsByArtist(artistId)
+                // Step 2: Get all album IDs for this artist
+                val albumIds = database.getAlbumIdsByArtist(artistId)
 
-                    // Step 2: Get all album IDs for this artist
-                    val albumIds = database.getAlbumIdsByArtist(artistId)
-
-                    // Step 3: Delete song-related data without foreign keys (must be done first)
-                    if (songIds.isNotEmpty()) {
-                        database.deletePlayCountBySongs(songIds)
-                        database.deleteFormatBySongs(songIds)
-                        database.deleteLyricsBySongs(songIds)
-                    }
-
-                    // Step 4: Delete songs (this will CASCADE DELETE to related tables)
-                    // Cascades: song_artist_map, song_album_map, playlist_song_map, related_song_map, event
-                    if (songIds.isNotEmpty()) {
-                        database.deleteSongsByIds(songIds)
-                    }
-
-                    // Step 5: Check and delete albums that have no songs left
-                    val albumsToDelete = mutableListOf<String>()
-                    for (albumId in albumIds) {
-                        val remainingSongCount = database.getAlbumSongCount(albumId)
-                        if (remainingSongCount == 0) {
-                            albumsToDelete.add(albumId)
-                        }
-                    }
-                    if (albumsToDelete.isNotEmpty()) {
-                        database.deleteAlbumsByIds(albumsToDelete)
-                    }
-
-                    // Step 6: Delete the artist (this will CASCADE DELETE remaining mappings)
-                    database.deleteArtistById(artistId)
-
-                } catch (e: Exception) {
+                // Step 3: Delete song-related data without foreign keys (must be done first)
+                if (songIds.isNotEmpty()) {
+                    database.deletePlayCountBySongs(songIds)
+                    database.deleteFormatBySongs(songIds)
+                    database.deleteLyricsBySongs(songIds)
                 }
-            }
 
-        } catch (e: Exception) {
+                // Step 4: Delete songs (this will CASCADE DELETE to related tables)
+                // Cascades: song_artist_map, song_album_map, playlist_song_map, related_song_map, event
+                if (songIds.isNotEmpty()) {
+                    database.deleteSongsByIds(songIds)
+                }
+
+                // Step 5: Check and delete albums that have no songs left
+                val albumsToDelete = mutableListOf<String>()
+                for (albumId in albumIds) {
+                    val remainingSongCount = database.getAlbumSongCount(albumId)
+                    if (remainingSongCount == 0) {
+                        albumsToDelete.add(albumId)
+                    }
+                }
+                if (albumsToDelete.isNotEmpty()) {
+                    database.deleteAlbumsByIds(albumsToDelete)
+                }
+
+                // Step 6: Delete the artist (this will CASCADE DELETE remaining mappings)
+                database.deleteArtistById(artistId)
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                allDeleted = false
+                reportException(e, "deleteRemovedArtists")
+            }
         }
+        return allDeleted
     }
 }
 
