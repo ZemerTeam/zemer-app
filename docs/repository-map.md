@@ -54,12 +54,12 @@ The following inventory is generated from repository files outside `.git`, `.gra
 
 ### Counts
 
-- Files counted: `1443`
+- Files counted: `1441`
 - By extension:
   - `.kt`: `937`
   - `.xml`: `196`
   - `.mjs`: `110`
-  - `.md`: `66`
+  - `.md`: `64`
   - `.json`: `53`
   - `.webp`: `15`
   - `.c`: `6`
@@ -1295,9 +1295,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `docs/remote_cipher_config/03-extraction-and-self-heal.md` | 102 lines | `.md` |
 | `docs/remote_cipher_config/04-operations.md` | 121 lines | `.md` |
 | `docs/remote_cipher_config/README.md` | 60 lines | `.md` |
-| `docs/repository-map.md` | 1536 lines | `.md` |
-| `docs/repository-map.md` | 1536 lines | `.md` |
-| `docs/repository-map.md` | 1536 lines | `.md` |
+| `docs/repository-map.md` | 1534 lines | `.md` |
 | `docs/sabr/README.md` | 375 lines | `.md` |
 | `docs/stations/README.md` | 67 lines | `.md` |
 | `docs/status/README.md` | 93 lines | `.md` |
