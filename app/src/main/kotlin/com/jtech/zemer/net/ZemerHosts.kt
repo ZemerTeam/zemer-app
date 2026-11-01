@@ -4,9 +4,8 @@ import com.jtech.zemer.BuildConfig
 import java.net.URI
 
 /**
- * The Zemer servers that receive the request signature. Several shared clients (lyrics pages, images) also
- * reach third-party hosts, which must never see it. On `tracking.zemer.io` only the crash reporter's client
- * installs the hook (the telemetry uploader does not).
+ * The Zemer servers that receive the request signature and build header. Several shared clients (lyrics pages,
+ * images) also reach third-party hosts, which must never see them.
  */
 object ZemerHosts {
     private val hosts: Set<String> = buildSet {
