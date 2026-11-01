@@ -192,6 +192,13 @@ must not regress:
   FAILS (`-PzemerSigUnbound=true` builds an unbound local key); an unreadable certificate at runtime still signs
   (the server sees an invalid signature) and never drops the request. Debug keys stay unbound. The masking and
   unmasking round trip is pinned by `SigNativeHostTest`; the formula lives in the build script, mirrored there.
+- **Each install signs version 2 with its own key** (`sig/InstallRegistration`, `InstallCredential`,
+  `InstallKeyStore`): `POST content.zemer.io/install` (empty body, always the VERSION key) returns `{id, key}`; the id
+  (`i<versionCode>.`, debug `id<versionCode>.`) names the build it was issued for, and a different build registers
+  again. Stored AES-GCM-encrypted under a non-exportable Android Keystore key in `noBackupFilesDir`; never logged,
+  never sent (only the HMAC uses it). Registration runs at most once per app start; until it succeeds, and whenever
+  the stored key is missing or unreadable, requests keep the version key (403 / 429 / 503 are retried on a later
+  start). Version 1 signatures and `/install` itself always use the version key. No attestation of any kind.
 - **No key = no header, never a failure.** A build type without its key source gets no native library
   (`ZEMER_SIG_SKIP`) and behaves identically, unsigned; a load or signing failure only drops the header.
 - **The canonical message is byte-exact with the server.** Any change to `SigCanonical` must keep

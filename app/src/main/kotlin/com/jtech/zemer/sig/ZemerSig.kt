@@ -6,6 +6,8 @@ import java.security.SecureRandom
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
 import java.util.Base64
+import javax.crypto.Mac
+import javax.crypto.spec.SecretKeySpec
 
 /**
  * The request signature: `X-Zemer-Sig: k=<keyId>;t=<unix seconds>;s=<base64url HMAC-SHA256>` over
@@ -29,6 +31,16 @@ object ZemerSig {
     @Volatile
     internal var signer: ((ByteArray) -> ByteArray?)? = if (NativeSig.available) NativeSig::hmac else null
 
+    /**
+     * This install's own key ([InstallRegistration]); null until registered, or when it cannot be read. With it,
+     * every version 2 signature uses `k=<install id>` and the install key; version 1 and [INSTALL_PATH] always use
+     * the version key.
+     */
+    @Volatile
+    internal var install: InstallCredential? = null
+
+    const val INSTALL_PATH = "/install"
+
     /** Server time minus device time, in seconds, from the last Zemer response's `Date` (0 until one arrives). */
     @Volatile
     internal var clockOffsetSec = 0L
@@ -45,7 +57,7 @@ object ZemerSig {
         body: ByteArray? = null,
         nowMs: Long = System.currentTimeMillis(),
     ): String? {
-        val sign = signer ?: return null
+        val versionSigner = signer ?: return null
         val t = nowMs / 1000 + clockOffsetSec
         val nonce = body?.let { b64(ByteArray(16).also(random::nextBytes)) }
         val bodyHash = body?.let { b64(MessageDigest.getInstance("SHA-256").digest(it)) }
@@ -54,9 +66,15 @@ object ZemerSig {
         } else {
             SigCanonical.message(method, encodedPath, encodedQuery, t)
         }
+        val install = install?.takeIf { nonce != null && encodedPath != INSTALL_PATH }
+        val k = install?.id ?: keyId
+        val sign: (ByteArray) -> ByteArray? = if (install != null) { m -> hmac(install.key, m) } else versionSigner
         val mac = runCatching { sign(message) }.getOrNull()?.takeIf { it.size == 32 } ?: return null
-        return if (nonce != null) "v=2;k=$keyId;t=$t;n=$nonce;b=$bodyHash;s=${b64(mac)}" else "k=$keyId;t=$t;s=${b64(mac)}"
+        return if (nonce != null) "v=2;k=$k;t=$t;n=$nonce;b=$bodyHash;s=${b64(mac)}" else "k=$k;t=$t;s=${b64(mac)}"
     }
+
+    private fun hmac(key: ByteArray, message: ByteArray): ByteArray =
+        Mac.getInstance("HmacSHA256").apply { init(SecretKeySpec(key, "HmacSHA256")) }.doFinal(message)
 
     private val random = SecureRandom()
 
