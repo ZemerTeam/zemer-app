@@ -7,7 +7,7 @@ if(ZEMER_SIG_SKIP)
     return()
 endif()
 
-add_library(zemersig SHARED zemer_sig_jni.c hmac_sha256.c)
+add_library(zemersig SHARED zemer_sig_jni.c hmac_sha256.c apk_cert.c)
 target_include_directories(zemersig PRIVATE ${ZEMER_SIG_KEY_DIR})
 target_compile_options(zemersig PRIVATE -O2 -fvisibility=hidden -Wall)
 # 16 KB page alignment (Android 15+ devices; checked by CI's scripts/check-16kb-alignment.sh)

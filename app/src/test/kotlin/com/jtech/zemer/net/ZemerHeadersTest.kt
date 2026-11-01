@@ -274,6 +274,26 @@ class ZemerHeadersTest {
     }
 
     @Test
+    fun `the environment signals ride Zemer hops only, and only when one is set`() {
+        val port = server.localPort
+        try {
+            okGet("http://search.zemer.io:$port/search?q=a")
+            EnvSignals.mask = EnvSignals.HOOKING or EnvSignals.EMULATOR
+            okGet("http://search.zemer.io:$port/search?q=b")
+            okGet("http://example.org:$port/x")
+            okGet("http://search.zemer.io:$port/hop-away")
+        } finally {
+            EnvSignals.mask = 0
+        }
+        val env = seenSnapshot().associate { it.target to it.headers["x-zemer-env"] }
+        assertNull("nothing set, no header", env["/search?q=a"])
+        assertEquals("12", env["/search?q=b"])
+        assertEquals("12", env["/hop-away"])
+        assertNull(env["/x"])
+        assertNull("not on a redirect off the Zemer hosts", env["/away"])
+    }
+
+    @Test
     fun `an empty path is signed as the root the server sees`() {
         assertEquals(
             SigCanonical.message("GET", "/", "a=1", 5).decodeToString(),

@@ -14,12 +14,17 @@ object WhitelistFetcher {
     var lastFetchTime = -1L
         private set
 
-    suspend fun fetchVersion(): Result<Long> = contentRead("version") { ZemerContentClient.version() }
+    // firstSync: the caller has no local copy yet, the only case an unsigned response may be applied (ContentSignature)
 
-    suspend fun fetchWhitelist(onProgress: (current: Int, total: Int) -> Unit = { _, _ -> }): Result<List<ArtistWhitelistEntity>> =
+    suspend fun fetchVersion(firstSync: Boolean): Result<Long> = contentRead("version") { ZemerContentClient.version(firstSync) }
+
+    suspend fun fetchWhitelist(
+        firstSync: Boolean,
+        onProgress: (current: Int, total: Int) -> Unit = { _, _ -> },
+    ): Result<List<ArtistWhitelistEntity>> =
         contentRead("whitelist") {
             val now = LocalDateTime.now()
-            val docs = ZemerContentClient.whitelist()
+            val docs = ZemerContentClient.whitelist(firstSync = firstSync)
             val total = docs.size
             Timber.d("WhitelistFetcher: mapping %d artists from content mirror", total)
             val entities = ArrayList<ArtistWhitelistEntity>(total)
@@ -57,18 +62,22 @@ object WhitelistFetcher {
      * The read-only `blockedContentIds` overrides - id-level content blocks applied everywhere in the app
      * (see [BlockedIdsCache]), as id -> reason ("female", "global"). The app only ever READS them.
      */
-    suspend fun fetchBlockedIds(): Result<Map<String, String>> = contentRead("blockedIds") { ZemerContentClient.blockedIds() }
+    suspend fun fetchBlockedIds(firstSync: Boolean): Result<Map<String, String>> =
+        contentRead("blockedIds") { ZemerContentClient.blockedIds(firstSync) }
 
     // The podcast whitelist is the authoritative allow-set + version gate, exactly like the artist
     // whitelist (fetchVersion/fetchWhitelist). `zemer-search /podcasts` is NOT the gate; the gate lives here.
 
-    suspend fun fetchPodcastVersion(): Result<Long> =
-        contentRead("podcastVersion") { ZemerContentClient.podcastsWhitelistVersion() }
+    suspend fun fetchPodcastVersion(firstSync: Boolean): Result<Long> =
+        contentRead("podcastVersion") { ZemerContentClient.podcastsWhitelistVersion(firstSync) }
 
-    suspend fun fetchPodcastWhitelist(onProgress: (current: Int, total: Int) -> Unit = { _, _ -> }): Result<List<PodcastWhitelistEntity>> =
+    suspend fun fetchPodcastWhitelist(
+        firstSync: Boolean,
+        onProgress: (current: Int, total: Int) -> Unit = { _, _ -> },
+    ): Result<List<PodcastWhitelistEntity>> =
         contentRead("podcastWhitelist") {
             val now = LocalDateTime.now()
-            val docs = ZemerContentClient.podcastsWhitelist()
+            val docs = ZemerContentClient.podcastsWhitelist(firstSync)
             val total = docs.size
             Timber.d("WhitelistFetcher: mapping %d podcast channels from content mirror", total)
             val entities = ArrayList<PodcastWhitelistEntity>(total)

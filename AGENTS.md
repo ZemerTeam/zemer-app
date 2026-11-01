@@ -192,6 +192,22 @@ must not regress:
   FAILS (`-PzemerSigUnbound=true` builds an unbound local key); an unreadable certificate at runtime still signs
   (the server sees an invalid signature) and never drops the request. Debug keys stay unbound. The masking and
   unmasking round trip is pinned by `SigNativeHostTest`; the formula lives in the build script, mirrored there.
+- **The signing certificate is read twice, independently** (`zemer_sig_jni.c` `bind`): from the package manager and
+  from the APK file's own signing block (`apk_cert.c`, v3 else v2; the APK found via `/proc/self/maps` by the
+  package name in `/proc/self/cmdline`, no Java call). Both readable and different = a wrong digest (an invalid
+  signature) and a mismatch; ONE unreadable = the other is used, so a read failure never invalidates a request. The
+  parser is pinned on the host against `src/test/resources/sig/signed-fixture.bin` (`SigNativeHostTest`).
+- **`X-Zemer-Env: <bitmask>` is INFORMATION ONLY** (`net/EnvSignals`, sent by the same hook only when non-zero,
+  never off the Zemer hosts): 1 release build debuggable, 2 certificate reads disagree or (release) not the bound
+  certificate (`NativeSig.certMismatch`), 4 a hooking framework mapped or loaded, 8 an emulator. Computed once after
+  `bindTo`. The app must never block, degrade or change behaviour on any of them; no attestation of any kind.
+- **Each install signs version 2 with its own key** (`sig/InstallRegistration`, `InstallCredential`,
+  `InstallKeyStore`): `POST content.zemer.io/install` (empty body, always the VERSION key) returns `{id, key}`; the id
+  (`i<versionCode>.`, debug `id<versionCode>.`) names the build it was issued for, and a different build registers
+  again. Stored AES-GCM-encrypted under a non-exportable Android Keystore key in `noBackupFilesDir`; never logged,
+  never sent (only the HMAC uses it). Registration runs at most once per app start; until it succeeds, and whenever
+  the stored key is missing or unreadable, requests keep the version key (403 / 429 / 503 are retried on a later
+  start). Version 1 signatures and `/install` itself always use the version key. No attestation of any kind.
 - **No key = no header, never a failure.** A build type without its key source gets no native library
   (`ZEMER_SIG_SKIP`) and behaves identically, unsigned; a load or signing failure only drops the header.
 - **The canonical message is byte-exact with the server.** Any change to `SigCanonical` must keep
@@ -248,6 +264,15 @@ ISO-8601 written with millis (`IsoDateSerializer`), nulls explicit, an absent `b
   empty, `WhitelistSyncProgress.failedEmpty`), onboarding's `LoadingScreen` blocks on "Can't load the artist
   list" with Retry and auto-retry (one effect for the screen's lifetime - never keyed on the flag, which each
   attempt resets); never let a first launch finish with an empty whitelist.
+- **Content is signature-checked before it is applied** (`net/ContentSignature`, in `ZemerContentClient.getText`
+  and the offline snapshot's `fetchManifest`): `X-Zemer-Content-Sig` is Ed25519 (Tink's `Ed25519Verify`; keys by id
+  in `ContentSignature.KEYS`) over the decoded path, time and SHA-256 of the body as received. An INVALID signature
+  is never applied; a MISSING one is applied only on a first sync (`firstSync`: no local copy yet - never strand a
+  fresh install behind a network that strips the header), else the previous copy is kept. Both report `fetch_fail`
+  `bad_sig` / `no_sig` once (under the read's camelCase label, as `contentRead`'s - tracking refuses a path with a
+  slash; `contentRead` does not report them again). Only a bad signature is
+  INVALID: any other verifier error propagates as a failed read. Pinned by the server's vectors in
+  `ContentSignatureTest`.
 
 ### Zemer curated playlists (the Home "Zemer Playlists" shelf)
 
@@ -700,7 +725,9 @@ Full detail (shards, layers, tests): `docs/offline/README.md`. Invariants:
   every offline surface - never hand-inline the female/KidZone/video predicate per site.
 - **Sync is staged and crash-safe:** content-hash diffed shards download to `.staged` files, are
   verified, and promote only when ALL verified; the manifest commits last; `loadCorpus` re-verifies
-  hashes at read time; an unknown manifest `schema` is rejected wholesale. Enabled = **daily auto-update
+  hashes at read time; an unknown manifest `schema` is rejected wholesale. The manifest's content signature is
+  checked like the content lists (§Content-filter sync; `firstSync` = no local manifest), and a shard hash
+  mismatch also reports `fetch_fail` `bad_sig`. Enabled = **daily auto-update
   on ANY connection** (no metered gate - a product decision), on the syncer's OWN scope so leaving a
   screen never cancels a download.
 - **Parity with the live server is the correctness bar** (id-set + order); thumbnails deliberately use
