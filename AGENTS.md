@@ -248,6 +248,15 @@ ISO-8601 written with millis (`IsoDateSerializer`), nulls explicit, an absent `b
   empty, `WhitelistSyncProgress.failedEmpty`), onboarding's `LoadingScreen` blocks on "Can't load the artist
   list" with Retry and auto-retry (one effect for the screen's lifetime - never keyed on the flag, which each
   attempt resets); never let a first launch finish with an empty whitelist.
+- **Content is signature-checked before it is applied** (`net/ContentSignature`, in `ZemerContentClient.getText`
+  and the offline snapshot's `fetchManifest`): `X-Zemer-Content-Sig` is Ed25519 (Tink's `Ed25519Verify`; keys by id
+  in `ContentSignature.KEYS`) over the decoded path, time and SHA-256 of the body as received. An INVALID signature
+  is never applied; a MISSING one is applied only on a first sync (`firstSync`: no local copy yet - never strand a
+  fresh install behind a network that strips the header), else the previous copy is kept. Both report `fetch_fail`
+  `bad_sig` / `no_sig` once (under the read's camelCase label, as `contentRead`'s - tracking refuses a path with a
+  slash; `contentRead` does not report them again). Only a bad signature is
+  INVALID: any other verifier error propagates as a failed read. Pinned by the server's vectors in
+  `ContentSignatureTest`.
 
 ### Zemer curated playlists (the Home "Zemer Playlists" shelf)
 
@@ -700,7 +709,9 @@ Full detail (shards, layers, tests): `docs/offline/README.md`. Invariants:
   every offline surface - never hand-inline the female/KidZone/video predicate per site.
 - **Sync is staged and crash-safe:** content-hash diffed shards download to `.staged` files, are
   verified, and promote only when ALL verified; the manifest commits last; `loadCorpus` re-verifies
-  hashes at read time; an unknown manifest `schema` is rejected wholesale. Enabled = **daily auto-update
+  hashes at read time; an unknown manifest `schema` is rejected wholesale. The manifest's content signature is
+  checked like the content lists (§Content-filter sync; `firstSync` = no local manifest), and a shard hash
+  mismatch also reports `fetch_fail` `bad_sig`. Enabled = **daily auto-update
   on ANY connection** (no metered gate - a product decision), on the syncer's OWN scope so leaving a
   screen never cancels a download.
 - **Parity with the live server is the correctness bar** (id-set + order); thumbnails deliberately use

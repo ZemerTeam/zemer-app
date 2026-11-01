@@ -1,6 +1,6 @@
 # Non-Kotlin file reference
 
-Every tracked non-Kotlin path outside `docs/` is listed. Text files report line counts; binary files report byte counts; gitlinks are recorded as non-file tracked paths. Total paths: `442`.
+Every tracked non-Kotlin path outside `docs/` is listed. Text files report line counts; binary files report byte counts; gitlinks are recorded as non-file tracked paths. Total paths: `443`.
 
 | Path | Size/status | Type metadata |
 | --- | ---: | --- |
@@ -12,11 +12,11 @@ Every tracked non-Kotlin path outside `docs/` is listed. Text files report line 
 | `.github/workflows/ui-audit.yml` | 55 lines | text `.yml` |
 | `.gitignore` | 117 lines | text `[none]` |
 | `.gitmodules` | 3 lines | text `[none]` |
-| `AGENTS.md` | 1141 lines | text `.md` |
+| `AGENTS.md` | 1152 lines | text `.md` |
 | `LICENSE` | 674 lines | text `[none]` |
 | `README.md` | 9 lines | text `.md` |
 | `app/.gitignore` | 1 lines | text `[none]` |
-| `app/build.gradle.kts` | 396 lines | text `.kts`; plugins `com.android.application, android, kotlin.serialization, hilt, kotlin.ksp, compose.compiler, google.gms.google.services, rikka.tools.refine` |
+| `app/build.gradle.kts` | 398 lines | text `.kts`; plugins `com.android.application, android, kotlin.serialization, hilt, kotlin.ksp, compose.compiler, google.gms.google.services, rikka.tools.refine` |
 | `app/lint.xml` | 11 lines | text `.xml`; XML root `lint` |
 | `app/proguard-rules.pro` | 230 lines | text `.pro` |
 | `app/schemas/com.jtech.zemer.db.InternalDatabase/1.json` | 297 lines | text `.json`; JSON keys `formatVersion, database` |
@@ -281,6 +281,7 @@ Every tracked non-Kotlin path outside `docs/` is listed. Text files report line 
 | `app/src/main/res/xml/provider_paths.xml` | 12 lines | text `.xml`; XML root `paths` |
 | `app/src/test/cpp/hmac_host_harness.c` | 27 lines | text `.c` |
 | `app/src/test/cpp/sig_unmask_harness.c` | 31 lines | text `.c` |
+| `app/src/test/resources/contentsig/content-sig-vectors.json` | 36 lines | text `.json`; JSON keys `about, keyId, privatePkcs8Pem, publicSpkiB64, vectors` |
 | `app/src/test/resources/lyrics/apple-1571752969.expected.lrc` | 51 lines | text `.lrc` |
 | `app/src/test/resources/lyrics/apple-1571752969.json` | 1 lines | text `.json`; JSON keys `ttmlContent` |
 | `app/src/test/resources/lyrics/apple-1571752969.paxsenix.lrc` | 52 lines | text `.lrc` |
@@ -310,7 +311,7 @@ Every tracked non-Kotlin path outside `docs/` is listed. Text files report line 
 | `build.gradle.kts` | 36 lines | text `.kts`; plugins `hilt, kotlin.ksp, google.gms.google.services, rikka.tools.refine` |
 | `cipher` | gitlink/non-file | tracked path is not a regular file in this checkout |
 | `gradle.properties` | 26 lines | text `.properties` |
-| `gradle/libs.versions.toml` | 146 lines | text `.toml` |
+| `gradle/libs.versions.toml` | 148 lines | text `.toml` |
 | `gradle/wrapper/gradle-wrapper.jar` | 45457 bytes | binary `.jar` |
 | `gradle/wrapper/gradle-wrapper.properties` | 8 lines | text `.properties` |
 | `gradlew` | 248 lines | text `[none]` |
