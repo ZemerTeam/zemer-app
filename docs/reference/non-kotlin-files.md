@@ -12,7 +12,7 @@ Every tracked non-Kotlin path outside `docs/` is listed. Text files report line 
 | `.github/workflows/ui-audit.yml` | 55 lines | text `.yml` |
 | `.gitignore` | 117 lines | text `[none]` |
 | `.gitmodules` | 3 lines | text `[none]` |
-| `AGENTS.md` | 1134 lines | text `.md` |
+| `AGENTS.md` | 1141 lines | text `.md` |
 | `LICENSE` | 674 lines | text `[none]` |
 | `README.md` | 9 lines | text `.md` |
 | `app/.gitignore` | 1 lines | text `[none]` |
@@ -304,7 +304,7 @@ Every tracked non-Kotlin path outside `docs/` is listed. Text files report line 
 | `app/src/test/resources/lyrics/zing-golden.json` | 20 lines | text `.json` |
 | `app/src/test/resources/persistqueue/persistent_queue_v37.bin` | 1642 bytes | binary `.bin` |
 | `app/src/test/resources/sig/sig-vectors-generated.json` | 2406 lines | text `.json`; JSON keys `about, keyB64, vectors` |
-| `app/src/test/resources/sig/sig-vectors.json` | 65 lines | text `.json`; JSON keys `about, keyB64, vectors, derivation` |
+| `app/src/test/resources/sig/sig-vectors.json` | 115 lines | text `.json`; JSON keys `about, keyB64, vectors, v2About, v2, derivation` |
 | `app/universal/release/baselineProfiles/0/app-universal-release.dm` | 10017 bytes | binary `.dm` |
 | `app/universal/release/baselineProfiles/1/app-universal-release.dm` | 9981 bytes | binary `.dm` |
 | `build.gradle.kts` | 36 lines | text `.kts`; plugins `hilt, kotlin.ksp, google.gms.google.services, rikka.tools.refine` |

@@ -6,17 +6,25 @@ import java.io.ByteArrayOutputStream
  * The canonical message a request signature covers (contract: zemer-search `server/sig.mjs`, pinned by the
  * shared `sig-vectors.json`): `"zsig1" \0 METHOD \0 decodedPath \0 t \0` then, for each query parameter
  * decoded with form rules and sorted by key then value (UTF-16 order), `key \0 value \0`. Decoding and sorting
- * make the signature immune to URL re-encoding on the way (Cloudflare normalization); host and body are not
- * signed.
+ * make the signature immune to URL re-encoding on the way (Cloudflare normalization); the host is not signed.
+ * Version 2 ([message2]) also covers a one-time nonce and the body hash: `"zsig2" \0 METHOD \0 decodedPath \0 t
+ * \0 n \0 b \0` then the same query pairs.
  */
 internal object SigCanonical {
-    fun message(method: String, encodedPath: String, encodedQuery: String?, t: Long): ByteArray {
+    fun message(method: String, encodedPath: String, encodedQuery: String?, t: Long): ByteArray =
+        build("zsig1", method, encodedPath, encodedQuery, listOf(t.toString()))
+
+    /** [nonce] and [bodyHash] are the header's `n` and `b` values (base64url, no padding). */
+    fun message2(method: String, encodedPath: String, encodedQuery: String?, t: Long, nonce: String, bodyHash: String): ByteArray =
+        build("zsig2", method, encodedPath, encodedQuery, listOf(t.toString(), nonce, bodyHash))
+
+    private fun build(version: String, method: String, encodedPath: String, encodedQuery: String?, fields: List<String>): ByteArray {
         val parts = ArrayList<String>()
-        parts += "zsig1"
+        parts += version
         parts += method.uppercase()
         // an empty path is sent as "/" (and the server's URL parser reads it so)
         parts += decodePath(encodedPath.ifEmpty { "/" })
-        parts += t.toString()
+        parts += fields
         queryPairs(encodedQuery)
             .sortedWith(compareBy<Pair<String, String>> { it.first }.thenBy { it.second })
             .forEach { (k, v) -> parts += k; parts += v }
