@@ -2,6 +2,7 @@ package com.jtech.zemer.utils
 
 import com.jtech.zemer.db.MusicDatabase
 import com.jtech.zemer.db.entities.Album
+import com.jtech.zemer.db.entities.SongAlbumMap
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 
@@ -14,22 +15,27 @@ import kotlinx.coroutines.flow.combine
  * Same rules as [BlockedIdsCache.isBlocked]: a `global` song hides for every filtering user, a `female`
  * song only when female singers are blocked, so the album hides as `global` when every song is global and
  * as `female` when every song is global or female. A pure filter: nothing is deleted from the device, and
- * the album reappears on the next emission once a block lifts. An album with no stored songs is kept.
+ * the album reappears once a block lifts. An album with no stored songs is kept. "Stored songs" are the
+ * song_album_map rows AND songs linked only through `song.albumId` (see [MusicDatabase.songAlbumMaps]).
  */
 fun albumFullyBlocked(songIds: Collection<String>, isBlocked: (String) -> Boolean): Boolean =
     songIds.isNotEmpty() && songIds.all(isBlocked)
+
+/** The albums in [links] (album-song pairs from any source, duplicates fine) whose every song is blocked. */
+internal fun fullyBlockedAlbumIds(links: List<SongAlbumMap>, isBlocked: (String) -> Boolean): Set<String> =
+    links.groupBy({ it.albumId }, { it.songId }).filterValues { albumFullyBlocked(it, isBlocked) }.keys
 
 suspend fun List<Album>.withoutFullyBlocked(
     database: MusicDatabase,
     config: ContentFilterConfig = ContentFilterState.current,
 ): List<Album> {
     if (isEmpty() || !BlockedIdsCache.anyApplies(config)) return this
-    val songsByAlbum = database.songAlbumMaps(map { it.id }).groupBy({ it.albumId }, { it.songId })
-    return filterNot { album ->
-        albumFullyBlocked(songsByAlbum[album.id].orEmpty()) { BlockedIdsCache.isBlocked(it, config) }
-    }
+    val hidden = fullyBlockedAlbumIds(database.songAlbumMaps(map { it.id })) { BlockedIdsCache.isBlocked(it, config) }
+    return filterNot { it.id in hidden }
 }
 
-/** [withoutFullyBlocked] on every emission, re-applied when the content filter changes. */
+/** [withoutFullyBlocked] on every emission, re-applied when the content filter or the blocked list changes. */
 fun Flow<List<Album>>.hideFullyBlockedAlbums(database: MusicDatabase): Flow<List<Album>> =
-    combine(this, ContentFilterState.state) { albums, config -> albums.withoutFullyBlocked(database, config) }
+    combine(this, ContentFilterState.state, BlockedIdsCache.revision) { albums, config, _ ->
+        albums.withoutFullyBlocked(database, config)
+    }

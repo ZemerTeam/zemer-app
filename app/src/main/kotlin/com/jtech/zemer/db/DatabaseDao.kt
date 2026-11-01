@@ -489,9 +489,16 @@ interface DatabaseDao {
     @Query("SELECT * FROM song_album_map WHERE albumId IN (:albumIds)")
     suspend fun songAlbumMapsChunk(albumIds: List<String>): List<SongAlbumMap>
 
-    /** The stored album-song links of [albumIds], any list length (see [SqliteBindLimit]). */
+    // A song saved from its metadata carries `song.albumId` without a song_album_map row.
+    @Query("SELECT id AS songId, albumId, 0 AS `index` FROM song WHERE albumId IN (:albumIds)")
+    suspend fun songAlbumIdLinksChunk(albumIds: List<String>): List<SongAlbumMap>
+
+    /**
+     * Every stored song of [albumIds], any list length (see [SqliteBindLimit]): the song_album_map rows
+     * plus songs linked only through `song.albumId`.
+     */
     suspend fun songAlbumMaps(albumIds: List<String>): List<SongAlbumMap> =
-        SqliteBindLimit.chunks(albumIds).flatMap { songAlbumMapsChunk(it) }
+        SqliteBindLimit.chunks(albumIds).flatMap { songAlbumMapsChunk(it) + songAlbumIdLinksChunk(it) }
 
     @Transaction
     @Query("SELECT * FROM song WHERE isVideo = 1")

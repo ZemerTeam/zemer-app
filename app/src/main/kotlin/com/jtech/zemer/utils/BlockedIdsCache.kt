@@ -34,6 +34,11 @@ object BlockedIdsCache {
     @Volatile
     private var blocked: Map<String, String> = emptyMap()
 
+    private val _revision = kotlinx.coroutines.flow.MutableStateFlow(0)
+
+    /** Bumped by every [updateAll], so lists derived from the table re-filter when it changes. */
+    val revision: kotlinx.coroutines.flow.StateFlow<Int> = _revision
+
     /** Replace the table with the latest server snapshot. Only call on a successful fetch/load. */
     fun updateAll(entries: Map<String, String>) {
         blocked = entries.entries
@@ -41,6 +46,7 @@ object BlockedIdsCache {
                 id.trim().takeIf(String::isNotEmpty)?.let { it to reason.trim().lowercase() }
             }
             .toMap()
+        _revision.value++
     }
 
     /** True if [id] should be hidden under the current content-filter [config]. */

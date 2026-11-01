@@ -1,6 +1,8 @@
 package com.jtech.zemer.utils
 
+import com.jtech.zemer.db.entities.SongAlbumMap
 import org.junit.After
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -41,6 +43,24 @@ class BlockedAlbumsTest {
     @Test
     fun `an album with no stored songs is kept`() {
         assertFalse(hidden(emptyList(), femaleBlocked))
+    }
+
+    @Test
+    fun `a song linked only through song albumId counts, so an allowed one keeps the album`() {
+        val links = listOf(
+            SongAlbumMap(songId = "g1", albumId = "A", index = 0), // song_album_map row
+            SongAlbumMap(songId = "ok", albumId = "A", index = 0), // song.albumId only
+            SongAlbumMap(songId = "g1", albumId = "B", index = 0),
+            SongAlbumMap(songId = "g1", albumId = "B", index = 0), // same song from both sources
+        )
+        assertEquals(setOf("B"), fullyBlockedAlbumIds(links) { BlockedIdsCache.isBlocked(it, femaleBlocked) })
+    }
+
+    @Test
+    fun `replacing the blocked table bumps the revision lists re-filter on`() {
+        val before = BlockedIdsCache.revision.value
+        BlockedIdsCache.updateAll(mapOf("g1" to "global"))
+        assertEquals(before + 1, BlockedIdsCache.revision.value)
     }
 
     @Test
