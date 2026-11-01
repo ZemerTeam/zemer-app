@@ -1,6 +1,7 @@
 package com.jtech.zemer.playback.sabr
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -72,5 +73,26 @@ class SabrSeekLogicTest {
         assertEquals(0L, (first as SabrSeekLogic.Restart).startMs)
         // That session then lands at/before the target and is left to drain forward (no restart storm).
         assertEquals(SabrSeekLogic.LetDrain, decide(alive = true, anchor = 0, position = 900_000, since = 30_000, attempts = 1, dur = 0L))
+    }
+
+    @Test
+    fun `a session that keeps dying young is restarted with growing pauses`() {
+        assertEquals(listOf(0L, 1_000L, 2_000L, 4_000L, 8_000L, 16_000L, 16_000L), (0..6).map(SabrSeekLogic::restartBackoffMs))
+        // the first restart is immediate; after 2 restarts a session that died within 2 s waits
+        assertTrue(decide(alive = false, anchor = -1, position = 500_000, since = 0, attempts = 0) is SabrSeekLogic.Restart)
+        assertEquals(SabrSeekLogic.Grace, decide(alive = false, anchor = -1, position = 500_000, since = 1_500, attempts = 2))
+        assertTrue(decide(alive = false, anchor = -1, position = 500_000, since = 2_000, attempts = 2) is SabrSeekLogic.Restart)
+        // a live session landed past the target is re-aimed at once (progress, not a failure loop)
+        assertTrue(decide(alive = true, anchor = 600_000, position = 500_000, since = 500, attempts = 3) is SabrSeekLogic.Restart)
+    }
+
+    @Test
+    fun `the restart budget refills on a seek or a steady session, never on a run of short ones`() {
+        assertTrue("a seek (a jump in position)", SabrSeekLogic.resetsRestartBudget(continuous = false, sessionAgeMs = 100))
+        assertTrue("a session serving steadily", SabrSeekLogic.resetsRestartBudget(continuous = true, sessionAgeMs = SabrSeekLogic.STABLE_SESSION_MS))
+        assertFalse(
+            "a capped client's free window, read on from where playback was",
+            SabrSeekLogic.resetsRestartBudget(continuous = true, sessionAgeMs = 3_000),
+        )
     }
 }

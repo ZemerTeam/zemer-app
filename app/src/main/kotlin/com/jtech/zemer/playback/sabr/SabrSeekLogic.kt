@@ -63,6 +63,20 @@ internal object SabrSeekLogic {
             }
         }
         if (restartAttempts >= MAX_SEEK_RESTARTS) return GiveUp
+        // a session that keeps dying young is restarted with growing pauses, never in a tight loop
+        if (!sessionAlive && sinceStartMs < restartBackoffMs(restartAttempts)) return Grace
         return Restart(estimateStartMs(position, durationMs, contentLength, margin), margin)
     }
+
+    /** The pause before restarting after [attempts] restarts: none, then 1 s, 2 s, 4 s … at most 16 s. */
+    fun restartBackoffMs(attempts: Int): Long = if (attempts <= 0) 0L else 1_000L shl (attempts - 1).coerceAtMost(4)
+
+    /**
+     * Whether a served read refills the restart budget: the first read after a seek (not [continuous] with the
+     * previous one), or a read from a session that has run steadily for [STABLE_SESSION_MS]. A run of short sessions
+     * each serving a little (a client the server caps after a free window) never does, so it ends in [GiveUp].
+     */
+    fun resetsRestartBudget(continuous: Boolean, sessionAgeMs: Long): Boolean = !continuous || sessionAgeMs >= STABLE_SESSION_MS
+
+    const val STABLE_SESSION_MS = 30_000L
 }
