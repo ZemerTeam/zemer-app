@@ -733,6 +733,11 @@ Full detail (shards, layers, tests): `docs/offline/README.md`. Invariants:
 - **Shards are additive/optional**: an older app ignores unknown shards, an older snapshot just serves
   less. The `lyricsflags` hint only drives a fire-and-forget lyrics prefetch on download completion
   (`MediaStoreDownloadManager.prefetchLyricsIfLikely`) and never gates the other lyrics providers.
+- **Heap budget (phones with a 256 MB heap OOM-crashed building it):** the decoded corpus + search index
+  must stay compact - `SubsetDecoder` pools repeated ids into one `String` (`asId`) and streams the
+  `communitytracks` shard row by row, `buildSubsetIndex` packs postings into `IntArray`s (never boxed
+  maps) and shares one string pool across the nine indexes. Never reintroduce a per-row id copy, a boxed
+  posting map or a whole-shard JSON tree for a large shard.
 - **Kosher defenses:** a 14-day staleness cap (`subsetSnapshotIsFresh`), the live synced whitelist
   overlaid at corpus load (`SubsetCorpus.withLiveWhitelist` - de-whitelisted artists drop at once,
   `isFemale` from the live flag), and ONE shared content gate (`contentGatePasses`) + `idDropped` across

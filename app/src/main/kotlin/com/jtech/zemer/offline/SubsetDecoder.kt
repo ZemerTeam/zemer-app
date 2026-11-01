@@ -1,12 +1,15 @@
 package com.jtech.zemer.offline
 
 import kotlinx.coroutines.CancellationException
+import kotlinx.serialization.ExperimentalSerializationApi
+import kotlinx.serialization.json.DecodeSequenceMode
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.decodeToSequence
 import kotlinx.serialization.json.doubleOrNull
 import kotlinx.serialization.json.int
 import kotlinx.serialization.json.intOrNull
@@ -16,6 +19,7 @@ import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.longOrNull
 import timber.log.Timber
 import java.io.ByteArrayInputStream
+import java.io.InputStream
 import java.util.zip.GZIPInputStream
 
 /**
@@ -51,6 +55,10 @@ object SubsetDecoder {
             var lyricsFlags: Map<String, Int> = emptyMap()
             var realVideos: Set<String> = emptySet()
             val radioRows = ArrayList<SubRadioRow>()
+            // One shared id pool: the same videoId / artistId / playlistId repeats across hundreds of
+            // thousands of rows (community members, radio neighbours, album tracks); one String per id
+            // instead of one per row cut the decoded snapshot from ~180 MB of heap (an OOM on 256 MB phones).
+            val ids = HashMap<String, String>()
 
             for (shard in manifest.shards) {
                 val bytes = store.shardBytes(shard.name) ?: return null
@@ -61,15 +69,19 @@ object SubsetDecoder {
                     Timber.w("Subset shard %s hash mismatch on read — snapshot unusable", shard.name)
                     return null
                 }
+                if (shard.name == "communitytracks") {
+                    // ~25 MB of JSON in one shard: streamed row by row, never held as text + a full JSON tree.
+                    communityTracks += decodeCommunityTracks(GZIPInputStream(ByteArrayInputStream(bytes)), ids)
+                    continue
+                }
                 val text = gunzip(bytes)
                 when {
                     shard.name == "artists" -> artists += decodeArtists(text)
-                    shard.name.startsWith("albumtracks-") -> albumTracks += decodeAlbumTracks(text)
-                    shard.name.startsWith("tracks-") -> tracks += decodeTracks(text)
+                    shard.name.startsWith("albumtracks-") -> albumTracks += decodeAlbumTracks(text, ids)
+                    shard.name.startsWith("tracks-") -> tracks += decodeTracks(text, ids)
                     shard.name.startsWith("albums-") -> albums += decodeAlbums(text)
                     shard.name == "playlists" -> playlists += decodeArtistPlaylists(text)
                     shard.name == "community" -> community += decodeCommunity(text)
-                    shard.name == "communitytracks" -> communityTracks += decodeCommunityTracks(text)
                     shard.name == "homerank" -> homeRank += decodeHomeRank(text)
                     shard.name == "zemer" -> decodeZemer(text).let { zemerPlaylists += it.first; zemerItems += it.second }
                     shard.name == "podcastchannels" -> podcastChannels += decodePodcastChannels(text)
@@ -80,7 +92,7 @@ object SubsetDecoder {
                     shard.name == "genrecatalog" -> genreCatalog = decodeGenreCatalog(text)
                     shard.name == "lyricsflags" -> lyricsFlags = decodeLyricsFlags(text)
                     shard.name == "realvideos" -> realVideos = decodeRealVideos(text)
-                    shard.name.startsWith("radio-") -> radioRows += decodeRadioRows(text)
+                    shard.name.startsWith("radio-") -> radioRows += decodeRadioRows(text, ids)
                     // Unknown shard → ignored for forward compatibility.
                 }
             }
@@ -117,12 +129,12 @@ object SubsetDecoder {
         )
     }
 
-    fun decodeTracks(text: String): List<SubTrack> = rows(text).map { r ->
+    fun decodeTracks(text: String, ids: MutableMap<String, String> = HashMap()): List<SubTrack> = rows(text).map { r ->
         val flags = r[3].asInt()
         SubTrack(
-            videoId = r[0].asString(),
+            videoId = r[0].asId(ids),
             title = r[1].asString(),
-            artistId = r[2].asString(),
+            artistId = r[2].asId(ids),
             isVideo = flags and 1 != 0,
             durationSec = r[4].asIntOrNull(),
             playCount = r[5].asLongOrNull(),
@@ -143,8 +155,8 @@ object SubsetDecoder {
         )
     }
 
-    fun decodeAlbumTracks(text: String): List<SubAlbumTrack> = rows(text).map { r ->
-        SubAlbumTrack(albumId = r[0].asString(), videoId = r[1].asString(), pos = r[2].asInt())
+    fun decodeAlbumTracks(text: String, ids: MutableMap<String, String> = HashMap()): List<SubAlbumTrack> = rows(text).map { r ->
+        SubAlbumTrack(albumId = r[0].asId(ids), videoId = r[1].asId(ids), pos = r[2].asInt())
     }
 
     fun decodeArtistPlaylists(text: String): List<SubArtistPlaylist> = rows(text).map { r ->
@@ -163,9 +175,16 @@ object SubsetDecoder {
         )
     }
 
-    fun decodeCommunityTracks(text: String): List<SubCommunityTrack> = rows(text).map { r ->
-        SubCommunityTrack(playlistId = r[0].asString(), videoId = r[1].asString(), pos = r[2].asInt(), artistId = r[3].asStringOrNull())
-    }
+    fun decodeCommunityTracks(text: String): List<SubCommunityTrack> = decodeCommunityTracks(text.byteInputStream(), HashMap())
+
+    @OptIn(ExperimentalSerializationApi::class)
+    fun decodeCommunityTracks(input: InputStream, ids: MutableMap<String, String>): List<SubCommunityTrack> =
+        json.decodeToSequence<JsonArray>(input, DecodeSequenceMode.ARRAY_WRAPPED).map { r ->
+            SubCommunityTrack(
+                playlistId = r[0].asId(ids), videoId = r[1].asId(ids), pos = r[2].asInt(),
+                artistId = r[3].asStringOrNull()?.let { ids.getOrPut(it) { it } },
+            )
+        }.toList()
 
     fun decodeHomeRank(text: String): List<SubHomeRank> = json.parseToJsonElement(text).jsonArray.map { e ->
         val o = e.jsonObject
@@ -275,12 +294,12 @@ object SubsetDecoder {
 
     // radio-<n> shard: [[videoId, pop|null, [[id,w],...] lib, [[id,w],...] sess]], hash-bucketed by
     // videoId across 4 shard names — decoded per-shard and concatenated by the caller (loadCorpus).
-    fun decodeRadioRows(text: String): List<SubRadioRow> = rows(text).map { r ->
+    fun decodeRadioRows(text: String, ids: MutableMap<String, String> = HashMap()): List<SubRadioRow> = rows(text).map { r ->
         fun neighbours(idx: Int) = (r.getOrNull(idx) as? JsonArray).orEmpty().map { pair ->
             val p = pair.jsonArray
-            p[0].asString() to p[1].asDoubleOrNull()!!
+            p[0].asId(ids) to p[1].asDoubleOrNull()!!
         }
-        SubRadioRow(videoId = r[0].asString(), pop = r[1].asDoubleOrNull(), lib = neighbours(2), sess = neighbours(3))
+        SubRadioRow(videoId = r[0].asId(ids), pop = r[1].asDoubleOrNull(), lib = neighbours(2), sess = neighbours(3))
     }
 
     // --- helpers ---
@@ -294,6 +313,7 @@ object SubsetDecoder {
 
     private fun JsonElement?.isNull(): Boolean = this == null || this is JsonNull
     private fun JsonElement?.asString(): String = this!!.jsonPrimitive.content
+    private fun JsonElement?.asId(ids: MutableMap<String, String>): String = asString().let { ids.getOrPut(it) { it } }
     private fun JsonElement?.asStringOrNull(): String? = if (isNull()) null else this!!.jsonPrimitive.contentOrNull
     private fun JsonElement?.asInt(): Int = this!!.jsonPrimitive.int
     private fun JsonElement?.asIntOrNull(): Int? = if (isNull()) null else this!!.jsonPrimitive.intOrNull

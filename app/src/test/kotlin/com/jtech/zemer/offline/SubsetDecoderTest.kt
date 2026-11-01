@@ -3,6 +3,7 @@ package com.jtech.zemer.offline
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -73,6 +74,19 @@ class SubsetDecoderTest {
         )
         assertNull(ct[0].artistId)
         assertEquals("UCzqpZ8XdZsLBGNYKbEZn-TA", ct[1].artistId); assertEquals(2, ct[1].pos)
+    }
+
+    @Test
+    fun `ids repeated across rows and shards decode to ONE shared String (the heap fix)`() {
+        val ids = HashMap<String, String>()
+        val tracks = SubsetDecoder.decodeTracks("""[["vidAAAAAAAA","T","UCartist",0,null,null,null]]""", ids)
+        val ct = SubsetDecoder.decodeCommunityTracks(
+            """[["LRx","vidAAAAAAAA",0,"UCartist"],["LRx","vidBBBBBBBB",1,"UCartist"]]""".byteInputStream(), ids,
+        )
+        assertSame(ct[0].playlistId, ct[1].playlistId)
+        assertSame(tracks[0].videoId, ct[0].videoId)
+        assertSame(tracks[0].artistId, ct[0].artistId)
+        assertSame(ct[0].artistId, ct[1].artistId)
     }
 
     @Test
