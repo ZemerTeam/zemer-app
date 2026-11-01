@@ -15,8 +15,8 @@
 | BuildConfig fields visible in Gradle | `ARCHITECTURE`, `COMMIT_HASH`, `RUN_NUMBER`, `GOOGLE_TOKEN_EXCHANGE_URL`, `CONTENT_MIRROR_URL`, `ZEMER_LYRICS_BASE_URL` |
 | Room schema directory | `app/schemas` |
 | Native build | Yes (see `build-release.md`) |
-| Tracked app paths | `1147` |
-| Tracked app Kotlin files | `850` (`632` in `src/main`, `216` in `src/test`, `2` in `src/androidTest`) |
+| Tracked app paths | `1152` |
+| Tracked app Kotlin files | `855` (`636` in `src/main`, `217` in `src/test`, `2` in `src/androidTest`) |
 | Tracked app resource paths | `214` |
 | Tracked app asset paths | `0` in `src/main` (`3` test fixtures under `src/androidTest/assets`) |
 | Tracked app Room schema files | `36` |
@@ -68,7 +68,7 @@
 | `com.jtech.zemer.lyrics.youtube` | 1 |
 | `com.jtech.zemer.lyrics.zemer` | 14 |
 | `com.jtech.zemer.models` | 5 |
-| `com.jtech.zemer.net` | 4 |
+| `com.jtech.zemer.net` | 7 |
 | `com.jtech.zemer.offline` | 16 |
 | `com.jtech.zemer.payments` | 1 |
 | `com.jtech.zemer.playback` | 52 |
@@ -90,7 +90,7 @@
 | `com.jtech.zemer.ui.component.shimmer` | 6 |
 | `com.jtech.zemer.ui.menu` | 23 |
 | `com.jtech.zemer.ui.player` | 18 |
-| `com.jtech.zemer.ui.screens` | 30 |
+| `com.jtech.zemer.ui.screens` | 31 |
 | `com.jtech.zemer.ui.screens.artist` | 2 |
 | `com.jtech.zemer.ui.screens.library` | 8 |
 | `com.jtech.zemer.ui.screens.onboarding` | 8 |
@@ -135,7 +135,7 @@
 | `com/jtech/zemer/lyrics/youtube` | 1 |
 | `com/jtech/zemer/lyrics/zemer` | 14 |
 | `com/jtech/zemer/models` | 5 |
-| `com/jtech/zemer/net` | 4 |
+| `com/jtech/zemer/net` | 7 |
 | `com/jtech/zemer/offline` | 16 |
 | `com/jtech/zemer/payments` | 1 |
 | `com/jtech/zemer/playback` | 52 |
@@ -157,7 +157,7 @@
 | `com/jtech/zemer/ui/component/shimmer` | 6 |
 | `com/jtech/zemer/ui/menu` | 23 |
 | `com/jtech/zemer/ui/player` | 18 |
-| `com/jtech/zemer/ui/screens` | 30 |
+| `com/jtech/zemer/ui/screens` | 31 |
 | `com/jtech/zemer/ui/screens/artist` | 2 |
 | `com/jtech/zemer/ui/screens/library` | 8 |
 | `com/jtech/zemer/ui/screens/onboarding` | 8 |

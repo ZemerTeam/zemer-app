@@ -93,11 +93,12 @@ internal class SabrSession(
      * the stream can restart on the SAME buffer — it only wakes the parked reader to re-aim; a standalone
      * (download) session marks the buffer so its caller sees the failure. [stall] records the client stall
      * (roster-fallback bookkeeping); an HTTP failure passes false (usually an expired url, not this
-     * client's fault).
+     * client's fault). A [terminal] failure marks the buffer even for a playback session: an attestation cap
+     * cannot be fixed by restarting the same client, so the stream errors and the next resolve moves to another.
      */
-    private fun failStream(message: String, stall: Boolean) {
+    private fun failStream(message: String, stall: Boolean, terminal: Boolean = false) {
         if (stall) onIncomplete?.invoke()
-        if (restartable) buffer.notifyWaiters() else buffer.markError(message)
+        if (restartable && !terminal) buffer.notifyWaiters() else buffer.markError(message)
     }
 
     /** Absolute byte offset of this session's FIRST media segment (-1 until known) — the seek anchor. */
@@ -243,7 +244,7 @@ internal class SabrSession(
             attestationStalls = SabrProtection.nextStalls(protStatus, madeProgress = newSeg, prev = attestationStalls)
             if (SabrProtection.capped(attestationStalls)) {
                 Timber.tag(TAG).w("SABR attestation cap (STREAM_PROTECTION_STATUS=$protStatus): ${buffer.available()}/${config.format.contentLength} at seq $lastSeq/$endSeg — this client cannot satisfy attestation")
-                failStream("attestation-capped (protection=$protStatus): ${buffer.available()}/${config.format.contentLength}", stall = true); return
+                failStream("attestation-capped (protection=$protStatus): ${buffer.available()}/${config.format.contentLength}", stall = true, terminal = true); return
             }
             // Completion: end_segment_number when the server sent one, else BYTE coverage reaching
             // contentLength (a seeked session gets no endSeg — proven live).

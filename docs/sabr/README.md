@@ -152,7 +152,11 @@ estimated `playerTimeMs` (`SabrSeekLogic.estimateStartMs`, linear over `approxDu
   against the pre-seek read position and the reader waits forever;
 - only a landing PAST the target widens the back-margin and re-aims;
 - an unknown duration estimates 0 (a from-0 drain), never an endless restart-at-0;
-- `MAX_SEEK_RESTARTS` bounds it, then the stream errors.
+- `MAX_SEEK_RESTARTS` bounds it, then the stream errors. The budget refills only on a seek (a read that
+  does not continue the previous one) or a read from a session that has run `STABLE_SESSION_MS` (30 s)
+  (`resetsRestartBudget`), never on every byte served: a client capped after a free window served a little
+  each time and restarted forever. A session that died young is restarted after `restartBackoffMs`
+  (1, 2, 4, 8, then 16 s).
 
 Each restart re-anchors the demand gate to the seek target (`SabrBuffer.resetDemandFrom`); pacing against
 the stale pre-seek watermark blocked the fresh session before its first POST on any track larger than the
@@ -165,7 +169,9 @@ idle gaps. Downloads drain at full speed.
   then surfaces a real player error at the gap (`markComplete` would silently truncate the track).
 - A playback session is **`restartable`**: it never marks the shared buffer on its own failure (it only
   wakes the reader); the stream is the sole terminal-error authority, so a dying session can't poison the
-  buffer the next seek-restart reuses. A standalone (download) session marks the buffer.
+  buffer the next seek-restart reuses. A standalone (download) session marks the buffer. The one exception is
+  an **attestation cap** (`failStream(terminal = true)`): restarting the same client cannot help, so the
+  stream errors and the next resolve tries another client (the capped one recorded as stalled, ordered last).
 - `SabrSpool` promotes a complete drain on stream destroy (`<id>.<itag>.done` + `<id>.meta`,
   `MAX_CACHE_BYTES` 512 MiB LRU). Promotion deletes any stale-itag `.done` sibling, and prune only deletes
   a `.meta` that still points at the file it evicts, so a live replay is never stranded.

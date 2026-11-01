@@ -2,7 +2,7 @@
 
 Every tracked Kotlin file is listed with hard metadata extracted from the file text: line count, package, whether it declares any `@Composable`, import count, top-level declaration count (`Decls` - a high value flags a god-file), and the external import roots it depends on. Declaration counting is regex-based (after stripping comments and string literals). For the actual declaration names, read the file or use your editor's outline - they are not duplicated here.
 
-## `app` Kotlin files (850)
+## `app` Kotlin files (855)
 
 | File | Lines | Package | Compose | Imports | Decls | External import roots |
 | --- | ---: | --- | --- | ---: | ---: | --- |
@@ -133,6 +133,9 @@ Every tracked Kotlin file is listed with hard metadata extracted from the file t
 | `app/src/main/kotlin/com/jtech/zemer/models/PersistQueue.kt` | 91 | `com.jtech.zemer.models` | no | 1 | 41 | java.io |
 | `app/src/main/kotlin/com/jtech/zemer/net/ContentSignature.kt` | 80 | `com.jtech.zemer.net` | no | 7 | 20 | com.google, io.ktor, java.security, java.util |
 | `app/src/main/kotlin/com/jtech/zemer/net/EnvSignals.kt` | 60 | `com.jtech.zemer.net` | no | 6 | 16 | android.content, android.os, java.io |
+| `app/src/main/kotlin/com/jtech/zemer/net/UnofficialCopy.kt` | 69 | `com.jtech.zemer.net` | no | 7 | 17 | java.net, kotlinx.coroutines, kotlinx.serialization |
+| `app/src/main/kotlin/com/jtech/zemer/net/ZemerHeaders.kt` | 101 | `com.jtech.zemer.net` | no | 11 | 16 | io.ktor, okhttp3.OkHttpClient, okhttp3.RequestBody, okhttp3.Response, okio.Buffer |
+| `app/src/main/kotlin/com/jtech/zemer/net/ZemerHeaders.kt` | 101 | `com.jtech.zemer.net` | no | 11 | 16 | io.ktor, okhttp3.OkHttpClient, okhttp3.RequestBody, okhttp3.Response, okio.Buffer |
 | `app/src/main/kotlin/com/jtech/zemer/net/ZemerHeaders.kt` | 101 | `com.jtech.zemer.net` | no | 11 | 16 | io.ktor, okhttp3.OkHttpClient, okhttp3.RequestBody, okhttp3.Response, okio.Buffer |
 | `app/src/main/kotlin/com/jtech/zemer/net/ZemerHosts.kt` | 23 | `com.jtech.zemer.net` | no | 2 | 3 | java.net |
 | `app/src/main/kotlin/com/jtech/zemer/offline/OfflineReadProvider.kt` | 170 | `com.jtech.zemer.offline` | no | 25 | 33 | android.content, dagger.hilt, java.lang, javax.inject, kotlinx.coroutines |
@@ -216,19 +219,19 @@ Every tracked Kotlin file is listed with hard metadata extracted from the file t
 | `app/src/main/kotlin/com/jtech/zemer/playback/relay/RelayDownload.kt` | 46 | `com.jtech.zemer.playback.relay` | no | 0 | 5 |  |
 | `app/src/main/kotlin/com/jtech/zemer/playback/relay/RelayStream.kt` | 30 | `com.jtech.zemer.playback.relay` | no | 1 | 9 |  |
 | `app/src/main/kotlin/com/jtech/zemer/playback/sabr/SabrBuffer.kt` | 260 | `com.jtech.zemer.playback.sabr` | no | 4 | 55 | java.io, java.util |
-| `app/src/main/kotlin/com/jtech/zemer/playback/sabr/SabrDataSource.kt` | 275 | `com.jtech.zemer.playback.sabr` | no | 11 | 67 | android.net, androidx.media3, java.io, java.util, okhttp3.OkHttpClient, timber.log |
+| `app/src/main/kotlin/com/jtech/zemer/playback/sabr/SabrDataSource.kt` | 281 | `com.jtech.zemer.playback.sabr` | no | 11 | 68 | android.net, androidx.media3, java.io, java.util, okhttp3.OkHttpClient, timber.log |
 | `app/src/main/kotlin/com/jtech/zemer/playback/sabr/SabrMessages.kt` | 193 | `com.jtech.zemer.playback.sabr` | no | 4 | 54 |  |
 | `app/src/main/kotlin/com/jtech/zemer/playback/sabr/SabrPlayerResolver.kt` | 282 | `com.jtech.zemer.playback.sabr` | no | 8 | 54 | android.net, com.zemer, kotlinx.coroutines, timber.log |
 | `app/src/main/kotlin/com/jtech/zemer/playback/sabr/SabrProtection.kt` | 22 | `com.jtech.zemer.playback.sabr` | no | 0 | 5 |  |
 | `app/src/main/kotlin/com/jtech/zemer/playback/sabr/SabrProto.kt` | 101 | `com.jtech.zemer.playback.sabr` | no | 1 | 40 | java.io |
-| `app/src/main/kotlin/com/jtech/zemer/playback/sabr/SabrSeekLogic.kt` | 68 | `com.jtech.zemer.playback.sabr` | no | 0 | 15 |  |
-| `app/src/main/kotlin/com/jtech/zemer/playback/sabr/SabrSession.kt` | 274 | `com.jtech.zemer.playback.sabr` | no | 5 | 75 | okhttp3.MediaType, okhttp3.OkHttpClient, okhttp3.Request, okhttp3.RequestBody, timber.log |
+| `app/src/main/kotlin/com/jtech/zemer/playback/sabr/SabrSeekLogic.kt` | 82 | `com.jtech.zemer.playback.sabr` | no | 0 | 18 |  |
+| `app/src/main/kotlin/com/jtech/zemer/playback/sabr/SabrSession.kt` | 275 | `com.jtech.zemer.playback.sabr` | no | 5 | 75 | okhttp3.MediaType, okhttp3.OkHttpClient, okhttp3.Request, okhttp3.RequestBody, timber.log |
 | `app/src/main/kotlin/com/jtech/zemer/playback/sabr/SabrSpool.kt` | 144 | `com.jtech.zemer.playback.sabr` | no | 3 | 41 | java.io, java.util, timber.log |
 | `app/src/main/kotlin/com/jtech/zemer/playback/sabr/SabrStreamResolver.kt` | 177 | `com.jtech.zemer.playback.sabr` | no | 8 | 29 | android.util, java.io, java.util, kotlinx.coroutines, okhttp3.OkHttpClient, timber.log |
 | `app/src/main/kotlin/com/jtech/zemer/playback/sabr/SabrUmp.kt` | 71 | `com.jtech.zemer.playback.sabr` | no | 0 | 27 |  |
 | `app/src/main/kotlin/com/jtech/zemer/playback/sabr/SabrVideoResolver.kt` | 399 | `com.jtech.zemer.playback.sabr` | no | 15 | 102 | android.net, android.util, com.zemer, java.io, kotlinx.coroutines, timber.log |
 | `app/src/main/kotlin/com/jtech/zemer/playback/sabr/SabrVideoSession.kt` | 290 | `com.jtech.zemer.playback.sabr` | no | 5 | 95 | okhttp3.MediaType, okhttp3.OkHttpClient, okhttp3.Request, okhttp3.RequestBody, timber.log |
-| `app/src/main/kotlin/com/jtech/zemer/playback/sabr/SabrVideoStream.kt` | 238 | `com.jtech.zemer.playback.sabr` | no | 9 | 65 | android.net, androidx.media3, java.io, okhttp3.OkHttpClient, timber.log |
+| `app/src/main/kotlin/com/jtech/zemer/playback/sabr/SabrVideoStream.kt` | 246 | `com.jtech.zemer.playback.sabr` | no | 9 | 68 | android.net, androidx.media3, java.io, okhttp3.OkHttpClient, timber.log |
 | `app/src/main/kotlin/com/jtech/zemer/recognition/AudioResampler.kt` | 118 | `com.jtech.zemer.recognition` | no | 6 | 24 | java.nio, kotlinx.coroutines, timber.log |
 | `app/src/main/kotlin/com/jtech/zemer/recognition/RecognitionAudioCapture.kt` | 147 | `com.jtech.zemer.recognition` | no | 15 | 24 | android.Manifest, android.annotation, android.content, android.media, androidx.core, java.io, java.nio, kotlin.coroutines, kotlinx.coroutines, timber.log |
 | `app/src/main/kotlin/com/jtech/zemer/recognition/RecognitionHistoryFilter.kt` | 25 | `com.jtech.zemer.recognition` | no | 0 | 4 |  |
@@ -446,6 +449,7 @@ Every tracked Kotlin file is listed with hard metadata extracted from the file t
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/Screens.kt` | 67 | `com.jtech.zemer.ui.screens` | no | 4 | 13 | androidx.annotation, androidx.compose |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/SplashScreen.kt` | 166 | `com.jtech.zemer.ui.screens` | yes | 42 | 5 | android.graphics, androidx.compose, com.airbnb |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/StatsScreen.kt` | 308 | `com.jtech.zemer.ui.screens` | yes | 70 | 34 | androidx.annotation, androidx.compose, androidx.hilt, androidx.navigation, java.text |
+| `app/src/main/kotlin/com/jtech/zemer/ui/screens/UnofficialCopyScreen.kt` | 56 | `com.jtech.zemer.ui.screens` | yes | 21 | 2 | androidx.compose |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/VideoHeroCarousel.kt` | 224 | `com.jtech.zemer.ui.screens` | yes | 43 | 14 | androidx.compose, androidx.navigation, kotlinx.coroutines |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/WhitelistedArtistsScreen.kt` | 112 | `com.jtech.zemer.ui.screens` | yes | 21 | 6 | androidx.compose, androidx.hilt, androidx.navigation, kotlinx.coroutines |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/WhitelistedPodcastsScreen.kt` | 341 | `com.jtech.zemer.ui.screens` | yes | 57 | 16 | androidx.compose, androidx.hilt, androidx.navigation, coil3.compose |
@@ -682,6 +686,7 @@ Every tracked Kotlin file is listed with hard metadata extracted from the file t
 | `app/src/test/kotlin/com/jtech/zemer/models/PersistQueueCompatTest.kt` | 77 | `com.jtech.zemer.models` | no | 9 | 10 | java.io, java.time, org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/net/ContentSignatureTest.kt` | 65 | `com.jtech.zemer.net` | no | 7 | 15 | kotlinx.serialization, org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/net/EnvSignalsTest.kt` | 41 | `com.jtech.zemer.net` | no | 4 | 1 | org.junit |
+| `app/src/test/kotlin/com/jtech/zemer/net/UnofficialCopyTest.kt` | 51 | `com.jtech.zemer.net` | no | 6 | 6 | org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/net/ZemerHeadersTest.kt` | 349 | `com.jtech.zemer.net` | no | 33 | 68 | io.ktor, java.net, java.security, java.util, javax.crypto, kotlin.concurrent, kotlinx.coroutines, okhttp3.Dns, okhttp3.MediaType, okhttp3.OkHttpClient, okhttp3.Request, okhttp3.RequestBody, okio.BufferedSink, org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/offline/SubsetDecoderTest.kt` | 201 | `com.jtech.zemer.offline` | no | 5 | 20 | org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/offline/SubsetFemaleSynonymsTest.kt` | 57 | `com.jtech.zemer.offline` | no | 4 | 5 | org.junit |
@@ -739,7 +744,7 @@ Every tracked Kotlin file is listed with hard metadata extracted from the file t
 | `app/src/test/kotlin/com/jtech/zemer/playback/sabr/SabrMessagesTest.kt` | 166 | `com.jtech.zemer.playback.sabr` | no | 4 | 36 | org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/playback/sabr/SabrProtectionTest.kt` | 39 | `com.jtech.zemer.playback.sabr` | no | 4 | 2 | org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/playback/sabr/SabrProtoTest.kt` | 67 | `com.jtech.zemer.playback.sabr` | no | 3 | 8 | org.junit |
-| `app/src/test/kotlin/com/jtech/zemer/playback/sabr/SabrSeekLogicTest.kt` | 76 | `com.jtech.zemer.playback.sabr` | no | 3 | 7 | org.junit |
+| `app/src/test/kotlin/com/jtech/zemer/playback/sabr/SabrSeekLogicTest.kt` | 98 | `com.jtech.zemer.playback.sabr` | no | 4 | 7 | org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/playback/sabr/SabrSpoolTest.kt` | 93 | `com.jtech.zemer.playback.sabr` | no | 10 | 10 | java.io, org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/playback/sabr/SabrStreamLifecycleTest.kt` | 246 | `com.jtech.zemer.playback.sabr` | no | 11 | 37 | okhttp3.OkHttpClient, org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/playback/sabr/SabrUmpTest.kt` | 70 | `com.jtech.zemer.playback.sabr` | no | 3 | 7 | org.junit |

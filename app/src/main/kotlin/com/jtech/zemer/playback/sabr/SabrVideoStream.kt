@@ -45,6 +45,8 @@ internal class SabrVideoStream(
     private var sessionStartedAtMs = 0L
     private var restartAttempts = 0
     private var seekMarginMs = SabrSeekLogic.SEEK_MARGIN_MS
+    @Volatile private var lastVideoReadEnd = -1L
+    @Volatile private var lastAudioReadEnd = -1L
 
     @Synchronized fun usable(): Boolean = !destroyed && !videoBuffer.failed() && !audioBuffer.failed()
 
@@ -59,7 +61,13 @@ internal class SabrVideoStream(
         while (true) {
             val n = buffer.readCovered(position, into, offset, length)
             if (n > 0) {
-                if (restartAttempts != 0) synchronized(this) { restartAttempts = 0; seekMarginMs = SabrSeekLogic.SEEK_MARGIN_MS }
+                val continuous = position == (if (video) lastVideoReadEnd else lastAudioReadEnd)
+                if (restartAttempts != 0 &&
+                    SabrSeekLogic.resetsRestartBudget(continuous, System.currentTimeMillis() - sessionStartedAtMs)
+                ) {
+                    synchronized(this) { restartAttempts = 0; seekMarginMs = SabrSeekLogic.SEEK_MARGIN_MS }
+                }
+                if (video) lastVideoReadEnd = position + n else lastAudioReadEnd = position + n
                 return n
             }
             if (position >= buffer.expectedLength) return -1
