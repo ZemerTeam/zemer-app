@@ -344,6 +344,8 @@ dependencies {
     implementation(libs.ktor.client.content.negotiation)
     // Gzip for the content mirror (ZemerContentClient): the /whitelist payload is ~432 KB raw / ~70 KB gzipped.
     implementation(libs.ktor.client.encoding)
+    // Ed25519 for the content signatures (net/ContentSignature): the platform has none before API 33.
+    implementation(libs.tink.android)
 
     // In-app donations (payments/DonationClient): Stripe card field + PaymentLauncher, never a browser
     implementation(libs.stripe.payments.core)

@@ -3,6 +3,8 @@ package com.jtech.zemer.offline
 import android.content.Context
 import com.jtech.zemer.constants.OfflineSubsetEnabledKey
 import com.jtech.zemer.constants.OfflineSubsetLastSyncedAtKey
+import com.jtech.zemer.net.ContentSignature
+import com.jtech.zemer.tracking.Tracker
 import com.jtech.zemer.utils.dataStore
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CancellationException
@@ -104,19 +106,21 @@ class OfflineSubsetSyncer @Inject constructor(
 
             _status.update { it.copy(running = true, lastError = null) }
             try {
-                val remote = client.fetchManifest()
+                val local = store.localManifest()
+                val remote = client.fetchManifest(firstSync = local == null)
                 if (remote.schema != SUPPORTED_SUBSET_SCHEMA) {
                     // Unknown wire-format generation (cipher-schemaVersion precedent): shard rows are
                     // positional, so decoding them would silently mis-map — keep the last-good snapshot.
                     throw IOException("unsupported subset schema ${remote.schema} (supported: $SUPPORTED_SUBSET_SCHEMA)")
                 }
-                val plan = subsetSyncPlan(store.localManifest(), remote)
+                val plan = subsetSyncPlan(local, remote)
 
                 store.clearStaged()
                 for (shard in plan.toDownload) {
                     val bytes = client.downloadShard(shard.name)
                     val actual = subsetShardHash(bytes)
                     if (actual != shard.hash) {
+                        Tracker.fetchFail(host = "search", path = "subsetShard", kind = ContentSignature.BAD_SIG)
                         throw IOException("shard ${shard.name} hash mismatch (expected ${shard.hash}, got $actual)")
                     }
                     store.stageShard(shard.name, bytes)

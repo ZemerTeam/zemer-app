@@ -15,8 +15,8 @@
 | BuildConfig fields visible in Gradle | `ARCHITECTURE`, `COMMIT_HASH`, `RUN_NUMBER`, `GOOGLE_TOKEN_EXCHANGE_URL`, `CONTENT_MIRROR_URL`, `ZEMER_LYRICS_BASE_URL` |
 | Room schema directory | `app/schemas` |
 | Native build | Yes (see `build-release.md`) |
-| Tracked app paths | `1134` |
-| Tracked app Kotlin files | `842` (`627` in `src/main`, `213` in `src/test`, `2` in `src/androidTest`) |
+| Tracked app paths | `1149` |
+| Tracked app Kotlin files | `852` (`634` in `src/main`, `216` in `src/test`, `2` in `src/androidTest`) |
 | Tracked app resource paths | `214` |
 | Tracked app asset paths | `0` in `src/main` (`3` test fixtures under `src/androidTest/assets`) |
 | Tracked app Room schema files | `36` |
@@ -52,7 +52,7 @@
 | Package | File count |
 | --- | ---: |
 | `com.dpi` | 5 |
-| `com.jtech.zemer` | 3 |
+| `com.jtech.zemer` | 5 |
 | `com.jtech.zemer.accessibility` | 1 |
 | `com.jtech.zemer.auth` | 3 |
 | `com.jtech.zemer.constants` | 6 |
@@ -68,7 +68,7 @@
 | `com.jtech.zemer.lyrics.youtube` | 1 |
 | `com.jtech.zemer.lyrics.zemer` | 14 |
 | `com.jtech.zemer.models` | 5 |
-| `com.jtech.zemer.net` | 2 |
+| `com.jtech.zemer.net` | 4 |
 | `com.jtech.zemer.offline` | 16 |
 | `com.jtech.zemer.payments` | 1 |
 | `com.jtech.zemer.playback` | 52 |
@@ -79,7 +79,7 @@
 | `com.jtech.zemer.recognition.shazam` | 2 |
 | `com.jtech.zemer.repositories` | 1 |
 | `com.jtech.zemer.search` | 10 |
-| `com.jtech.zemer.sig` | 3 |
+| `com.jtech.zemer.sig` | 6 |
 | `com.jtech.zemer.stats` | 1 |
 | `com.jtech.zemer.statuses` | 14 |
 | `com.jtech.zemer.sync` | 5 |
@@ -119,7 +119,7 @@
 | Directory | Kotlin files |
 | --- | ---: |
 | `com/dpi` | 5 |
-| `com/jtech/zemer` | 3 |
+| `com/jtech/zemer` | 5 |
 | `com/jtech/zemer/accessibility` | 1 |
 | `com/jtech/zemer/auth` | 3 |
 | `com/jtech/zemer/constants` | 6 |
@@ -135,7 +135,7 @@
 | `com/jtech/zemer/lyrics/youtube` | 1 |
 | `com/jtech/zemer/lyrics/zemer` | 14 |
 | `com/jtech/zemer/models` | 5 |
-| `com/jtech/zemer/net` | 2 |
+| `com/jtech/zemer/net` | 4 |
 | `com/jtech/zemer/offline` | 16 |
 | `com/jtech/zemer/payments` | 1 |
 | `com/jtech/zemer/playback` | 52 |
@@ -146,7 +146,7 @@
 | `com/jtech/zemer/recognition/shazam` | 2 |
 | `com/jtech/zemer/repositories` | 1 |
 | `com/jtech/zemer/search` | 10 |
-| `com/jtech/zemer/sig` | 3 |
+| `com/jtech/zemer/sig` | 6 |
 | `com/jtech/zemer/stats` | 1 |
 | `com/jtech/zemer/statuses` | 14 |
 | `com/jtech/zemer/sync` | 5 |
