@@ -152,6 +152,16 @@ class ZemerHeadersTest {
     }
 
     @Test
+    fun `the OkHttp answer is peeked without taking the body from the caller`() {
+        repeat(2) {
+            val body = okhttp().newCall(Request.Builder().url("http://content.zemer.io:${server.localPort}/unofficial-json").build())
+                .execute().use { it.body.string() }
+            assertTrue(body, body.contains("unofficial_copy"))
+        }
+        assertEquals("json message", UnofficialCopy.message.value)
+    }
+
+    @Test
     fun `the Ktor JSON answer is read without taking the body from the caller`() = runBlocking {
         HttpClient(OkHttp) {
             engine { config { dns(dns) } }

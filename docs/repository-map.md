@@ -54,12 +54,12 @@ The following inventory is generated from repository files outside `.git`, `.gra
 
 ### Counts
 
-- Files counted: `1452`
+- Files counted: `1444`
 - By extension:
-  - `.kt`: `942`
+  - `.kt`: `940`
   - `.xml`: `196`
   - `.mjs`: `110`
-  - `.md`: `70`
+  - `.md`: `64`
   - `.json`: `53`
   - `.webp`: `15`
   - `.c`: `6`
@@ -283,8 +283,6 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/main/kotlin/com/jtech/zemer/net/ContentSignature.kt` | 80 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/net/EnvSignals.kt` | 60 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/net/UnofficialCopy.kt` | 69 lines | `.kt` |
-| `app/src/main/kotlin/com/jtech/zemer/net/ZemerHeaders.kt` | 101 lines | `.kt` |
-| `app/src/main/kotlin/com/jtech/zemer/net/ZemerHeaders.kt` | 101 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/net/ZemerHeaders.kt` | 101 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/net/ZemerHosts.kt` | 23 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/offline/OfflineReadProvider.kt` | 170 lines | `.kt` |
@@ -598,7 +596,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/Screens.kt` | 67 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/SplashScreen.kt` | 166 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/StatsScreen.kt` | 308 lines | `.kt` |
-| `app/src/main/kotlin/com/jtech/zemer/ui/screens/UnofficialCopyScreen.kt` | 56 lines | `.kt` |
+| `app/src/main/kotlin/com/jtech/zemer/ui/screens/UnofficialCopyScreen.kt` | 66 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/VideoHeroCarousel.kt` | 224 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/WhitelistedArtistsScreen.kt` | 112 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/WhitelistedPodcastsScreen.kt` | 341 lines | `.kt` |
@@ -1052,7 +1050,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/test/kotlin/com/jtech/zemer/net/ContentSignatureTest.kt` | 65 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/net/EnvSignalsTest.kt` | 41 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/net/UnofficialCopyTest.kt` | 51 lines | `.kt` |
-| `app/src/test/kotlin/com/jtech/zemer/net/ZemerHeadersTest.kt` | 349 lines | `.kt` |
+| `app/src/test/kotlin/com/jtech/zemer/net/ZemerHeadersTest.kt` | 359 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/offline/SubsetDecoderTest.kt` | 201 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/offline/SubsetFemaleSynonymsTest.kt` | 57 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/offline/SubsetLiveWhitelistTest.kt` | 121 lines | `.kt` |
@@ -1292,11 +1290,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `docs/recognize_music/02-whitelist-guarantee.md` | 69 lines | `.md` |
 | `docs/recognize_music/03-entry-points-and-ui.md` | 80 lines | `.md` |
 | `docs/recognize_music/README.md` | 73 lines | `.md` |
-| `docs/reference/kotlin-files.md` | 955 lines | `.md` |
-| `docs/reference/kotlin-files.md` | 955 lines | `.md` |
-| `docs/reference/kotlin-files.md` | 955 lines | `.md` |
-| `docs/reference/non-kotlin-files.md` | 453 lines | `.md` |
-| `docs/reference/non-kotlin-files.md` | 453 lines | `.md` |
+| `docs/reference/kotlin-files.md` | 953 lines | `.md` |
 | `docs/reference/non-kotlin-files.md` | 453 lines | `.md` |
 | `docs/reference/resource-index.md` | 317 lines | `.md` |
 | `docs/remote_cipher_config/01-concepts-and-format.md` | 135 lines | `.md` |
@@ -1304,9 +1298,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `docs/remote_cipher_config/03-extraction-and-self-heal.md` | 102 lines | `.md` |
 | `docs/remote_cipher_config/04-operations.md` | 121 lines | `.md` |
 | `docs/remote_cipher_config/README.md` | 60 lines | `.md` |
-| `docs/repository-map.md` | 1545 lines | `.md` |
-| `docs/repository-map.md` | 1545 lines | `.md` |
-| `docs/repository-map.md` | 1545 lines | `.md` |
+| `docs/repository-map.md` | 1537 lines | `.md` |
 | `docs/sabr/README.md` | 375 lines | `.md` |
 | `docs/stations/README.md` | 67 lines | `.md` |
 | `docs/status/README.md` | 93 lines | `.md` |
