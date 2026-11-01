@@ -208,6 +208,14 @@ must not regress:
   never sent (only the HMAC uses it). Registration runs at most once per app start; until it succeeds, and whenever
   the stored key is missing or unreadable, requests keep the version key (403 / 429 / 503 are retried on a later
   start). Version 1 signatures and `/install` itself always use the version key. No attestation of any kind.
+- **An unofficial copy is told so, for one launch only** (`net/UnofficialCopy`, fed by the same hook): a 403 whose
+  JSON `error` is `unofficial_copy` (or the relay's `X-Zemer-Refusal: unofficial_copy`) on TWO Zemer-host responses
+  in a row (any servers; any other response resets the count) replaces the whole UI with `UnofficialCopyScreen`
+  (the server's `message`, else the built-in string; the zemer.io address as text plus an Open button via
+  `openUrlOrCopy`), and every later Zemer-host request fails locally (`UnofficialCopy.Refused`, a
+  `SocketException`, so it is never reported). Memory only, never persisted: each launch checks again, so a server
+  mistake can never lock an install for good. `update_required` and every other error never count. Ktor bodies are
+  read only when saved (never a streaming body); OkHttp peeks at most 4 KiB.
 - **No key = no header, never a failure.** A build type without its key source gets no native library
   (`ZEMER_SIG_SKIP`) and behaves identically, unsigned; a load or signing failure only drops the header.
 - **The canonical message is byte-exact with the server.** Any change to `SigCanonical` must keep

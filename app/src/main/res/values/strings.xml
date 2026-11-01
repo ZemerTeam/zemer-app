@@ -463,4 +463,6 @@
     <string name="donate_currency_symbol">$</string>
     <string name="donate_failed">Couldn\'t start the payment. Check your connection and try again.</string>
     <string name="donate_stripe_note">Card payments are handled securely by Stripe, inside the app. Zemer never sees your card number.</string>
+    <string name="unofficial_copy_message">This copy of Zemer isn\'t official. Download Zemer from zemer.io.</string>
+    <string name="unofficial_copy_open">Open zemer.io</string>
 </resources>

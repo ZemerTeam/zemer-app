@@ -172,6 +172,8 @@ import com.jtech.zemer.ui.player.pipAutoEnterSupported
 import com.jtech.zemer.ui.player.rememberIsInPipMode
 import com.jtech.zemer.ui.player.setVideoPipAutoEnter
 import com.jtech.zemer.ui.screens.HomeContentTab
+import com.jtech.zemer.ui.screens.UnofficialCopyScreen
+import com.jtech.zemer.net.UnofficialCopy
 import com.jtech.zemer.ui.screens.effectiveHomeTab
 import com.jtech.zemer.constants.BlockPodcastsKey
 import com.jtech.zemer.constants.AppLanguageKey
@@ -668,6 +670,11 @@ class MainActivity : ComponentActivity() {
                 pureBlack = pureBlack,
                 themeColor = themeColor,
             ) {
+                val unofficialCopyMessage by UnofficialCopy.message.collectAsState()
+                unofficialCopyMessage?.let {
+                    UnofficialCopyScreen(it)
+                    return@ZemerTheme
+                }
                 CompositionLocalProvider(
                     LocalDatabase provides database,
                     LocalContentColor provides if (pureBlack) Color.White else contentColorFor(MaterialTheme.colorScheme.surface),
