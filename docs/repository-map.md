@@ -54,12 +54,12 @@ The following inventory is generated from repository files outside `.git`, `.gra
 
 ### Counts
 
-- Files counted: `1425`
+- Files counted: `1430`
 - By extension:
-  - `.kt`: `928`
+  - `.kt`: `929`
   - `.xml`: `196`
   - `.mjs`: `110`
-  - `.md`: `64`
+  - `.md`: `68`
   - `.json`: `52`
   - `.webp`: `15`
   - `.html`: `6`
@@ -172,7 +172,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/main/kotlin/com/jtech/zemer/constants/MediaSessionConstants.kt` | 23 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/constants/PlaybackMode.kt` | 11 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/constants/PreferenceKeys.kt` | 670 lines | `.kt` |
-| `app/src/main/kotlin/com/jtech/zemer/crash/CrashReport.kt` | 194 lines | `.kt` |
+| `app/src/main/kotlin/com/jtech/zemer/crash/CrashReport.kt` | 196 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/crash/CrashReporter.kt` | 139 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/crash/CrashScrubber.kt` | 30 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/crash/CrashUploader.kt` | 77 lines | `.kt` |
@@ -450,7 +450,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/main/kotlin/com/jtech/zemer/ui/component/CreatePlaylistDialog.kt` | 123 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/component/Dialog.kt` | 393 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/component/DownloadStatusUi.kt` | 170 lines | `.kt` |
-| `app/src/main/kotlin/com/jtech/zemer/ui/component/DraggableScrollBarOverlay.kt` | 246 lines | `.kt` |
+| `app/src/main/kotlin/com/jtech/zemer/ui/component/DraggableScrollBarOverlay.kt` | 254 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/component/DrawerEntry.kt` | 56 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/component/EmptyPlaceholder.kt` | 47 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/component/ErrorRetryState.kt` | 58 lines | `.kt` |
@@ -997,7 +997,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/test/cpp/hmac_host_harness.c` | 27 lines | `.c` |
 | `app/src/test/kotlin/com/dpi/DensityMathTest.kt` | 69 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/constants/PreferenceKeysTest.kt` | 26 lines | `.kt` |
-| `app/src/test/kotlin/com/jtech/zemer/crash/CrashReportTest.kt` | 164 lines | `.kt` |
+| `app/src/test/kotlin/com/jtech/zemer/crash/CrashReportTest.kt` | 168 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/db/SqliteBindLimitTest.kt` | 23 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/db/entities/LyricsCachePolicyTest.kt` | 83 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/db/entities/ShareLinkTest.kt` | 41 lines | `.kt` |
@@ -1145,6 +1145,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/test/kotlin/com/jtech/zemer/ui/component/AlphabetIndexTest.kt` | 28 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/ui/component/AvatarShapeIndexTest.kt` | 37 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/ui/component/BrowseScreenScaffoldTest.kt` | 178 lines | `.kt` |
+| `app/src/test/kotlin/com/jtech/zemer/ui/component/DraggableScrollBarOverlayTest.kt` | 19 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/ui/component/GentleMarqueeTest.kt` | 42 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/ui/component/SettingsCardGroupTest.kt` | 20 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/ui/component/SortHeaderTest.kt` | 20 lines | `.kt` |
@@ -1271,7 +1272,9 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `docs/recognize_music/02-whitelist-guarantee.md` | 69 lines | `.md` |
 | `docs/recognize_music/03-entry-points-and-ui.md` | 80 lines | `.md` |
 | `docs/recognize_music/README.md` | 73 lines | `.md` |
-| `docs/reference/kotlin-files.md` | 941 lines | `.md` |
+| `docs/reference/kotlin-files.md` | 942 lines | `.md` |
+| `docs/reference/kotlin-files.md` | 942 lines | `.md` |
+| `docs/reference/kotlin-files.md` | 942 lines | `.md` |
 | `docs/reference/non-kotlin-files.md` | 446 lines | `.md` |
 | `docs/reference/resource-index.md` | 317 lines | `.md` |
 | `docs/remote_cipher_config/01-concepts-and-format.md` | 135 lines | `.md` |
@@ -1279,7 +1282,9 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `docs/remote_cipher_config/03-extraction-and-self-heal.md` | 102 lines | `.md` |
 | `docs/remote_cipher_config/04-operations.md` | 121 lines | `.md` |
 | `docs/remote_cipher_config/README.md` | 60 lines | `.md` |
-| `docs/repository-map.md` | 1518 lines | `.md` |
+| `docs/repository-map.md` | 1523 lines | `.md` |
+| `docs/repository-map.md` | 1523 lines | `.md` |
+| `docs/repository-map.md` | 1523 lines | `.md` |
 | `docs/sabr/README.md` | 369 lines | `.md` |
 | `docs/stations/README.md` | 67 lines | `.md` |
 | `docs/status/README.md` | 93 lines | `.md` |
