@@ -166,9 +166,11 @@ class StatusesRepository @Inject constructor(
             if (!force && isFresh(syncAttemptedAt)) return@withLock // one poll per window
             syncAttemptedAt = SystemClock.elapsedRealtime()
             runCatching {
-                val remoteVersion = ZemerContentClient.statusSourcesVersion()
+                // never synced = a first sync (an unsigned response may then be applied)
+                val firstSync = StatusSourcesCache.syncedVersion < 0
+                val remoteVersion = ZemerContentClient.statusSourcesVersion(firstSync)
                 if (remoteVersion <= StatusSourcesCache.syncedVersion) return@runCatching // already current
-                val raw = ZemerContentClient.statusSourcesRaw()
+                val raw = ZemerContentClient.statusSourcesRaw(firstSync)
                 val parsed = parseStatusSourcesConfig(raw) ?: return@runCatching // invalid -> keep current
                 val config = parsed.copy(version = minOf(parsed.version, remoteVersion))
                 StatusSourcesCache.update(config)

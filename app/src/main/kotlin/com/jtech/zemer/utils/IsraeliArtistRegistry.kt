@@ -58,7 +58,8 @@ object IsraeliArtistRegistry {
     }
 
     private suspend fun fetchIds(): Set<String> =
-        contentRead("israeliArtists") { ZemerContentClient.israeliArtists() }.getOrThrow()
+        // the set lives in memory only, so every load is a first sync (no previous copy to keep)
+        contentRead("israeliArtists") { ZemerContentClient.israeliArtists(firstSync = true) }.getOrThrow()
 
     internal fun resetForTest() {
         cachedIds = emptySet()

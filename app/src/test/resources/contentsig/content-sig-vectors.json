@@ -1,0 +1,36 @@
+{
+ "about": "Content signatures (content-sig.mjs): header X-Zemer-Content-Sig: k=<keyId>;t=<unix s>;s=<base64url Ed25519> over UTF-8(\"zcs1\" NUL path NUL t NUL base64url(SHA-256(body)) NUL). TEST key: Ed25519 seed = bytes 1..32 (PKCS#8 PEM below); Ed25519 is deterministic, so the signatures are exact.",
+ "keyId": "1",
+ "privatePkcs8Pem": "-----BEGIN PRIVATE KEY-----\nMC4CAQAwBQYDK2VwBCIEIAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8g\n-----END PRIVATE KEY-----\n",
+ "publicSpkiB64": "MCowBQYDK2VwAyEAebVWLo/mVPlAeLES6KmLp5AfhTrmlb7X4OORC60ElmQ=",
+ "vectors": [
+  {
+   "note": "whitelist list (UTF-8 JSON as served)",
+   "path": "/whitelist",
+   "t": 1793500000,
+   "body": "[{\"id\":\"UC123\",\"name\":\"שלום\"}]",
+   "header": "k=1;t=1793500000;s=kQaZ_tPrMeZDSUySnCtaPgaoN5Uema1NJbylBd1SqooxO61pvk8oMp_PaWXyV1QywOdylnyfnzGuH-euLUGXDg"
+  },
+  {
+   "note": "version gate",
+   "path": "/whitelist/version",
+   "t": 1793500000,
+   "body": "{\"version\":42}",
+   "header": "k=1;t=1793500000;s=6Y2vHYLFL3BSZHrpOLNZKbmc8L0R-rm7is6zIcVZLRbGZ2oLUwqFrFD0kL3SHjmbTQZe_D4hLxDtKp0pcTsVDw"
+  },
+  {
+   "note": "empty body",
+   "path": "/blockedContentIds",
+   "t": 1793500001,
+   "body": "",
+   "header": "k=1;t=1793500001;s=PHlgHy5PHwe39CHCLJKER5AW3AsBRqt--gDGYiqVoD-1QvLxO3DXD0faLCxvN0OCs310GKyq5ZAN8UkTKi_uCg"
+  },
+  {
+   "note": "snapshot manifest",
+   "path": "/subset/manifest",
+   "t": 1793500002,
+   "body": "{\"v\":2,\"shards\":[{\"name\":\"albums-0\",\"hash\":\"e6f3339228a6e608\"}]}",
+   "header": "k=1;t=1793500002;s=sdXPcchqrPEAPXumMM3efO2o9sClFzTh8Cib6c_lnMRQSuIai07bUu2w8vy8bh1_wR7hYoDHuNjwx5fFBmTTDg"
+  }
+ ]
+}

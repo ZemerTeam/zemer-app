@@ -5,7 +5,8 @@ import io.ktor.client.engine.cio.CIO
 import io.ktor.client.plugins.HttpTimeout
 import io.ktor.client.request.get
 import io.ktor.client.statement.HttpResponse
-import io.ktor.client.statement.bodyAsText
+import com.jtech.zemer.net.ContentSignature
+import io.ktor.client.statement.bodyAsBytes
 import io.ktor.client.statement.readRawBytes
 import io.ktor.http.isSuccess
 import kotlinx.serialization.json.Json
@@ -34,13 +35,19 @@ class SubsetSyncClient @Inject constructor() {
 
     private val json = Json { ignoreUnknownKeys = true }
 
-    /** The current server manifest. Throws [IOException] on a non-2xx response or transport failure. */
-    suspend fun fetchManifest(): SubsetManifest {
+    /**
+     * The current server manifest. Throws [IOException] on a non-2xx response or transport failure, and
+     * [com.jtech.zemer.net.ContentSignatureException] when its content signature fails ([firstSync]: no local
+     * snapshot yet, the only case an unsigned manifest is used).
+     */
+    suspend fun fetchManifest(firstSync: Boolean): SubsetManifest {
         val response: HttpResponse = client.get("$BASE_URL/subset/manifest")
         if (!response.status.isSuccess()) {
             throw IOException("subset manifest returned HTTP ${response.status.value}")
         }
-        return json.decodeFromString(SubsetManifest.serializer(), response.bodyAsText())
+        val body = response.bodyAsBytes()
+        ContentSignature.requireApplicable("search", response, body, firstSync)
+        return json.decodeFromString(SubsetManifest.serializer(), body.decodeToString())
     }
 
     /** Raw gzipped bytes of one shard. Throws [IOException] on a non-2xx response or transport failure. */

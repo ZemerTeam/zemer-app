@@ -839,10 +839,10 @@ class SyncUtils @Inject constructor(
             _whitelistSyncProgress.value = WhitelistSyncProgress()
 
             try {
-                val remoteVersion = WhitelistFetcher.fetchVersion().getOrNull()
-                val localVersion = context.dataStore.get(LastWhitelistVersionKey, 0L)
                 val existingWhitelistIds = database.getAllWhitelistedArtistIdsSync()
                 val localEmpty = existingWhitelistIds.isEmpty()
+                val remoteVersion = WhitelistFetcher.fetchVersion(firstSync = localEmpty).getOrNull()
+                val localVersion = context.dataStore.get(LastWhitelistVersionKey, 0L)
 
                 // Thumbnails ride the whitelist fetch, so an install whose artist rows are largely
                 // thumb-less (e.g. an app update while the whitelist version is unchanged) must do one
@@ -873,7 +873,7 @@ class SyncUtils @Inject constructor(
                     return@withContext
                 }
 
-                val whitelistEntries = WhitelistFetcher.fetchWhitelist { processed, total ->
+                val whitelistEntries = WhitelistFetcher.fetchWhitelist(firstSync = localEmpty) { processed, total ->
                     _whitelistSyncProgress.value = WhitelistSyncProgress(
                         current = processed,
                         total = total
@@ -971,9 +971,9 @@ class SyncUtils @Inject constructor(
                 // The allow-set + version gate + art all come from the content mirror (content.zemer.io/
                 // podcastChannelsWhitelist), exactly like the artist whitelist (WhitelistFetcher.fetch*): each doc now carries thumbnailUrl + channelId, so
                 // the browse grid renders straight from the mirror with no per-device catalog fetch.
-                val remoteVersion = WhitelistFetcher.fetchPodcastVersion().getOrNull()
-                val localVersion = context.dataStore.get(LastPodcastWhitelistVersionKey, 0L)
                 val localEmpty = database.getAllWhitelistedPodcastIdsSync().isEmpty()
+                val remoteVersion = WhitelistFetcher.fetchPodcastVersion(firstSync = localEmpty).getOrNull()
+                val localVersion = context.dataStore.get(LastPodcastWhitelistVersionKey, 0L)
 
                 // Fetch at least once per version; later runs skip when already synced.
                 if (!forceSync && remoteVersion != null && remoteVersion <= localVersion && !localEmpty) {
@@ -982,7 +982,7 @@ class SyncUtils @Inject constructor(
                     return@withContext
                 }
 
-                val whitelistEntries = WhitelistFetcher.fetchPodcastWhitelist { processed, total ->
+                val whitelistEntries = WhitelistFetcher.fetchPodcastWhitelist(firstSync = localEmpty) { processed, total ->
                     _podcastWhitelistSyncProgress.value = WhitelistSyncProgress(current = processed, total = total)
                 }.getOrThrow()
 
@@ -1034,7 +1034,9 @@ class SyncUtils @Inject constructor(
      */
     private suspend fun refreshBlockedIds() {
         runCatching {
-            WhitelistFetcher.fetchBlockedIds().onSuccess { overrides ->
+            // nothing persisted yet = a first sync (an unsigned response may then be applied)
+            val firstSync = context.dataStore.get(BlockedContentIdsKey, "").isEmpty()
+            WhitelistFetcher.fetchBlockedIds(firstSync).onSuccess { overrides ->
                 // Keep-last-good on an EMPTY parse, like the whitelist syncs: a mirror bug serving
                 // an empty body must not unhide every conditionally-blocked id (fail-open). An
                 // intentional full clear of the collection should ride a versioned signal, not an
