@@ -173,7 +173,10 @@ fun DraggableScrollbar(
                 val maxScrollIndex = max(1, totalContentItems - visibleItems.size)
                 if (maxScrollIndex <= minScrollRangeForDrag) return@derivedStateOf lastThumbPosition
                 val maxThumbY = thumbTravel(viewportHeight, constThumbHeight)
-                if (maxThumbY == 0f) return@derivedStateOf 0f
+                if (maxThumbY == 0f) {
+                    lastThumbPosition = 0f
+                    return@derivedStateOf 0f
+                }
 
                 val rawIndex = (scrollState.firstVisibleItemIndex - headerItems).coerceAtLeast(0)
 
@@ -181,7 +184,7 @@ fun DraggableScrollbar(
 
                     val currentProgress = rawIndex.toFloat() / maxScrollIndex
                     val smoothingFactor = 0.2f
-                    val previousProgress = lastThumbPosition / maxThumbY
+                    val previousProgress = lastThumbPosition.coerceIn(0f, maxThumbY) / maxThumbY
                     previousProgress * (1f - smoothingFactor) + currentProgress * smoothingFactor
                 } else {
                     rawIndex.toFloat() / maxScrollIndex
