@@ -15,8 +15,8 @@
 | BuildConfig fields visible in Gradle | `ARCHITECTURE`, `COMMIT_HASH`, `RUN_NUMBER`, `GOOGLE_TOKEN_EXCHANGE_URL`, `CONTENT_MIRROR_URL`, `ZEMER_LYRICS_BASE_URL` |
 | Room schema directory | `app/schemas` |
 | Native build | Yes (see `build-release.md`) |
-| Tracked app paths | `1149` |
-| Tracked app Kotlin files | `852` (`634` in `src/main`, `216` in `src/test`, `2` in `src/androidTest`) |
+| Tracked app paths | `1147` |
+| Tracked app Kotlin files | `850` (`632` in `src/main`, `216` in `src/test`, `2` in `src/androidTest`) |
 | Tracked app resource paths | `214` |
 | Tracked app asset paths | `0` in `src/main` (`3` test fixtures under `src/androidTest/assets`) |
 | Tracked app Room schema files | `36` |
@@ -52,7 +52,7 @@
 | Package | File count |
 | --- | ---: |
 | `com.dpi` | 5 |
-| `com.jtech.zemer` | 5 |
+| `com.jtech.zemer` | 3 |
 | `com.jtech.zemer.accessibility` | 1 |
 | `com.jtech.zemer.auth` | 3 |
 | `com.jtech.zemer.constants` | 6 |
@@ -119,7 +119,7 @@
 | Directory | Kotlin files |
 | --- | ---: |
 | `com/dpi` | 5 |
-| `com/jtech/zemer` | 5 |
+| `com/jtech/zemer` | 3 |
 | `com/jtech/zemer/accessibility` | 1 |
 | `com/jtech/zemer/auth` | 3 |
 | `com/jtech/zemer/constants` | 6 |

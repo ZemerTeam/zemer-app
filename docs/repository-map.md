@@ -54,12 +54,12 @@ The following inventory is generated from repository files outside `.git`, `.gra
 
 ### Counts
 
-- Files counted: `1453`
+- Files counted: `1443`
 - By extension:
-  - `.kt`: `939`
+  - `.kt`: `937`
   - `.xml`: `196`
   - `.mjs`: `110`
-  - `.md`: `74`
+  - `.md`: `66`
   - `.json`: `53`
   - `.webp`: `15`
   - `.c`: `6`
@@ -99,8 +99,6 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `.github/workflows/ui-audit.yml` | 55 lines | `.yml` |
 | `.gitignore` | 117 lines | `[none]` |
 | `.gitmodules` | 3 lines | `[none]` |
-| `AGENTS.md` | 1168 lines | `.md` |
-| `AGENTS.md` | 1168 lines | `.md` |
 | `AGENTS.md` | 1168 lines | `.md` |
 | `LICENSE` | 674 lines | `[none]` |
 | `README.md` | 9 lines | `.md` |
@@ -164,8 +162,6 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/main/kotlin/com/dpi/DensityConfiguration.kt` | 121 lines | `.kt` |
 | `app/src/main/kotlin/com/dpi/DensityMath.kt` | 25 lines | `.kt` |
 | `app/src/main/kotlin/com/dpi/DensityScaler.kt` | 80 lines | `.kt` |
-| `app/src/main/kotlin/com/jtech/zemer/App.kt` | 416 lines | `.kt` |
-| `app/src/main/kotlin/com/jtech/zemer/App.kt` | 416 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/App.kt` | 416 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/MainActivity.kt` | 2411 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ResumePlaybackActivity.kt` | 25 lines | `.kt` |
@@ -1258,9 +1254,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `docs/app/README.md` | 197 lines | `.md` |
 | `docs/app/database.md` | 657 lines | `.md` |
 | `docs/app/playback.md` | 121 lines | `.md` |
-| `docs/app/preferences-sync-auth.md` | 223 lines | `.md` |
-| `docs/app/preferences-sync-auth.md` | 223 lines | `.md` |
-| `docs/app/preferences-sync-auth.md` | 223 lines | `.md` |
+| `docs/app/preferences-sync-auth.md` | 221 lines | `.md` |
 | `docs/app/viewmodels.md` | 134 lines | `.md` |
 | `docs/build-release.md` | 62 lines | `.md` |
 | `docs/fcast/01-architecture.md` | 67 lines | `.md` |
@@ -1293,21 +1287,17 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `docs/recognize_music/02-whitelist-guarantee.md` | 69 lines | `.md` |
 | `docs/recognize_music/03-entry-points-and-ui.md` | 80 lines | `.md` |
 | `docs/recognize_music/README.md` | 73 lines | `.md` |
-| `docs/reference/kotlin-files.md` | 952 lines | `.md` |
-| `docs/reference/kotlin-files.md` | 952 lines | `.md` |
-| `docs/reference/kotlin-files.md` | 952 lines | `.md` |
-| `docs/reference/non-kotlin-files.md` | 455 lines | `.md` |
-| `docs/reference/non-kotlin-files.md` | 455 lines | `.md` |
-| `docs/reference/non-kotlin-files.md` | 455 lines | `.md` |
+| `docs/reference/kotlin-files.md` | 950 lines | `.md` |
+| `docs/reference/non-kotlin-files.md` | 453 lines | `.md` |
 | `docs/reference/resource-index.md` | 317 lines | `.md` |
 | `docs/remote_cipher_config/01-concepts-and-format.md` | 135 lines | `.md` |
 | `docs/remote_cipher_config/02-runtime-store.md` | 94 lines | `.md` |
 | `docs/remote_cipher_config/03-extraction-and-self-heal.md` | 102 lines | `.md` |
 | `docs/remote_cipher_config/04-operations.md` | 121 lines | `.md` |
 | `docs/remote_cipher_config/README.md` | 60 lines | `.md` |
-| `docs/repository-map.md` | 1546 lines | `.md` |
-| `docs/repository-map.md` | 1546 lines | `.md` |
-| `docs/repository-map.md` | 1546 lines | `.md` |
+| `docs/repository-map.md` | 1536 lines | `.md` |
+| `docs/repository-map.md` | 1536 lines | `.md` |
+| `docs/repository-map.md` | 1536 lines | `.md` |
 | `docs/sabr/README.md` | 369 lines | `.md` |
 | `docs/stations/README.md` | 67 lines | `.md` |
 | `docs/status/README.md` | 93 lines | `.md` |
