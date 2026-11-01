@@ -1,6 +1,8 @@
 package com.jtech.zemer.sig
 
 import com.jtech.zemer.BuildConfig
+import java.security.MessageDigest
+import java.security.SecureRandom
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
 import java.util.Base64
@@ -31,14 +33,34 @@ object ZemerSig {
     @Volatile
     internal var clockOffsetSec = 0L
 
-    /** The header value for a request, or null when this build cannot sign (or signing failed). */
-    fun headerFor(method: String, encodedPath: String, encodedQuery: String?, nowMs: Long = System.currentTimeMillis()): String? {
+    /**
+     * The header value for a request, or null when this build cannot sign (or signing failed). With the exact
+     * [body] bytes sent (empty for none) it is a version 2 signature: a fresh nonce per call, so every attempt and
+     * redirect hop gets its own, and the body hash. A null [body] (not readable) signs version 1.
+     */
+    fun headerFor(
+        method: String,
+        encodedPath: String,
+        encodedQuery: String?,
+        body: ByteArray? = null,
+        nowMs: Long = System.currentTimeMillis(),
+    ): String? {
         val sign = signer ?: return null
         val t = nowMs / 1000 + clockOffsetSec
-        val mac = runCatching { sign(SigCanonical.message(method, encodedPath, encodedQuery, t)) }.getOrNull()
-            ?.takeIf { it.size == 32 } ?: return null
-        return "k=$keyId;t=$t;s=${Base64.getUrlEncoder().withoutPadding().encodeToString(mac)}"
+        val nonce = body?.let { b64(ByteArray(16).also(random::nextBytes)) }
+        val bodyHash = body?.let { b64(MessageDigest.getInstance("SHA-256").digest(it)) }
+        val message = if (nonce != null && bodyHash != null) {
+            SigCanonical.message2(method, encodedPath, encodedQuery, t, nonce, bodyHash)
+        } else {
+            SigCanonical.message(method, encodedPath, encodedQuery, t)
+        }
+        val mac = runCatching { sign(message) }.getOrNull()?.takeIf { it.size == 32 } ?: return null
+        return if (nonce != null) "v=2;k=$keyId;t=$t;n=$nonce;b=$bodyHash;s=${b64(mac)}" else "k=$keyId;t=$t;s=${b64(mac)}"
     }
+
+    private val random = SecureRandom()
+
+    private fun b64(bytes: ByteArray) = Base64.getUrlEncoder().withoutPadding().encodeToString(bytes)
 
     /** Takes the server clock from an HTTP `Date` header (RFC 1123); an absent or unparsable one is ignored. */
     fun onServerDate(date: String?, nowMs: Long = System.currentTimeMillis()) {

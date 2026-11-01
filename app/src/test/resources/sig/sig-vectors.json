@@ -52,6 +52,49 @@
    "sig": "LZjZwyDZ0YAUXHourp5MMOd6VtbBAx65kJ_8Km9aeKo"
   }
  ],
+ "v2About": "Signature v2 (sig.mjs canonical2/sign2): message = zsig2 \\0 METHOD \\0 decoded path \\0 t \\0 n \\0 b \\0 then the sorted query pairs as v1; b = base64url SHA-256 of the exact body bytes sent (UTF-8 of `body` here); header v=2;k=;t=;n=;b=;s=. Same TEST key. The first vector was re-derived with openssl.",
+ "v2": [
+  {
+   "note": "GET, no body (b = SHA-256 of nothing)",
+   "method": "GET",
+   "url": "/search?q=shwekey",
+   "t": 1793500000,
+   "n": "AAECAwQFBgcICQoLDA0ODw",
+   "body": "",
+   "bodyHash": "47DEQpj8HBSa-_TImW-5JCeuQeRkm5NMpJWZG3hSuFU",
+   "sig": "aAHlDnqxULhIwa0BNeKHFw904qqpd_zpPSPLeui_qKE"
+  },
+  {
+   "note": "Hebrew query, params out of order",
+   "method": "GET",
+   "url": "/search?kidZone=0&q=%D7%A9%D7%9C%D7%95%D7%9D&allowFemale=0",
+   "t": 1793500000,
+   "n": "EBESExQVFhcYGRobHB0eHw",
+   "body": "",
+   "bodyHash": "47DEQpj8HBSa-_TImW-5JCeuQeRkm5NMpJWZG3hSuFU",
+   "sig": "rc9cbX-j5LkeyfZ6R9o1d7THcuVtSbsGpFtL2tCLHSA"
+  },
+  {
+   "note": "POST JSON body (UTF-8 bytes as sent)",
+   "method": "POST",
+   "url": "/v1/events",
+   "t": 1793500123,
+   "n": "ICEiIyQlJicoKSorLC0uLw",
+   "body": "{\"device\":\"0f8fad5b-d9cb-469f-a165-70867728950e\",\"app_ver\":\"40\",\"events\":[{\"type\":\"play\",\"title\":\"שלום\"}]}",
+   "bodyHash": "sCjnYygRD8wBxJwA2PG52MxWL_3K5rrMMb1fBZ2VdhQ",
+   "sig": "bX5z5uISdTNgPQNYdKlOiKO1OnSS9CkeBvsqIasqiFY"
+  },
+  {
+   "note": "PUT body, no query",
+   "method": "PUT",
+   "url": "/prefs",
+   "t": 1793500456,
+   "n": "MDEyMzQ1Njc4OTo7PD0-Pw",
+   "body": "{\"a\":1}",
+   "bodyHash": "AVq9f1zFei3ZS3WQ8ErYCEJzkF7jPsXOvq5iJ2qX-GI",
+   "sig": "vmKftAqXHjnurXEq6xyfrXc_Ppad2tkaOfjsJwEzV5w"
+  }
+ ],
  "derivation": {
   "about": "key(keyId) = HMAC-SHA256(master, UTF-8(\"zemer-sig-v1:\" + keyId)), base64; keyId = the versionCode in decimal. TEST master: bytes 1..32. 38 and 39 re-derived with openssl.",
   "masterB64": "AQIDBAUGBwgJCgsMDQ4PEBESExQVFhcYGRobHB0eHyA=",
@@ -60,6 +103,13 @@
    "38": "gDhyBVnQwI6nDbPtk9rGKWaHzp62KbbX45tmpa6xc5Q=",
    "39": "cGQjtkT7+F+gjZsOUGHNk7SfvSzPAo41yzD4iIoXEL4=",
    "40": "eb+E3MtByyOpaHYnNJDGNzlrOMmgI0RJoCQW+yVnz8k="
+  },
+  "devAbout": "Team debug builds: id \"d\" + versionCode, key = HMAC-SHA256(devMaster, UTF-8(\"zemer-sig-v1:\" + id)). TEST devMaster: bytes 33..64. d38 re-derived with openssl.",
+  "devMasterB64": "ISIjJCUmJygpKissLS4vMDEyMzQ1Njc4OTo7PD0+P0A=",
+  "devKeys": {
+   "d1": "qs07baKg5NaGUg+xxZfmAs5sicU5NDp0yGvSJ4Dxgug=",
+   "d38": "IuioTz03Y/ddlNfuNnvCqx1Ebo4DmwkoZwRqCv+nBQI=",
+   "d39": "klk/g7nz4huWtMUfCRwWg7xYInJ8U8fnJaRFAdElANA="
   }
  }
 }
