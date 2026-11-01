@@ -23,6 +23,7 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 import android.content.Context
 import com.jtech.zemer.utils.ContentFilterState
+import com.jtech.zemer.utils.hideFullyBlockedAlbums
 import com.jtech.zemer.utils.dataStore
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.collect
@@ -65,6 +66,7 @@ class ArtistViewModel @Inject constructor(
     val librarySongs = database.artistSongsPreview(artistId)
         .stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
     val libraryAlbums = database.artistAlbumsPreview(artistId)
+        .hideFullyBlockedAlbums(database)
         .stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
 
     init {

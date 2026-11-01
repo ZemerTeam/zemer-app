@@ -35,6 +35,7 @@ import com.jtech.zemer.utils.WhitelistCache
 import com.jtech.zemer.utils.dataStore
 import com.jtech.zemer.utils.getSuspend
 import com.jtech.zemer.utils.reportException
+import com.jtech.zemer.utils.withoutFullyBlocked
 import com.metrolist.innertube.YouTube
 import com.metrolist.innertube.models.AlbumItem
 import com.metrolist.innertube.models.ArtistItem
@@ -252,6 +253,7 @@ class HomeViewModel @Inject constructor(
             )
                 .first()
                 .filter { it.album.thumbnailUrl != null }
+                .withoutFullyBlocked(database)
         }.getOrDefault(emptyList())
 
         val keepListeningArtists = runCatching {

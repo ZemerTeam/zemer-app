@@ -486,6 +486,13 @@ interface DatabaseDao {
     suspend fun getSongsByIds(songIds: List<String>): List<Song> =
         SqliteBindLimit.chunks(songIds).flatMap { getSongsByIdsChunk(it) }
 
+    @Query("SELECT * FROM song_album_map WHERE albumId IN (:albumIds)")
+    suspend fun songAlbumMapsChunk(albumIds: List<String>): List<SongAlbumMap>
+
+    /** The stored album-song links of [albumIds], any list length (see [SqliteBindLimit]). */
+    suspend fun songAlbumMaps(albumIds: List<String>): List<SongAlbumMap> =
+        SqliteBindLimit.chunks(albumIds).flatMap { songAlbumMapsChunk(it) }
+
     @Transaction
     @Query("SELECT * FROM song WHERE isVideo = 1")
     fun videos(): Flow<List<Song>>

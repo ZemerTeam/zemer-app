@@ -14,7 +14,7 @@
 | View count in schema 36 | `3` |
 | Schema files tracked | `36` |
 | DAO file | `app/src/main/kotlin/com/jtech/zemer/db/DatabaseDao.kt` |
-| DAO `fun` declarations found by parser | `229` (`193` distinct names) |
+| DAO `fun` declarations found by parser | `231` (`195` distinct names) |
 
 <!-- /generated:db-facts -->
 
@@ -24,7 +24,7 @@
 
 | Annotation | Count |
 | --- | ---: |
-| `@Query` | 158 |
+| `@Query` | 159 |
 | `@Transaction` | 110 |
 | `@Insert` | 16 |
 | `@Delete` | 11 |
@@ -455,6 +455,8 @@ Every `fun` in `db/DatabaseDao.kt` in source order (overloads repeat the name). 
 | `getSongByIdBlocking` | `songId: String` | `Song?` |
 | `getSongsByIdsChunk` | `songIds: List<String>` | `List<Song>` |
 | `getSongsByIds` | `songIds: List<String>` | `List<Song>` |
+| `songAlbumMapsChunk` | `albumIds: List<String>` | `List<SongAlbumMap>` |
+| `songAlbumMaps` | `albumIds: List<String>` | `List<SongAlbumMap>` |
 | `videos` |  | `Flow<List<Song>>` |
 | `downloadedVideos` |  | `Flow<List<Song>>` |
 | `downloadedVideosByCreateDateAsc` |  | `Flow<List<Song>>` |

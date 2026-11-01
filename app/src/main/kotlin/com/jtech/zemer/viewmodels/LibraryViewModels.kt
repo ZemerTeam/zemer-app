@@ -41,6 +41,7 @@ import com.jtech.zemer.extensions.toEnum
 import com.jtech.zemer.playback.DownloadUtil
 import com.jtech.zemer.repositories.CachedSongsRepository
 import com.jtech.zemer.utils.ContentFilterState
+import com.jtech.zemer.utils.hideFullyBlockedAlbums
 import com.jtech.zemer.search.ZemerSearchRepository
 import com.jtech.zemer.utils.SyncUtils
 import com.jtech.zemer.utils.NewEpisodesFeed
@@ -186,7 +187,8 @@ constructor(
                     AlbumFilter.LIKED -> database.albumsLiked(sortType, descending)
                     AlbumFilter.UPLOADED -> database.albumsUploaded(sortType, descending)
                 }
-            }.stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
+            }.hideFullyBlockedAlbums(database)
+            .stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
 
     fun sync() {
         viewModelScope.launch(Dispatchers.IO) { syncUtils.syncLikedAlbums() }
@@ -280,6 +282,7 @@ constructor(
                 true,
             ).stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
     var albums = database.albumsLiked(AlbumSortType.CREATE_DATE, true)
+        .hideFullyBlockedAlbums(database)
         .stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
     var playlists = database.playlists(PlaylistSortType.CREATE_DATE, true)
         .stateIn(viewModelScope, SharingStarted.Lazily, emptyList())

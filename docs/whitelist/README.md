@@ -189,6 +189,14 @@ concurrent reader never sees a half-applied update.
   safe on Zemer results because it is a specific-id drop, **not** the artist-membership whitelist (which
   the app deliberately never runs over Zemer results, as it would clip legitimate Hebrew/community hits).
 - **No-op when empty:** an empty table changes nothing, so the override layer is a pure addition.
+- **Fully-blocked albums hide from the app's own lists** (`utils/BlockedAlbums.kt`): the server blocks
+  an album card when every song on it is blocked, but the mirror's list carries only the song ids, so a
+  saved album would stay listed with nothing playable. `withoutFullyBlocked` / `hideFullyBlockedAlbums`
+  hide an album whose stored songs (`song_album_map`) are ALL `isBlocked` under the current config
+  (so `global` when every song is global, `female` when every song is global or female) on the database
+  album lists: Library albums, Library mix, the artist page, Keep listening, local album search hits and
+  Android Auto. A pure filter: nothing is deleted, an album with no stored songs is kept, and it
+  reappears once a block lifts or the filter changes (the Flow form re-applies on `ContentFilterState`).
 - **Covers follow the filtered tracks, not the curator image:** a community/online playlist's raw
   `playlist.thumbnail` (YouTube's curator art) bypasses the filter, so `filteredPlaylistCover(songs,
   thumbnailOf)` (`ui/screens/playlist/PlaylistHeaderCover.kt`) derives the opened-playlist header cover
