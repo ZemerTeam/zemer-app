@@ -50,6 +50,7 @@ internal class SabrAudioStream private constructor(
     private var sessionStartedAtMs = 0L
     private var restartAttempts = 0
     private var seekMarginMs = SabrSeekLogic.SEEK_MARGIN_MS
+    @Volatile private var lastReadEnd = -1L
 
     @Synchronized fun usable(): Boolean = !destroyed && !buffer.failed()
 
@@ -66,7 +67,12 @@ internal class SabrAudioStream private constructor(
         while (true) {
             val n = buffer.readCovered(position, into, offset, length)
             if (n > 0) {
-                if (restartAttempts != 0) synchronized(this) { restartAttempts = 0; seekMarginMs = SabrSeekLogic.SEEK_MARGIN_MS }
+                if (restartAttempts != 0 &&
+                    SabrSeekLogic.resetsRestartBudget(position == lastReadEnd, System.currentTimeMillis() - sessionStartedAtMs)
+                ) {
+                    synchronized(this) { restartAttempts = 0; seekMarginMs = SabrSeekLogic.SEEK_MARGIN_MS }
+                }
+                lastReadEnd = position + n
                 return n
             }
             if (position >= buffer.expectedLength) return -1

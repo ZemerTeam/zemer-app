@@ -78,9 +78,9 @@ internal class SabrVideoSession(
     private val maxIter: Int = ((config.durationMs / 1000L) * 3L + 1000L).coerceIn(1000L, 200_000L).toInt()
 
     /** Terminal failure of THIS session — see [SabrSession.failStream]. Marks/wakes BOTH tracks. */
-    private fun failStream(message: String, stall: Boolean) {
+    private fun failStream(message: String, stall: Boolean, terminal: Boolean = false) {
         if (stall) onIncomplete?.invoke()
-        if (restartable) { videoBuffer.notifyWaiters(); audioBuffer.notifyWaiters() }
+        if (restartable && !terminal) { videoBuffer.notifyWaiters(); audioBuffer.notifyWaiters() }
         else { videoBuffer.markError(message); audioBuffer.markError(message) }
     }
 
@@ -242,7 +242,7 @@ internal class SabrVideoSession(
             attestationStalls = SabrProtection.nextStalls(protStatus, madeProgress = newSeg, prev = attestationStalls)
             if (SabrProtection.capped(attestationStalls)) {
                 Timber.tag(TAG).w("SABR video attestation cap (STREAM_PROTECTION_STATUS=$protStatus) — this client cannot satisfy attestation")
-                failStream("attestation-capped (protection=$protStatus)", stall = true); return
+                failStream("attestation-capped (protection=$protStatus)", stall = true, terminal = true); return
             }
             if (video.tailDone() && audio.tailDone()) break
         }
