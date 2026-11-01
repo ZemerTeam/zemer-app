@@ -47,6 +47,7 @@ import com.jtech.zemer.utils.future
 import com.jtech.zemer.utils.immediateFuture
 import com.jtech.zemer.utils.pendingFuture
 import com.jtech.zemer.utils.reportException
+import com.jtech.zemer.utils.withoutFullyBlocked
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -250,6 +251,7 @@ constructor(
                             .filter { album ->
                                 album.artists.any { artist -> whitelistedArtistIds.contains(artist.id) }
                             }
+                            .withoutFullyBlocked(database)
                             .map { album ->
                                 browsableMediaItem(
                                     "${MusicService.ALBUM}/${album.id}",

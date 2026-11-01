@@ -24,6 +24,7 @@ import com.jtech.zemer.tracking.Tracker
 import com.jtech.zemer.utils.dataStore
 import com.jtech.zemer.utils.getSuspend
 import com.jtech.zemer.utils.reportException
+import com.jtech.zemer.utils.withoutFullyBlocked
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CancellationException
@@ -187,7 +188,7 @@ constructor(
                             )
                         }
                         SearchFilter.FILTER_ALBUM -> {
-                            val localAlbums = database.searchAlbums(query).first()
+                            val localAlbums = database.searchAlbums(query).first().withoutFullyBlocked(database)
                             items.addAll(
                                 localAlbums.map { album ->
                                     com.metrolist.innertube.models.AlbumItem(

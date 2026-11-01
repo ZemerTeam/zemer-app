@@ -23,12 +23,15 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 import android.content.Context
 import com.jtech.zemer.utils.ContentFilterState
+import com.jtech.zemer.utils.hideFullyBlockedAlbums
 import com.jtech.zemer.utils.dataStore
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
+
+private const val ARTIST_ALBUMS_PREVIEW_SIZE = 6
 
 @OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
@@ -64,7 +67,11 @@ class ArtistViewModel @Inject constructor(
         .stateIn(viewModelScope, SharingStarted.Lazily, null)
     val librarySongs = database.artistSongsPreview(artistId)
         .stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
-    val libraryAlbums = database.artistAlbumsPreview(artistId)
+    // Filter the artist's whole local album set first, then cut to the preview size, so hidden albums
+    // never crowd allowed ones out of the row.
+    val libraryAlbums = database.artistAlbumsPreview(artistId, previewSize = Int.MAX_VALUE)
+        .hideFullyBlockedAlbums(database)
+        .map { it.take(ARTIST_ALBUMS_PREVIEW_SIZE) }
         .stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
 
     init {
