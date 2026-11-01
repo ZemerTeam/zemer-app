@@ -1,5 +1,6 @@
 package com.jtech.zemer.tracking
 
+import com.jtech.zemer.net.ZemerHeaders
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.cio.CIO
 import io.ktor.client.plugins.HttpTimeout
@@ -34,6 +35,7 @@ internal class TrackingUploader(private val baseUrl: String = BASE_URL) {
             requestTimeoutMillis = REQUEST_TIMEOUT_MS
             connectTimeoutMillis = CONNECT_TIMEOUT_MS
         }
+        install(ZemerHeaders.KtorPlugin)
         expectSuccess = false
     }
 

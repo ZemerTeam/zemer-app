@@ -188,7 +188,9 @@ the Zemer servers, over `SigCanonical.message` (contract + vectors: zemer-search
   interceptor (never `addInterceptor`, which would carry the signature onto a redirect to another host or an
   old path), signing each hop incl. every playback range. It adds the signature to `ZemerHosts` only and takes
   the server clock from their `Date`. A new client to a Zemer host installs it (`ZemerHeadersTest` pins the
-  redirect behavior).
+  redirect behavior); the telemetry and crash uploaders both do.
+- **The same hook sends `X-Zemer-Build: <versionCode>`** (`ZemerHeaders.BUILD_HEADER`) on every Zemer-host hop,
+  with or without a signing key, and never to another host. The servers treat it as optional.
 ### Content-filter sync and reports (content.zemer.io, never Firestore)
 
 `sync/ContentServerApi` is the one client: `POST /reports` (`ContentReportRepository`), `GET`/`PUT /prefs`
