@@ -62,6 +62,11 @@ static void sha256_final(sha256_ctx *c, uint8_t out[32]) {
     for (int i = 0; i < 8; i++) { out[4 * i] = c->h[i] >> 24; out[4 * i + 1] = c->h[i] >> 16; out[4 * i + 2] = c->h[i] >> 8; out[4 * i + 3] = c->h[i]; }
 }
 
+void zemer_sha256(const uint8_t *data, size_t len, uint8_t out[32]) {
+    sha256_ctx c;
+    sha256_init(&c); sha256_update(&c, data, len); sha256_final(&c, out);
+}
+
 void zemer_hmac_sha256(const uint8_t *key, size_t key_len, const uint8_t *msg, size_t msg_len, uint8_t out[32]) {
     uint8_t k[64] = {0}, ipad[64], opad[64], inner[32];
     sha256_ctx c;
