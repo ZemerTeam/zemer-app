@@ -30,6 +30,7 @@ import com.jtech.zemer.constants.*
 import com.jtech.zemer.di.ApplicationScope
 import com.jtech.zemer.extensions.toast
 import com.jtech.zemer.crash.CrashReporter
+import com.jtech.zemer.sig.NativeSig
 import com.jtech.zemer.utils.ContentFilterConfig
 import com.jtech.zemer.utils.CrashReportingTree
 import com.jtech.zemer.utils.BlockedIdsCache
@@ -78,6 +79,8 @@ class App : Application(), SingletonImageLoader.Factory {
 
     override fun onCreate() {
         super.onCreate()
+        // before any request to a Zemer server is signed (the crash reporter's uploads included)
+        NativeSig.bindTo(this)
 
         // Crash reporting to Zemer's server (crash/CrashReporter), in all builds: every DEBUG+ log becomes a
         // breadcrumb, ERROR throwables become non-fatals. Reports carry the commit + CI run number, since nightly
