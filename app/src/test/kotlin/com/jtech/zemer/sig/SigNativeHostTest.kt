@@ -1,10 +1,13 @@
 package com.jtech.zemer.sig
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertTrue
 import org.junit.Assume.assumeTrue
 import org.junit.Test
 import java.io.File
+import java.security.MessageDigest
+import kotlin.random.Random
 import java.util.HexFormat
 import javax.crypto.Mac
 import javax.crypto.spec.SecretKeySpec
@@ -17,7 +20,7 @@ import javax.crypto.spec.SecretKeySpec
 class SigNativeHostTest {
     private val hex = HexFormat.of()
 
-    private fun compile(): File? {
+    private fun compile(harness: String = "hmac_host_harness.c"): File? {
         val cc = listOf("cc", "gcc", "clang").firstOrNull { runCatching { ProcessBuilder(it, "--version").start().waitFor() == 0 }.getOrDefault(false) }
             ?: return null
         val root = File(System.getProperty("user.dir")).let { if (File(it, "src/main/cpp").isDirectory) it else File(it, "app") }
@@ -25,7 +28,7 @@ class SigNativeHostTest {
         val p = ProcessBuilder(
             cc, "-O2", "-std=c99", "-Wall", "-Werror",
             "-I", File(root, "src/main/cpp/zemersig").path,
-            File(root, "src/test/cpp/hmac_host_harness.c").path,
+            File(root, "src/test/cpp/$harness").path,
             File(root, "src/main/cpp/zemersig/hmac_sha256.c").path,
             "-o", out.path,
         ).redirectErrorStream(true).start()
@@ -45,6 +48,40 @@ class SigNativeHostTest {
 
     private fun jdk(key: ByteArray, msg: ByteArray) =
         hex.formatHex(Mac.getInstance("HmacSHA256").apply { init(SecretKeySpec(key, "HmacSHA256")) }.doFinal(msg))
+
+    /**
+     * The build's masking (generateZemerSigKey* in app/build.gradle.kts, mirrored here since a build script cannot
+     * be imported): masked[order[i]] = key[i] ^ mask[i] ^ cert[i], cert = SHA-256 of the signing certificate DER.
+     */
+    private fun buildMask(key: ByteArray, certDigest: ByteArray, random: Random): String {
+        val mask = ByteArray(32).also(random::nextBytes)
+        val order = (0 until 32).shuffled(random)
+        val masked = ByteArray(32)
+        for (i in 0 until 32) masked[order[i]] = (key[i].toInt() xor mask[i].toInt() xor certDigest[i].toInt()).toByte()
+        return "${hex.formatHex(masked)} ${hex.formatHex(mask)} ${hex.formatHex(ByteArray(32) { order[it].toByte() })}"
+    }
+
+    @Test
+    fun `the signer rebuilds a bound key only with the certificate it was bound to`() {
+        val exe = compile("sig_unmask_harness.c")
+        assumeTrue("no C compiler on this host", exe != null)
+        val random = Random(7)
+        val key = ByteArray(32).also(random::nextBytes)
+        val cert = ByteArray(900).also(random::nextBytes)
+        val otherCert = cert.copyOf().also { it[400] = (it[400] + 1).toByte() }
+        val bound = buildMask(key, MessageDigest.getInstance("SHA-256").digest(cert), random)
+        val unbound = buildMask(key, ByteArray(32), random)
+        val p = ProcessBuilder(exe!!.path).start()
+        p.outputStream.bufferedWriter().use { w ->
+            listOf("$bound ${hex.formatHex(cert)}", "$bound ${hex.formatHex(otherCert)}", "$bound -", "$unbound -")
+                .forEach { w.write(it); w.newLine() }
+        }
+        val out = p.inputStream.bufferedReader().readLines().also { check(p.waitFor() == 0) }
+        assertEquals(hex.formatHex(key), out[0])
+        assertNotEquals("another certificate gives another key", hex.formatHex(key), out[1])
+        assertNotEquals("an unread certificate gives another key", hex.formatHex(key), out[2])
+        assertEquals("an unbound (debug) key needs no certificate", hex.formatHex(key), out[3])
+    }
 
     @Test
     fun `the C HMAC matches the JDK on vectors, RFC 4231 cases and every block-boundary length`() {

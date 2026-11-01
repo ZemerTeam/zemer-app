@@ -177,7 +177,6 @@ must not regress:
   SHA-256 of the body bytes as written on the wire (empty for none). OkHttp hashes the `RequestBody` (a one-shot or
   duplex body signs version 1); Ktor hashes the final `ByteArrayContent`/`TextContent` (`NoContent` = empty, any
   other content signs version 1). Pinned by the `v2` vectors in `SigCanonicalTest` and `ZemerHeadersTest`.
-
 - **No key ever lives in the source.** Release builds derive their key from `ZEMER_SIG_MASTER` (CI secret, passed to
   `assembleRelease`) or the Gradle property `zemerSigMaster`; debug builds from `zemerSigDevMaster` /
   `ZEMER_SIG_DEV_MASTER`, under the key id `d<versionCode>`. `generateZemerSigKeyRelease` / `...Debug` derive
@@ -185,6 +184,14 @@ must not regress:
   their own `build/generated/zemersig/<type>/` header, so a debug build never contains a release key; the key is
   rebuilt on the C stack for each HMAC and wiped, never a JVM object. Never commit a key, a key source, a
   generated header or a key-bearing log.
+- **The release key is bound to the release signing certificate.** `generateZemerSigKeyRelease` also XORs the stored
+  key with SHA-256 of the certificate in `keystore/release.keystore` (`STORE_PASSWORD`/`KEY_ALIAS`, as CI signs), and
+  the library XORs back the digest of the running APK's current signer, read natively once per process
+  (`NativeSig.bindTo` in `App.onCreate`, before any request: `getApkContentsSigners` on API 28+, `signatures`
+  below), so a re-signed APK computes a wrong key. A release build with a key source but no readable certificate
+  FAILS (`-PzemerSigUnbound=true` builds an unbound local key); an unreadable certificate at runtime still signs
+  (the server sees an invalid signature) and never drops the request. Debug keys stay unbound. The masking and
+  unmasking round trip is pinned by `SigNativeHostTest`; the formula lives in the build script, mirrored there.
 - **No key = no header, never a failure.** A build type without its key source gets no native library
   (`ZEMER_SIG_SKIP`) and behaves identically, unsigned; a load or signing failure only drops the header.
 - **The canonical message is byte-exact with the server.** Any change to `SigCanonical` must keep

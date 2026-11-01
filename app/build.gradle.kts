@@ -1,6 +1,8 @@
 @file:Suppress("UnstableApiUsage")
 
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import java.security.KeyStore
+import java.security.MessageDigest
 import java.security.SecureRandom
 import java.util.Base64
 import javax.crypto.Mac
@@ -25,14 +27,24 @@ val zemerSigMaster: String? = (providers.environmentVariable("ZEMER_SIG_MASTER")
     ?: providers.gradleProperty("zemerSigMaster").orNull)?.trim()?.takeIf { it.isNotEmpty() }
 val zemerSigDevMaster: String? = (providers.environmentVariable("ZEMER_SIG_DEV_MASTER").orNull
     ?: providers.gradleProperty("zemerSigDevMaster").orNull)?.trim()?.takeIf { it.isNotEmpty() }
+// The release key is bound to the release signing certificate (see the key task); `-PzemerSigUnbound=true` builds a
+// release signer without the binding, for local experiments only.
+val zemerSigUnbound = providers.gradleProperty("zemerSigUnbound").orNull == "true"
+val releaseKeystore = file("keystore/release.keystore")
 
 // One key task per build type ("Release" -> id "<versionCode>", "Debug" -> id "d<versionCode>"), each writing its
 // own header directory, so a debug build can never contain the release key. Each derives the key for THIS version
 // (every versionCode bump rotates it; a master never enters an APK) and writes it masked (XOR a fresh random mask,
 // the masked bytes stored permuted) into build/generated/zemersig/<type>/; it never exists in the source tree.
+// The release key is also XORed with SHA-256 of the release signing certificate, which the native signer reads from
+// the running APK, so an APK signed with another certificate computes a wrong key. A release build that cannot read
+// the certificate fails rather than ship an unbound key. Debug keys stay unbound (dev keystores differ per machine).
 val zemerSigKeyTasks = listOf(Triple("Release", zemerSigMaster, ""), Triple("Debug", zemerSigDevMaster, "d")).map { (type, masterB64, idPrefix) ->
     val outDir = layout.buildDirectory.dir("generated/zemersig/${type.lowercase()}")
     val keyId = provider { idPrefix + android.defaultConfig.versionCode.toString() }
+    // locals, so the task action captures no script object (configuration cache)
+    val bindToCert = type == "Release" && !zemerSigUnbound
+    val keystoreFile = releaseKeystore
     tasks.register("generateZemerSigKey$type") {
         onlyIf { masterB64 != null }
         outputs.dir(outDir)
@@ -53,11 +65,24 @@ val zemerSigKeyTasks = listOf(Triple("Release", zemerSigMaster, ""), Triple("Deb
             val master = Base64.getDecoder().decode(masterB64!!)
             check(master.size == 32) { "the $type signing master must be base64 of exactly 32 bytes" }
             val key = zemerSigDerive(master, keyId.get())
+            val cert = if (bindToCert) {
+                val storePassword = System.getenv("STORE_PASSWORD")
+                val alias = System.getenv("KEY_ALIAS")
+                check(keystoreFile.isFile && storePassword != null && alias != null) {
+                    "the release signing key must be bound to the release certificate, but the keystore " +
+                        "(STORE_PASSWORD, KEY_ALIAS) is not available; -PzemerSigUnbound=true builds an unbound local key"
+                }
+                val store = KeyStore.getInstance("PKCS12").apply { keystoreFile.inputStream().use { load(it, storePassword.toCharArray()) } }
+                val certificate = checkNotNull(store.getCertificate(alias)) { "no certificate for the release key alias" }
+                MessageDigest.getInstance("SHA-256").digest(certificate.encoded)
+            } else {
+                ByteArray(32)
+            }
             val random = SecureRandom()
             val mask = ByteArray(32).also(random::nextBytes)
             val order = (0 until 32).shuffled(random)
             val masked = ByteArray(32)
-            for (i in 0 until 32) masked[order[i]] = (key[i].toInt() xor mask[i].toInt()).toByte()
+            for (i in 0 until 32) masked[order[i]] = (key[i].toInt() xor mask[i].toInt() xor cert[i].toInt()).toByte()
             fun arr(b: ByteArray) = b.joinToString(",") { "0x%02x".format(it.toInt() and 0xff) }
             outDir.get().file("zemer_sig_key.h").asFile.apply { parentFile.mkdirs() }.writeText(
                 """
@@ -66,7 +91,7 @@ val zemerSigKeyTasks = listOf(Triple("Release", zemerSigMaster, ""), Triple("Deb
                 |static const unsigned char zemer_sig_a[32] = {${arr(masked)}};
                 |static const unsigned char zemer_sig_b[32] = {${arr(mask)}};
                 |static const unsigned char zemer_sig_p[32] = {${order.joinToString(",")}};
-                |#define ZEMER_SIG_ORDER(i) zemer_sig_p[i]
+                |#define ZEMER_SIG_CERT_BOUND ${if (cert.any { it != 0.toByte() }) 1 else 0}
                 |""".trimMargin()
             )
         }
@@ -130,7 +155,7 @@ android {
             keyPassword = "android"
         }
         create("release") {
-            storeFile = file("keystore/release.keystore")
+            storeFile = releaseKeystore
             storePassword = System.getenv("STORE_PASSWORD")
             keyAlias = System.getenv("KEY_ALIAS")
             keyPassword = System.getenv("KEY_PASSWORD")
