@@ -41,6 +41,7 @@ class ZemerHeadersTest {
     private val key = ByteArray(32) { (it + 1).toByte() }
     private val local = InetAddress.getByName("127.0.0.1")
     private val dns = Dns { host -> if (host.endsWith("zemer.io") || host == "example.org") listOf(local) else Dns.SYSTEM.lookup(host) }
+    private val build = com.jtech.zemer.BuildConfig.VERSION_CODE.toString()
     @Volatile private var dateHeader = "Mon, 26 Oct 2026 19:00:00 GMT"
 
     private fun hmac(message: ByteArray): ByteArray =
@@ -111,6 +112,7 @@ class ZemerHeadersTest {
         okGet("http://content.zemer.io:$port/whitelist/version")
         seenSnapshot().forEach { s ->
             assertTrue("${s.target} ${s.headers["x-zemer-sig"]}", verify(s))
+            assertEquals(build, s.headers["x-zemer-build"])
         }
         assertEquals(3, seenSnapshot().size)
     }
@@ -123,6 +125,7 @@ class ZemerHeadersTest {
         assertEquals(2, seenSnapshot().size)
         seenSnapshot().forEach { s ->
             assertNull(s.headers["x-zemer-sig"])
+            assertNull(s.headers["x-zemer-build"])
         }
     }
 
@@ -141,7 +144,10 @@ class ZemerHeadersTest {
         ZemerSig.signer = { ByteArray(5) } // a wrong-sized MAC is never sent
         okGet("http://search.zemer.io:${server.localPort}/search?q=c")
         assertEquals(3, seenSnapshot().size)
-        seenSnapshot().forEach { assertNull(it.headers["x-zemer-sig"]) }
+        seenSnapshot().forEach {
+            assertNull(it.headers["x-zemer-sig"])
+            assertEquals("the build header does not need a key", build, it.headers["x-zemer-build"])
+        }
         assertNull(ZemerSig.headerFor("GET", "/x", null))
     }
 
@@ -166,6 +172,8 @@ class ZemerHeadersTest {
         }
         val third = all.single { it.headers["host"]!!.startsWith("example.org") }
         assertNull(third.headers["x-zemer-sig"])
+        assertNull(third.headers["x-zemer-build"])
+        all.filter { it !== third }.forEach { assertEquals(build, it.headers["x-zemer-build"]) }
     }
 
     @Test
@@ -204,6 +212,8 @@ class ZemerHeadersTest {
         assertTrue("re-signed for the new path", verify(same))
         val away = all.single { it.target == "/away" }
         assertEquals("a hop to a non-Zemer host carries no signature", 0, away.sigCount)
+        assertNull("nor the build header", away.headers["x-zemer-build"])
+        assertEquals(build, same.headers["x-zemer-build"])
         all.filter { it.target.startsWith("/hop-") }.forEach { assertTrue(it.target, verify(it)) }
     }
 

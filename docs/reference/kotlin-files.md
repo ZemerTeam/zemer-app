@@ -131,8 +131,8 @@ Every tracked Kotlin file is listed with hard metadata extracted from the file t
 | `app/src/main/kotlin/com/jtech/zemer/models/MediaMetadata.kt` | 179 | `com.jtech.zemer.models` | no | 9 | 31 | androidx.compose, java.io, java.time |
 | `app/src/main/kotlin/com/jtech/zemer/models/PersistPlayerState.kt` | 19 | `com.jtech.zemer.models` | no | 1 | 10 | java.io |
 | `app/src/main/kotlin/com/jtech/zemer/models/PersistQueue.kt` | 91 | `com.jtech.zemer.models` | no | 1 | 41 | java.io |
-| `app/src/main/kotlin/com/jtech/zemer/net/ZemerHeaders.kt` | 55 | `com.jtech.zemer.net` | no | 5 | 9 | io.ktor, okhttp3.OkHttpClient, okhttp3.Response |
-| `app/src/main/kotlin/com/jtech/zemer/net/ZemerHosts.kt` | 24 | `com.jtech.zemer.net` | no | 2 | 3 | java.net |
+| `app/src/main/kotlin/com/jtech/zemer/net/ZemerHeaders.kt` | 65 | `com.jtech.zemer.net` | no | 6 | 10 | io.ktor, okhttp3.OkHttpClient, okhttp3.Response |
+| `app/src/main/kotlin/com/jtech/zemer/net/ZemerHosts.kt` | 23 | `com.jtech.zemer.net` | no | 2 | 3 | java.net |
 | `app/src/main/kotlin/com/jtech/zemer/offline/OfflineReadProvider.kt` | 170 | `com.jtech.zemer.offline` | no | 25 | 33 | android.content, dagger.hilt, java.lang, javax.inject, kotlinx.coroutines |
 | `app/src/main/kotlin/com/jtech/zemer/offline/OfflineSubsetSyncer.kt` | 190 | `com.jtech.zemer.offline` | no | 23 | 31 | android.content, androidx.datastore, dagger.hilt, java.io, javax.inject, kotlinx.coroutines, timber.log |
 | `app/src/main/kotlin/com/jtech/zemer/offline/SubsetCategories.kt` | 440 | `com.jtech.zemer.offline` | no | 9 | 166 | java.util |
@@ -282,7 +282,7 @@ Every tracked Kotlin file is listed with hard metadata extracted from the file t
 | `app/src/main/kotlin/com/jtech/zemer/tracking/TrackingEvents.kt` | 244 | `com.jtech.zemer.tracking` | no | 9 | 40 | kotlinx.serialization |
 | `app/src/main/kotlin/com/jtech/zemer/tracking/TrackingLifecycle.kt` | 58 | `com.jtech.zemer.tracking` | no | 4 | 13 | android.app, android.os |
 | `app/src/main/kotlin/com/jtech/zemer/tracking/TrackingQueue.kt` | 98 | `com.jtech.zemer.tracking` | no | 1 | 16 | java.io |
-| `app/src/main/kotlin/com/jtech/zemer/tracking/TrackingUploader.kt` | 119 | `com.jtech.zemer.tracking` | no | 13 | 23 | io.ktor, kotlinx.serialization, timber.log |
+| `app/src/main/kotlin/com/jtech/zemer/tracking/TrackingUploader.kt` | 121 | `com.jtech.zemer.tracking` | no | 14 | 23 | io.ktor, kotlinx.serialization, timber.log |
 | `app/src/main/kotlin/com/jtech/zemer/ui/component/AccountSettingsDialog.kt` | 67 | `com.jtech.zemer.ui.component` | yes | 20 | 1 | androidx.compose, androidx.navigation |
 | `app/src/main/kotlin/com/jtech/zemer/ui/component/AlphabetIndex.kt` | 21 | `com.jtech.zemer.ui.component` | no | 0 | 3 |  |
 | `app/src/main/kotlin/com/jtech/zemer/ui/component/AppBarTitle.kt` | 31 | `com.jtech.zemer.ui.component` | yes | 6 | 1 | androidx.compose |
@@ -675,7 +675,7 @@ Every tracked Kotlin file is listed with hard metadata extracted from the file t
 | `app/src/test/kotlin/com/jtech/zemer/models/MediaMetadataNavResolutionTest.kt` | 82 | `com.jtech.zemer.models` | no | 7 | 11 | org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/models/PersistPlayerStateCompatTest.kt` | 87 | `com.jtech.zemer.models` | no | 7 | 6 | java.io, org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/models/PersistQueueCompatTest.kt` | 77 | `com.jtech.zemer.models` | no | 9 | 10 | java.io, java.time, org.junit |
-| `app/src/test/kotlin/com/jtech/zemer/net/ZemerHeadersTest.kt` | 229 | `com.jtech.zemer.net` | no | 26 | 47 | io.ktor, java.net, java.util, javax.crypto, kotlin.concurrent, kotlinx.coroutines, okhttp3.Dns, okhttp3.OkHttpClient, okhttp3.Request, org.junit |
+| `app/src/test/kotlin/com/jtech/zemer/net/ZemerHeadersTest.kt` | 239 | `com.jtech.zemer.net` | no | 26 | 48 | io.ktor, java.net, java.util, javax.crypto, kotlin.concurrent, kotlinx.coroutines, okhttp3.Dns, okhttp3.OkHttpClient, okhttp3.Request, org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/offline/SubsetDecoderTest.kt` | 201 | `com.jtech.zemer.offline` | no | 5 | 20 | org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/offline/SubsetFemaleSynonymsTest.kt` | 57 | `com.jtech.zemer.offline` | no | 4 | 5 | org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/offline/SubsetLiveWhitelistTest.kt` | 121 | `com.jtech.zemer.offline` | no | 6 | 8 | org.junit |
