@@ -1023,10 +1023,12 @@ detail: `docs/ui/standards.md §12`. Rules:
   truncated page yields no output. Tests: `Mp4MetadataWriterTest`, `OggOpusTaggerTest`, on-device
   `OpusDevicePipelineTest`.
 - **Opus needs API 29+** (`AudioRemux.oggMuxSupported`; `minSdk` 26): `MediaStoreDownloadManager` sets
-  `downloadOpusOk = !videoDownload && oggMuxSupported && DownloadAudioFormat == BEST`, and `YTPlayerUtils`
+  `downloadOpusOk = !videoDownload && oggOpusUsable && DownloadAudioFormat == BEST`, and `YTPlayerUtils`
   allows itag 251 for a download only then; 26-28 get best AAC/m4a. Never save a raw `.webm`
   (MediaStore.Audio rejects it): when a device's muxer refuses the WebM->Ogg rewrap, the file is saved
-  untagged under the sniffed `.opus` label, like relay audio, instead of failing the download. Only the
+  untagged under the sniffed `.opus` label, like relay audio, instead of failing the download. Two refused
+  tracks in a row (`AudioRemux.oggMuxRefusals`, persisted as `OggMuxRefusalsKey`; a working rewrap resets it)
+  turn `oggOpusUsable` off, so that device downloads tagged AAC from then on. Only the
   download attempt that gives up is reported (each retry resolves the stream afresh).
 - **`OggExtractor` MUST stay registered** in `createMediaSourceFactory` (else downloaded `.ogg` files hit
   "Source error" → a self-repair re-download loop).

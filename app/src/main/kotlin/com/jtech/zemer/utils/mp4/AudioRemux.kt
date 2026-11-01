@@ -28,20 +28,43 @@ object AudioRemux {
     fun flattenMp4(input: File, output: File): Boolean =
         remuxAudio(input, output, MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4, "audio/")
 
+    /**
+     * Consecutive Ogg rewraps the device muxer refused (some phones' MediaMuxer rejects every Opus track).
+     * Seeded from and persisted to DataStore by the download manager.
+     */
+    @Volatile var oggMuxRefusals = 0
+
+    /** Opus downloads only when the Ogg rewrap can work here, else they would be saved untagged. */
+    val oggOpusUsable: Boolean get() = oggMuxSupported && oggMuxRefusals < OGG_REFUSALS_BEFORE_AAC
+
     /** Rewrap WebM/Opus to Ogg/Opus. False on failure or pre-Q (output deleted). */
     fun webmOpusToOgg(input: File, output: File): Boolean {
         if (!oggMuxSupported) return false
-        return remuxAudio(input, output, MediaMuxer.OutputFormat.MUXER_OUTPUT_OGG, "audio/")
+        var refused = false
+        val ok = remuxAudio(input, output, MediaMuxer.OutputFormat.MUXER_OUTPUT_OGG, "audio/") { refused = true }
+        oggMuxRefusals = nextOggMuxRefusals(oggMuxRefusals, ok, refused)
+        return ok
     }
 
-    private fun remuxAudio(input: File, output: File, muxerFormat: Int, mimePrefix: String): Boolean {
+    private fun remuxAudio(
+        input: File,
+        output: File,
+        muxerFormat: Int,
+        mimePrefix: String,
+        onTrackRefused: () -> Unit = {},
+    ): Boolean {
         val extractor = MediaExtractor()
         var muxer: MediaMuxer? = null
         return try {
             extractor.setDataSource(input.absolutePath)
             val inFormat = selectTrack(extractor, mimePrefix) ?: return fail(output, "no audio track")
             muxer = MediaMuxer(output.absolutePath, muxerFormat)
-            val outTrack = muxer.addTrack(inFormat)
+            val outTrack = try {
+                muxer.addTrack(inFormat)
+            } catch (e: IllegalStateException) {
+                onTrackRefused()
+                throw e
+            }
             muxer.start()
 
             val bufSize = runCatching { inFormat.getInteger(MediaFormat.KEY_MAX_INPUT_SIZE) }
@@ -93,4 +116,14 @@ object AudioRemux {
         }
         return null
     }
+}
+
+/** Two refusals in a row, not one, so a single odd file never moves a device off Opus. */
+internal const val OGG_REFUSALS_BEFORE_AAC = 2
+
+/** A working rewrap clears the count, a refused track adds one, any other failure leaves it. */
+internal fun nextOggMuxRefusals(current: Int, ok: Boolean, refused: Boolean): Int = when {
+    ok -> 0
+    refused -> current + 1
+    else -> current
 }
