@@ -58,6 +58,10 @@ object WhitelistFetcher {
             entities
         }
 
+    /** Artists the server names as removed from the whitelist: the only list that may delete local data. */
+    suspend fun fetchRemovedArtists(): Result<Set<String>> =
+        contentRead("whitelistRemoved") { ZemerContentClient.removedArtists() }
+
     /**
      * The read-only `blockedContentIds` overrides - id-level content blocks applied everywhere in the app
      * (see [BlockedIdsCache]), as id -> reason ("female", "global"). The app only ever READS them.

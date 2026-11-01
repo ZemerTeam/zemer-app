@@ -25,7 +25,7 @@ Every tracked Kotlin file is listed with hard metadata extracted from the file t
 | `app/src/main/kotlin/com/jtech/zemer/constants/LibraryFilter.kt` | 14 | `com.jtech.zemer.constants` | no | 0 | 1 |  |
 | `app/src/main/kotlin/com/jtech/zemer/constants/MediaSessionConstants.kt` | 23 | `com.jtech.zemer.constants` | no | 2 | 14 | android.os, androidx.media3 |
 | `app/src/main/kotlin/com/jtech/zemer/constants/PlaybackMode.kt` | 11 | `com.jtech.zemer.constants` | no | 0 | 1 |  |
-| `app/src/main/kotlin/com/jtech/zemer/constants/PreferenceKeys.kt` | 670 | `com.jtech.zemer.constants` | no | 9 | 193 | androidx.annotation, androidx.datastore, java.time |
+| `app/src/main/kotlin/com/jtech/zemer/constants/PreferenceKeys.kt` | 672 | `com.jtech.zemer.constants` | no | 9 | 194 | androidx.annotation, androidx.datastore, java.time |
 | `app/src/main/kotlin/com/jtech/zemer/crash/CrashReport.kt` | 196 | `com.jtech.zemer.crash` | no | 7 | 43 | java.util, kotlinx.serialization |
 | `app/src/main/kotlin/com/jtech/zemer/crash/CrashReporter.kt` | 139 | `com.jtech.zemer.crash` | no | 9 | 36 | android.content, android.os, com.google, java.io, java.util, kotlinx.coroutines |
 | `app/src/main/kotlin/com/jtech/zemer/crash/CrashScrubber.kt` | 30 | `com.jtech.zemer.crash` | no | 0 | 9 |  |
@@ -567,17 +567,17 @@ Every tracked Kotlin file is listed with hard metadata extracted from the file t
 | `app/src/main/kotlin/com/jtech/zemer/utils/RankedContentGate.kt` | 32 | `com.jtech.zemer.utils` | no | 0 | 6 |  |
 | `app/src/main/kotlin/com/jtech/zemer/utils/RefreshRateSelection.kt` | 72 | `com.jtech.zemer.utils` | no | 2 | 10 | kotlin.math |
 | `app/src/main/kotlin/com/jtech/zemer/utils/StringUtils.kt` | 30 | `com.jtech.zemer.utils` | no | 0 | 7 |  |
-| `app/src/main/kotlin/com/jtech/zemer/utils/SyncUtils.kt` | 1161 | `com.jtech.zemer.utils` | no | 49 | 133 | android.content, android.util, androidx.datastore, dagger.hilt, java.time, javax.inject, kotlinx.coroutines, timber.log |
+| `app/src/main/kotlin/com/jtech/zemer/utils/SyncUtils.kt` | 1181 | `com.jtech.zemer.utils` | no | 50 | 134 | android.content, android.util, androidx.datastore, dagger.hilt, java.time, javax.inject, kotlinx.coroutines, timber.log |
 | `app/src/main/kotlin/com/jtech/zemer/utils/UpdateChecker.kt` | 347 | `com.jtech.zemer.utils` | no | 26 | 72 | android.content, io.ktor, java.io, java.nio, java.security, kotlinx.coroutines, kotlinx.serialization, timber.log |
 | `app/src/main/kotlin/com/jtech/zemer/utils/UrlValidator.kt` | 82 | `com.jtech.zemer.utils` | no | 2 | 8 | okhttp3.HttpUrl |
 | `app/src/main/kotlin/com/jtech/zemer/utils/Utils.kt` | 35 | `com.jtech.zemer.utils` | no | 4 | 5 | android.content, java.util, timber.log |
 | `app/src/main/kotlin/com/jtech/zemer/utils/VideoLinkBuilder.kt` | 36 | `com.jtech.zemer.utils` | no | 0 | 8 |  |
 | `app/src/main/kotlin/com/jtech/zemer/utils/VideoMuxer.kt` | 138 | `com.jtech.zemer.utils` | no | 7 | 22 | android.media, java.io, java.nio, timber.log |
 | `app/src/main/kotlin/com/jtech/zemer/utils/WhitelistCache.kt` | 52 | `com.jtech.zemer.utils` | no | 4 | 11 | kotlinx.coroutines |
-| `app/src/main/kotlin/com/jtech/zemer/utils/WhitelistFetcher.kt` | 103 | `com.jtech.zemer.utils` | no | 4 | 19 | java.time, timber.log |
+| `app/src/main/kotlin/com/jtech/zemer/utils/WhitelistFetcher.kt` | 107 | `com.jtech.zemer.utils` | no | 4 | 20 | java.time, timber.log |
 | `app/src/main/kotlin/com/jtech/zemer/utils/WhitelistFilter.kt` | 330 | `com.jtech.zemer.utils` | no | 10 | 32 | java.util, kotlinx.coroutines, timber.log |
 | `app/src/main/kotlin/com/jtech/zemer/utils/YTPlayerUtils.kt` | 793 | `com.jtech.zemer.utils` | no | 32 | 102 | android.net, androidx.core, androidx.media3, com.zemer, kotlinx.coroutines, okhttp3.OkHttpClient, timber.log |
-| `app/src/main/kotlin/com/jtech/zemer/utils/ZemerContentClient.kt` | 348 | `com.jtech.zemer.utils` | no | 36 | 75 | io.ktor, java.io, java.nio, kotlinx.coroutines, kotlinx.serialization, timber.log |
+| `app/src/main/kotlin/com/jtech/zemer/utils/ZemerContentClient.kt` | 365 | `com.jtech.zemer.utils` | no | 36 | 79 | io.ktor, java.io, java.nio, kotlinx.coroutines, kotlinx.serialization, timber.log |
 | `app/src/main/kotlin/com/jtech/zemer/utils/markdown/LiteMarkdown.kt` | 199 | `com.jtech.zemer.utils.markdown` | no | 0 | 64 |  |
 | `app/src/main/kotlin/com/jtech/zemer/utils/mp4/AudioRemux.kt` | 129 | `com.jtech.zemer.utils.mp4` | no | 8 | 22 | android.media, android.os, java.io, java.nio, timber.log |
 | `app/src/main/kotlin/com/jtech/zemer/utils/mp4/Mp4MetadataWriter.kt` | 303 | `com.jtech.zemer.utils.mp4` | no | 3 | 76 | java.io, java.nio |
