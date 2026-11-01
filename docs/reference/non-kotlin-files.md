@@ -12,7 +12,7 @@ Every tracked non-Kotlin path outside `docs/` is listed. Text files report line 
 | `.github/workflows/ui-audit.yml` | 55 lines | text `.yml` |
 | `.gitignore` | 117 lines | text `[none]` |
 | `.gitmodules` | 3 lines | text `[none]` |
-| `AGENTS.md` | 1168 lines | text `.md` |
+| `AGENTS.md` | 1176 lines | text `.md` |
 | `LICENSE` | 674 lines | text `[none]` |
 | `README.md` | 9 lines | text `.md` |
 | `app/.gitignore` | 1 lines | text `[none]` |
@@ -271,7 +271,7 @@ Every tracked non-Kotlin path outside `docs/` is listed. Text files report line 
 | `app/src/main/res/values/app_name.xml` | 4 lines | text `.xml`; XML root `resources` |
 | `app/src/main/res/values/colors.xml` | 9 lines | text `.xml`; XML root `resources` |
 | `app/src/main/res/values/metrolist_strings.xml` | 701 lines | text `.xml`; XML root `resources` |
-| `app/src/main/res/values/strings.xml` | 466 lines | text `.xml`; XML root `resources` |
+| `app/src/main/res/values/strings.xml` | 468 lines | text `.xml`; XML root `resources` |
 | `app/src/main/res/values/styles.xml` | 26 lines | text `.xml`; XML root `resources` |
 | `app/src/main/res/values/values.xml` | 8 lines | text `.xml`; XML root `resources` |
 | `app/src/main/res/xml-v25/shortcuts.xml` | 33 lines | text `.xml`; XML root `shortcuts` |

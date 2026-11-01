@@ -4,6 +4,8 @@ import com.jtech.zemer.BuildConfig
 import com.jtech.zemer.sig.ZemerSig
 import io.ktor.client.plugins.api.SendingRequest
 import io.ktor.client.plugins.api.createClientPlugin
+import io.ktor.client.plugins.isSaved
+import io.ktor.client.statement.bodyAsText
 import io.ktor.http.content.OutgoingContent
 import okhttp3.OkHttpClient
 import okhttp3.RequestBody
@@ -16,7 +18,8 @@ import okio.Buffer
  * signature (builds with a signing key only), and it takes the server clock from the response's `Date` so the
  * signature time is right on a device with a wrong clock. Every HOP is judged on its own: a redirect is re-signed
  * for its own path when it stays on a Zemer host and carries none of these headers when it leaves one. Requests to any other host pass through untouched. Nothing here can
- * fail a request.
+ * fail a request, except that once [UnofficialCopy] has refused this copy (it is fed every Zemer-host response here)
+ * every Zemer-host request fails locally with [UnofficialCopy.Refused].
  */
 object ZemerHeaders {
     const val BUILD_HEADER = "X-Zemer-Build"
@@ -24,6 +27,9 @@ object ZemerHeaders {
 
     /** Everything this hook adds, all removed on a hop to any other host. */
     private val OWN_HEADERS = listOf(ZemerSig.HEADER, BUILD_HEADER, EnvSignals.HEADER)
+
+    /** Enough of a refusal body for its message; never the whole of a large one. */
+    private const val PEEK_BYTES = 4_096L
 
     /**
      * Ktor clients. Signs at [SendingRequest], so the URL is final (query parameters included); Ktor's redirect
@@ -36,6 +42,7 @@ object ZemerHeaders {
             OWN_HEADERS.forEach(request.headers::remove)
             val url = request.url.build()
             if (!ZemerHosts.isZemerHost(url.host)) return@on
+            if (UnofficialCopy.refused) throw UnofficialCopy.Refused()
             request.headers[BUILD_HEADER] = build
             EnvSignals.mask.takeIf { it != 0 }?.let { request.headers[EnvSignals.HEADER] = it.toString() }
             val body = when (content) {
@@ -47,7 +54,12 @@ object ZemerHeaders {
                 ?.let { request.headers[ZemerSig.HEADER] = it }
         }
         onResponse { response ->
-            if (ZemerHosts.isZemerHost(response.call.request.url.host)) ZemerSig.onServerDate(response.headers["Date"])
+            if (!ZemerHosts.isZemerHost(response.call.request.url.host)) return@onResponse
+            ZemerSig.onServerDate(response.headers["Date"])
+            val status = response.status.value
+            // only a saved (non-streaming) body can be read here without taking it from the caller
+            val body = if (status == 403 && response.isSaved) runCatching { response.bodyAsText() }.getOrNull() else null
+            UnofficialCopy.onResponse(status, response.headers[UnofficialCopy.REFUSAL_HEADER], response.headers["Content-Type"]) { body }
         }
     }
 
@@ -63,11 +75,17 @@ object ZemerHeaders {
                 if (OWN_HEADERS.none { request.header(it) != null }) return chain.proceed(request)
                 return chain.proceed(request.newBuilder().apply { OWN_HEADERS.forEach(::removeHeader) }.build())
             }
+            if (UnofficialCopy.refused) throw UnofficialCopy.Refused()
             val builder = request.newBuilder().header(BUILD_HEADER, build)
             EnvSignals.mask.takeIf { it != 0 }?.let { builder.header(EnvSignals.HEADER, it.toString()) }
             ZemerSig.headerFor(request.method, request.url.encodedPath, request.url.encodedQuery, bodyBytes(request.body))
                 ?.let { builder.header(ZemerSig.HEADER, it) }
-            return chain.proceed(builder.build()).also { ZemerSig.onServerDate(it.header("Date")) }
+            return chain.proceed(builder.build()).also { response ->
+                ZemerSig.onServerDate(response.header("Date"))
+                UnofficialCopy.onResponse(response.code, response.header(UnofficialCopy.REFUSAL_HEADER), response.header("Content-Type")) {
+                    runCatching { response.peekBody(PEEK_BYTES).string() }.getOrNull()
+                }
+            }
         }
 
         /** The bytes a body writes (none = empty); null for a body that can be written only once (signed version 1). */

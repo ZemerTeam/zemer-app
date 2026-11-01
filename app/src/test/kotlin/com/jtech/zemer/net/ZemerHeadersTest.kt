@@ -10,6 +10,7 @@ import io.ktor.client.request.parameter
 import io.ktor.client.request.post
 import io.ktor.client.request.put
 import io.ktor.client.request.setBody
+import io.ktor.client.statement.bodyAsText
 import kotlinx.coroutines.runBlocking
 import okhttp3.Dns
 import okhttp3.OkHttpClient
@@ -100,9 +101,17 @@ class ZemerHeadersTest {
                             target.startsWith("/hop-away") -> "http://example.org:${server.localPort}/away"
                             else -> null
                         }
-                        val status = if (location != null) "302 Found\r\nLocation: $location" else "200 OK"
+                        // refusals: the servers' JSON answer, the relay's plain-text one, and another 403
+                        val (status, reply) = when {
+                            location != null -> "302 Found\r\nLocation: $location" to "ok"
+                            target.startsWith("/unofficial-json") -> "403 Forbidden\r\nContent-Type: application/json" to
+                                """{"error":"unofficial_copy","message":"json message"}"""
+                            target.startsWith("/unofficial-relay") -> "403 Forbidden\r\nContent-Type: text/plain\r\nX-Zemer-Refusal: unofficial_copy" to "relay message"
+                            target.startsWith("/update-required") -> "403 Forbidden\r\nContent-Type: application/json" to """{"error":"update_required"}"""
+                            else -> "200 OK" to "ok"
+                        }
                         s.getOutputStream().apply {
-                            write("HTTP/1.1 $status\r\nDate: $dateHeader\r\nContent-Length: 2\r\nConnection: close\r\n\r\nok".encodeToByteArray())
+                            write("HTTP/1.1 $status\r\nDate: $dateHeader\r\nContent-Length: ${reply.length}\r\nConnection: close\r\n\r\n$reply".encodeToByteArray())
                             flush()
                         }
                     }
@@ -115,7 +124,44 @@ class ZemerHeadersTest {
     fun tearDown() {
         ZemerSig.signer = null
         ZemerSig.clockOffsetSec = 0
+        UnofficialCopy.reset()
         server.close()
+    }
+
+    @Test
+    fun `two unofficial-copy answers from any servers refuse the copy, then no Zemer request leaves the device`() = runBlocking {
+        val port = server.localPort
+        HttpClient(OkHttp) {
+            engine { config { dns(dns) } }
+            install(ZemerHeaders.KtorPlugin)
+        }.use { client ->
+            client.get("http://content.zemer.io:$port/unofficial-json")
+            client.get("http://search.zemer.io:$port/update-required")
+            assertFalse("another refusal in between resets the count", UnofficialCopy.refused)
+            client.get("http://content.zemer.io:$port/unofficial-json")
+            assertFalse(UnofficialCopy.refused)
+            okGet("http://stream.zemer.io:$port/unofficial-relay")
+            assertEquals("relay message", UnofficialCopy.message.value)
+            val before = seenSnapshot().size
+            assertTrue(runCatching { client.get("http://search.zemer.io:$port/search?q=a") }.exceptionOrNull() is UnofficialCopy.Refused)
+            assertTrue(runCatching { okGet("http://tracking.zemer.io:$port/v1/events") }.exceptionOrNull() is UnofficialCopy.Refused)
+            client.get("http://example.org:$port/page") // other hosts are untouched
+            assertEquals(before + 1, seenSnapshot().size)
+        }
+        Unit
+    }
+
+    @Test
+    fun `the Ktor JSON answer is read without taking the body from the caller`() = runBlocking {
+        HttpClient(OkHttp) {
+            engine { config { dns(dns) } }
+            install(ZemerHeaders.KtorPlugin)
+        }.use { client ->
+            val body = client.get("http://content.zemer.io:${server.localPort}/unofficial-json").bodyAsText()
+            assertTrue(body, body.contains("unofficial_copy"))
+            client.get("http://content.zemer.io:${server.localPort}/unofficial-json")
+        }
+        assertEquals("json message", UnofficialCopy.message.value)
     }
 
     private fun okhttp() = OkHttpClient.Builder().dns(dns).withZemerHeaders().build()
