@@ -74,6 +74,9 @@ mid-station. A malformed token (`parse` → null, incl. a negative offset) ends 
 2. **Decoders + corpus** — `SubsetDecoder` gunzips each shard into the in-memory `SubsetCorpus`
    (mirror of the server's SQLite tables); derived maps are lazy. The decode guard catches `Throwable`
    (cancellation rethrown): an `OutOfMemoryError` on a low-RAM device must degrade to "no snapshot".
+   Repeated ids (videoId / artistId / playlistId / albumId, incl. radio neighbours) share one `String`
+   through the per-load pool, and `communitytracks` (~25 MB of JSON, ~390k rows) is streamed row by row.
+   Measured on the 2026-11-01 snapshot (JVM): corpus 180 → 90 MB, search index 198 → 50 MB.
 3. **Read layer** — `SubsetReadLayer` + `SubsetCategories` + `SubsetSearch` + `SubsetFemale` +
    `SubsetNormalize` + `SubsetSynonyms`: ports of the server's `store.mjs` / `categories.mjs` /
    `search.mjs` / `credits.mjs` / `normalize.mjs`, with stable Kotlin sorts. **Parity with the live

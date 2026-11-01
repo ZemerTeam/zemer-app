@@ -70,27 +70,57 @@ private fun bigrams(s: String): List<String> {
     return g
 }
 
-/** One inverted field (plain OR skeleton): postings, bigram candidate index, sorted vocab, idf. */
+/**
+ * One inverted field (plain OR skeleton): postings, bigram candidate index, sorted vocab, idf.
+ *
+ * Postings are packed `doc shl 2 or mask` ints, never boxed maps: over the full snapshot the boxed form
+ * (a `HashMap<Int, Int>` per token, a `HashSet` per bigram, a boxed idf per token) retained ~200 MB and
+ * OOM-crashed 256 MB-heap phones while building the offline search index.
+ */
 internal class Field {
-    // token -> (doc -> field-bit mask: TITLE|ARTIST)
-    val inv = HashMap<String, HashMap<Int, Int>>()
-    val bg = HashMap<String, HashSet<String>>()
-    var sorted: List<String> = emptyList()
-    val idf = HashMap<String, Double>()
+    // Build-time only: token -> growing packed postings. Docs arrive in ascending order (one doc's puts
+    // all land before the next doc's), so a repeat of the same doc is always the last entry.
+    private var building: HashMap<String, Postings>? = HashMap()
 
-    fun put(tok: String, doc: Int, bit: Int) {
-        val m = inv.getOrPut(tok) { HashMap() }
-        m[doc] = (m[doc] ?: 0) or bit
+    // token -> packed postings (doc shl 2 or field-bit mask: TITLE|ARTIST)
+    val inv = HashMap<String, IntArray>()
+    val bg = HashMap<String, Array<String>>()
+    var sorted: List<String> = emptyList()
+    private var n = 1
+
+    private class Postings {
+        var a = IntArray(2)
+        var size = 0
     }
 
-    fun finalize(n: Int) {
-        for ((tok, postings) in inv) {
-            idf[tok] = ln(1.0 + n.toDouble() / postings.size) // rare token -> high idf
-            for (g in bigrams(tok)) bg.getOrPut(g) { HashSet() }.add(tok)
+    fun put(tok: String, doc: Int, bit: Int) {
+        val p = building!!.getOrPut(tok) { Postings() }
+        if (p.size > 0 && p.a[p.size - 1] ushr 2 == doc) {
+            p.a[p.size - 1] = p.a[p.size - 1] or bit
+            return
         }
+        if (p.size == p.a.size) p.a = p.a.copyOf(p.size * 2)
+        p.a[p.size++] = (doc shl 2) or bit
+    }
+
+    /** Rare token -> high idf. */
+    fun idf(postings: IntArray): Double = ln(1.0 + n.toDouble() / postings.size)
+
+    fun finalize(n: Int) {
+        this.n = n
+        val bgBuild = HashMap<String, ArrayList<String>>()
+        for ((tok, p) in building!!) {
+            inv[tok] = p.a.copyOf(p.size)
+            for (g in bigrams(tok).distinct()) bgBuild.getOrPut(g) { ArrayList() }.add(tok)
+        }
+        building = null
+        for ((g, toks) in bgBuild) bg[g] = toks.toTypedArray()
         sorted = inv.keys.sorted()
     }
 }
+
+private fun postingDoc(e: Int) = e ushr 2
+private fun postingMask(e: Int) = e and 3
 
 /** A built index over [docs]. Immutable; reused across queries. */
 class SubsetIndex<T : SearchDoc> internal constructor(
@@ -112,8 +142,13 @@ class SubsetIndex<T : SearchDoc> internal constructor(
 
 private fun <T> uniq(a: List<T>): List<T> = a.distinct()
 
-/** buildIndex(tracks) — one plain + one skeleton inverted index plus the stored field keys. */
-fun <T : SearchDoc> buildSubsetIndex(docs: List<T>): SubsetIndex<T> {
+/**
+ * buildIndex(tracks) — one plain + one skeleton inverted index plus the stored field keys. [pool] shares
+ * one String per distinct token / field key (every track by one artist repeats the same artist keys);
+ * pass one pool to all the indexes built over a corpus.
+ */
+fun <T : SearchDoc> buildSubsetIndex(docs: List<T>, pool: MutableMap<String, String> = HashMap()): SubsetIndex<T> {
+    fun intern(s: String) = pool.getOrPut(s) { s }
     val n = if (docs.isEmpty()) 1 else docs.size
     val plain = Field()
     val skel = Field()
@@ -126,14 +161,14 @@ fun <T : SearchDoc> buildSubsetIndex(docs: List<T>): SubsetIndex<T> {
         val ap = uniq(SubsetNormalize.plainTokens(t.artistName))
         val ts = uniq(SubsetNormalize.skeletonTokens(t.title))
         val ask = uniq(SubsetNormalize.skeletonTokens(t.artistName))
-        for (tok in tp) plain.put(tok, i, TITLE)
-        for (tok in ap) plain.put(tok, i, ARTIST)
-        for (tok in ts) skel.put(tok, i, TITLE)
-        for (tok in ask) skel.put(tok, i, ARTIST)
-        titleP[i] = tp.joinToString(" ")
-        artistP[i] = ap.joinToString(" ")
-        titleS[i] = SubsetNormalize.skeletonKey(t.title)
-        artistS[i] = SubsetNormalize.skeletonKey(t.artistName)
+        for (tok in tp) plain.put(intern(tok), i, TITLE)
+        for (tok in ap) plain.put(intern(tok), i, ARTIST)
+        for (tok in ts) skel.put(intern(tok), i, TITLE)
+        for (tok in ask) skel.put(intern(tok), i, ARTIST)
+        titleP[i] = intern(tp.joinToString(" "))
+        artistP[i] = intern(ap.joinToString(" "))
+        titleS[i] = intern(SubsetNormalize.skeletonKey(t.title))
+        artistS[i] = intern(SubsetNormalize.skeletonKey(t.artistName))
     }
     plain.finalize(n)
     skel.finalize(n)
@@ -172,10 +207,10 @@ private fun matchToken(field: Field, qt: String, cap: Int, weights: Weights, min
     val out = HashMap<Int, Match>()
     fun consider(v: String, base: Int, strong: Boolean) {
         val postings = field.inv[v] ?: return
-        val idf = field.idf[v] ?: 1.0
-        val w = base * idf
-        for ((doc, mask) in postings) {
-            val eff = if (strong) mask else 0
+        val w = base * field.idf(postings)
+        for (e in postings) {
+            val doc = postingDoc(e)
+            val eff = if (strong) postingMask(e) else 0
             val cur = out[doc]
             if (cur == null) {
                 out[doc] = Match(w, eff)

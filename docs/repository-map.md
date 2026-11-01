@@ -99,7 +99,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `.github/workflows/ui-audit.yml` | 55 lines | `.yml` |
 | `.gitignore` | 117 lines | `[none]` |
 | `.gitmodules` | 3 lines | `[none]` |
-| `AGENTS.md` | 1182 lines | `.md` |
+| `AGENTS.md` | 1187 lines | `.md` |
 | `LICENSE` | 674 lines | `[none]` |
 | `README.md` | 9 lines | `.md` |
 | `app/.gitignore` | 1 lines | `[none]` |
@@ -288,9 +288,9 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/main/kotlin/com/jtech/zemer/net/ZemerRefusal.kt` | 44 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/offline/OfflineReadProvider.kt` | 170 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/offline/OfflineSubsetSyncer.kt` | 194 lines | `.kt` |
-| `app/src/main/kotlin/com/jtech/zemer/offline/SubsetCategories.kt` | 440 lines | `.kt` |
+| `app/src/main/kotlin/com/jtech/zemer/offline/SubsetCategories.kt` | 441 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/offline/SubsetCorpus.kt` | 214 lines | `.kt` |
-| `app/src/main/kotlin/com/jtech/zemer/offline/SubsetDecoder.kt` | 302 lines | `.kt` |
+| `app/src/main/kotlin/com/jtech/zemer/offline/SubsetDecoder.kt` | 322 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/offline/SubsetFemale.kt` | 147 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/offline/SubsetHash.kt` | 23 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/offline/SubsetLiveWhitelist.kt` | 123 lines | `.kt` |
@@ -298,7 +298,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/main/kotlin/com/jtech/zemer/offline/SubsetNormalize.kt` | 115 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/offline/SubsetRadio.kt` | 261 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/offline/SubsetReadLayer.kt` | 908 lines | `.kt` |
-| `app/src/main/kotlin/com/jtech/zemer/offline/SubsetSearch.kt` | 320 lines | `.kt` |
+| `app/src/main/kotlin/com/jtech/zemer/offline/SubsetSearch.kt` | 355 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/offline/SubsetStore.kt` | 115 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/offline/SubsetSyncClient.kt` | 69 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/offline/SubsetSynonyms.kt` | 74 lines | `.kt` |
@@ -1052,14 +1052,14 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/test/kotlin/com/jtech/zemer/net/EnvSignalsTest.kt` | 41 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/net/UnofficialCopyTest.kt` | 62 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/net/ZemerHeadersTest.kt` | 424 lines | `.kt` |
-| `app/src/test/kotlin/com/jtech/zemer/offline/SubsetDecoderTest.kt` | 201 lines | `.kt` |
+| `app/src/test/kotlin/com/jtech/zemer/offline/SubsetDecoderTest.kt` | 215 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/offline/SubsetFemaleSynonymsTest.kt` | 57 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/offline/SubsetLiveWhitelistTest.kt` | 121 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/offline/SubsetNormalizeTest.kt` | 53 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/offline/SubsetPodcastReadTest.kt` | 249 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/offline/SubsetRadioTest.kt` | 197 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/offline/SubsetReadLayerTest.kt` | 261 lines | `.kt` |
-| `app/src/test/kotlin/com/jtech/zemer/offline/SubsetSearchTest.kt` | 177 lines | `.kt` |
+| `app/src/test/kotlin/com/jtech/zemer/offline/SubsetSearchTest.kt` | 193 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/offline/SubsetStoreStagingTest.kt` | 74 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/offline/SubsetSyncTest.kt` | 72 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/payments/DonationClientTest.kt` | 71 lines | `.kt` |
@@ -1285,7 +1285,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `docs/multi_update/04-wiring.md` | 46 lines | `.md` |
 | `docs/multi_update/05-runbook.md` | 51 lines | `.md` |
 | `docs/multi_update/README.md` | 41 lines | `.md` |
-| `docs/offline/README.md` | 131 lines | `.md` |
+| `docs/offline/README.md` | 134 lines | `.md` |
 | `docs/podcasts/README.md` | 88 lines | `.md` |
 | `docs/recognize_music/01-architecture-and-pipeline.md` | 65 lines | `.md` |
 | `docs/recognize_music/02-whitelist-guarantee.md` | 69 lines | `.md` |

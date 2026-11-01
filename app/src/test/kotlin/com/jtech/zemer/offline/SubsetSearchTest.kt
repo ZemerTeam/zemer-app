@@ -174,4 +174,20 @@ class SubsetSearchTest {
         assertTrue("the literal query hit is kept", "nick000000" in hits)
         assertTrue("the corpus's own synonym group expands the query to the other surface form", "full000000" in hits)
     }
+
+    // --- packed postings (the compact index that fixed the 256 MB-heap OOM) -------------------------
+
+    @Test
+    fun `a token in title AND artist of one doc packs into ONE posting carrying both field bits`() {
+        val idx = index(
+            Doc(title = "Shalom", artistName = "Shalom Band", sortId = "aaaaaaaaaaa"),
+            Doc(title = "Other", artistName = "Shalom", sortId = "bbbbbbbbbbb"),
+            Doc(title = "Unrelated", artistName = "Someone", sortId = "ccccccccccc"),
+        )
+        val field = idx.plainField()
+        val postings = field.inv.getValue("shalom")
+        assertEquals(listOf(0 shl 2 or 3, 1 shl 2 or 2), postings.toList()) // doc 0: TITLE|ARTIST, doc 1: ARTIST
+        assertEquals(kotlin.math.ln(1.0 + 3.0 / 2), field.idf(postings), 1e-12) // idf over the doc frequency
+        assertTrue("the bigram index lists the token once", field.bg.getValue("^s").count { it == "shalom" } == 1)
+    }
 }

@@ -139,9 +139,9 @@ Every tracked Kotlin file is listed with hard metadata extracted from the file t
 | `app/src/main/kotlin/com/jtech/zemer/net/ZemerRefusal.kt` | 44 | `com.jtech.zemer.net` | no | 5 | 15 | java.net, kotlinx.serialization, timber.log |
 | `app/src/main/kotlin/com/jtech/zemer/offline/OfflineReadProvider.kt` | 170 | `com.jtech.zemer.offline` | no | 25 | 33 | android.content, dagger.hilt, java.lang, javax.inject, kotlinx.coroutines |
 | `app/src/main/kotlin/com/jtech/zemer/offline/OfflineSubsetSyncer.kt` | 194 | `com.jtech.zemer.offline` | no | 25 | 32 | android.content, androidx.datastore, dagger.hilt, java.io, javax.inject, kotlinx.coroutines, timber.log |
-| `app/src/main/kotlin/com/jtech/zemer/offline/SubsetCategories.kt` | 440 | `com.jtech.zemer.offline` | no | 9 | 166 | java.util |
+| `app/src/main/kotlin/com/jtech/zemer/offline/SubsetCategories.kt` | 441 | `com.jtech.zemer.offline` | no | 9 | 167 | java.util |
 | `app/src/main/kotlin/com/jtech/zemer/offline/SubsetCorpus.kt` | 214 | `com.jtech.zemer.offline` | no | 0 | 138 |  |
-| `app/src/main/kotlin/com/jtech/zemer/offline/SubsetDecoder.kt` | 302 | `com.jtech.zemer.offline` | no | 17 | 72 | java.io, java.util, kotlinx.coroutines, kotlinx.serialization, timber.log |
+| `app/src/main/kotlin/com/jtech/zemer/offline/SubsetDecoder.kt` | 322 | `com.jtech.zemer.offline` | no | 21 | 75 | java.io, java.util, kotlinx.coroutines, kotlinx.serialization, timber.log |
 | `app/src/main/kotlin/com/jtech/zemer/offline/SubsetFemale.kt` | 147 | `com.jtech.zemer.offline` | no | 0 | 39 |  |
 | `app/src/main/kotlin/com/jtech/zemer/offline/SubsetHash.kt` | 23 | `com.jtech.zemer.offline` | no | 1 | 5 | java.security |
 | `app/src/main/kotlin/com/jtech/zemer/offline/SubsetLiveWhitelist.kt` | 123 | `com.jtech.zemer.offline` | no | 1 | 20 | java.util |
@@ -149,7 +149,7 @@ Every tracked Kotlin file is listed with hard metadata extracted from the file t
 | `app/src/main/kotlin/com/jtech/zemer/offline/SubsetNormalize.kt` | 115 | `com.jtech.zemer.offline` | no | 2 | 29 | java.text, kotlin.math |
 | `app/src/main/kotlin/com/jtech/zemer/offline/SubsetRadio.kt` | 261 | `com.jtech.zemer.offline` | no | 3 | 87 | java.util, kotlin.math |
 | `app/src/main/kotlin/com/jtech/zemer/offline/SubsetReadLayer.kt` | 908 | `com.jtech.zemer.offline` | no | 28 | 152 | java.util, kotlinx.serialization |
-| `app/src/main/kotlin/com/jtech/zemer/offline/SubsetSearch.kt` | 320 | `com.jtech.zemer.offline` | no | 4 | 116 | kotlin.math |
+| `app/src/main/kotlin/com/jtech/zemer/offline/SubsetSearch.kt` | 355 | `com.jtech.zemer.offline` | no | 4 | 125 | kotlin.math |
 | `app/src/main/kotlin/com/jtech/zemer/offline/SubsetStore.kt` | 115 | `com.jtech.zemer.offline` | no | 5 | 26 | android.content, java.io, kotlinx.serialization |
 | `app/src/main/kotlin/com/jtech/zemer/offline/SubsetSyncClient.kt` | 69 | `com.jtech.zemer.offline` | no | 13 | 11 | io.ktor, java.io, javax.inject, kotlinx.serialization |
 | `app/src/main/kotlin/com/jtech/zemer/offline/SubsetSynonyms.kt` | 74 | `com.jtech.zemer.offline` | no | 0 | 18 |  |
@@ -687,14 +687,14 @@ Every tracked Kotlin file is listed with hard metadata extracted from the file t
 | `app/src/test/kotlin/com/jtech/zemer/net/EnvSignalsTest.kt` | 41 | `com.jtech.zemer.net` | no | 4 | 1 | org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/net/UnofficialCopyTest.kt` | 62 | `com.jtech.zemer.net` | no | 6 | 6 | org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/net/ZemerHeadersTest.kt` | 424 | `com.jtech.zemer.net` | no | 33 | 79 | io.ktor, java.net, java.security, java.util, javax.crypto, kotlin.concurrent, kotlinx.coroutines, okhttp3.Dns, okhttp3.MediaType, okhttp3.OkHttpClient, okhttp3.Request, okhttp3.RequestBody, okio.BufferedSink, org.junit |
-| `app/src/test/kotlin/com/jtech/zemer/offline/SubsetDecoderTest.kt` | 201 | `com.jtech.zemer.offline` | no | 5 | 20 | org.junit |
+| `app/src/test/kotlin/com/jtech/zemer/offline/SubsetDecoderTest.kt` | 215 | `com.jtech.zemer.offline` | no | 6 | 23 | org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/offline/SubsetFemaleSynonymsTest.kt` | 57 | `com.jtech.zemer.offline` | no | 4 | 5 | org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/offline/SubsetLiveWhitelistTest.kt` | 121 | `com.jtech.zemer.offline` | no | 6 | 8 | org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/offline/SubsetNormalizeTest.kt` | 53 | `com.jtech.zemer.offline` | no | 2 | 2 | org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/offline/SubsetPodcastReadTest.kt` | 249 | `com.jtech.zemer.offline` | no | 6 | 38 | org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/offline/SubsetRadioTest.kt` | 197 | `com.jtech.zemer.offline` | no | 5 | 47 | org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/offline/SubsetReadLayerTest.kt` | 261 | `com.jtech.zemer.offline` | no | 5 | 42 | org.junit |
-| `app/src/test/kotlin/com/jtech/zemer/offline/SubsetSearchTest.kt` | 177 | `com.jtech.zemer.offline` | no | 4 | 38 | org.junit |
+| `app/src/test/kotlin/com/jtech/zemer/offline/SubsetSearchTest.kt` | 193 | `com.jtech.zemer.offline` | no | 4 | 41 | org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/offline/SubsetStoreStagingTest.kt` | 74 | `com.jtech.zemer.offline` | no | 6 | 8 | org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/offline/SubsetSyncTest.kt` | 72 | `com.jtech.zemer.offline` | no | 4 | 13 | org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/payments/DonationClientTest.kt` | 71 | `com.jtech.zemer.payments` | no | 4 | 3 | org.junit |

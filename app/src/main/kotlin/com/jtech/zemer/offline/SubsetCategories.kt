@@ -382,18 +382,19 @@ class BuiltCategories internal constructor(
                 )
             }
 
+            val pool = HashMap<String, String>() // shared token / field-key strings across the nine indexes
             return BuiltCategories(
                 blocked = corpus.blocked,
                 communityMembers = communityMembers,
-                artists = buildSubsetIndex(artistDocs),
-                songs = buildSubsetIndex(songDocs),
-                videos = buildSubsetIndex(videoDocs),
-                albums = buildSubsetIndex(albumDocs.filter { it.type != "single" }),
-                singles = buildSubsetIndex(albumDocs.filter { it.type == "single" }),
-                playlists = buildSubsetIndex(playlistDocs),
-                community = buildSubsetIndex(communityDocs),
-                podcasts = buildSubsetIndex(podcastDocs),
-                episodes = buildSubsetIndex(episodeDocs),
+                artists = buildSubsetIndex(artistDocs, pool),
+                songs = buildSubsetIndex(songDocs, pool),
+                videos = buildSubsetIndex(videoDocs, pool),
+                albums = buildSubsetIndex(albumDocs.filter { it.type != "single" }, pool),
+                singles = buildSubsetIndex(albumDocs.filter { it.type == "single" }, pool),
+                playlists = buildSubsetIndex(playlistDocs, pool),
+                community = buildSubsetIndex(communityDocs, pool),
+                podcasts = buildSubsetIndex(podcastDocs, pool),
+                episodes = buildSubsetIndex(episodeDocs, pool),
                 femaleVideoIds = femaleVideoIds,
                 synonyms = corpus.synonymGroups.takeIf { it.isNotEmpty() }?.let(SubsetSynonyms::compile) ?: SubsetSynonyms.DEFAULT,
             )
