@@ -7,6 +7,7 @@ import com.jtech.zemer.constants.StatusSourcesConfigKey
 import com.jtech.zemer.constants.StatusSourcesVersionKey
 import com.jtech.zemer.utils.ZemerContentClient
 import com.jtech.zemer.utils.dataStore
+import com.jtech.zemer.utils.get
 import com.jtech.zemer.utils.reportException
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
@@ -167,7 +168,8 @@ class StatusesRepository @Inject constructor(
             syncAttemptedAt = SystemClock.elapsedRealtime()
             runCatching {
                 // never synced = a first sync (an unsigned response may then be applied)
-                val firstSync = StatusSourcesCache.syncedVersion < 0
+                // from the persisted copy, not the cache: a cold start can sync before the cache is restored
+                val firstSync = context.dataStore.get(StatusSourcesConfigKey, "").isEmpty()
                 val remoteVersion = ZemerContentClient.statusSourcesVersion(firstSync)
                 if (remoteVersion <= StatusSourcesCache.syncedVersion) return@runCatching // already current
                 val raw = ZemerContentClient.statusSourcesRaw(firstSync)

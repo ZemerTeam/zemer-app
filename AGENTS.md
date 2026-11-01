@@ -166,10 +166,17 @@ The "Kosher" guarantee runs through one chokepoint - `utils/WhitelistFilter.kt` 
 
 ### Request signing (`sig/` + `cpp/zemersig/`)
 
-Builds with a signing key add `X-Zemer-Sig: k=<keyId>;t=<unix s>;s=<base64url HMAC-SHA256>` to every request to
-the Zemer servers, over `SigCanonical.message` (contract + vectors: zemer-search `server/sig.mjs` /
-`sig-vectors.json`, copied into `src/test/resources/sig/`). Rules that must not regress:
+Builds with a signing key add `X-Zemer-Sig` to every request to the Zemer servers (contract + vectors: zemer-search
+`server/sig.mjs` / `sig-vectors.json`, copied into `src/test/resources/sig/`). Version 2,
+`v=2;k=<keyId>;t=<unix s>;n=<nonce>;b=<body hash>;s=<base64url HMAC-SHA256>` over `SigCanonical.message2`, is
+sent whenever the body bytes are known; version 1, `k=;t=;s=` over `SigCanonical.message`, otherwise. Rules that
+must not regress:
 
+- **Version 2 covers a one-time nonce and the exact body sent.** `n` = 16 fresh `SecureRandom` bytes per call to
+  `ZemerSig.headerFor`, so every attempt and redirect hop gets its own (the server refuses a repeated nonce); `b` =
+  SHA-256 of the body bytes as written on the wire (empty for none). OkHttp hashes the `RequestBody` (a one-shot or
+  duplex body signs version 1); Ktor hashes the final `ByteArrayContent`/`TextContent` (`NoContent` = empty, any
+  other content signs version 1). Pinned by the `v2` vectors in `SigCanonicalTest` and `ZemerHeadersTest`.
 - **No key ever lives in the source.** Release builds derive their key from `ZEMER_SIG_MASTER` (CI secret, passed to
   `assembleRelease`) or the Gradle property `zemerSigMaster`; debug builds from `zemerSigDevMaster` /
   `ZEMER_SIG_DEV_MASTER`, under the key id `d<versionCode>`. `generateZemerSigKeyRelease` / `...Debug` derive

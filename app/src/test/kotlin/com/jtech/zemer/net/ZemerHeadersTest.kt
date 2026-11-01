@@ -7,12 +7,17 @@ import io.ktor.client.HttpClient
 import io.ktor.client.engine.okhttp.OkHttp
 import io.ktor.client.request.get
 import io.ktor.client.request.parameter
+import io.ktor.client.request.post
 import io.ktor.client.request.put
 import io.ktor.client.request.setBody
 import kotlinx.coroutines.runBlocking
 import okhttp3.Dns
 import okhttp3.OkHttpClient
+import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.Request
+import okhttp3.RequestBody
+import okhttp3.RequestBody.Companion.toRequestBody
+import okio.BufferedSink
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -21,6 +26,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import java.net.InetAddress
+import java.security.MessageDigest
 import java.net.ServerSocket
 import java.util.Base64
 import javax.crypto.Mac
@@ -34,7 +40,7 @@ import kotlin.concurrent.thread
  * sends no signature; the server clock is taken from Date.
  */
 class ZemerHeadersTest {
-    private class Seen(val method: String, val target: String, val headers: Map<String, String>, val sigCount: Int)
+    private class Seen(val method: String, val target: String, val headers: Map<String, String>, val sigCount: Int, val body: ByteArray)
 
     private lateinit var server: ServerSocket
     private val seen = mutableListOf<Seen>()
@@ -47,15 +53,26 @@ class ZemerHeadersTest {
     private fun hmac(message: ByteArray): ByteArray =
         Mac.getInstance("HmacSHA256").apply { init(SecretKeySpec(key, "HmacSHA256")) }.doFinal(message)
 
-    /** What the server does: recompute over the received method + request target with the header's t. */
+    private fun fields(s: Seen) = s.headers["x-zemer-sig"]?.split(';')?.associate { it.substringBefore('=') to it.substringAfter('=') }
+
+    /**
+     * What the server does: recompute over the received method + request target with the header's t, and for
+     * version 2 also its nonce and the hash of the body bytes RECEIVED.
+     */
     private fun verify(s: Seen): Boolean {
-        val h = s.headers["x-zemer-sig"] ?: return false
-        val f = h.split(';').associate { it.substringBefore('=') to it.substringAfter('=') }
+        val f = fields(s) ?: return false
         val q = s.target.indexOf('?')
         val path = if (q < 0) s.target else s.target.substring(0, q)
         val query = if (q < 0) null else s.target.substring(q + 1)
-        val want = Base64.getUrlEncoder().withoutPadding().encodeToString(hmac(SigCanonical.message(s.method, path, query, f.getValue("t").toLong())))
-        return f["k"] == ZemerSig.keyId && f["s"] == want
+        val t = f.getValue("t").toLong()
+        val b64 = Base64.getUrlEncoder().withoutPadding()
+        val message = if (f["v"] == "2") {
+            if (f["b"] != b64.encodeToString(MessageDigest.getInstance("SHA-256").digest(s.body))) return false
+            SigCanonical.message2(s.method, path, query, t, f.getValue("n"), f.getValue("b"))
+        } else {
+            SigCanonical.message(s.method, path, query, t)
+        }
+        return f["k"] == ZemerSig.keyId && f["s"] == b64.encodeToString(hmac(message))
     }
 
     @Before
@@ -73,9 +90,10 @@ class ZemerHeadersTest {
                         val lines = generateSequence { input.readLine()?.takeIf { it.isNotEmpty() } }.toList()
                         val headers = lines.associate { it.substringBefore(":").lowercase() to it.substringAfter(":").trim() }
                         val sigCount = lines.count { it.substringBefore(":").equals("x-zemer-sig", ignoreCase = true) }
+                        // test bodies are ASCII, so chars read = bytes sent
                         val len = headers["content-length"]?.toInt() ?: 0
-                        repeat(len) { input.read() }
-                        synchronized(seen) { seen += Seen(method, target, headers, sigCount) }
+                        val body = buildString { repeat(len) { append(input.read().toChar()) } }.toByteArray()
+                        synchronized(seen) { seen += Seen(method, target, headers, sigCount, body) }
                         // redirects: same host (/hop-same -> /final?x=1) and off to a non-Zemer host (/hop-away)
                         val location = when {
                             target.startsWith("/hop-same") -> "/final?x=1"
@@ -215,6 +233,32 @@ class ZemerHeadersTest {
         assertNull("nor the build header", away.headers["x-zemer-build"])
         assertEquals(build, same.headers["x-zemer-build"])
         all.filter { it.target.startsWith("/hop-") }.forEach { assertTrue(it.target, verify(it)) }
+        val signed = all.mapNotNull { fields(it) }
+        assertTrue("every hop is signed version 2", signed.all { it["v"] == "2" })
+        assertEquals("every hop has its own nonce", signed.size, signed.map { it["n"] }.toSet().size)
+    }
+
+    @Test
+    fun `bodies are signed version 2 over the bytes sent, and a one-shot body falls back to version 1`() = runBlocking {
+        val port = server.localPort
+        val json = "application/json".toMediaType()
+        okhttp().newCall(Request.Builder().url("http://tracking.zemer.io:$port/v1/events").post("""{"a":1}""".toRequestBody(json)).build()).execute().close()
+        val oneShot = object : RequestBody() {
+            override fun contentType() = json
+            override fun contentLength() = 2L
+            override fun isOneShot() = true
+            override fun writeTo(sink: BufferedSink) { sink.writeUtf8("{}") }
+        }
+        okhttp().newCall(Request.Builder().url("http://content.zemer.io:$port/reports").post(oneShot).build()).execute().close()
+        HttpClient(OkHttp) {
+            engine { config { dns(dns) } }
+            install(ZemerHeaders.KtorPlugin)
+        }.use { client -> client.post("http://tracking.zemer.io:$port/v1/crash") { setBody(ByteArray(3) { 'x'.code.toByte() }) } }
+        val all = seenSnapshot()
+        assertEquals(3, all.size)
+        all.forEach { assertTrue("${it.method} ${it.target}", verify(it)) }
+        val version = all.associate { it.target to fields(it)!!["v"] }
+        assertEquals(mapOf("/v1/events" to "2", "/reports" to null, "/v1/crash" to "2"), version)
     }
 
     @Test
