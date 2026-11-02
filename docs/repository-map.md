@@ -54,12 +54,12 @@ The following inventory is generated from repository files outside `.git`, `.gra
 
 ### Counts
 
-- Files counted: `1468`
+- Files counted: `1462`
 - By extension:
   - `.kt`: `955`
   - `.xml`: `196`
   - `.mjs`: `110`
-  - `.md`: `70`
+  - `.md`: `64`
   - `.json`: `53`
   - `.webp`: `15`
   - `.c`: `8`
@@ -1273,8 +1273,6 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `build.gradle.kts` | 36 lines | `.kts` |
 | `docs/README.md` | 44 lines | `.md` |
 | `docs/app/README.md` | 197 lines | `.md` |
-| `docs/app/README.md` | 197 lines | `.md` |
-| `docs/app/README.md` | 197 lines | `.md` |
 | `docs/app/database.md` | 661 lines | `.md` |
 | `docs/app/playback.md` | 121 lines | `.md` |
 | `docs/app/preferences-sync-auth.md` | 224 lines | `.md` |
@@ -1311,8 +1309,6 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `docs/recognize_music/03-entry-points-and-ui.md` | 80 lines | `.md` |
 | `docs/recognize_music/README.md` | 73 lines | `.md` |
 | `docs/reference/kotlin-files.md` | 968 lines | `.md` |
-| `docs/reference/kotlin-files.md` | 968 lines | `.md` |
-| `docs/reference/kotlin-files.md` | 968 lines | `.md` |
 | `docs/reference/non-kotlin-files.md` | 456 lines | `.md` |
 | `docs/reference/resource-index.md` | 317 lines | `.md` |
 | `docs/remote_cipher_config/01-concepts-and-format.md` | 135 lines | `.md` |
@@ -1320,9 +1316,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `docs/remote_cipher_config/03-extraction-and-self-heal.md` | 102 lines | `.md` |
 | `docs/remote_cipher_config/04-operations.md` | 131 lines | `.md` |
 | `docs/remote_cipher_config/README.md` | 60 lines | `.md` |
-| `docs/repository-map.md` | 1561 lines | `.md` |
-| `docs/repository-map.md` | 1561 lines | `.md` |
-| `docs/repository-map.md` | 1561 lines | `.md` |
+| `docs/repository-map.md` | 1555 lines | `.md` |
 | `docs/sabr/README.md` | 375 lines | `.md` |
 | `docs/stations/README.md` | 67 lines | `.md` |
 | `docs/status/README.md` | 93 lines | `.md` |
