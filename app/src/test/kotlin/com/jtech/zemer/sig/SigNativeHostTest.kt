@@ -31,6 +31,7 @@ class SigNativeHostTest {
             File(root, "src/test/cpp/$harness").path,
             File(root, "src/main/cpp/zemersig/hmac_sha256.c").path,
             File(root, "src/main/cpp/zemersig/apk_cert.c").path,
+            File(root, "src/main/cpp/zemersig/code_check.c").path,
             "-o", out.path,
         ).redirectErrorStream(true).start()
         val log = p.inputStream.bufferedReader().readText()
@@ -74,6 +75,16 @@ class SigNativeHostTest {
         val p = ProcessBuilder(exe!!.path, apk.path, unsigned.path, "/nonexistent").start()
         val out = p.inputStream.bufferedReader().readLines().also { check(p.waitFor() == 0) }
         assertEquals(listOf("52c741171548b6a41f0b29e9e7c3af854a42a04ea261e8a67d47544929c6834a", "-", "-"), out)
+    }
+
+    @Test
+    fun `code patched in memory is told apart from the file it was loaded from`() {
+        val exe = compile("code_check_harness.c")
+        assumeTrue("no C compiler on this host", exe != null)
+        val p = ProcessBuilder(exe!!.path).start()
+        val lines = p.inputStream.bufferedReader().readLines().also { check(p.waitFor() == 0) }
+        assumeTrue("the host refuses writable code", lines.getOrNull(1) != "skip")
+        assertEquals(listOf("0", "1", "0"), lines)
     }
 
     @Test

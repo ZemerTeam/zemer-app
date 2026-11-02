@@ -99,7 +99,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `.github/workflows/ui-audit.yml` | 55 lines | `.yml` |
 | `.gitignore` | 117 lines | `[none]` |
 | `.gitmodules` | 3 lines | `[none]` |
-| `AGENTS.md` | 1201 lines | `.md` |
+| `AGENTS.md` | 1205 lines | `.md` |
 | `LICENSE` | 674 lines | `[none]` |
 | `README.md` | 9 lines | `.md` |
 | `app/.gitignore` | 1 lines | `[none]` |
@@ -154,7 +154,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/main/cpp/zemersig/apk_cert.h` | 8 lines | `.h` |
 | `app/src/main/cpp/zemersig/hmac_sha256.c` | 82 lines | `.c` |
 | `app/src/main/cpp/zemersig/hmac_sha256.h` | 9 lines | `.h` |
-| `app/src/main/cpp/zemersig/zemer_sig_jni.c` | 151 lines | `.c` |
+| `app/src/main/cpp/zemersig/zemer_sig_jni.c` | 161 lines | `.c` |
 | `app/src/main/cpp/zemersig/zemer_sig_unmask.h` | 12 lines | `.h` |
 | `app/src/main/ic_launcher-playstore.png` | 23742 bytes | `.png` |
 | `app/src/main/kotlin/com/dpi/ActivityLifecycleManager.kt` | 127 lines | `.kt` |
@@ -282,7 +282,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/main/kotlin/com/jtech/zemer/models/PersistPlayerState.kt` | 19 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/models/PersistQueue.kt` | 91 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/net/ContentSignature.kt` | 80 lines | `.kt` |
-| `app/src/main/kotlin/com/jtech/zemer/net/EnvSignals.kt` | 60 lines | `.kt` |
+| `app/src/main/kotlin/com/jtech/zemer/net/EnvSignals.kt` | 82 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/net/UnofficialCopy.kt` | 58 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/net/ZemerHeaders.kt` | 150 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/net/ZemerHosts.kt` | 23 lines | `.kt` |
@@ -406,7 +406,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/main/kotlin/com/jtech/zemer/sig/InstallCredential.kt` | 35 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/sig/InstallKeyStore.kt` | 61 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/sig/InstallRegistration.kt` | 37 lines | `.kt` |
-| `app/src/main/kotlin/com/jtech/zemer/sig/NativeSig.kt` | 34 lines | `.kt` |
+| `app/src/main/kotlin/com/jtech/zemer/sig/NativeSig.kt` | 43 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/sig/SigCanonical.kt` | 93 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/sig/ZemerSig.kt` | 89 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/stats/ListeningStats.kt` | 25 lines | `.kt` |
@@ -1053,7 +1053,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/test/kotlin/com/jtech/zemer/models/PersistPlayerStateCompatTest.kt` | 87 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/models/PersistQueueCompatTest.kt` | 77 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/net/ContentSignatureTest.kt` | 65 lines | `.kt` |
-| `app/src/test/kotlin/com/jtech/zemer/net/EnvSignalsTest.kt` | 41 lines | `.kt` |
+| `app/src/test/kotlin/com/jtech/zemer/net/EnvSignalsTest.kt` | 57 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/net/UnofficialCopyTest.kt` | 62 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/net/ZemerHeadersTest.kt` | 424 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/offline/SubsetDecoderTest.kt` | 215 lines | `.kt` |
@@ -1138,7 +1138,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/test/kotlin/com/jtech/zemer/search/ZemerStationsTest.kt` | 127 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/sig/InstallCredentialTest.kt` | 67 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/sig/SigCanonicalTest.kt` | 108 lines | `.kt` |
-| `app/src/test/kotlin/com/jtech/zemer/sig/SigNativeHostTest.kt` | 129 lines | `.kt` |
+| `app/src/test/kotlin/com/jtech/zemer/sig/SigNativeHostTest.kt` | 140 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/stats/ListeningStatsTest.kt` | 31 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/statuses/StatusDownloadNamingTest.kt` | 39 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/statuses/StatusDownloadTest.kt` | 40 lines | `.kt` |
