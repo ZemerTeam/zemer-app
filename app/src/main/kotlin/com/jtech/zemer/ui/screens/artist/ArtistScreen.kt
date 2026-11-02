@@ -324,10 +324,8 @@ fun ArtistScreen(
                                     top = if (thumbnail != null) {
                                         // Position content at the bottom part of the image
                                         // Using screen width to calculate aspect ratio height minus overlap
-                                        LocalResources.current.displayMetrics.widthPixels.let { screenWidth ->
-                                            with(density) {
-                                                ((screenWidth / 1.2f) - 144).toDp()
-                                            }
+                                        with(density) {
+                                            artistHeaderTopPx(LocalResources.current.displayMetrics.widthPixels).toDp()
                                         }
                                     } else {
                                         16.dp
@@ -896,3 +894,10 @@ fun ArtistScreen(
         }
     )
 }
+
+/**
+ * Where the name and controls start over the header image: near its bottom (the image is screenWidth / 1.2 tall,
+ * minus a 144 px overlap). Never negative: on a very narrow screen the overlap is larger than the image, and a
+ * negative padding throws ("Padding must be non-negative", seen at 156 dpi on small phones).
+ */
+internal fun artistHeaderTopPx(screenWidthPx: Int): Float = (screenWidthPx / 1.2f - 144f).coerceAtLeast(0f)
