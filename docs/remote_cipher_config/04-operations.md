@@ -19,8 +19,9 @@
   alias; re-validates an already-committed entry first.
 - **`tests/config-covers.mjs <hash> <file>`** - prints `covered` / `uncovered`; exits 1 with the
   validation error when a device would reject the whole file.
-- **`tests/scan-live-players.mjs <configs> <n>`** - the monitor's scanner (pure core `aggregate` /
-  `coveredKeys`, tested in `tests/scan-live-players.test.mjs`).
+- **`tests/scan-live-players.mjs <configs> <n>`** - the monitor's scanner (pure core `hashesFrom` /
+  `aggregate` / `blindSurfaces` / `coveredKeys` and the `SURFACES` table, tested in
+  `tests/scan-live-players.test.mjs`). Exit 1 = invalid config, 3 = a blind surface.
 
 ## `.github/workflows/player-monitor.yml`
 
@@ -32,11 +33,20 @@ concurrency group (`cancel-in-progress: false`) so overlapping runs can't open d
    ahead of the submodule pointer. Falls back to the submodule copy with a `::warning::`; if both
    fail, the run is red.
 2. **Multi-sample the live players**: `node tests/scan-live-players.mjs /tmp/player_configs.json 30`
-   samples `iframe_api` (what `PlayerJsFetcher` uses) 30× plus `music.youtube.com`, a watch page and an
-embed page `max(2, n/6)` times each, so a
-   low-rate A/B **canary** is caught before it rotates in (a single sample would usually miss it). Unknown hashes are re-checked by md5 alias, and "known" is decided by the harness
-   loader, which throws on any invalid entry - so a pushed-but-invalid entry makes the scanner exit
-   non-zero (a red run), its only non-zero exit besides a usage error.
+   samples `iframe_api` (what `PlayerJsFetcher` uses, including its exact `Mozilla/5.0` request) n×
+   PER user agent (a canary bucketed by agent is never thinned out by the rotation) and every other
+   player surface at least `max(6, n/3)` times and 3× per agent (`samplesFor`): `music.youtube.com`, a watch page, the
+   home page, `embed`, `youtube-nocookie` embed, mobile web (`m.youtube.com`, the player-plasma
+   family) and TV (`/tv`, the tv-player-ias family), rotating desktop / mobile / TV user agents and
+   `hl`/`gl` locales, and counting every hash a page references. Pages are fetched with `node:https`
+   and a 1 MiB header limit: `fetch` caps headers at 16 KB, and YouTube's pages crossed that on
+   2026-10-30, which silently blinded every sample until 2026-11-02. So a low-rate A/B **canary** is
+   caught before it rotates in (a single sample would usually miss it). Unknown hashes are re-checked
+   by md5 alias, and "known" is decided by the harness loader, which throws on any invalid entry - so
+   a pushed-but-invalid entry makes the scanner exit 1 (a red run). A surface that returned no player
+   at all is reported per surface with its errors and makes the scanner exit 3: unknowns are still
+   reported, then the run fails ("Fail when a surface is blind"), so a blind scan can never pass as
+   "all covered" again.
 3. **Alert**: per unknown hash with no open issue titled `New YouTube player detected: <hash>` (the
    dedup key), a Telegram message (skipped without `TELEGRAM_BOT_TOKEN`) and a GitHub issue with that
    title (labels `player-update`, `cipher`; opened as the Zemer-Dude GitHub App when
