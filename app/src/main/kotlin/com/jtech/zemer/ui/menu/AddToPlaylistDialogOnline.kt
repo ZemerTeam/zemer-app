@@ -18,6 +18,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.TextUnit
@@ -31,6 +32,7 @@ import com.jtech.zemer.R
 import com.jtech.zemer.constants.ListThumbnailSize
 import com.jtech.zemer.db.entities.Playlist
 import com.jtech.zemer.db.entities.Song
+import com.jtech.zemer.extensions.toast
 import com.jtech.zemer.models.toMediaMetadata
 import com.jtech.zemer.ui.component.CreatePlaylistDialog
 import com.jtech.zemer.ui.component.ListDialog
@@ -68,6 +70,7 @@ fun AddToPlaylistDialogOnline(
     onPercentageChange: (Int) -> Unit
 ) {
     val database = LocalDatabase.current
+    val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
     var playlists by remember {
         mutableStateOf(emptyList<Playlist>())
@@ -101,12 +104,14 @@ fun AddToPlaylistDialogOnline(
             onPercentageChange(0)
         }
 
+        var added = 0
         try {
             withContext(Dispatchers.IO) {
                 songList.asReversed().forEachIndexed { index, song ->
                     val firstSong = findFirstSong(song)
                     if (firstSong != null) {
                         runCatching { onSongFound(firstSong) }
+                            .onSuccess { added++ }
                             .onFailure {
                                 Timber.e(it, "Failed to process song %s", firstSong.id)
                             }
@@ -119,6 +124,8 @@ fun AddToPlaylistDialogOnline(
         } finally {
             withContext(Dispatchers.Main) { onProgressStart(false) }
         }
+        // Say how many lines were added, so a list the filter blocks entirely never ends in a silent empty playlist.
+        context.toast(context.resources.getQuantityString(R.plurals.import_playlist_result, songList.size, added, songList.size), long = true)
     }
 
     LaunchedEffect(Unit) {
@@ -154,13 +161,9 @@ fun AddToPlaylistDialogOnline(
                     modifier = Modifier.clickable {
                         coroutineScope.launch {
                             onDismiss()
+                            // A failed save throws to processSongs, which logs it and leaves it out of the count.
                             processSongs { firstSong ->
-                                val firstSongMedia = firstSong.toMediaMetadata()
-                                try {
-                                    database.insert(firstSongMedia)
-                                } catch (e: Exception) {
-                                    Timber.tag("Exception inserting song in database:").e(e.toString())
-                                }
+                                database.insert(firstSong.toMediaMetadata())
                                 database.addSongToPlaylist(playlist, listOf(firstSong.id))
                             }
                         }
@@ -175,14 +178,9 @@ fun AddToPlaylistDialogOnline(
                             onDismiss()
                             processSongs { firstSong ->
                                 val firstSongMedia = firstSong.toMediaMetadata()
-                                val firstSongEnt = firstSong.toMediaMetadata().toSongEntity()
-                                try {
-                                    database.insert(firstSongMedia)
-                                    database.query {
-                                        update(firstSongEnt.toggleLike())
-                                    }
-                                } catch (e: Exception) {
-                                    Timber.tag("Exception inserting song in database:").e(e.toString())
+                                database.insert(firstSongMedia)
+                                database.query {
+                                    update(firstSongMedia.toSongEntity().toggleLike())
                                 }
                             }
                         }

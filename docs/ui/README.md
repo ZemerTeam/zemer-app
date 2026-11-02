@@ -210,7 +210,7 @@ Every `@Composable fun` per UI file (extension receivers dropped, so `BoxScope.X
 | `app/src/main/kotlin/com/jtech/zemer/ui/component/shimmer/ShimmerHost.kt` | 80 | ShimmerHost, LoadingListPlaceholder |
 | `app/src/main/kotlin/com/jtech/zemer/ui/component/shimmer/TextPlaceholder.kt` | 33 | TextPlaceholder |
 | `app/src/main/kotlin/com/jtech/zemer/ui/menu/AddToPlaylistDialog.kt` | 198 | AddToPlaylistDialog |
-| `app/src/main/kotlin/com/jtech/zemer/ui/menu/AddToPlaylistDialogOnline.kt` | 220 | AddToPlaylistDialogOnline |
+| `app/src/main/kotlin/com/jtech/zemer/ui/menu/AddToPlaylistDialogOnline.kt` | 218 | AddToPlaylistDialogOnline |
 | `app/src/main/kotlin/com/jtech/zemer/ui/menu/AlbumMenu.kt` | 370 | AlbumMenu |
 | `app/src/main/kotlin/com/jtech/zemer/ui/menu/ArtistMenu.kt` | 262 | ArtistMenu |
 | `app/src/main/kotlin/com/jtech/zemer/ui/menu/CustomThumbnailMenu.kt` | 63 | CustomThumbnailMenu |
@@ -438,7 +438,7 @@ Key declarations are the first 12 `class`/`object`/`interface`/`fun`/`val`/`var`
 | `app/src/main/kotlin/com/jtech/zemer/ui/component/shimmer/ShimmerHost.kt` | 80 | fun ShimmerHost, fun LoadingListPlaceholder, val ShimmerTheme |
 | `app/src/main/kotlin/com/jtech/zemer/ui/component/shimmer/TextPlaceholder.kt` | 33 | fun TextPlaceholder |
 | `app/src/main/kotlin/com/jtech/zemer/ui/menu/AddToPlaylistDialog.kt` | 198 | fun AddToPlaylistDialog, val database, val coroutineScope, var playlists, val _, var showCreatePlaylistDialog, var showDuplicateDialog, var selectedPlaylist, var songIds, var duplicates, fun commitAddToPlaylist |
-| `app/src/main/kotlin/com/jtech/zemer/ui/menu/AddToPlaylistDialogOnline.kt` | 220 | fun importMatch, val top, fun AddToPlaylistDialogOnline, val database, val coroutineScope, var playlists, var showCreatePlaylistDialog, fun findFirstSong, val allArtists, val query, fun processSongs, val songList, … (+5 more) |
+| `app/src/main/kotlin/com/jtech/zemer/ui/menu/AddToPlaylistDialogOnline.kt` | 218 | fun importMatch, val top, fun AddToPlaylistDialogOnline, val database, val context, val coroutineScope, var playlists, var showCreatePlaylistDialog, fun findFirstSong, val allArtists, val query, fun processSongs, … (+5 more) |
 | `app/src/main/kotlin/com/jtech/zemer/ui/menu/AlbumMenu.kt` | 370 | fun AlbumMenu, val context, val database, val downloadUtil, val playerConnection, val scope, val libraryAlbum, val album, var songs, var showReportDialog, val coroutineScope, val mediaStoreDownloads, … (+9 more) |
 | `app/src/main/kotlin/com/jtech/zemer/ui/menu/ArtistMenu.kt` | 262 | fun ArtistMenu, val context, var showReportDialog, val database, val playerConnection, val artistState, val artist, val songs, val songs |
 | `app/src/main/kotlin/com/jtech/zemer/ui/menu/CustomThumbnailMenu.kt` | 63 | fun CustomThumbnailMenu |
