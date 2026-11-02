@@ -1070,6 +1070,11 @@ detail: `docs/ui/standards.md §12`. Rules:
 - **No shared storage volume = fail up front:** a download whose save needs the primary shared volume (every
   MediaStore save on API 29+; only an audio download to a custom folder does not) fails at once when that volume is
   missing or unmounted (`MediaStoreHelper.canSaveDownload`, warn-logged, nothing fetched); a device state, not a bug.
+- **The dataSync time limit stops the service at once:** Android 15+ calls `MediaStoreDownloadService.onTimeout`
+  when the dataSync foreground budget (~6 h per 24 h) runs out; it fails every queued and running download
+  (`MediaStoreDownloadManager.failAll`, Retry offered) and stops the service, else the process is killed
+  (`ForegroundServiceDidNotStopInTimeException`). A running download is marked from `invokeOnCompletion`, so a
+  late write while it unwinds never leaves it stuck DOWNLOADING.
 - **Remove deletes the file on every backend:** `MediaStoreHelper.deleteFromMediaStore` routes SAF
   document uris (custom download path) through `DocumentsContract.deleteDocument`.
 - **Downloaded video-songs appear in downloaded MUSIC by default** (`VideoDownloadsInMusicKey`, default

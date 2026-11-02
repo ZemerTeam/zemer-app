@@ -47,10 +47,12 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.withContext
@@ -325,6 +327,26 @@ constructor(
     }
 
     /**
+     * Fails every queued and running download with [error], so each one offers Retry. Used when Android
+     * ends the download service (the dataSync foreground time limit): the service must stop at once. A
+     * running download is marked only once its job has ended after the cancel, so no late state from it
+     * overwrites FAILED (a stuck DOWNLOADING state would make downloadSong ignore the song).
+     */
+    fun failAll(error: String) {
+        val failed = { id: String ->
+            updateDownloadState(id, DownloadState(songId = id, status = DownloadState.Status.FAILED, error = error))
+        }
+        synchronized(downloadQueue) {
+            downloadQueue.map { it.id }.also { downloadQueue.clear() }
+        }.forEach(failed)
+        activeDownloads.keys.toList().forEach { id ->
+            val job = activeDownloads.remove(id) ?: return@forEach
+            job.invokeOnCompletion { cause -> if (cause is CancellationException) failed(id) }
+            job.cancel()
+        }
+    }
+
+    /**
      * Retry a failed download
      *
      * @param songId The ID of the song to retry
@@ -380,7 +402,7 @@ constructor(
             }
         }
 
-        _downloadStates.value = _downloadStates.value - songId
+        _downloadStates.update { it - songId }
     }
 
     private suspend fun processQueue() {
@@ -1075,6 +1097,8 @@ constructor(
                 var bytesRead: Int
 
                 while (input.read(buffer).also { bytesRead = it } != -1) {
+                    // A cancelled download (Cancel, delete, failAll) stops here instead of finishing the transfer.
+                    ensureActive()
                     output.write(buffer, 0, bytesRead)
                     totalBytesRead += bytesRead
 
@@ -1131,20 +1155,23 @@ constructor(
      * "bounce" up to 100%. Holding the last value until the new attempt catches up keeps it smooth.
      */
     private fun updateDownloadState(songId: String, state: DownloadState) {
-        val prev = _downloadStates.value[songId]
-        val adjusted =
-            if (state.status == DownloadState.Status.DOWNLOADING &&
-                prev?.status == DownloadState.Status.DOWNLOADING &&
-                prev.progress > state.progress
-            ) {
-                state.copy(
-                    progress = prev.progress,
-                    bytesDownloaded = maxOf(prev.bytesDownloaded, state.bytesDownloaded),
-                )
-            } else {
-                state
-            }
-        _downloadStates.value = _downloadStates.value + (songId to adjusted)
+        // Atomic: downloads update from several threads at once, and a lost write could leave a song DOWNLOADING.
+        _downloadStates.update { current ->
+            val prev = current[songId]
+            val adjusted =
+                if (state.status == DownloadState.Status.DOWNLOADING &&
+                    prev?.status == DownloadState.Status.DOWNLOADING &&
+                    prev.progress > state.progress
+                ) {
+                    state.copy(
+                        progress = prev.progress,
+                        bytesDownloaded = maxOf(prev.bytesDownloaded, state.bytesDownloaded),
+                    )
+                } else {
+                    state
+                }
+            current + (songId to adjusted)
+        }
     }
 
     /**

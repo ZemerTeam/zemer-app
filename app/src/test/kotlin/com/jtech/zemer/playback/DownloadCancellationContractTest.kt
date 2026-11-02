@@ -72,4 +72,38 @@ class DownloadCancellationContractTest {
         }
         assertEquals(2, retries.get())
     }
+
+    /**
+     * `failAll` (the service's onTimeout) marks a running download FAILED from `invokeOnCompletion`, not
+     * right after `cancel()`: the job can still write a state while it unwinds, and a late DOWNLOADING would
+     * stick, making `downloadSong` ignore the song for good.
+     */
+    @Test
+    fun completionHandler_runsAfterTheJobsLastWrite() = runBlocking {
+        var state = "DOWNLOADING"
+        val started = AtomicInteger(0)
+        val job = launch(Dispatchers.Default) {
+            try {
+                started.incrementAndGet()
+                delay(10_000)
+            } finally {
+                state = "DOWNLOADING (late write while unwinding)"
+            }
+        }
+        while (started.get() == 0) yield()
+        job.invokeOnCompletion { cause -> if (cause is CancellationException) state = "FAILED" }
+        job.cancel()
+        job.join()
+        assertEquals("FAILED", state)
+    }
+
+    @Test
+    fun completionHandler_leavesAFinishedDownloadAlone() = runBlocking {
+        var state = "DOWNLOADING"
+        val job = launch { state = "COMPLETED" }
+        job.join()
+        job.invokeOnCompletion { cause -> if (cause is CancellationException) state = "FAILED" }
+        job.cancel()
+        assertEquals("COMPLETED", state)
+    }
 }
