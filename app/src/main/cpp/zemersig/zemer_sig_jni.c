@@ -7,6 +7,7 @@
 #include <stdio.h>
 #include <string.h>
 #include "apk_cert.h"
+#include "code_check.h"
 #include "hmac_sha256.h"
 #include "zemer_sig_key.h"
 #include "zemer_sig_unmask.h"
@@ -130,6 +131,15 @@ Java_com_jtech_zemer_sig_NativeSig_nativeCertMismatch(JNIEnv *env, jclass clazz)
     (void)env;
     (void)clazz;
     return __atomic_load_n(&cert_ready, __ATOMIC_ACQUIRE) && cert_mismatch ? JNI_TRUE : JNI_FALSE;
+}
+
+// This library's own code differs in memory from the APK it is mapped from (hooked or patched): 1, else 0; -1 when
+// it cannot be checked.
+JNIEXPORT jint JNICALL
+Java_com_jtech_zemer_sig_NativeSig_nativeCodePatched(JNIEnv *env, jclass clazz) {
+    (void)env;
+    (void)clazz;
+    return zemer_code_patched_at((const void *)Java_com_jtech_zemer_sig_NativeSig_nativeCodePatched);
 }
 
 JNIEXPORT jbyteArray JNICALL

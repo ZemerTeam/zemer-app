@@ -29,6 +29,15 @@ internal object NativeSig {
     @JvmStatic
     private external fun nativeCertMismatch(): Boolean
 
+    /**
+     * The signer's own code differs in memory from the APK it was loaded from (hooked or patched). Information only
+     * ([com.jtech.zemer.net.EnvSignals]); false without the library or when it cannot be checked.
+     */
+    fun codePatched(): Boolean = available && runCatching { nativeCodePatched() == 1 }.getOrDefault(false)
+
+    @JvmStatic
+    private external fun nativeCodePatched(): Int
+
     @JvmStatic
     external fun hmac(message: ByteArray): ByteArray?
 }

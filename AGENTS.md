@@ -199,8 +199,12 @@ must not regress:
   parser is pinned on the host against `src/test/resources/sig/signed-fixture.bin` (`SigNativeHostTest`).
 - **`X-Zemer-Env: <bitmask>` is INFORMATION ONLY** (`net/EnvSignals`, sent by the same hook only when non-zero,
   never off the Zemer hosts): 1 release build debuggable, 2 certificate reads disagree or (release) not the bound
-  certificate (`NativeSig.certMismatch`), 4 a hooking framework mapped or loaded, 8 an emulator. Computed once after
-  `bindTo`. The app must never block, degrade or change behaviour on any of them; no attestation of any kind.
+  certificate (`NativeSig.certMismatch`), 4 a hooking framework mapped or loaded (a general note: device-wide
+  injectors like Riru map into every app), 8 an emulator, 16 Zemer ITSELF targeted (an Xposed bridge in our
+  process, i.e. a module scoped to Zemer; a Frida agent/gadget mapped into it; or the signer's code differing in
+  memory from the APK, `code_check.c` via `NativeSig.codePatched`). Computed once after `bindTo`. The app must never
+  block, degrade or change behaviour on any of them; no attestation of any kind. (Owner rule: hooking-framework
+  users are never banned for that alone; only 16 may ever be acted on, server-side, after measurement + sign-off.)
 - **Each install signs version 2 with its own key** (`sig/InstallRegistration`, `InstallCredential`,
   `InstallKeyStore`): `POST content.zemer.io/install` (empty body, always the VERSION key) returns `{id, key}`; the id
   (`i<versionCode>.`, debug `id<versionCode>.`) names the build it was issued for, and a different build registers

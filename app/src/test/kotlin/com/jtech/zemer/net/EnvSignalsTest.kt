@@ -13,6 +13,22 @@ class EnvSignalsTest {
         assertEquals("a debug build is debuggable and differently signed by design", 12,
             EnvSignals.compute(releaseBuild = false, debuggable = true, certMismatch = true, hooking = true, emulator = true))
         assertEquals(2, EnvSignals.compute(releaseBuild = true, debuggable = false, certMismatch = true, hooking = false, emulator = false))
+        assertEquals(20, EnvSignals.compute(releaseBuild = true, debuggable = false, certMismatch = false, hooking = true, emulator = false, targeted = true))
+        assertEquals("targeting counts in a debug build too", 16,
+            EnvSignals.compute(releaseBuild = false, debuggable = true, certMismatch = false, hooking = false, emulator = false, targeted = true))
+    }
+
+    @Test
+    fun `a Frida agent or gadget in our process targets Zemer, a device-wide framework does not`() {
+        listOf(
+            "7f00-7f10 r-xp 00000000 00:00 0  /memfd:frida-agent-64.so (deleted)",
+            "7f00-7f10 r-xp 00000000 00:00 0  /data/app/~~a==/com.example-b==/lib/arm64/libgadget.so",
+        ).forEach { assertTrue(it, EnvSignals.isFridaMapping(it)) }
+        listOf(
+            "7f00-7f10 r-xp 00000000 00:00 0  /data/adb/modules/zygisk_lsposed/lib/liblspd.so",
+            "7f00-7f10 r-xp 00000000 00:00 0  /system/lib64/libriru.so",
+            "7f00-7f10 r-xp 00000000 00:00 0  /system/lib64/libc.so",
+        ).forEach { assertFalse(it, EnvSignals.isFridaMapping(it)) }
     }
 
     @Test
