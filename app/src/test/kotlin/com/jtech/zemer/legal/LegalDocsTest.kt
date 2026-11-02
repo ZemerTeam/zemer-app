@@ -41,6 +41,14 @@ class LegalDocsTest {
     }
 
     @Test
+    fun `the first read of a run always goes, foreground re-checks at most every 30 minutes`() {
+        val now = 1_793_000_000_000L
+        assertTrue(LegalRepository.fetchDue(null, now))
+        assertFalse(LegalRepository.fetchDue(now - 29 * 60_000, now))
+        assertTrue(LegalRepository.fetchDue(now - 30 * 60_000, now))
+    }
+
+    @Test
     fun `a copy is never traded for an older one`() {
         assertTrue(LegalRepository.newerOrSame(docs(2, 1), docs(1, 1)))
         assertTrue(LegalRepository.newerOrSame(docs(1, 1), docs(1, 1)))

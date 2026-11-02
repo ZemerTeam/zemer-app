@@ -43,7 +43,13 @@ import com.airbnb.lottie.compose.rememberLottieComposition
 import com.airbnb.lottie.compose.rememberLottieDynamicProperties
 import com.airbnb.lottie.compose.rememberLottieDynamicProperty
 import com.jtech.zemer.R
+import com.jtech.zemer.legal.LegalAgreement
 import com.jtech.zemer.legal.LegalRepository
+import com.jtech.zemer.utils.dataStore
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.platform.LocalContext
+import androidx.datastore.preferences.core.edit
+import kotlinx.coroutines.launch
 import com.jtech.zemer.ui.component.DefaultDialog
 import com.jtech.zemer.ui.component.MarkdownText
 import com.jtech.zemer.ui.component.OnboardingPrimaryButton
@@ -57,6 +63,18 @@ internal fun WelcomeScreen(
     var legal by remember { mutableStateOf<LegalKind?>(null) }
     var agreed by rememberSaveable { mutableStateOf(false) }
     val (isConnected, isCheckingNetwork) = rememberOnboardingConnectivity()
+    val docs by LegalRepository.docs.collectAsState()
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    // the checkbox agrees to the documents this screen offers: record exactly those, at Continue (a newer
+    // version that lands later is asked for by the update notice)
+    val agreeAndContinue: () -> Unit = {
+        val shown = docs
+        scope.launch {
+            if (shown != null) context.dataStore.edit { LegalAgreement.record(it, shown) }
+            onContinue()
+        }
+    }
 
     val composition by rememberLottieComposition(LottieCompositionSpec.RawRes(R.raw.welcome))
     val animationState = animateLottieCompositionAsState(
@@ -157,7 +175,7 @@ internal fun WelcomeScreen(
                 OnboardingPrimaryButton(
                     text = if (!isConnected) stringResource(R.string.network_internet_required)
                           else stringResource(R.string.onboarding_continue),
-                    onClick = onContinue,
+                    onClick = agreeAndContinue,
                     enabled = agreed && isConnected && !isCheckingNetwork,
                     loading = isCheckingNetwork,
                     modifier = Modifier.fillMaxWidth(),
@@ -179,7 +197,6 @@ internal fun WelcomeScreen(
             }
         }
 
-        val docs by LegalRepository.docs.collectAsState()
         legal?.let { kind ->
             val doc = docs?.let { if (kind == LegalKind.TOS) it.terms else it.privacy } ?: return@let
             LegalOverlay(title = doc.title, markdown = doc.body, onConfirm = { legal = null })

@@ -195,7 +195,6 @@ import com.jtech.zemer.constants.NavigationBarHeight
 import com.jtech.zemer.constants.RecognizeMusicFabKey
 import com.jtech.zemer.constants.SlimNavBarHeight
 import com.jtech.zemer.constants.OnboardingCompleteKey
-import com.jtech.zemer.legal.LegalAgreement
 import com.jtech.zemer.legal.LegalRepository
 import com.jtech.zemer.ui.screens.onboarding.privacyNoticeBlocking
 import com.jtech.zemer.constants.PlaybackMode
@@ -714,12 +713,8 @@ class MainActivity : ComponentActivity() {
                             OnboardingFlow(
                                 onFinished = {
                                     onboardingScope.launch {
-                                        dataStore.edit {
-                                            it[OnboardingCompleteKey] = true
-                                            // the Welcome step's required checkbox agreed to the documents it showed
-                                            // (not loaded yet: nothing recorded, so the notice asks right after)
-                                            LegalRepository.docs.value?.let { docs -> LegalAgreement.record(it, docs) }
-                                        }
+                                        // the legal agreement was recorded by the Welcome step itself
+                                        dataStore.edit { it[OnboardingCompleteKey] = true }
                                     }
                                 }
                             )
@@ -747,6 +742,8 @@ class MainActivity : ComponentActivity() {
                                 if (event == Lifecycle.Event.ON_START) {
                                     syncScope.launch { syncUtils.syncArtistWhitelist() }
                         syncScope.launch { syncUtils.syncPodcastWhitelist() }
+                                    // a changed privacy policy or terms reaches an app left open (throttled)
+                                    syncScope.launch { LegalRepository.refresh(applicationContext) }
                                 }
                             }
                             lifecycleOwner.lifecycle.addObserver(observer)
