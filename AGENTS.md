@@ -775,10 +775,11 @@ detail in `docs/tracking/README.md`. Rules that must not regress:
   400s non-canonical ids). **Owner rule (2026-11-02): maximum collection in every Zemer service.** Every
   batch carries an `info` object (`tracking/DeviceInfo`: Build fields, OS, locale, tz, installer, screen,
   network, carrier, RAM, free storage, battery, Play services / root / Shizuku presence (root is a passive
-  file check, never `su`), `EnvSignals.mask`, install times, library counts, the personal account's email +
-  name, and `settingsSnapshot` of the DataStore settings, max 4 KB; integers as JSON numbers); the
-  server adds the request's address, country and network. Never send credentials (cookie, visitorData,
-  tokens, signatures; `EXCLUDED_SETTINGS` / `CREDENTIAL_NAME`) and never the relay id (`RelayDeviceIdKey`).
+  file check, never `su`), `EnvSignals.mask`, install times, library counts, and `settingsSnapshot` of the
+  DataStore settings, max 4 KB; integers as JSON numbers); the server adds the request's address, country
+  and network. Never send credentials (cookie, visitorData, tokens, signatures; `EXCLUDED_SETTINGS` /
+  `CREDENTIAL_NAME`), the relay id (`RelayDeviceIdKey`), or the Google account's email / name (owner
+  decision, 2026-11-02).
   **Any new collected field updates the onboarding privacy text (`onboarding_privacy_body_telemetry`) in
   the same change, and bumps `tracking/PrivacyNotice.CURRENT_VERSION`.** An install that finished onboarding
   under an older version is BLOCKED by `privacyNoticeBlocking()` (MainActivity renders nothing else) until it

@@ -62,7 +62,6 @@ internal object DeviceInfo {
         }
         val named = prefs?.mapKeys { (key, _) -> key.name }.orEmpty()
         if (prefs != null) put("settings", settingsSnapshot(named))
-        personalAccount(named).forEach { (k, v) -> put(k, v) }
         val counts = try {
             dao?.libraryCounts()
         } catch (e: CancellationException) {
@@ -128,18 +127,7 @@ internal object DeviceInfo {
     )
 }
 
-/**
- * `accountEmail` / `accountName` of a PERSONAL Google login only: the pooled anonymous login has no
- * dataSyncId, and its shared account must never be attributed to every anonymous install.
- */
-internal fun personalAccount(prefs: Map<String, Any?>): Map<String, String> {
-    if ((prefs["dataSyncId"] as? String).isNullOrBlank()) return emptyMap()
-    return listOf("accountEmail", "accountName")
-        .mapNotNull { k -> (prefs[k] as? String)?.takeIf { it.isNotBlank() }?.let { k to it } }
-        .toMap()
-}
-
-/** Settings keys never sent: credentials, the account's identity (sent on its own, above) and the other install ids. */
+/** Settings keys never sent: credentials, the account's identity (owner decision) and the other install ids. */
 private val EXCLUDED_SETTINGS = setOf(
     "innerTubeCookie", "visitorData", "dataSyncId", "accountEmail", "accountName", "accountChannelHandle",
     "content_filters_restored_email", "trackingDeviceId", "relayDeviceId", "current_device_id", "device_id",

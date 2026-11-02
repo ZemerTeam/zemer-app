@@ -13,8 +13,7 @@ brand, model, device, product, hardware, fingerprint, osRelease, securityPatch, 
 versionCode, buildType, installer, screen (`WxH@dpi`), network, carrier, ramMb, storageFreeMb, batteryPct,
 charging, playServices / shizuku (package present, via manifest `<queries>`), rooted (passive su-path check,
 never runs su), envBits (`EnvSignals.mask`), firstInstallAt / lastUpdateAt, librarySongs / downloads / playlists /
-liked (`DatabaseDao.libraryCounts`), accountEmail / accountName (personal login only: non-blank dataSyncId) and
-`settings` (`settingsSnapshot`: DataStore settings minus credentials and other ids, short values only, max 4 KB).
+liked (`DatabaseDao.libraryCounts`) and `settings` (`settingsSnapshot`: DataStore settings minus credentials and other ids, short values only, max 4 KB).
 Integer fields are real JSON numbers (the server ignores strings and booleans there). The
 server adds the request's address, country, network and user agent. Crash reports carry the same UUID as
 `device.id`. A new field also updates the onboarding privacy text. Product decisions: track everything

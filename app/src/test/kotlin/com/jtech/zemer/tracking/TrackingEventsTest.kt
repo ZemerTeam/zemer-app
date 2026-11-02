@@ -210,6 +210,7 @@ class TrackingEventsTest {
             "volume" to 3,
             "innerTubeCookie" to "SAPISID=x",
             "accountEmail" to "a@b.io",
+            "accountName" to "A",
             "trackingDeviceId" to "u",
             "someToken" to "t",
             "home_cache_json" to "x".repeat(65),
@@ -228,15 +229,6 @@ class TrackingEventsTest {
         assertTrue("the cap cut some flags", (1..400).count { "flag$it" in snapshot } < 400)
         assertEquals("2", snapshot["acceptedPrivacyVersion"].toString())
         assertEquals("1793000000000", snapshot["acceptedPrivacyAt"].toString())
-    }
-
-    @Test
-    fun `account fields only for a personal login`() {
-        val account = mapOf("accountEmail" to "a@b.io", "accountName" to "A", "dataSyncId" to "ds1")
-        assertEquals(mapOf("accountEmail" to "a@b.io", "accountName" to "A"), personalAccount(account))
-        assertEquals(emptyMap<String, String>(), personalAccount(account + ("dataSyncId" to "")))
-        assertEquals(emptyMap<String, String>(), personalAccount(account - "dataSyncId"))
-        assertEquals(mapOf("accountName" to "A"), personalAccount(account + ("accountEmail" to " ")))
     }
 
     @Test
