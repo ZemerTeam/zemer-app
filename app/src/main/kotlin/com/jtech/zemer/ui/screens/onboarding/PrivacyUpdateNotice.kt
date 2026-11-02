@@ -25,18 +25,20 @@ import kotlinx.coroutines.launch
  * The one-time "privacy policy updated" gate for an install that finished onboarding under an older policy
  * ([PrivacyNotice]). While it shows, the caller renders nothing else, so the app cannot be used; Agree is the
  * only way out (back and outside taps do nothing) and stores the version and time agreed. Returns true while
- * it blocks.
+ * it blocks, including the moment before the stored agreement has loaded (nothing renders then).
  */
 @Composable
 fun privacyNoticeBlocking(): Boolean {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    // null until the stored agreement has loaded: block (render nothing) rather than flash the app first
     val show by remember {
-        context.dataStore.data.map {
+        context.dataStore.data.map<_, Boolean?> {
             PrivacyNotice.shouldShow(it[OnboardingCompleteKey] == true, it[AcceptedPrivacyVersionKey] ?: 0)
         }
-    }.collectAsState(initial = false)
-    if (!show) return false
+    }.collectAsState(initial = null)
+    if (show == null) return true
+    if (show == false) return false
     Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface))
     LegalOverlay(
         title = stringResource(R.string.privacy_update_title),

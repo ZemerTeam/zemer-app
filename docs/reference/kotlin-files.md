@@ -281,7 +281,7 @@ Every tracked Kotlin file is listed with hard metadata extracted from the file t
 | `app/src/main/kotlin/com/jtech/zemer/sync/PodcastSyncLogic.kt` | 105 | `com.jtech.zemer.sync` | no | 0 | 10 |  |
 | `app/src/main/kotlin/com/jtech/zemer/sync/UserPreferencesRepository.kt` | 653 | `com.jtech.zemer.sync` | no | 40 | 109 | android.content, android.util, androidx.datastore, dagger.hilt, java.io, java.util, javax.inject, kotlinx.coroutines, kotlinx.serialization |
 | `app/src/main/kotlin/com/jtech/zemer/sync/models/DevicePreferencesEntity.kt` | 112 | `com.jtech.zemer.sync.models` | no | 10 | 35 | java.time, java.util, kotlinx.serialization |
-| `app/src/main/kotlin/com/jtech/zemer/tracking/DeviceInfo.kt` | 183 | `com.jtech.zemer.tracking` | no | 23 | 26 | android.app, android.content, android.net, android.os, android.telephony, java.io, java.util, kotlinx.coroutines, kotlinx.serialization |
+| `app/src/main/kotlin/com/jtech/zemer/tracking/DeviceInfo.kt` | 193 | `com.jtech.zemer.tracking` | no | 23 | 27 | android.app, android.content, android.net, android.os, android.telephony, java.io, java.util, kotlinx.coroutines, kotlinx.serialization |
 | `app/src/main/kotlin/com/jtech/zemer/tracking/FlushSchedule.kt` | 30 | `com.jtech.zemer.tracking` | no | 0 | 8 |  |
 | `app/src/main/kotlin/com/jtech/zemer/tracking/ImpressionReporter.kt` | 99 | `com.jtech.zemer.tracking` | yes | 9 | 5 | androidx.compose, kotlinx.coroutines |
 | `app/src/main/kotlin/com/jtech/zemer/tracking/LibraryActionBackfill.kt` | 142 | `com.jtech.zemer.tracking` | no | 16 | 18 | android.content, androidx.datastore, java.time, java.util, kotlinx.coroutines, timber.log |
@@ -473,7 +473,7 @@ Every tracked Kotlin file is listed with hard metadata extracted from the file t
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/onboarding/OnboardingNavigation.kt` | 39 | `com.jtech.zemer.ui.screens.onboarding` | no | 0 | 6 |  |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/onboarding/OnboardingSearchBackupScreen.kt` | 100 | `com.jtech.zemer.ui.screens.onboarding` | yes | 25 | 2 | androidx.compose, androidx.hilt |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/onboarding/PermissionsScreen.kt` | 350 | `com.jtech.zemer.ui.screens.onboarding` | yes | 46 | 27 | android.Manifest, android.annotation, android.content, android.net, android.os, android.provider, androidx.activity, androidx.compose, androidx.core, androidx.lifecycle, kotlinx.coroutines |
-| `app/src/main/kotlin/com/jtech/zemer/ui/screens/onboarding/PrivacyUpdateNotice.kt` | 50 | `com.jtech.zemer.ui.screens.onboarding` | yes | 20 | 4 | androidx.compose, androidx.datastore, kotlinx.coroutines |
+| `app/src/main/kotlin/com/jtech/zemer/ui/screens/onboarding/PrivacyUpdateNotice.kt` | 52 | `com.jtech.zemer.ui.screens.onboarding` | yes | 20 | 4 | androidx.compose, androidx.datastore, kotlinx.coroutines |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/onboarding/WelcomeScreen.kt` | 224 | `com.jtech.zemer.ui.screens.onboarding` | yes | 43 | 10 | android.graphics, androidx.compose, com.airbnb |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/playlist/AutoPlaylistScreen.kt` | 391 | `com.jtech.zemer.ui.screens.playlist` | yes | 74 | 31 | androidx.activity, androidx.compose, androidx.hilt, androidx.navigation, kotlinx.coroutines |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/playlist/CachePlaylistScreen.kt` | 357 | `com.jtech.zemer.ui.screens.playlist` | yes | 75 | 21 | androidx.activity, androidx.compose, androidx.hilt, androidx.navigation, coil3.compose, java.time |
@@ -797,7 +797,7 @@ Every tracked Kotlin file is listed with hard metadata extracted from the file t
 | `app/src/test/kotlin/com/jtech/zemer/tracking/PlayHistoryBackfillTest.kt` | 102 | `com.jtech.zemer.tracking` | no | 7 | 11 | java.time, org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/tracking/PlaySourceResolverTest.kt` | 95 | `com.jtech.zemer.tracking` | no | 2 | 9 | org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/tracking/PrivacyNoticeTest.kt` | 15 | `com.jtech.zemer.tracking` | no | 3 | 1 | org.junit |
-| `app/src/test/kotlin/com/jtech/zemer/tracking/TrackingEventsTest.kt` | 250 | `com.jtech.zemer.tracking` | no | 4 | 11 | kotlinx.serialization, org.junit |
+| `app/src/test/kotlin/com/jtech/zemer/tracking/TrackingEventsTest.kt` | 262 | `com.jtech.zemer.tracking` | no | 5 | 13 | kotlinx.serialization, org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/tracking/TrackingQueueTest.kt` | 100 | `com.jtech.zemer.tracking` | no | 5 | 13 | java.io, org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/ui/ActiveRowTapTest.kt` | 31 | `com.jtech.zemer.ui` | no | 4 | 1 | org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/ui/HomeTitleEasterEggTest.kt` | 36 | `com.jtech.zemer.ui` | no | 5 | 6 | org.junit |
