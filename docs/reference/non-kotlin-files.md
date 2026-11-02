@@ -1,6 +1,6 @@
 # Non-Kotlin file reference
 
-Every tracked non-Kotlin path outside `docs/` is listed. Text files report line counts; binary files report byte counts; gitlinks are recorded as non-file tracked paths. Total paths: `447`.
+Every tracked non-Kotlin path outside `docs/` is listed. Text files report line counts; binary files report byte counts; gitlinks are recorded as non-file tracked paths. Total paths: `450`.
 
 | Path | Size/status | Type metadata |
 | --- | ---: | --- |
@@ -63,6 +63,8 @@ Every tracked non-Kotlin path outside `docs/` is listed. Text files report line 
 | `app/src/main/cpp/zemersig/CMakeLists.txt` | 14 lines | text `.txt` |
 | `app/src/main/cpp/zemersig/apk_cert.c` | 100 lines | text `.c` |
 | `app/src/main/cpp/zemersig/apk_cert.h` | 8 lines | text `.h` |
+| `app/src/main/cpp/zemersig/code_check.c` | 86 lines | text `.c` |
+| `app/src/main/cpp/zemersig/code_check.h` | 8 lines | text `.h` |
 | `app/src/main/cpp/zemersig/hmac_sha256.c` | 82 lines | text `.c` |
 | `app/src/main/cpp/zemersig/hmac_sha256.h` | 9 lines | text `.h` |
 | `app/src/main/cpp/zemersig/zemer_sig_jni.c` | 161 lines | text `.c` |
@@ -282,6 +284,7 @@ Every tracked non-Kotlin path outside `docs/` is listed. Text files report line 
 | `app/src/main/res/xml/music_widget_info.xml` | 18 lines | text `.xml`; XML root `appwidget-provider` |
 | `app/src/main/res/xml/provider_paths.xml` | 12 lines | text `.xml`; XML root `paths` |
 | `app/src/test/cpp/apk_cert_harness.c` | 17 lines | text `.c` |
+| `app/src/test/cpp/code_check_harness.c` | 27 lines | text `.c` |
 | `app/src/test/cpp/hmac_host_harness.c` | 27 lines | text `.c` |
 | `app/src/test/cpp/sig_unmask_harness.c` | 31 lines | text `.c` |
 | `app/src/test/resources/contentsig/content-sig-vectors.json` | 36 lines | text `.json`; JSON keys `about, keyId, privatePkcs8Pem, publicSpkiB64, vectors` |

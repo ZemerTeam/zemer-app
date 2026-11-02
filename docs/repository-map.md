@@ -54,7 +54,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 
 ### Counts
 
-- Files counted: `1455`
+- Files counted: `1458`
 - By extension:
   - `.kt`: `951`
   - `.xml`: `196`
@@ -62,14 +62,14 @@ The following inventory is generated from repository files outside `.git`, `.gra
   - `.md`: `64`
   - `.json`: `53`
   - `.webp`: `15`
-  - `.c`: `6`
+  - `.c`: `8`
   - `.html`: `6`
   - `.sh`: `6`
   - `.yml`: `6`
   - `[none]`: `6`
+  - `.h`: `4`
   - `.kts`: `4`
   - `.txt`: `4`
-  - `.h`: `3`
   - `.properties`: `3`
   - `.bin`: `2`
   - `.dm`: `2`
@@ -152,6 +152,8 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/main/cpp/zemersig/CMakeLists.txt` | 14 lines | `.txt` |
 | `app/src/main/cpp/zemersig/apk_cert.c` | 100 lines | `.c` |
 | `app/src/main/cpp/zemersig/apk_cert.h` | 8 lines | `.h` |
+| `app/src/main/cpp/zemersig/code_check.c` | 86 lines | `.c` |
+| `app/src/main/cpp/zemersig/code_check.h` | 8 lines | `.h` |
 | `app/src/main/cpp/zemersig/hmac_sha256.c` | 82 lines | `.c` |
 | `app/src/main/cpp/zemersig/hmac_sha256.h` | 9 lines | `.h` |
 | `app/src/main/cpp/zemersig/zemer_sig_jni.c` | 161 lines | `.c` |
@@ -1010,6 +1012,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/main/res/xml/music_widget_info.xml` | 18 lines | `.xml` |
 | `app/src/main/res/xml/provider_paths.xml` | 12 lines | `.xml` |
 | `app/src/test/cpp/apk_cert_harness.c` | 17 lines | `.c` |
+| `app/src/test/cpp/code_check_harness.c` | 27 lines | `.c` |
 | `app/src/test/cpp/hmac_host_harness.c` | 27 lines | `.c` |
 | `app/src/test/cpp/sig_unmask_harness.c` | 31 lines | `.c` |
 | `app/src/test/kotlin/com/dpi/DensityMathTest.kt` | 69 lines | `.kt` |
@@ -1302,14 +1305,14 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `docs/recognize_music/03-entry-points-and-ui.md` | 80 lines | `.md` |
 | `docs/recognize_music/README.md` | 73 lines | `.md` |
 | `docs/reference/kotlin-files.md` | 964 lines | `.md` |
-| `docs/reference/non-kotlin-files.md` | 453 lines | `.md` |
+| `docs/reference/non-kotlin-files.md` | 456 lines | `.md` |
 | `docs/reference/resource-index.md` | 317 lines | `.md` |
 | `docs/remote_cipher_config/01-concepts-and-format.md` | 135 lines | `.md` |
 | `docs/remote_cipher_config/02-runtime-store.md` | 94 lines | `.md` |
 | `docs/remote_cipher_config/03-extraction-and-self-heal.md` | 102 lines | `.md` |
 | `docs/remote_cipher_config/04-operations.md` | 131 lines | `.md` |
 | `docs/remote_cipher_config/README.md` | 60 lines | `.md` |
-| `docs/repository-map.md` | 1548 lines | `.md` |
+| `docs/repository-map.md` | 1551 lines | `.md` |
 | `docs/sabr/README.md` | 375 lines | `.md` |
 | `docs/stations/README.md` | 67 lines | `.md` |
 | `docs/status/README.md` | 93 lines | `.md` |
