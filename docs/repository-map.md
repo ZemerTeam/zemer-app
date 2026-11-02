@@ -54,9 +54,9 @@ The following inventory is generated from repository files outside `.git`, `.gra
 
 ### Counts
 
-- Files counted: `1454`
+- Files counted: `1455`
 - By extension:
-  - `.kt`: `950`
+  - `.kt`: `951`
   - `.xml`: `196`
   - `.mjs`: `110`
   - `.md`: `64`
@@ -195,6 +195,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/main/kotlin/com/jtech/zemer/db/entities/Event.kt` | 32 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/db/entities/EventWithSong.kt` | 17 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/db/entities/FormatEntity.kt` | 19 lines | `.kt` |
+| `app/src/main/kotlin/com/jtech/zemer/db/entities/LibraryCounts.kt` | 9 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/db/entities/LocalItem.kt` | 7 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/db/entities/LyricsEntity.kt` | 62 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/db/entities/PlayCountEntity.kt` | 16 lines | `.kt` |
@@ -1300,7 +1301,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `docs/recognize_music/02-whitelist-guarantee.md` | 69 lines | `.md` |
 | `docs/recognize_music/03-entry-points-and-ui.md` | 80 lines | `.md` |
 | `docs/recognize_music/README.md` | 73 lines | `.md` |
-| `docs/reference/kotlin-files.md` | 963 lines | `.md` |
+| `docs/reference/kotlin-files.md` | 964 lines | `.md` |
 | `docs/reference/non-kotlin-files.md` | 453 lines | `.md` |
 | `docs/reference/resource-index.md` | 317 lines | `.md` |
 | `docs/remote_cipher_config/01-concepts-and-format.md` | 135 lines | `.md` |
@@ -1308,7 +1309,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `docs/remote_cipher_config/03-extraction-and-self-heal.md` | 102 lines | `.md` |
 | `docs/remote_cipher_config/04-operations.md` | 131 lines | `.md` |
 | `docs/remote_cipher_config/README.md` | 60 lines | `.md` |
-| `docs/repository-map.md` | 1547 lines | `.md` |
+| `docs/repository-map.md` | 1548 lines | `.md` |
 | `docs/sabr/README.md` | 375 lines | `.md` |
 | `docs/stations/README.md` | 67 lines | `.md` |
 | `docs/status/README.md` | 93 lines | `.md` |
