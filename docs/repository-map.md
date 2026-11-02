@@ -54,12 +54,12 @@ The following inventory is generated from repository files outside `.git`, `.gra
 
 ### Counts
 
-- Files counted: `1464`
+- Files counted: `1458`
 - By extension:
   - `.kt`: `951`
   - `.xml`: `196`
   - `.mjs`: `110`
-  - `.md`: `70`
+  - `.md`: `64`
   - `.json`: `53`
   - `.webp`: `15`
   - `.c`: `8`
@@ -407,7 +407,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/main/kotlin/com/jtech/zemer/search/ZemerStationsModels.kt` | 135 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/sig/InstallCredential.kt` | 35 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/sig/InstallKeyStore.kt` | 61 lines | `.kt` |
-| `app/src/main/kotlin/com/jtech/zemer/sig/InstallRegistration.kt` | 81 lines | `.kt` |
+| `app/src/main/kotlin/com/jtech/zemer/sig/InstallRegistration.kt` | 84 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/sig/NativeSig.kt` | 43 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/sig/SigCanonical.kt` | 93 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/sig/ZemerSig.kt` | 89 lines | `.kt` |
@@ -1058,7 +1058,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/test/kotlin/com/jtech/zemer/net/ContentSignatureTest.kt` | 65 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/net/EnvSignalsTest.kt` | 57 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/net/UnofficialCopyTest.kt` | 62 lines | `.kt` |
-| `app/src/test/kotlin/com/jtech/zemer/net/ZemerHeadersTest.kt` | 462 lines | `.kt` |
+| `app/src/test/kotlin/com/jtech/zemer/net/ZemerHeadersTest.kt` | 470 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/offline/SubsetDecoderTest.kt` | 215 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/offline/SubsetFemaleSynonymsTest.kt` | 57 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/offline/SubsetLiveWhitelistTest.kt` | 121 lines | `.kt` |
@@ -1305,10 +1305,6 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `docs/recognize_music/03-entry-points-and-ui.md` | 80 lines | `.md` |
 | `docs/recognize_music/README.md` | 73 lines | `.md` |
 | `docs/reference/kotlin-files.md` | 964 lines | `.md` |
-| `docs/reference/kotlin-files.md` | 964 lines | `.md` |
-| `docs/reference/kotlin-files.md` | 964 lines | `.md` |
-| `docs/reference/non-kotlin-files.md` | 456 lines | `.md` |
-| `docs/reference/non-kotlin-files.md` | 456 lines | `.md` |
 | `docs/reference/non-kotlin-files.md` | 456 lines | `.md` |
 | `docs/reference/resource-index.md` | 317 lines | `.md` |
 | `docs/remote_cipher_config/01-concepts-and-format.md` | 135 lines | `.md` |
@@ -1316,9 +1312,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `docs/remote_cipher_config/03-extraction-and-self-heal.md` | 102 lines | `.md` |
 | `docs/remote_cipher_config/04-operations.md` | 131 lines | `.md` |
 | `docs/remote_cipher_config/README.md` | 60 lines | `.md` |
-| `docs/repository-map.md` | 1557 lines | `.md` |
-| `docs/repository-map.md` | 1557 lines | `.md` |
-| `docs/repository-map.md` | 1557 lines | `.md` |
+| `docs/repository-map.md` | 1551 lines | `.md` |
 | `docs/sabr/README.md` | 375 lines | `.md` |
 | `docs/stations/README.md` | 67 lines | `.md` |
 | `docs/status/README.md` | 93 lines | `.md` |

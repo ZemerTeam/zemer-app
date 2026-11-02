@@ -256,7 +256,7 @@ Every tracked Kotlin file is listed with hard metadata extracted from the file t
 | `app/src/main/kotlin/com/jtech/zemer/search/ZemerStationsModels.kt` | 135 | `com.jtech.zemer.search` | no | 1 | 39 | kotlinx.serialization |
 | `app/src/main/kotlin/com/jtech/zemer/sig/InstallCredential.kt` | 35 | `com.jtech.zemer.sig` | no | 3 | 13 | java.util, kotlinx.serialization |
 | `app/src/main/kotlin/com/jtech/zemer/sig/InstallKeyStore.kt` | 61 | `com.jtech.zemer.sig` | no | 10 | 18 | android.content, android.security, android.util, java.io, java.security, javax.crypto |
-| `app/src/main/kotlin/com/jtech/zemer/sig/InstallRegistration.kt` | 81 | `com.jtech.zemer.sig` | no | 8 | 18 | android.content, kotlinx.coroutines, timber.log |
+| `app/src/main/kotlin/com/jtech/zemer/sig/InstallRegistration.kt` | 84 | `com.jtech.zemer.sig` | no | 8 | 19 | android.content, kotlinx.coroutines, timber.log |
 | `app/src/main/kotlin/com/jtech/zemer/sig/NativeSig.kt` | 43 | `com.jtech.zemer.sig` | no | 1 | 9 | android.content |
 | `app/src/main/kotlin/com/jtech/zemer/sig/SigCanonical.kt` | 93 | `com.jtech.zemer.sig` | no | 1 | 20 | java.io |
 | `app/src/main/kotlin/com/jtech/zemer/sig/ZemerSig.kt` | 89 | `com.jtech.zemer.sig` | no | 8 | 22 | java.security, java.time, java.util, javax.crypto |
@@ -690,7 +690,7 @@ Every tracked Kotlin file is listed with hard metadata extracted from the file t
 | `app/src/test/kotlin/com/jtech/zemer/net/ContentSignatureTest.kt` | 65 | `com.jtech.zemer.net` | no | 7 | 15 | kotlinx.serialization, org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/net/EnvSignalsTest.kt` | 57 | `com.jtech.zemer.net` | no | 4 | 1 | org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/net/UnofficialCopyTest.kt` | 62 | `com.jtech.zemer.net` | no | 6 | 6 | org.junit |
-| `app/src/test/kotlin/com/jtech/zemer/net/ZemerHeadersTest.kt` | 462 | `com.jtech.zemer.net` | no | 35 | 83 | io.ktor, java.net, java.security, java.util, javax.crypto, kotlin.concurrent, kotlinx.coroutines, okhttp3.Dns, okhttp3.MediaType, okhttp3.OkHttpClient, okhttp3.Request, okhttp3.RequestBody, okio.BufferedSink, org.junit |
+| `app/src/test/kotlin/com/jtech/zemer/net/ZemerHeadersTest.kt` | 470 | `com.jtech.zemer.net` | no | 35 | 84 | io.ktor, java.net, java.security, java.util, javax.crypto, kotlin.concurrent, kotlinx.coroutines, okhttp3.Dns, okhttp3.MediaType, okhttp3.OkHttpClient, okhttp3.Request, okhttp3.RequestBody, okio.BufferedSink, org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/offline/SubsetDecoderTest.kt` | 215 | `com.jtech.zemer.offline` | no | 6 | 23 | org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/offline/SubsetFemaleSynonymsTest.kt` | 57 | `com.jtech.zemer.offline` | no | 4 | 5 | org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/offline/SubsetLiveWhitelistTest.kt` | 121 | `com.jtech.zemer.offline` | no | 6 | 8 | org.junit |
