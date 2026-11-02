@@ -6,7 +6,7 @@ Every tracked non-Kotlin path outside `docs/` is listed. Text files report line 
 | --- | ---: | --- |
 | `.github/workflows/debug-build.yml` | 65 lines | text `.yml` |
 | `.github/workflows/docs-regenerate.yml` | 80 lines | text `.yml` |
-| `.github/workflows/player-monitor.yml` | 196 lines | text `.yml` |
+| `.github/workflows/player-monitor.yml` | 208 lines | text `.yml` |
 | `.github/workflows/regression.yml` | 84 lines | text `.yml` |
 | `.github/workflows/release-build.yml` | 186 lines | text `.yml` |
 | `.github/workflows/ui-audit.yml` | 55 lines | text `.yml` |
@@ -407,8 +407,8 @@ Every tracked non-Kotlin path outside `docs/` is listed. Text files report line 
 | `tests/sabr-video-clients.mjs` | 166 lines | text `.mjs` |
 | `tests/sabr-video.mjs` | 207 lines | text `.mjs` |
 | `tests/sabr-watchtime.mjs` | 157 lines | text `.mjs` |
-| `tests/scan-live-players.mjs` | 126 lines | text `.mjs` |
-| `tests/scan-live-players.test.mjs` | 44 lines | text `.mjs` |
+| `tests/scan-live-players.mjs` | 203 lines | text `.mjs` |
+| `tests/scan-live-players.test.mjs` | 67 lines | text `.mjs` |
 | `tests/search/README.md` | 96 lines | text `.md` |
 | `tests/search/album-facet-probe.mjs` | 42 lines | text `.mjs` |
 | `tests/search/corpus-ambiguity.mjs` | 15 lines | text `.mjs` |

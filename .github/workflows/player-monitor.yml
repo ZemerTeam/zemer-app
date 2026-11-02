@@ -55,13 +55,17 @@ jobs:
       # breaking). Multi-sampling catches it the first hour it appears at all. "Known" is
       # decided by the harness loader (the app's PlayerConfigParser rules) against the live
       # file, including the md5 alias, applied to every distinct
-      # hash seen. The scanner exits non-zero only if the live config itself is invalid
-      # (devices would reject it wholesale) → a red run, which is the right alarm for that.
+      # hash seen. The scanner exits 1 if the live config itself is invalid (devices would reject
+      # it wholesale) → a red run, which is the right alarm for that. It exits 3 when a surface
+      # returned no player at all: unknowns found elsewhere are still reported, then the job fails.
       - name: Scan live players (multi-sample to catch canaries early)
         id: scan
         run: |
-          node tests/scan-live-players.mjs /tmp/player_configs.json 30 > /tmp/scan.json 2> /tmp/scan.log
+          RC=0
+          node tests/scan-live-players.mjs /tmp/player_configs.json 30 > /tmp/scan.json 2> /tmp/scan.log || RC=$?
           cat /tmp/scan.log
+          [ "$RC" = 0 ] || [ "$RC" = 3 ] || exit "$RC"
+          echo "blind=$(node -e "process.stdout.write((JSON.parse(require('fs').readFileSync('/tmp/scan.json','utf8')).blind||[]).join(' '))")" >> "$GITHUB_OUTPUT"
           COUNT=$(node -e "process.stdout.write(String((JSON.parse(require('fs').readFileSync('/tmp/scan.json','utf8')).unknown||[]).length))")
           echo "unknown_count=$COUNT" >> "$GITHUB_OUTPUT"
           {
@@ -194,3 +198,11 @@ jobs:
             4. Update the submodule pointer in zemer-app when convenient
 
             GitHub issues: https://github.com/ZemerTeam/zemer-app/issues
+
+      # A blind scan must never pass as "all covered" (it did from 2026-10-30, when every request
+      # failed and the run stayed green): fail the run so the failure notification fires.
+      - name: Fail when a surface is blind
+        if: ${{ !cancelled() && steps.scan.outputs.blind != '' }}
+        run: |
+          echo "::error::player scan got no player from: ${{ steps.scan.outputs.blind }} (see the scan log above)"
+          exit 1

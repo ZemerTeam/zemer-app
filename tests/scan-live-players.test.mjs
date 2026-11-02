@@ -3,7 +3,30 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { aggregate, coveredKeys } from "./scan-live-players.mjs";
+import { aggregate, blindSurfaces, coveredKeys, hashesFrom, SURFACES, UAS } from "./scan-live-players.mjs";
+
+test("hashesFrom reads escaped and plain player paths, every distinct hash on the page", () => {
+  const iframe = 'var scriptUrl = \'https:\\/\\/www.youtube.com\\/s\\/player\\/11a45ffb\\/www-widgetapi.vflset\\/www-widgetapi.js\';';
+  assert.deepEqual(hashesFrom(iframe), ["11a45ffb"]);
+  const html = '<link href="/s/player/4efb8b2c/mweb.css"><script src="/s/player/4efb8b2c/player-plasma.js"></script>' +
+    '<script src="/s/player/c65d4dfb/player_ias.vflset/en_US/base.js"></script>';
+  assert.deepEqual(hashesFrom(html), ["4efb8b2c", "c65d4dfb"]);
+  assert.deepEqual(hashesFrom(""), []);
+  assert.deepEqual(hashesFrom("/s/player/TOOSHORT/x"), []);
+});
+
+test("blindSurfaces names every surface that returned no player", () => {
+  assert.deepEqual(blindSurfaces({ iframe_api: { ok: 30 }, tv: { ok: 0 }, music: { ok: 0 } }), ["tv", "music"]);
+  assert.deepEqual(blindSurfaces({ iframe_api: { ok: 1 } }), []);
+});
+
+test("the scan always includes the app's own iframe_api request", () => {
+  const primary = SURFACES.filter((s) => s.primary);
+  assert.equal(primary.length, 1);
+  assert.equal(primary[0].url(), "https://www.youtube.com/iframe_api");
+  assert.ok(primary[0].uas.includes("app"));
+  assert.equal(UAS.app, "Mozilla/5.0"); // PlayerJsFetcher's exact User-Agent
+});
 
 test("aggregate counts and sorts most-seen first, dropping nulls", () => {
   const out = aggregate(["aaaaaaaa", "bbbbbbbb", "aaaaaaaa", null, "aaaaaaaa", "bbbbbbbb"]);
