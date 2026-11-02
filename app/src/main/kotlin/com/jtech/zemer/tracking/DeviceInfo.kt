@@ -149,13 +149,23 @@ private val CREDENTIAL_NAME = Regex("(?i)cookie|token|secret|password|sig")
 private const val MAX_SETTING_CHARS = 64
 private const val MAX_SETTINGS_BYTES = 4_000
 
+/** The privacy agreement ([PrivacyNotice.recordAgreement]): placed first so a full snapshot never drops it. */
+private val FIRST_SETTINGS = setOf("acceptedPrivacyVersion", "acceptedPrivacyAt")
+
 /**
- * The app's settings as a flat JSON object under [maxBytes] encoded: booleans, then strings (short ones
- * only, which skips the cached JSON blobs), then numbers, each group by key. Credentials and ids
- * ([EXCLUDED_SETTINGS], [CREDENTIAL_NAME]) and string sets are never included.
+ * The app's settings as a flat JSON object under [maxBytes] encoded: [FIRST_SETTINGS] (never cut by the cap),
+ * then booleans, then strings (short ones only, which skips the cached JSON blobs), then numbers, each group by
+ * key. Credentials and ids ([EXCLUDED_SETTINGS], [CREDENTIAL_NAME]) and string sets are never included.
  */
 internal fun settingsSnapshot(prefs: Map<String, Any?>, maxBytes: Int = MAX_SETTINGS_BYTES): JsonObject {
-    val rank = { v: Any? -> when (v) { is Boolean -> 0; is String -> 1; else -> 2 } }
+    val rank = { k: String, v: Any? ->
+        when {
+            k in FIRST_SETTINGS -> -1
+            v is Boolean -> 0
+            v is String -> 1
+            else -> 2
+        }
+    }
     val entries = prefs
         .filterKeys { it !in EXCLUDED_SETTINGS && !CREDENTIAL_NAME.containsMatchIn(it) }
         .mapNotNull { (k, v) ->
@@ -165,7 +175,7 @@ internal fun settingsSnapshot(prefs: Map<String, Any?>, maxBytes: Int = MAX_SETT
                 else -> null
             }
         }
-        .sortedWith(compareBy({ rank(it.second) }, { it.first }))
+        .sortedWith(compareBy({ rank(it.first, it.second) }, { it.first }))
     val out = LinkedHashMap<String, JsonPrimitive>()
     var bytes = 2
     for ((k, v) in entries) {

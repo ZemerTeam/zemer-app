@@ -15,8 +15,8 @@
 | BuildConfig fields visible in Gradle | `ARCHITECTURE`, `COMMIT_HASH`, `RUN_NUMBER`, `GOOGLE_TOKEN_EXCHANGE_URL`, `CONTENT_MIRROR_URL`, `ZEMER_LYRICS_BASE_URL` |
 | Room schema directory | `app/schemas` |
 | Native build | Yes (see `build-release.md`) |
-| Tracked app paths | `1164` |
-| Tracked app Kotlin files | `864` (`639` in `src/main`, `223` in `src/test`, `2` in `src/androidTest`) |
+| Tracked app paths | `1167` |
+| Tracked app Kotlin files | `867` (`641` in `src/main`, `224` in `src/test`, `2` in `src/androidTest`) |
 | Tracked app resource paths | `214` |
 | Tracked app asset paths | `0` in `src/main` (`3` test fixtures under `src/androidTest/assets`) |
 | Tracked app Room schema files | `36` |
@@ -84,7 +84,7 @@
 | `com.jtech.zemer.statuses` | 14 |
 | `com.jtech.zemer.sync` | 5 |
 | `com.jtech.zemer.sync.models` | 1 |
-| `com.jtech.zemer.tracking` | 11 |
+| `com.jtech.zemer.tracking` | 12 |
 | `com.jtech.zemer.ui.component` | 84 |
 | `com.jtech.zemer.ui.component.lyrics` | 1 |
 | `com.jtech.zemer.ui.component.shimmer` | 6 |
@@ -93,7 +93,7 @@
 | `com.jtech.zemer.ui.screens` | 31 |
 | `com.jtech.zemer.ui.screens.artist` | 2 |
 | `com.jtech.zemer.ui.screens.library` | 8 |
-| `com.jtech.zemer.ui.screens.onboarding` | 8 |
+| `com.jtech.zemer.ui.screens.onboarding` | 9 |
 | `com.jtech.zemer.ui.screens.playlist` | 10 |
 | `com.jtech.zemer.ui.screens.podcast` | 1 |
 | `com.jtech.zemer.ui.screens.recognition` | 2 |
@@ -151,7 +151,7 @@
 | `com/jtech/zemer/statuses` | 14 |
 | `com/jtech/zemer/sync` | 5 |
 | `com/jtech/zemer/sync/models` | 1 |
-| `com/jtech/zemer/tracking` | 11 |
+| `com/jtech/zemer/tracking` | 12 |
 | `com/jtech/zemer/ui/component` | 84 |
 | `com/jtech/zemer/ui/component/lyrics` | 1 |
 | `com/jtech/zemer/ui/component/shimmer` | 6 |
@@ -160,7 +160,7 @@
 | `com/jtech/zemer/ui/screens` | 31 |
 | `com/jtech/zemer/ui/screens/artist` | 2 |
 | `com/jtech/zemer/ui/screens/library` | 8 |
-| `com/jtech/zemer/ui/screens/onboarding` | 8 |
+| `com/jtech/zemer/ui/screens/onboarding` | 9 |
 | `com/jtech/zemer/ui/screens/playlist` | 10 |
 | `com/jtech/zemer/ui/screens/podcast` | 1 |
 | `com/jtech/zemer/ui/screens/recognition` | 2 |

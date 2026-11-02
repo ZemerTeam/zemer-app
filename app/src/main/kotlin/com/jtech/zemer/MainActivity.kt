@@ -195,6 +195,8 @@ import com.jtech.zemer.constants.NavigationBarHeight
 import com.jtech.zemer.constants.RecognizeMusicFabKey
 import com.jtech.zemer.constants.SlimNavBarHeight
 import com.jtech.zemer.constants.OnboardingCompleteKey
+import com.jtech.zemer.tracking.PrivacyNotice
+import com.jtech.zemer.ui.screens.onboarding.privacyNoticeBlocking
 import com.jtech.zemer.constants.PlaybackMode
 import com.jtech.zemer.constants.PlaybackModeKey
 import com.jtech.zemer.constants.PauseListenHistoryKey
@@ -711,12 +713,19 @@ class MainActivity : ComponentActivity() {
                             OnboardingFlow(
                                 onFinished = {
                                     onboardingScope.launch {
-                                        dataStore.edit { it[OnboardingCompleteKey] = true }
+                                        dataStore.edit {
+                                            it[OnboardingCompleteKey] = true
+                                            // the Welcome step's required checkbox agreed to the current policy
+                                            PrivacyNotice.recordAgreement(it)
+                                        }
                                     }
                                 }
                             )
                             return@BoxWithConstraints
                         }
+
+                        // An install onboarded under an older policy: nothing else renders until Agree.
+                        if (privacyNoticeBlocking()) return@BoxWithConstraints
 
                         // After onboarding, show splash screen while syncing
                         val syncProgress by syncUtils.whitelistSyncProgress.collectAsState()

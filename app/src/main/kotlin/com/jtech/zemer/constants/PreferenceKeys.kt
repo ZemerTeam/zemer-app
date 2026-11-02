@@ -454,8 +454,11 @@ val RepeatModeKey = intPreferencesKey("repeatMode")
 val SwipeThumbnailKey = booleanPreferencesKey("swipeThumbnail")
 val SwipeSensitivityKey = floatPreferencesKey("swipeSensitivity")
 
-// Anonymous telemetry install id (a random UUID, the ONLY identity the tracking server ever sees).
+// Telemetry install id (a random UUID): the `device` of every tracking upload and crash report.
 val TrackingDeviceIdKey = stringPreferencesKey("trackingDeviceId")
+// The privacy policy version this install was shown and agreed to (onboarding, or the one-time update notice).
+val AcceptedPrivacyVersionKey = intPreferencesKey("acceptedPrivacyVersion")
+val AcceptedPrivacyAtKey = longPreferencesKey("acceptedPrivacyAt")
 // One-shot listen-history backfill: resume cursor (row id of the last acked event), the upper
 // bound (max event id when the backfill first ran — later rows were already reported live), and
 // the done flag.

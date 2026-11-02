@@ -3,6 +3,7 @@ package com.jtech.zemer.tracking
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
@@ -216,6 +217,17 @@ class TrackingEventsTest {
         )
         assertEquals("""{"blockVideos":true,"darkMode":"ON","volume":3}""", settingsSnapshot(prefs).toString())
         assertEquals("""{"blockVideos":true}""", settingsSnapshot(prefs, maxBytes = 25).toString())
+    }
+
+    @Test
+    fun `the privacy agreement survives a full settings snapshot`() {
+        val prefs = (1..400).associate { "flag$it" to true } +
+            mapOf("acceptedPrivacyVersion" to 2, "acceptedPrivacyAt" to 1_793_000_000_000L)
+        val snapshot = settingsSnapshot(prefs)
+        assertTrue(snapshot.toString().encodeToByteArray().size <= 4_000)
+        assertTrue("the cap cut some flags", (1..400).count { "flag$it" in snapshot } < 400)
+        assertEquals("2", snapshot["acceptedPrivacyVersion"].toString())
+        assertEquals("1793000000000", snapshot["acceptedPrivacyAt"].toString())
     }
 
     @Test

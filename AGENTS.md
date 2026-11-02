@@ -780,7 +780,10 @@ detail in `docs/tracking/README.md`. Rules that must not regress:
   server adds the request's address, country and network. Never send credentials (cookie, visitorData,
   tokens, signatures; `EXCLUDED_SETTINGS` / `CREDENTIAL_NAME`) and never the relay id (`RelayDeviceIdKey`).
   **Any new collected field updates the onboarding privacy text (`onboarding_privacy_body_telemetry`) in
-  the same change.**
+  the same change, and bumps `tracking/PrivacyNotice.CURRENT_VERSION`.** An install that finished onboarding
+  under an older version is BLOCKED by `privacyNoticeBlocking()` (MainActivity renders nothing else) until it
+  taps Agree; there is no decline (owner decision). Agreeing, here or on onboarding's Welcome step, stores
+  `acceptedPrivacyVersion` + `acceptedPrivacyAt`, which reach the server in `info.settings`.
 - **Debug builds send `debug: true` in the batch envelope and the SERVER discards them** - never gate the
   tracker on `BuildConfig.DEBUG`.
 - **`play` fires for EVERY listen, however short** (`MusicService.onPlaybackStatsReady`), once when it

@@ -181,30 +181,35 @@ internal fun WelcomeScreen(
                     if (kind == LegalKind.TOS) R.string.onboarding_tos_title else R.string.onboarding_privacy_title
                 ),
                 body = stringResource(
-                    // The telemetry variant discloses the anonymous usage tracking.
                     if (kind == LegalKind.TOS) R.string.onboarding_tos_body else R.string.onboarding_privacy_body_telemetry
                 ),
-                onDismiss = { legal = null }
+                onConfirm = { legal = null }
             )
         }
     }
 }
 
 
+/**
+ * A legal text in a scrolling dialog with one button. [dismissible] = false keeps it up until [onConfirm]
+ * (the privacy update notice: back and outside taps do nothing).
+ */
 @Composable
-private fun LegalOverlay(
+internal fun LegalOverlay(
     title: String,
     body: String,
-    onDismiss: () -> Unit,
+    onConfirm: () -> Unit,
+    confirmText: String = stringResource(R.string.ok),
+    dismissible: Boolean = true,
 ) {
     DefaultDialog(
-        onDismiss = onDismiss,
+        onDismiss = { if (dismissible) onConfirm() },
         horizontalAlignment = Alignment.Start,
         title = { Text(title) },
         buttons = {
             OnboardingPrimaryButton(
-                text = stringResource(R.string.ok),
-                onClick = onDismiss,
+                text = confirmText,
+                onClick = onConfirm,
             )
         },
     ) {
