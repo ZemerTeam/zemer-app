@@ -2,8 +2,8 @@ package com.jtech.zemer.crash
 
 import android.content.Context
 import android.os.Build
-import com.google.firebase.auth.FirebaseAuth
 import com.jtech.zemer.BuildConfig
+import com.jtech.zemer.tracking.Tracker
 import kotlinx.coroutines.runBlocking
 import java.io.File
 import java.util.concurrent.Executors
@@ -120,9 +120,7 @@ object CrashReporter {
         count: Int,
         crumbs: List<String>,
         reportedFrom: List<String> = emptyList(),
-    ) = CrashReport.build(kind, t, thread, at, count, crumbs, environment(), secrets(), reportedFrom)
-
-    private fun secrets(): List<String> = listOfNotNull(runCatching { FirebaseAuth.getInstance().currentUser?.uid }.getOrNull())
+    ) = CrashReport.build(kind, t, thread, at, count, crumbs, environment(), reportedFrom)
 
     private fun environment() = CrashEnvironment(
         versionCode = BuildConfig.VERSION_CODE,
@@ -135,5 +133,6 @@ object CrashReporter {
         model = Build.MODEL.orEmpty(),
         abi = Build.SUPPORTED_ABIS.firstOrNull().orEmpty(),
         debug = BuildConfig.DEBUG,
+        installId = Tracker.deviceId,
     )
 }

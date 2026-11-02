@@ -1,14 +1,19 @@
-# Tracking — anonymous usage telemetry
+# Tracking — usage telemetry
 
-Anonymous usage events posted to `https://tracking.zemer.io/v1/events`, the data layer for Zemer's
+Usage events posted to `https://tracking.zemer.io/v1/events`, the data layer for Zemer's
 recommendations. The authoritative wire spec is the handoff doc
 `handoff-docs/zemer-tracking-app-integration.md`.
 
 ## TL;DR
 
 Seven events — `open`, `search`, `play`, `click`, `action`, `impression`, `fetch_fail` — batched into a durable on-disk
-queue and POSTed fire-and-forget. Identity is ONE random UUID (`TrackingDeviceIdKey` in DataStore),
-nothing else: no account data, no device identifiers, no location. Product decisions: track everything
+queue and POSTed fire-and-forget. Identity is ONE random UUID (`TrackingDeviceIdKey` in DataStore). Owner
+rule since 2026-11-02: maximum collection. Every batch also carries `info` (`DeviceInfo.kt`): manufacturer,
+brand, model, device, product, hardware, fingerprint, osRelease, securityPatch, sdk, abi, locale, tz,
+versionCode, buildType, installer, screen (`WxH@dpi`), network, carrier, ramMb, storageFreeMb and `settings`
+(`settingsSnapshot`: DataStore settings minus credentials and other ids, short values only, max 4 KB). The
+server adds the request's address, country, network and user agent. Crash reports carry the same UUID as
+`device.id`. A new field also updates the onboarding privacy text. Product decisions: track everything
 including KidZone, no opt-out, one `search` event per executed query, offline plays queue and upload late.
 
 ## The invariant that rules everything
