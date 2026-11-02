@@ -286,8 +286,8 @@ Every `@Composable fun` per UI file (extension receivers dropped, so `BoxScope.X
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/onboarding/OnboardingConnectivity.kt` | 44 | rememberOnboardingConnectivity |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/onboarding/OnboardingSearchBackupScreen.kt` | 100 | OnboardingSearchBackupScreen |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/onboarding/PermissionsScreen.kt` | 350 | PermissionsScreen, PermissionCard |
-| `app/src/main/kotlin/com/jtech/zemer/ui/screens/onboarding/PrivacyUpdateNotice.kt` | 52 | privacyNoticeBlocking |
-| `app/src/main/kotlin/com/jtech/zemer/ui/screens/onboarding/WelcomeScreen.kt` | 224 | WelcomeScreen, LegalOverlay |
+| `app/src/main/kotlin/com/jtech/zemer/ui/screens/onboarding/PrivacyUpdateNotice.kt` | 57 | privacyNoticeBlocking |
+| `app/src/main/kotlin/com/jtech/zemer/ui/screens/onboarding/WelcomeScreen.kt` | 236 | WelcomeScreen, LegalOverlay |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/playlist/AutoPlaylistScreen.kt` | 391 | AutoPlaylistScreen |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/playlist/CachePlaylistScreen.kt` | 357 | CachePlaylistScreen |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/playlist/DownloadedContentScreen.kt` | 129 | DownloadedContentScreen |
@@ -527,8 +527,8 @@ Key declarations are the first 12 `class`/`object`/`interface`/`fun`/`val`/`var`
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/onboarding/OnboardingNavigation.kt` | 39 | class OnboardingStep, object OnboardingNavigation, fun afterWelcome, fun afterDensity, fun backFromContentFilters, fun backFromPermissions |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/onboarding/OnboardingSearchBackupScreen.kt` | 100 | fun OnboardingSearchBackupScreen, var enableBackup |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/onboarding/PermissionsScreen.kt` | 350 | fun PermissionsScreen, val context, val lifecycleOwner, var storageGranted, var notificationsGranted, var nearbyGranted, var backgroundGranted, var accessibilityGranted, var systemAlertGranted, var pipGranted, val storagePermissionLauncher, val notificationLauncher, … (+15 more) |
-| `app/src/main/kotlin/com/jtech/zemer/ui/screens/onboarding/PrivacyUpdateNotice.kt` | 52 | fun privacyNoticeBlocking, val context, val scope, val show |
-| `app/src/main/kotlin/com/jtech/zemer/ui/screens/onboarding/WelcomeScreen.kt` | 224 | class LegalKind, fun WelcomeScreen, var legal, var agreed, val isConnected, val isCheckingNetwork, val composition, val animationState, val lottieColors, fun LegalOverlay |
+| `app/src/main/kotlin/com/jtech/zemer/ui/screens/onboarding/PrivacyUpdateNotice.kt` | 57 | fun privacyNoticeBlocking, val context, val scope, val agreed, val docs, val pending, val current |
+| `app/src/main/kotlin/com/jtech/zemer/ui/screens/onboarding/WelcomeScreen.kt` | 236 | class LegalKind, fun WelcomeScreen, var legal, var agreed, val isConnected, val isCheckingNetwork, val docs, val context, val scope, val agreeAndContinue, val shown, val composition, … (+4 more) |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/playlist/AutoPlaylistScreen.kt` | 391 | fun AutoPlaylistScreen, val context, val coroutineScope, val menuState, val haptic, val playerConnection, val autoPlaylistTitle, val isPlaying, val mediaMetadata, val playlist, val songs, val mutableSongs, … (+19 more) |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/playlist/CachePlaylistScreen.kt` | 357 | fun CachePlaylistScreen, val menuState, val playerConnection, val cacheSongsTitle, val haptic, val isPlaying, val mediaMetadata, val cachedSongs, val sortType, val onSortTypeChange, val sortDescending, val onSortDescendingChange, … (+9 more) |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/playlist/DownloadedContentScreen.kt` | 129 | fun DownloadedContentScreen, val blockVideos, val _, val blockPodcasts, val _, val musicCount, val videoCount, val statusCount, val podcastCount |

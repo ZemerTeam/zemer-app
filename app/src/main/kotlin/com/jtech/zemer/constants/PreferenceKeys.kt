@@ -456,8 +456,10 @@ val SwipeSensitivityKey = floatPreferencesKey("swipeSensitivity")
 
 // Telemetry install id (a random UUID): the `device` of every tracking upload and crash report.
 val TrackingDeviceIdKey = stringPreferencesKey("trackingDeviceId")
-// The privacy policy version this install was shown and agreed to (onboarding, or the one-time update notice).
-val AcceptedPrivacyVersionKey = intPreferencesKey("acceptedPrivacyVersion")
+// The zemer.io legal document versions this install agreed to (legal/LegalDocs.kt), and when it last agreed.
+// New keys on purpose: the earlier "acceptedPrivacyVersion" counted a local version, not zemer.io's.
+val AcceptedPrivacyDocKey = intPreferencesKey("acceptedPrivacyDoc")
+val AcceptedTermsDocKey = intPreferencesKey("acceptedTermsDoc")
 val AcceptedPrivacyAtKey = longPreferencesKey("acceptedPrivacyAt")
 // One-shot listen-history backfill: resume cursor (row id of the last acked event), the upper
 // bound (max event id when the backfill first ran — later rows were already reported live), and

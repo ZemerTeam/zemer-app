@@ -31,6 +31,7 @@ import com.jtech.zemer.di.ApplicationScope
 import com.jtech.zemer.extensions.toast
 import com.jtech.zemer.crash.CrashReporter
 import com.jtech.zemer.net.EnvSignals
+import com.jtech.zemer.legal.LegalRepository
 import com.jtech.zemer.sig.InstallRegistration
 import com.jtech.zemer.sig.NativeSig
 import com.jtech.zemer.utils.ContentFilterConfig
@@ -126,6 +127,10 @@ class App : Application(), SingletonImageLoader.Factory {
 
         // This install's own signing key (stored, or registered once per start); the version key until then.
         applicationScope.launch(Dispatchers.IO) { InstallRegistration.ensure(this@App) }
+
+        // The privacy policy and terms: the local copy at once, then the signed current one (MainActivity's notice
+        // blocks the app when a document changed since this install agreed).
+        applicationScope.launch(Dispatchers.IO) { LegalRepository.refresh(this@App) }
 
         // Initialize cipher library for WEB_REMIX streaming
         ZemerCipher.initialize(

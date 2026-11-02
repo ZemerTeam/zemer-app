@@ -62,7 +62,6 @@ internal object DeviceInfo {
         }
         val named = prefs?.mapKeys { (key, _) -> key.name }.orEmpty()
         if (prefs != null) put("settings", settingsSnapshot(named))
-        personalAccount(named).forEach { (k, v) -> put(k, v) }
         val counts = try {
             dao?.libraryCounts()
         } catch (e: CancellationException) {
@@ -128,18 +127,7 @@ internal object DeviceInfo {
     )
 }
 
-/**
- * `accountEmail` / `accountName` of a PERSONAL Google login only: the pooled anonymous login has no
- * dataSyncId, and its shared account must never be attributed to every anonymous install.
- */
-internal fun personalAccount(prefs: Map<String, Any?>): Map<String, String> {
-    if ((prefs["dataSyncId"] as? String).isNullOrBlank()) return emptyMap()
-    return listOf("accountEmail", "accountName")
-        .mapNotNull { k -> (prefs[k] as? String)?.takeIf { it.isNotBlank() }?.let { k to it } }
-        .toMap()
-}
-
-/** Settings keys never sent: credentials, the account's identity (sent on its own, above) and the other install ids. */
+/** Settings keys never sent: credentials, the account's identity (owner decision) and the other install ids. */
 private val EXCLUDED_SETTINGS = setOf(
     "innerTubeCookie", "visitorData", "dataSyncId", "accountEmail", "accountName", "accountChannelHandle",
     "content_filters_restored_email", "trackingDeviceId", "relayDeviceId", "current_device_id", "device_id",
@@ -149,8 +137,8 @@ private val CREDENTIAL_NAME = Regex("(?i)cookie|token|secret|password|sig")
 private const val MAX_SETTING_CHARS = 64
 private const val MAX_SETTINGS_BYTES = 4_000
 
-/** The privacy agreement ([PrivacyNotice.recordAgreement]): placed first so a full snapshot never drops it. */
-private val FIRST_SETTINGS = setOf("acceptedPrivacyVersion", "acceptedPrivacyAt")
+/** The legal agreement ([com.jtech.zemer.legal.LegalAgreement]): placed first so a full snapshot never drops it. */
+private val FIRST_SETTINGS = setOf("acceptedPrivacyDoc", "acceptedTermsDoc", "acceptedPrivacyAt")
 
 /**
  * The app's settings as a flat JSON object under [maxBytes] encoded: [FIRST_SETTINGS] (never cut by the cap),

@@ -14,39 +14,44 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.datastore.preferences.core.edit
 import com.jtech.zemer.R
-import com.jtech.zemer.constants.AcceptedPrivacyVersionKey
+import com.jtech.zemer.constants.AcceptedPrivacyDocKey
+import com.jtech.zemer.constants.AcceptedTermsDocKey
 import com.jtech.zemer.constants.OnboardingCompleteKey
-import com.jtech.zemer.tracking.PrivacyNotice
+import com.jtech.zemer.legal.LegalAgreement
+import com.jtech.zemer.legal.LegalRepository
 import com.jtech.zemer.utils.dataStore
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 
 /**
- * The one-time "privacy policy updated" gate for an install that finished onboarding under an older policy
- * ([PrivacyNotice]). While it shows, the caller renders nothing else, so the app cannot be used; Agree is the
- * only way out (back and outside taps do nothing) and stores the version and time agreed. Returns true while
- * it blocks, including the moment before the stored agreement has loaded (nothing renders then).
+ * The legal update gate: when the privacy policy or terms ([LegalRepository]) changed since this install agreed
+ * ([LegalAgreement]), it shows the changed documents full screen and the caller renders nothing else, so the app
+ * cannot be used. Agree is the only way out (back and outside taps do nothing) and stores the versions and time.
+ * Returns true while it blocks, including the moment before the stored agreement and the documents have loaded
+ * (nothing renders then). A document that changes while the app is open blocks it at once.
  */
 @Composable
 fun privacyNoticeBlocking(): Boolean {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    // null until the stored agreement has loaded: block (render nothing) rather than flash the app first
-    val show by remember {
-        context.dataStore.data.map<_, Boolean?> {
-            PrivacyNotice.shouldShow(it[OnboardingCompleteKey] == true, it[AcceptedPrivacyVersionKey] ?: 0)
+    // only the three values the gate needs (equal values never recompose the caller, which is the whole app)
+    val agreed by remember {
+        context.dataStore.data.map {
+            LegalAgreement.Agreed(it[OnboardingCompleteKey] == true, it[AcceptedPrivacyDocKey] ?: 0, it[AcceptedTermsDocKey] ?: 0)
         }
     }.collectAsState(initial = null)
-    if (show == null) return true
-    if (show == false) return false
+    val docs by LegalRepository.docs.collectAsState()
+    val pending = LegalAgreement.pending(agreed ?: return true, docs ?: return true)
+    val current = docs ?: return true
+    if (pending.isEmpty()) return false
     Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface))
     LegalOverlay(
         title = stringResource(R.string.privacy_update_title),
-        body = stringResource(R.string.privacy_update_intro) + "\n\n" +
-            stringResource(R.string.onboarding_privacy_body_telemetry),
+        markdown = stringResource(R.string.privacy_update_intro) + "\n\n" +
+            pending.joinToString("\n\n") { "# ${it.title}\n\n${it.body}" },
         confirmText = stringResource(R.string.privacy_update_agree),
         dismissible = false,
-        onConfirm = { scope.launch { context.dataStore.edit(PrivacyNotice::recordAgreement) } },
+        onConfirm = { scope.launch { context.dataStore.edit { LegalAgreement.record(it, current) } } },
     )
     return true
 }

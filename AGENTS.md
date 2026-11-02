@@ -775,15 +775,20 @@ detail in `docs/tracking/README.md`. Rules that must not regress:
   400s non-canonical ids). **Owner rule (2026-11-02): maximum collection in every Zemer service.** Every
   batch carries an `info` object (`tracking/DeviceInfo`: Build fields, OS, locale, tz, installer, screen,
   network, carrier, RAM, free storage, battery, Play services / root / Shizuku presence (root is a passive
-  file check, never `su`), `EnvSignals.mask`, install times, library counts, the personal account's email +
-  name, and `settingsSnapshot` of the DataStore settings, max 4 KB; integers as JSON numbers); the
-  server adds the request's address, country and network. Never send credentials (cookie, visitorData,
-  tokens, signatures; `EXCLUDED_SETTINGS` / `CREDENTIAL_NAME`) and never the relay id (`RelayDeviceIdKey`).
-  **Any new collected field updates the onboarding privacy text (`onboarding_privacy_body_telemetry`) in
-  the same change, and bumps `tracking/PrivacyNotice.CURRENT_VERSION`.** An install that finished onboarding
-  under an older version is BLOCKED by `privacyNoticeBlocking()` (MainActivity renders nothing else) until it
-  taps Agree; there is no decline (owner decision). Agreeing, here or on onboarding's Welcome step, stores
-  `acceptedPrivacyVersion` + `acceptedPrivacyAt`, which reach the server in `info.settings`.
+  file check, never `su`), `EnvSignals.mask`, install times, library counts, and `settingsSnapshot` of the
+  DataStore settings, max 4 KB; integers as JSON numbers); the server adds the request's address, country
+  and network. Never send credentials (cookie, visitorData, tokens, signatures; `EXCLUDED_SETTINGS` /
+  `CREDENTIAL_NAME`), the relay id (`RelayDeviceIdKey`), or the Google account's email / name (owner
+  decision, 2026-11-02).
+  **The privacy policy and terms are not in the app's strings: they come from zemer.io** (`legal/`), via
+  content.zemer.io `/legal` (signed like every content read; never applied unsigned), cached in
+  `filesDir/legal.json`, with `res/raw/legal_builtin.json` (a copy of zemer.io's `legal.json`) as the
+  fallback; a copy is never replaced by an older version. **Any new collected field is a zemer.io policy
+  change**: the site bumps the document's version only when users must re-agree. An install that finished
+  onboarding below the current versions is BLOCKED by `privacyNoticeBlocking()` (MainActivity renders
+  nothing else, also while the agreement loads) until it taps Agree; there is no decline (owner decision).
+  Agreeing, here or on onboarding's Welcome step, stores `acceptedPrivacyDoc` / `acceptedTermsDoc` +
+  `acceptedPrivacyAt` (`LegalAgreement`), ranked first in `info.settings`.
 - **Debug builds send `debug: true` in the batch envelope and the SERVER discards them** - never gate the
   tracker on `BuildConfig.DEBUG`.
 - **`play` fires for EVERY listen, however short** (`MusicService.onPlaybackStatsReady`), once when it

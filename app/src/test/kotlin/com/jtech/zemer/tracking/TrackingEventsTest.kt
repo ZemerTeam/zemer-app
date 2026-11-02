@@ -210,6 +210,7 @@ class TrackingEventsTest {
             "volume" to 3,
             "innerTubeCookie" to "SAPISID=x",
             "accountEmail" to "a@b.io",
+            "accountName" to "A",
             "trackingDeviceId" to "u",
             "someToken" to "t",
             "home_cache_json" to "x".repeat(65),
@@ -222,21 +223,13 @@ class TrackingEventsTest {
     @Test
     fun `the privacy agreement survives a full settings snapshot`() {
         val prefs = (1..400).associate { "flag$it" to true } +
-            mapOf("acceptedPrivacyVersion" to 2, "acceptedPrivacyAt" to 1_793_000_000_000L)
+            mapOf("acceptedPrivacyDoc" to 2, "acceptedTermsDoc" to 1, "acceptedPrivacyAt" to 1_793_000_000_000L)
         val snapshot = settingsSnapshot(prefs)
         assertTrue(snapshot.toString().encodeToByteArray().size <= 4_000)
         assertTrue("the cap cut some flags", (1..400).count { "flag$it" in snapshot } < 400)
-        assertEquals("2", snapshot["acceptedPrivacyVersion"].toString())
+        assertEquals("2", snapshot["acceptedPrivacyDoc"].toString())
+        assertEquals("1", snapshot["acceptedTermsDoc"].toString())
         assertEquals("1793000000000", snapshot["acceptedPrivacyAt"].toString())
-    }
-
-    @Test
-    fun `account fields only for a personal login`() {
-        val account = mapOf("accountEmail" to "a@b.io", "accountName" to "A", "dataSyncId" to "ds1")
-        assertEquals(mapOf("accountEmail" to "a@b.io", "accountName" to "A"), personalAccount(account))
-        assertEquals(emptyMap<String, String>(), personalAccount(account + ("dataSyncId" to "")))
-        assertEquals(emptyMap<String, String>(), personalAccount(account - "dataSyncId"))
-        assertEquals(mapOf("accountName" to "A"), personalAccount(account + ("accountEmail" to " ")))
     }
 
     @Test

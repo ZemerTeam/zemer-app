@@ -15,9 +15,9 @@
 | BuildConfig fields visible in Gradle | `ARCHITECTURE`, `COMMIT_HASH`, `RUN_NUMBER`, `GOOGLE_TOKEN_EXCHANGE_URL`, `CONTENT_MIRROR_URL`, `ZEMER_LYRICS_BASE_URL` |
 | Room schema directory | `app/schemas` |
 | Native build | Yes (see `build-release.md`) |
-| Tracked app paths | `1168` |
-| Tracked app Kotlin files | `868` (`641` in `src/main`, `225` in `src/test`, `2` in `src/androidTest`) |
-| Tracked app resource paths | `214` |
+| Tracked app paths | `1170` |
+| Tracked app Kotlin files | `869` (`642` in `src/main`, `225` in `src/test`, `2` in `src/androidTest`) |
+| Tracked app resource paths | `215` |
 | Tracked app asset paths | `0` in `src/main` (`3` test fixtures under `src/androidTest/assets`) |
 | Tracked app Room schema files | `36` |
 
@@ -62,6 +62,7 @@
 | `com.jtech.zemer.di` | 7 |
 | `com.jtech.zemer.extensions` | 10 |
 | `com.jtech.zemer.latestreleases` | 8 |
+| `com.jtech.zemer.legal` | 2 |
 | `com.jtech.zemer.lyrics` | 13 |
 | `com.jtech.zemer.lyrics.lrclib` | 3 |
 | `com.jtech.zemer.lyrics.simpmusic` | 3 |
@@ -84,7 +85,7 @@
 | `com.jtech.zemer.statuses` | 14 |
 | `com.jtech.zemer.sync` | 5 |
 | `com.jtech.zemer.sync.models` | 1 |
-| `com.jtech.zemer.tracking` | 12 |
+| `com.jtech.zemer.tracking` | 11 |
 | `com.jtech.zemer.ui.component` | 84 |
 | `com.jtech.zemer.ui.component.lyrics` | 1 |
 | `com.jtech.zemer.ui.component.shimmer` | 6 |
@@ -129,6 +130,7 @@
 | `com/jtech/zemer/di` | 7 |
 | `com/jtech/zemer/extensions` | 10 |
 | `com/jtech/zemer/latestreleases` | 8 |
+| `com/jtech/zemer/legal` | 2 |
 | `com/jtech/zemer/lyrics` | 13 |
 | `com/jtech/zemer/lyrics/lrclib` | 3 |
 | `com/jtech/zemer/lyrics/simpmusic` | 3 |
@@ -151,7 +153,7 @@
 | `com/jtech/zemer/statuses` | 14 |
 | `com/jtech/zemer/sync` | 5 |
 | `com/jtech/zemer/sync/models` | 1 |
-| `com/jtech/zemer/tracking` | 12 |
+| `com/jtech/zemer/tracking` | 11 |
 | `com/jtech/zemer/ui/component` | 84 |
 | `com/jtech/zemer/ui/component/lyrics` | 1 |
 | `com/jtech/zemer/ui/component/shimmer` | 6 |
