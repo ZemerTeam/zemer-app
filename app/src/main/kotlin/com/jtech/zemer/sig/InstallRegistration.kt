@@ -27,7 +27,7 @@ object InstallRegistration {
 
     @Volatile
     private var appContext: Context? = null
-    private var lastRetryAt = Long.MIN_VALUE
+    private var lastRetryAt: Long? = null
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     suspend fun ensure(context: Context) {
@@ -63,13 +63,16 @@ object InstallRegistration {
         ZemerSig.install = null
         Timber.w("InstallRegistration: install key refused; back on the version key")
         val context = appContext ?: return
-        val retry = synchronized(this) { (now - lastRetryAt >= RETRY_MS).also { if (it) lastRetryAt = now } }
+        val retry = synchronized(this) { retryAllowed(lastRetryAt, now).also { if (it) lastRetryAt = now } }
         scope.launch {
             val store = InstallKeyStore(context)
             store.clear() // never loaded again, by this run or the next start
             if (retry) register(store)
         }
     }
+
+    /** The first re-registration of a run always goes; later ones at most once per [RETRY_MS]. */
+    internal fun retryAllowed(lastRetryAt: Long?, now: Long): Boolean = lastRetryAt == null || now - lastRetryAt >= RETRY_MS
 
     /** The refused request was signed with the install key [installId] and refused as a retired key. */
     internal fun dropsInstallKey(installId: String, sentSignature: String?, error: String): Boolean =

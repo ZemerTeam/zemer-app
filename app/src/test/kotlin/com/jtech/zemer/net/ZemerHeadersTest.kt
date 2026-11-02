@@ -194,6 +194,14 @@ class ZemerHeadersTest {
     }
 
     @Test
+    fun `re-registration goes at once the first time, then at most hourly`() {
+        val now = 1_793_000_000_000L
+        assertTrue("the first retry of a run (a past overflow bug made this false)", InstallRegistration.retryAllowed(null, now))
+        assertFalse(InstallRegistration.retryAllowed(now - 59 * 60_000, now))
+        assertTrue(InstallRegistration.retryAllowed(now - 60 * 60_000, now))
+    }
+
+    @Test
     fun `the OkHttp answer is peeked without taking the body from the caller`() {
         repeat(2) {
             val body = okhttp().newCall(Request.Builder().url("http://content.zemer.io:${server.localPort}/unofficial-json").build())
