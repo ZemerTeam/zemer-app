@@ -133,7 +133,8 @@ fun Thumbnail(
     
     // Create a playlist using correct shuffle-aware logic
     val timeline = playerConnection.player.currentTimeline
-    val currentIndex = playerConnection.player.currentMediaItemIndex
+    // Observed, so a move between two copies of one song (same metadata, same skip flags) still recomposes.
+    val currentIndex by playerConnection.currentMediaItemIndex.collectAsState()
     val shuffleModeEnabled = playerConnection.player.shuffleModeEnabled
     val previousMediaMetadata = if (swipeThumbnail && !timeline.isEmpty) {
         val previousIndex = timeline.getPreviousWindowIndex(
@@ -222,7 +223,7 @@ fun Thumbnail(
         }
     }
 
-    LaunchedEffect(playerConnection.player.currentMediaItemIndex) {
+    LaunchedEffect(currentIndex) {
         val index = currentMediaIndex
         if (index >= 0 && index != currentItem) {
             thumbnailLazyGridState.scrollToItem(index)
