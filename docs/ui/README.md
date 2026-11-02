@@ -241,7 +241,7 @@ Every `@Composable fun` per UI file (extension receivers dropped, so `BoxScope.X
 | `app/src/main/kotlin/com/jtech/zemer/ui/player/PlayerVideoSurface.kt` | 112 | PlayerVideoSurface |
 | `app/src/main/kotlin/com/jtech/zemer/ui/player/Queue.kt` | 943 | Queue, QueuePillButton |
 | `app/src/main/kotlin/com/jtech/zemer/ui/player/StationLiveBar.kt` | 70 | StationLiveBar, StationLiveBadge |
-| `app/src/main/kotlin/com/jtech/zemer/ui/player/Thumbnail.kt` | 575 | Thumbnail |
+| `app/src/main/kotlin/com/jtech/zemer/ui/player/Thumbnail.kt` | 592 | Thumbnail |
 | `app/src/main/kotlin/com/jtech/zemer/ui/player/VideoModePill.kt` | 139 | VideoModePill, VideoModeSegment |
 | `app/src/main/kotlin/com/jtech/zemer/ui/player/VideoPip.kt` | 111 | rememberIsInPipMode, VideoPipOverlay |
 | `app/src/main/kotlin/com/jtech/zemer/ui/player/VideoQualitySelector.kt` | 104 | VideoQualitySelector |
@@ -474,7 +474,7 @@ Key declarations are the first 12 `class`/`object`/`interface`/`fun`/`val`/`var`
 | `app/src/main/kotlin/com/jtech/zemer/ui/player/PlayerVideoSurface.kt` | 112 | fun PlayerVideoSurface, val playerConnection, val context, val surfaceView, var aspect, val player, fun apply, val w, val h, val listener, fun onVideoSizeChanged, val playbackState |
 | `app/src/main/kotlin/com/jtech/zemer/ui/player/Queue.kt` | 943 | fun Queue, val context, val haptic, val menuState, val bottomSheetPageState, val playerConnection, val isPlaying, val isStationBroadcast, val repeatMode, val shuffleModeEnabled, val currentWindowIndex, val rawMediaMetadata, … (+39 more) |
 | `app/src/main/kotlin/com/jtech/zemer/ui/player/StationLiveBar.kt` | 70 | fun StationLiveBar, fun StationLiveBadge |
-| `app/src/main/kotlin/com/jtech/zemer/ui/player/Thumbnail.kt` | 575 | fun Thumbnail, val playerConnection, val context, val mediaMetadata, val error, val queueTitle, val videoQualities, val currentVideoQuality, val swipeThumbnailPref, val isStationBroadcast, val swipeThumbnail, val hidePlayerThumbnail, … (+49 more) |
+| `app/src/main/kotlin/com/jtech/zemer/ui/player/Thumbnail.kt` | 592 | fun Thumbnail, val playerConnection, val context, val mediaMetadata, val error, val queueTitle, val videoQualities, val currentVideoQuality, val swipeThumbnailPref, val isStationBroadcast, val swipeThumbnail, val hidePlayerThumbnail, … (+54 more) |
 | `app/src/main/kotlin/com/jtech/zemer/ui/player/VideoModePill.kt` | 139 | val SegmentSize, val SegmentGap, val ThumbPadding, fun VideoModePill, val thumbOffset, fun VideoModeSegment, val tint |
 | `app/src/main/kotlin/com/jtech/zemer/ui/player/VideoPip.kt` | 111 | val VIDEO_PIP_ASPECT, val pipAutoEnterSupported, val Activity, fun videoPipParams, fun Activity, fun Activity, fun rememberIsInPipMode, val activity, var inPip, val listener, fun VideoPipOverlay, val mediaMetadata |
 | `app/src/main/kotlin/com/jtech/zemer/ui/player/VideoQualitySelector.kt` | 104 | fun VideoQualitySelector, val menuState, val autoLabel |
