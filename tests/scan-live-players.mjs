@@ -73,6 +73,16 @@ export function aggregate(samples) {
     .sort((a, b) => b.count - a.count || a.hash.localeCompare(b.hash));
 }
 
+/**
+ * Requests for one surface per run. A canary can be bucketed by user agent, so rotation must not
+ * thin any agent out: the primary surface (the app's source) gets the full `requested` count PER
+ * agent, every other surface at least 3 per agent and at least max(6, requested/3) in all. Pure.
+ */
+export function samplesFor(surface, requested) {
+  if (surface.primary) return requested * surface.uas.length;
+  return Math.max(6, Math.ceil(requested / 3), 3 * surface.uas.length);
+}
+
 /** The surfaces that returned no player at all: the scan cannot see there. Pure. */
 export function blindSurfaces(surfaces) {
   return Object.entries(surfaces).filter(([, s]) => s.ok === 0).map(([name]) => name);
@@ -91,13 +101,27 @@ export function coveredKeys(configsText, file) {
 
 // node:https, not fetch: fetch caps response headers at 16 KB and YouTube's pages crossed that on
 // 2026-10-30 (a ~7 KB connection-allowlist-report-only header), which blinded every sample. A failure
-// is returned as { error }, never swallowed into an empty "nothing seen".
-function fetchText(url, ua, hops = 3) {
+// is returned as { error }, never swallowed into an empty "nothing seen". Cookies set along a
+// redirect chain are sent on the next hop (a consent/region redirect loops without them).
+function fetchText(url, ua, hops = 5, cookies = {}) {
   return new Promise((resolve) => {
-    const req = https.get(url, { headers: { "User-Agent": ua }, maxHeaderSize: 1 << 20, timeout: 20000 }, (res) => {
-      if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location && hops > 0) {
+    const headers = { "User-Agent": ua };
+    const jar = Object.entries(cookies).map(([k, v]) => `${k}=${v}`).join("; ");
+    if (jar) headers.Cookie = jar;
+    const req = https.get(url, { headers, maxHeaderSize: 1 << 20, timeout: 20000 }, (res) => {
+      if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
         res.resume();
-        resolve(fetchText(new URL(res.headers.location, url).href, ua, hops - 1));
+        const next = new URL(res.headers.location, url);
+        if (hops === 0) {
+          resolve({ body: "", error: `HTTP ${res.statusCode} -> ${next.host}${next.pathname}` });
+          return;
+        }
+        for (const c of res.headers["set-cookie"] ?? []) {
+          const [pair] = c.split(";");
+          const eq = pair.indexOf("=");
+          if (eq > 0) cookies[pair.slice(0, eq).trim()] = pair.slice(eq + 1).trim();
+        }
+        resolve(fetchText(next.href, ua, hops - 1, cookies));
         return;
       }
       if (res.statusCode !== 200) {
@@ -139,13 +163,12 @@ async function main() {
   const requested = Number(samplesArg || process.env.SAMPLES || 30);
   const covered = coveredKeys(readFileSync(file, "utf8"), file); // throws on invalid file -> exit 1
 
-  const aux = Math.max(6, Math.ceil(requested / 3));
   const samples = []; // one entry per hash per page
   const surfaces = {};
   let page = 0;
   for (const surface of SURFACES) {
     const stats = (surfaces[surface.name] = { requests: 0, ok: 0, hashes: {}, errors: {} });
-    const n = surface.primary ? requested : aux;
+    const n = samplesFor(surface, requested);
     for (let i = 0; i < n; i++, page++) {
       const ua = UAS[surface.uas[i % surface.uas.length]];
       const [hl, gl] = LOCALES[page % LOCALES.length];

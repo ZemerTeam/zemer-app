@@ -1305,7 +1305,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `docs/remote_cipher_config/01-concepts-and-format.md` | 135 lines | `.md` |
 | `docs/remote_cipher_config/02-runtime-store.md` | 94 lines | `.md` |
 | `docs/remote_cipher_config/03-extraction-and-self-heal.md` | 102 lines | `.md` |
-| `docs/remote_cipher_config/04-operations.md` | 130 lines | `.md` |
+| `docs/remote_cipher_config/04-operations.md` | 131 lines | `.md` |
 | `docs/remote_cipher_config/README.md` | 60 lines | `.md` |
 | `docs/repository-map.md` | 1546 lines | `.md` |
 | `docs/sabr/README.md` | 375 lines | `.md` |
@@ -1500,8 +1500,8 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `tests/sabr-video-clients.mjs` | 166 lines | `.mjs` |
 | `tests/sabr-video.mjs` | 207 lines | `.mjs` |
 | `tests/sabr-watchtime.mjs` | 157 lines | `.mjs` |
-| `tests/scan-live-players.mjs` | 203 lines | `.mjs` |
-| `tests/scan-live-players.test.mjs` | 67 lines | `.mjs` |
+| `tests/scan-live-players.mjs` | 226 lines | `.mjs` |
+| `tests/scan-live-players.test.mjs` | 76 lines | `.mjs` |
 | `tests/search/README.md` | 96 lines | `.md` |
 | `tests/search/album-facet-probe.mjs` | 42 lines | `.mjs` |
 | `tests/search/corpus-ambiguity.mjs` | 15 lines | `.mjs` |

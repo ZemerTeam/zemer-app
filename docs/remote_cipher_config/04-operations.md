@@ -34,7 +34,8 @@ concurrency group (`cancel-in-progress: false`) so overlapping runs can't open d
    fail, the run is red.
 2. **Multi-sample the live players**: `node tests/scan-live-players.mjs /tmp/player_configs.json 30`
    samples `iframe_api` (what `PlayerJsFetcher` uses, including its exact `Mozilla/5.0` request) n×
-   and every other player surface `max(6, n/3)` times each: `music.youtube.com`, a watch page, the
+   PER user agent (a canary bucketed by agent is never thinned out by the rotation) and every other
+   player surface at least `max(6, n/3)` times and 3× per agent (`samplesFor`): `music.youtube.com`, a watch page, the
    home page, `embed`, `youtube-nocookie` embed, mobile web (`m.youtube.com`, the player-plasma
    family) and TV (`/tv`, the tv-player-ias family), rotating desktop / mobile / TV user agents and
    `hl`/`gl` locales, and counting every hash a page references. Pages are fetched with `node:https`

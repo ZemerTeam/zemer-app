@@ -3,7 +3,16 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { aggregate, blindSurfaces, coveredKeys, hashesFrom, SURFACES, UAS } from "./scan-live-players.mjs";
+import { aggregate, blindSurfaces, coveredKeys, hashesFrom, samplesFor, SURFACES, UAS } from "./scan-live-players.mjs";
+
+test("rotation never thins out a user agent", () => {
+  for (const s of SURFACES) {
+    const n = samplesFor(s, 30);
+    const perAgent = Math.floor(n / s.uas.length);
+    if (s.primary) assert.equal(perAgent, 30, "the app's source gets the full count for every agent");
+    else assert.ok(perAgent >= 3 && n >= 10, `${s.name}: ${n} requests, ${perAgent} per agent`);
+  }
+});
 
 test("hashesFrom reads escaped and plain player paths, every distinct hash on the page", () => {
   const iframe = 'var scriptUrl = \'https:\\/\\/www.youtube.com\\/s\\/player\\/11a45ffb\\/www-widgetapi.vflset\\/www-widgetapi.js\';';
