@@ -754,7 +754,7 @@ Full detail (shards, layers, tests): `docs/offline/README.md`. Invariants:
 - **Discovery:** an onboarding step (`OnboardingSearchBackupScreen`) and a one-time promo
   (`OfflineBackupPromoCard`) above Zemer search results; declining in onboarding also silences the promo.
 
-### Tracking (anonymous usage telemetry)
+### Tracking (usage telemetry; owner rule: maximum collection)
 
 Seven events (`open`/`search`/`play`/`click`/`action`/`impression`/`fetch_fail`) POSTed to `tracking.zemer.io`; full
 detail in `docs/tracking/README.md`. Rules that must not regress:
@@ -763,7 +763,15 @@ detail in `docs/tracking/README.md`. Rules that must not regress:
   failures are silent; the on-disk JSONL queue under `filesDir` (deliberately NOT a Room table) caps at
   500 dropping oldest; a 400 drops the batch.
 - **Identity is one random UUID** (`TrackingDeviceIdKey`, only `UUID.randomUUID()` output - the server
-  400s non-canonical ids). Never add account/device/location identifiers.
+  400s non-canonical ids). **Owner rule (2026-11-02): maximum collection in every Zemer service.** Every
+  batch carries an `info` object (`tracking/DeviceInfo`: Build fields, OS, locale, tz, installer, screen,
+  network, carrier, RAM, free storage, battery, Play services / root / Shizuku presence (root is a passive
+  file check, never `su`), `EnvSignals.mask`, install times, library counts, the personal account's email +
+  name, and `settingsSnapshot` of the DataStore settings, max 4 KB; integers as JSON numbers); the
+  server adds the request's address, country and network. Never send credentials (cookie, visitorData,
+  tokens, signatures; `EXCLUDED_SETTINGS` / `CREDENTIAL_NAME`) and never the relay id (`RelayDeviceIdKey`).
+  **Any new collected field updates the onboarding privacy text (`onboarding_privacy_body_telemetry`) in
+  the same change.**
 - **Debug builds send `debug: true` in the batch envelope and the SERVER discards them** - never gate the
   tracker on `BuildConfig.DEBUG`.
 - **`play` fires for EVERY listen, however short** (`MusicService.onPlaybackStatsReady`), once when it
@@ -1146,9 +1154,10 @@ session; **gitignored**, never commit). Methodology + the symptom-indexed runboo
   (`crash/CrashReporter`, `POST tracking.zemer.io/v1/crash`, contract
   `handoff-docs/zemer-app-crash-reporting-request.md`) via `utils/CrashReportingTree.kt` (Timber DEBUG+ →
   breadcrumbs, `reportException()` → non-fatals) - report errors via `reportException()`/`Timber`, never
-  `printStackTrace`. Rules: every report is scrubbed on the device before it is queued (`CrashScrubber`: URL
-  query strings, ip/pot/visitorData/sig/n/key/token values, IPs, emails, the account uid) and carries no
-  identifiers; non-fatals are deduped per launch (one per fingerprint, with a `count`, at most 20 kinds); a
+  `printStackTrace`. Rules: every report is scrubbed of CREDENTIALS on the device before it is queued
+  (`CrashScrubber`: URL query strings, pot/visitorData/sig/n/key/token and OAuth token values, the
+  `X-Zemer-Sig` / `Authorization` / `Cookie` headers; addresses, emails and ids are kept, owner rule) and
+  carries the tracking install id in `device.id` (`Tracker.deviceId`); non-fatals are deduped per launch (one per fingerprint, with a `count`, at most 20 kinds); a
   fatal is queued in the uncaught-exception handler and sent there (bounded wait), else on the next launch;
   reports carry `commit` + `runNumber` because nightly and stable share one versionCode/versionName; a
   cancellation (or an `InterruptedException`) in the cause chain is never reported, nor is a plain connectivity

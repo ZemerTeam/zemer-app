@@ -1,5 +1,7 @@
 package com.jtech.zemer.tracking
 
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
@@ -188,6 +190,41 @@ class TrackingEventsTest {
             """{"device":"d","app_ver":"34","debug":true,"events":[]}""",
             trackingBatchBody("d", "34", debug = true, eventLines = emptyList()),
         )
+    }
+
+    @Test
+    fun `batch body carries info when collected`() {
+        val info = buildJsonObject { put("model", "Pixel") }
+        assertEquals(
+            """{"device":"d","app_ver":"40","debug":false,"info":{"model":"Pixel"},"events":[]}""",
+            trackingBatchBody("d", "40", debug = false, eventLines = emptyList(), info = info),
+        )
+    }
+
+    @Test
+    fun `settings snapshot - no credentials or ids, short values only, booleans first, size capped`() {
+        val prefs = mapOf(
+            "blockVideos" to true,
+            "darkMode" to "ON",
+            "volume" to 3,
+            "innerTubeCookie" to "SAPISID=x",
+            "accountEmail" to "a@b.io",
+            "trackingDeviceId" to "u",
+            "someToken" to "t",
+            "home_cache_json" to "x".repeat(65),
+            "status_seen_post_ids" to setOf("a"),
+        )
+        assertEquals("""{"blockVideos":true,"darkMode":"ON","volume":3}""", settingsSnapshot(prefs).toString())
+        assertEquals("""{"blockVideos":true}""", settingsSnapshot(prefs, maxBytes = 25).toString())
+    }
+
+    @Test
+    fun `account fields only for a personal login`() {
+        val account = mapOf("accountEmail" to "a@b.io", "accountName" to "A", "dataSyncId" to "ds1")
+        assertEquals(mapOf("accountEmail" to "a@b.io", "accountName" to "A"), personalAccount(account))
+        assertEquals(emptyMap<String, String>(), personalAccount(account + ("dataSyncId" to "")))
+        assertEquals(emptyMap<String, String>(), personalAccount(account - "dataSyncId"))
+        assertEquals(mapOf("accountName" to "A"), personalAccount(account + ("accountEmail" to " ")))
     }
 
     @Test

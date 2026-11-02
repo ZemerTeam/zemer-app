@@ -35,7 +35,10 @@ internal class PerLaunchDedup<T>(private val max: Int) {
     }
 }
 
-/** The build and device a report comes from (no identifiers). */
+/**
+ * The build and device a report comes from. [installId] is the tracking install UUID (the `device` of
+ * `/v1/events`), so a report joins the install's history; null before the tracker has loaded it.
+ */
 internal data class CrashEnvironment(
     val versionCode: Int,
     val versionName: String,
@@ -47,6 +50,7 @@ internal data class CrashEnvironment(
     val model: String,
     val abi: String,
     val debug: Boolean,
+    val installId: String? = null,
 )
 
 /**
@@ -67,7 +71,6 @@ internal object CrashReport {
         count: Int,
         breadcrumbs: List<String>,
         env: CrashEnvironment,
-        secrets: Collection<String> = emptyList(),
         reportedFrom: List<String> = emptyList(),
     ): JsonObject = buildJsonObject {
         put("kind", kind)
@@ -82,15 +85,16 @@ internal object CrashReport {
             put("buildType", env.buildType)
         })
         put("device", buildJsonObject {
+            env.installId?.let { put("id", it) }
             put("sdk", env.sdk)
             put("manufacturer", env.manufacturer)
             put("model", env.model)
             put("abi", env.abi)
         })
         put("thread", thread)
-        put("exception", JsonArray(causeChain(throwable, secrets)))
+        put("exception", JsonArray(causeChain(throwable)))
         if (reportedFrom.isNotEmpty()) put("reportedFrom", buildJsonArray { reportedFrom.forEach { add(JsonPrimitive(it)) } })
-        put("breadcrumbs", buildJsonArray { capBreadcrumbs(breadcrumbs, secrets).forEach { add(JsonPrimitive(it)) } })
+        put("breadcrumbs", buildJsonArray { capBreadcrumbs(breadcrumbs).forEach { add(JsonPrimitive(it)) } })
         put("debug", env.debug)
     }
 
@@ -155,7 +159,7 @@ internal object CrashReport {
             .toList()
     }
 
-    private fun causeChain(throwable: Throwable, secrets: Collection<String>): List<JsonObject> {
+    private fun causeChain(throwable: Throwable): List<JsonObject> {
         val stacks = chain(throwable).map { t -> t.stackTrace.joinToString("\n") { "at $it" } }.toMutableList()
         // over the cap: halve the longest stack until it fits (the top frames are kept, the tail goes)
         while (stacks.sumOf { it.length } > MAX_EXCEPTION_CHARS) {
@@ -165,13 +169,13 @@ internal object CrashReport {
         return chain(throwable).mapIndexed { i, t ->
             buildJsonObject {
                 put("class", t.javaClass.name)
-                put("message", t.message?.let { CrashScrubber.scrub(it, secrets).take(2_000) })
+                put("message", t.message?.let { CrashScrubber.scrub(it).take(2_000) })
                 put("stack", stacks[i])
                 put("suppressed", buildJsonArray {
                     t.suppressed.take(5).forEach { s ->
                         add(buildJsonObject {
                             put("class", s.javaClass.name)
-                            put("message", s.message?.let { CrashScrubber.scrub(it, secrets).take(2_000) })
+                            put("message", s.message?.let { CrashScrubber.scrub(it).take(2_000) })
                             put("stack", s.stackTrace.take(20).joinToString("\n") { "at $it" })
                         })
                     }
@@ -181,12 +185,12 @@ internal object CrashReport {
     }
 
     /** The newest lines that fit: at most [MAX_BREADCRUMBS] and [MAX_BREADCRUMB_CHARS], scrubbed. */
-    private fun capBreadcrumbs(lines: List<String>, secrets: Collection<String>): List<String> {
+    private fun capBreadcrumbs(lines: List<String>): List<String> {
         val out = ArrayDeque<String>()
         var chars = 0
         for (line in lines.asReversed()) {
             if (out.size == MAX_BREADCRUMBS) break
-            val scrubbed = CrashScrubber.scrub(line, secrets).take(1_000)
+            val scrubbed = CrashScrubber.scrub(line).take(1_000)
             if (chars + scrubbed.length > MAX_BREADCRUMB_CHARS) break
             out.addFirst(scrubbed)
             chars += scrubbed.length

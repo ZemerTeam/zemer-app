@@ -226,11 +226,18 @@ internal object TrackingActionKind {
 }
 
 /**
- * Batch body: `{"device":…,"app_ver":…,"debug":…,"events":[…]}` from already-encoded event lines.
+ * Batch body: `{"device":…,"app_ver":…,"debug":…,"info":{…},"events":[…]}` from already-encoded event
+ * lines; `info` ([DeviceInfo]) is left out when it could not be collected.
  * [debug] = `BuildConfig.DEBUG`: debug builds run the identical client path, but the server ACKs
  * and DISCARDS their batches (responding `debug:true`) so test devices never pollute the stats.
  */
-internal fun trackingBatchBody(device: String, appVer: String, debug: Boolean, eventLines: List<String>): String =
+internal fun trackingBatchBody(
+    device: String,
+    appVer: String,
+    debug: Boolean,
+    eventLines: List<String>,
+    info: JsonObject? = null,
+): String =
     buildString {
         append("{\"device\":")
         append(JsonPrimitive(device))
@@ -238,6 +245,10 @@ internal fun trackingBatchBody(device: String, appVer: String, debug: Boolean, e
         append(JsonPrimitive(appVer))
         append(",\"debug\":")
         append(debug)
+        if (info != null) {
+            append(",\"info\":")
+            append(info)
+        }
         append(",\"events\":[")
         eventLines.joinTo(this, ",")
         append("]}")

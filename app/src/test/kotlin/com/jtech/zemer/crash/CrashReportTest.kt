@@ -18,24 +18,37 @@ class CrashReportTest {
     @get:Rule
     val tmp = TemporaryFolder()
 
-    private val env = CrashEnvironment(38, "13.0", "abc123", 1234, "release", 30, "Google", "Pixel", "arm64-v8a", false)
+    private val env = CrashEnvironment(
+        38, "13.0", "abc123", 1234, "release", 30, "Google", "Pixel", "arm64-v8a", false,
+        installId = "0f8fad5b-d9cb-469f-a165-70867728950e",
+    )
 
-    private fun build(t: Throwable, crumbs: List<String> = emptyList(), secrets: List<String> = emptyList()) =
-        CrashReport.build("nonfatal", t, "main", 1_000L, 3, crumbs, env, secrets)
+    private fun build(t: Throwable, crumbs: List<String> = emptyList()) =
+        CrashReport.build("nonfatal", t, "main", 1_000L, 3, crumbs, env)
 
     @Test
-    fun `scrubs URLs, tokens, IPs, emails and the uid, but not clock times`() {
+    fun `scrubs credentials but keeps addresses, emails and ids`() {
         val s = CrashScrubber.scrub(
             "GET https://rr1.googlevideo.com/videoplayback?ip=203.0.113.9&pot=abc ok at 10:23:45 " +
-                "visitorData=Cgt4 \"poToken\":\"xyz\" from 2001:db8::1 and fe80:0:0:0:1:2:3:4 by a.b@c.io uid uidSECRET99",
-            secrets = listOf("uidSECRET99"),
+                "visitorData=Cgt4 \"poToken\":\"xyz\" \"id_token\":\"eyJ\" refresh_token=r1 " +
+                "from 2001:db8::1 and 203.0.113.9 by a.b@c.io uid uidSECRET99",
         )
         assertEquals(
             "GET https://rr1.googlevideo.com/videoplayback ok at 10:23:45 visitorData=<redacted> " +
-                "\"poToken\":\"<redacted>\" from <ip> and <ip> by <email> uid <uid>",
+                "\"poToken\":\"<redacted>\" \"id_token\":\"<redacted>\" refresh_token=<redacted> " +
+                "from 2001:db8::1 and 203.0.113.9 by a.b@c.io uid uidSECRET99",
             s,
         )
-        assertEquals("seen <ip> key=<redacted> n=<redacted>", CrashScrubber.scrub("seen 203.0.113.9 key=K1 n=2"))
+        assertEquals("seen key=<redacted> n=<redacted>", CrashScrubber.scrub("seen key=K1 n=2"))
+        assertEquals("X-Zemer-Sig: <redacted>", CrashScrubber.scrub("X-Zemer-Sig: v=2;k=40;t=1;n=a;b=c;s=d"))
+        assertEquals("Authorization: <redacted>", CrashScrubber.scrub("Authorization: Bearer abc.def"))
+    }
+
+    @Test
+    fun `the report carries the tracking install id`() {
+        assertEquals(env.installId, build(RuntimeException("x"))["device"]!!.jsonObject["id"]!!.jsonPrimitive.content)
+        val noId = CrashReport.build("nonfatal", RuntimeException("x"), "main", 1L, 1, emptyList(), env.copy(installId = null))
+        assertFalse("id" in noId["device"]!!.jsonObject)
     }
 
     @Test
@@ -44,7 +57,7 @@ class CrashReportTest {
         val top = IllegalStateException("load failed", root).apply { addSuppressed(RuntimeException("cleanup")) }
         val ex = build(top)["exception"]!!.jsonArray
         assertEquals(listOf("java.lang.IllegalStateException", "java.io.IOException"), ex.map { it.jsonObject["class"]!!.jsonPrimitive.content })
-        assertEquals("connect to <ip> failed", ex[1].jsonObject["message"]!!.jsonPrimitive.content)
+        assertEquals("connect to 198.51.100.7 failed", ex[1].jsonObject["message"]!!.jsonPrimitive.content)
         assertEquals("cleanup", ex[0].jsonObject["suppressed"]!!.jsonArray[0].jsonObject["message"]!!.jsonPrimitive.content)
     }
 

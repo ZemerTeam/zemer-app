@@ -11,6 +11,7 @@ import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.contentType
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import timber.log.Timber
@@ -39,11 +40,17 @@ internal class TrackingUploader(private val baseUrl: String = BASE_URL) {
         expectSuccess = false
     }
 
-    suspend fun upload(device: String, appVer: String, debug: Boolean, eventLines: List<String>): Result =
+    suspend fun upload(
+        device: String,
+        appVer: String,
+        debug: Boolean,
+        eventLines: List<String>,
+        info: JsonObject? = null,
+    ): Result =
         runCatching {
             val response = client.post("$baseUrl/v1/events") {
                 contentType(ContentType.Application.Json)
-                setBody(trackingBatchBody(device, appVer, debug, eventLines))
+                setBody(trackingBatchBody(device, appVer, debug, eventLines, info))
             }
             when {
                 response.status.value in 200..299 -> {

@@ -4,8 +4,10 @@ import android.content.Context
 import androidx.datastore.preferences.core.edit
 import com.jtech.zemer.BuildConfig
 import com.jtech.zemer.constants.TrackingDeviceIdKey
+import com.jtech.zemer.db.DatabaseDao
 import com.jtech.zemer.utils.dataStore
 import com.jtech.zemer.utils.getSuspend
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -47,7 +49,13 @@ object Tracker {
 
     private var queue: TrackingQueue? = null
     private var uploader = TrackingUploader()
-    private var deviceId: String? = null
+    private var appContext: Context? = null
+    private var dao: () -> DatabaseDao? = { null }
+
+    /** The install UUID sent as `device`; also put on crash reports so they join the install's history. */
+    @Volatile
+    var deviceId: String? = null
+        private set
     private var appVer: String = BuildConfig.VERSION_NAME
 
     private var inFlight = false
@@ -56,11 +64,13 @@ object Tracker {
     private var pendingFlushAt = Long.MAX_VALUE
 
     /** Idempotent; called once from [com.jtech.zemer.App.onCreate]. */
-    fun initialize(context: Context) {
+    fun initialize(context: Context, dao: () -> DatabaseDao? = { null }) {
         if (ready.isCompleted) return
         val appContext = context.applicationContext
         scope.launch {
             if (ready.isCompleted) return@launch
+            this@Tracker.appContext = appContext
+            this@Tracker.dao = dao
             queue = TrackingQueue(File(appContext.filesDir, QUEUE_FILE))
             deviceId = runCatching {
                 val stored = appContext.dataStore.getSuspend(TrackingDeviceIdKey, "")
@@ -197,7 +207,7 @@ object Tracker {
             }
             inFlight = true
             try {
-                val result = uploader.upload(device, appVer, BuildConfig.DEBUG, eventLines)
+                val result = uploader.upload(device, appVer, BuildConfig.DEBUG, eventLines, info())
                 when (result) {
                     TrackingUploader.Result.Success, TrackingUploader.Result.DropBatch ->
                         schedule.onSuccess()
@@ -248,7 +258,7 @@ object Tracker {
             // to truncate it (its truncation always falls on the newest events, which would bias
             // exposure toward whatever the user scrolled to first).
             val batch = capImpressionRows(q.peekBatch())
-            when (val result = uploader.upload(device, appVer, BuildConfig.DEBUG, batch)) {
+            when (val result = uploader.upload(device, appVer, BuildConfig.DEBUG, batch, info())) {
                 TrackingUploader.Result.Success, TrackingUploader.Result.DropBatch -> {
                     q.removeBatch(batch)
                     schedule.onSuccess()
@@ -293,6 +303,19 @@ object Tracker {
     }
 
     private fun now() = System.currentTimeMillis()
+
+    /** Never fails an upload: a device read that throws only leaves `info` out. */
+    private suspend fun info(): JsonObject? {
+        val context = appContext ?: return null
+        return try {
+            DeviceInfo.collect(context, dao())
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Timber.tag(TAG).w(e, "Device info unavailable")
+            null
+        }
+    }
 
     private const val TAG = "Zemer_Tracker"
     private const val QUEUE_FILE = "tracking/events.jsonl"

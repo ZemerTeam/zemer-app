@@ -41,6 +41,8 @@
             <action android:name="android.media.action.DISPLAY_AUDIO_EFFECT_CONTROL_PANEL" />
         </intent>
         <package android:name="com.google.android.projection.gearhead" />
+        <package android:name="com.google.android.gms" />
+        <package android:name="moe.shizuku.privileged.api" />
     </queries>
     <application
         android:name=".App"
