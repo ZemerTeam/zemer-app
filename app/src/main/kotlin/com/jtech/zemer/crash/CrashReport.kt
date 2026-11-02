@@ -148,7 +148,11 @@ internal object CrashReport {
             it is java.security.cert.CertPathValidatorException ||
             it.message?.contains("ECONNREFUSED") == true ||
             // okhttp: the connection dropped mid-response
-            (it is java.io.IOException && it.message?.contains("unexpected end of stream") == true)
+            (it is java.io.IOException && it.message?.contains("unexpected end of stream") == true) ||
+            // the peer reset the connection (raised as a plain IOException by some socket paths, not a SocketException)
+            (it is java.io.IOException && it.message?.contains("Connection reset", ignoreCase = true) == true) ||
+            // ktor: the socket closed before a response was fully read (kotlinx.io's EOFException is java.io's)
+            (it is java.io.EOFException && it.message?.contains("Not enough data available") == true)
     }
 
     private fun chain(throwable: Throwable): List<Throwable> {

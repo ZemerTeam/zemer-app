@@ -270,7 +270,7 @@ Every `@Composable fun` per UI file (extension receivers dropped, so `BoxScope.X
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/WhitelistedArtistsScreen.kt` | 112 | WhitelistedArtistsScreen, ArtistBrowseScreenContent |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/WhitelistedPodcastsScreen.kt` | 341 | WhitelistedPodcastsScreen, PodcastSectionHeader, SubscribedPodcastCard, NewEpisodeCard, PodcastLibraryHeaderSections, SubscribedChannelsSection, NewEpisodesSection |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/ZemerPlaylistsScreen.kt` | 72 | ZemerPlaylistsScreen |
-| `app/src/main/kotlin/com/jtech/zemer/ui/screens/artist/ArtistScreen.kt` | 898 | ArtistScreen |
+| `app/src/main/kotlin/com/jtech/zemer/ui/screens/artist/ArtistScreen.kt` | 903 | ArtistScreen |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/artist/ArtistSectionScreen.kt` | 365 | ArtistSectionScreen, ChannelEpisodeList, ArtistSongList |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/library/LibraryAlbumsScreen.kt` | 299 | LibraryAlbumsScreen |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/library/LibraryArtistsScreen.kt` | 286 | LibraryArtistsScreen |
@@ -510,7 +510,7 @@ Key declarations are the first 12 `class`/`object`/`interface`/`fun`/`val`/`var`
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/WhitelistedArtistsScreen.kt` | 112 | fun WhitelistedArtistsScreen, fun ArtistBrowseScreenContent, val menuState, var viewType, val coroutineScope, val displayedArtists |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/WhitelistedPodcastsScreen.kt` | 341 | fun WhitelistedPodcastsScreen, val playerConnection, val menuState, var viewType, val podcasts, val searchQuery, val subscribedPodcasts, val newEpisodes, val isLoadingNewEpisodes, val hasHeaderSections, fun PodcastSectionHeader, fun SubscribedPodcastCard, … (+4 more) |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/ZemerPlaylistsScreen.kt` | 72 | fun ZemerPlaylistsScreen, val playlists |
-| `app/src/main/kotlin/com/jtech/zemer/ui/screens/artist/ArtistScreen.kt` | 898 | fun ArtistScreen, val context, val database, val menuState, val haptic, val coroutineScope, val playerConnection, val unknownArtistTitle, val isPlaying, val mediaMetadata, val artistPage, val isLoadingArtist, … (+32 more) |
+| `app/src/main/kotlin/com/jtech/zemer/ui/screens/artist/ArtistScreen.kt` | 903 | fun ArtistScreen, val context, val database, val menuState, val haptic, val coroutineScope, val playerConnection, val unknownArtistTitle, val isPlaying, val mediaMetadata, val artistPage, val isLoadingArtist, … (+33 more) |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/artist/ArtistSectionScreen.kt` | 365 | fun ArtistSectionScreen, val artistPage, val isLoading, val section, val items, val isVideoSection, val isSongList, val pagedEpisodes, val episodeListState, var episodeQuery, var searchingHistory, var drainComplete, … (+19 more) |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/library/LibraryAlbumsScreen.kt` | 299 | fun LibraryAlbumsScreen, val menuState, val playerConnection, val isPlaying, val mediaMetadata, var viewType, var filter, val sortType, val onSortTypeChange, val sortDescending, val onSortDescendingChange, val gridItemSize, … (+7 more) |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/library/LibraryArtistsScreen.kt` | 286 | fun LibraryArtistsScreen, val menuState, var viewType, var filter, val sortType, val onSortTypeChange, val sortDescending, val onSortDescendingChange, val gridItemSize, val ytmSync, val filterContent, val artists, … (+4 more) |

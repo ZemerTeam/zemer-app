@@ -152,6 +152,11 @@ class CrashReportTest {
         assertTrue(CrashReport.isConnectivityFailure(IOException("wrap", java.net.ProtocolException("unexpected end of stream"))))
         assertTrue(CrashReport.isConnectivityFailure(IOException("unexpected end of stream on https://rr4---sn-x.googlevideo.com/...")))
         assertFalse(CrashReport.isConnectivityFailure(IllegalStateException("unexpected end of stream")))
+        // the peer reset raised as a plain IOException, and ktor's EOF on a dropped socket (v40 reports)
+        assertTrue(CrashReport.isConnectivityFailure(IOException("Connection reset by peer")))
+        assertTrue(CrashReport.isConnectivityFailure(IOException("wrap", java.io.EOFException("Not enough data available"))))
+        assertFalse(CrashReport.isConnectivityFailure(java.io.EOFException("End of input at line 1"))) // a parser's EOF is a bug
+        assertFalse(CrashReport.isConnectivityFailure(IllegalStateException("Connection reset")))
         assertFalse(CrashReport.isConnectivityFailure(IllegalStateException("search.zemer.io")))
         assertFalse(CrashReport.isConnectivityFailure(IOException("Zemer home-rows returned HTTP 502")))
         assertFalse(CrashReport.isConnectivityFailure(IOException("HTTP 400")))
