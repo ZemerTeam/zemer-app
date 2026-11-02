@@ -90,6 +90,7 @@
     <string name="download_failed">Download failed</string>
     <string name="retry_download">Retry download</string>
     <string name="download_stopped_by_system">Android stopped downloads after running too long. Retry to continue.</string>
+    <string name="import_playlist_result">Imported %1$d of %2$d songs. The rest are blocked or not found.</string>
     <string name="storage_permission_required">Storage permission required</string>
     <string name="add_to_playlist">Add to playlist</string>
     <string name="view_artist">View artist</string>
