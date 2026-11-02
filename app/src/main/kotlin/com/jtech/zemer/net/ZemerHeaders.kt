@@ -1,6 +1,7 @@
 package com.jtech.zemer.net
 
 import com.jtech.zemer.BuildConfig
+import com.jtech.zemer.sig.InstallRegistration
 import com.jtech.zemer.sig.ZemerSig
 import io.ktor.client.call.HttpClientCall
 import io.ktor.client.plugins.api.Send
@@ -64,6 +65,7 @@ object ZemerHeaders {
             ZemerSig.onServerDate(response.headers["Date"])
             val body = refusalBody(response.call)
             UnofficialCopy.onResponse(response.status.value, response.headers[ZemerRefusal.HEADER], response.headers["Content-Type"]) { body }
+            onRefusal(response.status.value, response.call.request.headers[ZemerSig.HEADER], response.headers[ZemerRefusal.HEADER], response.headers["Content-Type"]) { body }
         }
         // the resend runs SendingRequest again: a fresh nonce and the clock onResponse just corrected
         on(Send) { request ->
@@ -77,6 +79,12 @@ object ZemerHeaders {
             retry.response.cancel()
             throw ZemerRefusal.ClockSkew()
         }
+    }
+
+    /** A refusal of a request signed with this install's own key self-heals that key ([InstallRegistration.onRefused]). */
+    private fun onRefusal(status: Int, sentSignature: String?, refusalHeader: String?, contentType: String?, body: () -> String?) {
+        if (status != 403 || sentSignature == null) return
+        ZemerRefusal.parse(status, refusalHeader, contentType, body)?.let { InstallRegistration.onRefused(sentSignature, it.error) }
     }
 
     /** A 403's body when it can be read without taking it from the caller (a saved, non-streaming one). */
@@ -130,9 +138,9 @@ object ZemerHeaders {
                 ?.let { builder.header(ZemerSig.HEADER, it) }
             return chain.proceed(builder.build()).also { response ->
                 ZemerSig.onServerDate(response.header("Date"))
-                UnofficialCopy.onResponse(response.code, response.header(ZemerRefusal.HEADER), response.header("Content-Type")) {
-                    runCatching { response.peekBody(PEEK_BYTES).string() }.getOrNull()
-                }
+                val body = { runCatching { response.peekBody(PEEK_BYTES).string() }.getOrNull() }
+                UnofficialCopy.onResponse(response.code, response.header(ZemerRefusal.HEADER), response.header("Content-Type"), body)
+                onRefusal(response.code, response.request.header(ZemerSig.HEADER), response.header(ZemerRefusal.HEADER), response.header("Content-Type"), body)
             }
         }
 

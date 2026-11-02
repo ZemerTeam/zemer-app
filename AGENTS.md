@@ -212,6 +212,11 @@ must not regress:
   never sent (only the HMAC uses it). Registration runs at most once per app start; until it succeeds, and whenever
   the stored key is missing or unreadable, requests keep the version key (403 / 429 / 503 are retried on a later
   start). Version 1 signatures and `/install` itself always use the version key. No attestation of any kind.
+  **A retired install key self-heals, never locks out** (`InstallRegistration.onRefused`, fed by the same hook on
+  both clients): a 403 `update_required` on a request whose `X-Zemer-Sig` `k=` is the install id drops the key
+  (requests go back to the version key at once), deletes the stored copy and registers again at most once an hour.
+  A refusal of the VERSION key is a real retirement and is left alone; `bad signature` (a body mismatch) never
+  drops the key. So the servers can retire an install key without an app update.
 - **An unofficial copy is told so, for one launch only** (`net/UnofficialCopy`, fed by the same hook): a 403 whose
   JSON `error` is `unofficial_copy` (or the relay's `X-Zemer-Refusal: unofficial_copy`) on TWO Zemer-host responses
   in a row (any servers; any other response resets the count) replaces the whole UI with `UnofficialCopyScreen`
