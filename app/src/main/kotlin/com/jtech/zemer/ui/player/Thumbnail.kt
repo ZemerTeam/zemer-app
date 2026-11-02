@@ -26,7 +26,7 @@ import androidx.compose.foundation.lazy.grid.LazyGridItemInfo
 import androidx.compose.foundation.lazy.grid.LazyGridLayoutInfo
 import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.LazyHorizontalGrid
-import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -172,7 +172,13 @@ fun Thumbnail(
     }
 
     val mediaItems = listOfNotNull(previousMediaMetadata, currentMediaItem, nextMediaMetadata)
-    val currentMediaIndex = mediaItems.indexOf(currentMediaItem)
+    // By position, never indexOf: a queue can hold the same song before or after the current one.
+    val currentMediaIndex = when {
+        currentMediaItem == null -> -1
+        previousMediaMetadata != null -> 1
+        else -> 0
+    }
+    val mediaItemKeys = thumbnailKeys(mediaItems.map { it.mediaId })
 
     // OuterTune Snap behavior
     val horizontalLazyGridItemWidthFactor = 1f
@@ -217,7 +223,7 @@ fun Thumbnail(
     }
 
     LaunchedEffect(playerConnection.player.currentMediaItemIndex) {
-        val index = mediaItems.indexOf(currentMediaItem)
+        val index = currentMediaIndex
         if (index >= 0 && index != currentItem) {
             thumbnailLazyGridState.scrollToItem(index)
         }
@@ -293,13 +299,10 @@ fun Thumbnail(
                         userScrollEnabled = swipeThumbnail && isPlayerExpanded, // Only allow swipe when player is expanded
                         modifier = Modifier.fillMaxSize()
                     ) {
-                        items(
+                        itemsIndexed(
                             items = mediaItems,
-                            key = { item -> 
-                                // Use mediaId with stable fallback to avoid recomposition issues
-                                item.mediaId.ifEmpty { "unknown_${item.hashCode()}" }
-                            }
-                        ) { item ->
+                            key = { index, _ -> mediaItemKeys[index] }
+                        ) { _, item ->
                             val incrementalSeekSkipEnabled by rememberPreference(SeekExtraSeconds, defaultValue = false)
                             var skipMultiplier by remember { mutableIntStateOf(1) }
                             var lastTapTime by remember { mutableLongStateOf(0L) }
@@ -573,3 +576,16 @@ fun calculateDistanceToDesiredSnapPosition(
 
 private val LazyGridLayoutInfo.singleAxisViewportSize: Int
     get() = if (orientation == Orientation.Vertical) viewportSize.height else viewportSize.width
+
+/**
+ * Unique lazy keys for the swipe carousel's [previous, current, next] media ids. The same song can sit next to
+ * itself in a queue, and a repeated key crashes the grid ("Key was already used"), so a repeat gets a suffix.
+ */
+internal fun thumbnailKeys(mediaIds: List<String>): List<String> {
+    val seen = HashMap<String, Int>()
+    return mediaIds.map { id ->
+        val base = id.ifEmpty { "unknown" }
+        val repeat = seen.merge(base, 1, Int::plus)!! - 1
+        if (repeat == 0) base else "$base#$repeat"
+    }
+}
