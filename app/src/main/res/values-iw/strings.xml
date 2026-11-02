@@ -224,13 +224,6 @@
     <string name="onboarding_view_tos">צפו בתנאים</string>
     <string name="onboarding_view_privacy">צפו בפרטיות</string>
     <string name="onboarding_continue">המשך</string>
-    <string name="onboarding_tos_title">תנאי שימוש</string>
-    <string name="onboarding_tos_body">בשימוש ב-Zemer אתם מסכימים:
-• לא להטיל אחריות על המפתחים לנזקים או טענות.
-• לעמוד בחוקי זכויות יוצרים לגבי כל מה שתשמיעו.
-• להבין שהאפליקציה מקשרת לתוכן צד ג׳ ואינה מאחסנת מדיה.
-• להשתמש באפליקציה כפי שהיא, ללא אחריות או התחייבות.</string>
-    <string name="onboarding_privacy_title">מדיניות פרטיות</string>
     <string name="onboarding_permissions_title">בדיקת הרשאות קצרה</string>
     <string name="onboarding_permissions_subtitle">כמה הרשאות כדי שהשמעה והורדה יישארו חלקות. אפשר גם לדלג.</string>
     <string name="onboarding_perm_notifications_title">התראות</string>
