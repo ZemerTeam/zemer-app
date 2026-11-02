@@ -178,6 +178,12 @@ object ZemerContentClient {
     }
 
     /**
+     * `/legal` → the privacy policy and terms ([com.jtech.zemer.legal.LegalDocs]), mirrored from zemer.io. Never
+     * applied unsigned: the app always has a copy (the built-in one), so this is never a first sync.
+     */
+    suspend fun legal(): String = getText("/legal", "legal", SMALL_TIMEOUT_MS, firstSync = false)
+
+    /**
      * `/israeliArtists` → id set. **Shape-agnostic**: the collection is empty upstream today, so we accept
      * BOTH `["id", ...]` and `[{"id"/"artistId": ...}, ...]` — whichever it serves once populated — rather
      * than trusting an unverified shape. Empty is legitimate (same as today).

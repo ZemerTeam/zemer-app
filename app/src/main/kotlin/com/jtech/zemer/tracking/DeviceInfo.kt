@@ -137,8 +137,8 @@ private val CREDENTIAL_NAME = Regex("(?i)cookie|token|secret|password|sig")
 private const val MAX_SETTING_CHARS = 64
 private const val MAX_SETTINGS_BYTES = 4_000
 
-/** The privacy agreement ([PrivacyNotice.recordAgreement]): placed first so a full snapshot never drops it. */
-private val FIRST_SETTINGS = setOf("acceptedPrivacyVersion", "acceptedPrivacyAt")
+/** The legal agreement ([com.jtech.zemer.legal.LegalAgreement]): placed first so a full snapshot never drops it. */
+private val FIRST_SETTINGS = setOf("acceptedPrivacyDoc", "acceptedTermsDoc", "acceptedPrivacyAt")
 
 /**
  * The app's settings as a flat JSON object under [maxBytes] encoded: [FIRST_SETTINGS] (never cut by the cap),

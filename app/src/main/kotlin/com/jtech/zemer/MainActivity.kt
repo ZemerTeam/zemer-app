@@ -195,7 +195,8 @@ import com.jtech.zemer.constants.NavigationBarHeight
 import com.jtech.zemer.constants.RecognizeMusicFabKey
 import com.jtech.zemer.constants.SlimNavBarHeight
 import com.jtech.zemer.constants.OnboardingCompleteKey
-import com.jtech.zemer.tracking.PrivacyNotice
+import com.jtech.zemer.legal.LegalAgreement
+import com.jtech.zemer.legal.LegalRepository
 import com.jtech.zemer.ui.screens.onboarding.privacyNoticeBlocking
 import com.jtech.zemer.constants.PlaybackMode
 import com.jtech.zemer.constants.PlaybackModeKey
@@ -715,8 +716,9 @@ class MainActivity : ComponentActivity() {
                                     onboardingScope.launch {
                                         dataStore.edit {
                                             it[OnboardingCompleteKey] = true
-                                            // the Welcome step's required checkbox agreed to the current policy
-                                            PrivacyNotice.recordAgreement(it)
+                                            // the Welcome step's required checkbox agreed to the documents it showed
+                                            // (not loaded yet: nothing recorded, so the notice asks right after)
+                                            LegalRepository.docs.value?.let { docs -> LegalAgreement.record(it, docs) }
                                         }
                                     }
                                 }

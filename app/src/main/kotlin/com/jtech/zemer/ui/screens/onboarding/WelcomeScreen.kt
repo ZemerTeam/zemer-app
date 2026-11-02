@@ -18,8 +18,10 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ProvideTextStyle
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -41,7 +43,9 @@ import com.airbnb.lottie.compose.rememberLottieComposition
 import com.airbnb.lottie.compose.rememberLottieDynamicProperties
 import com.airbnb.lottie.compose.rememberLottieDynamicProperty
 import com.jtech.zemer.R
+import com.jtech.zemer.legal.LegalRepository
 import com.jtech.zemer.ui.component.DefaultDialog
+import com.jtech.zemer.ui.component.MarkdownText
 import com.jtech.zemer.ui.component.OnboardingPrimaryButton
 
 private enum class LegalKind { TOS, PRIVACY }
@@ -175,29 +179,23 @@ internal fun WelcomeScreen(
             }
         }
 
+        val docs by LegalRepository.docs.collectAsState()
         legal?.let { kind ->
-            LegalOverlay(
-                title = stringResource(
-                    if (kind == LegalKind.TOS) R.string.onboarding_tos_title else R.string.onboarding_privacy_title
-                ),
-                body = stringResource(
-                    if (kind == LegalKind.TOS) R.string.onboarding_tos_body else R.string.onboarding_privacy_body_telemetry
-                ),
-                onConfirm = { legal = null }
-            )
+            val doc = docs?.let { if (kind == LegalKind.TOS) it.terms else it.privacy } ?: return@let
+            LegalOverlay(title = doc.title, markdown = doc.body, onConfirm = { legal = null })
         }
     }
 }
 
 
 /**
- * A legal text in a scrolling dialog with one button. [dismissible] = false keeps it up until [onConfirm]
- * (the privacy update notice: back and outside taps do nothing).
+ * A legal text ([markdown], from [LegalRepository]) in a scrolling dialog with one button. [dismissible] = false
+ * keeps it up until [onConfirm] (the update notice: back and outside taps do nothing).
  */
 @Composable
 internal fun LegalOverlay(
     title: String,
-    body: String,
+    markdown: String,
     onConfirm: () -> Unit,
     confirmText: String = stringResource(R.string.ok),
     dismissible: Boolean = true,
@@ -213,12 +211,9 @@ internal fun LegalOverlay(
             )
         },
     ) {
-        Text(
-            text = body,
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.verticalScroll(rememberScrollState()),
-        )
+        ProvideTextStyle(MaterialTheme.typography.bodySmall.copy(color = MaterialTheme.colorScheme.onSurfaceVariant)) {
+            MarkdownText(markdown = markdown, modifier = Modifier.verticalScroll(rememberScrollState()))
+        }
     }
 }
 
