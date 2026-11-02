@@ -7,6 +7,7 @@
 package com.jtech.zemer.utils.updater
 
 import android.app.PendingIntent
+import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
 import android.content.pm.IPackageInstaller
@@ -140,6 +141,10 @@ object AppInstaller {
             }
             context.startActivity(installIntent)
             InstallResult.RequiresUserAction
+        } catch (e: ActivityNotFoundException) {
+            // A device without a package installer: a device state, not a bug, so not reported.
+            Timber.w(e, "No system installer")
+            InstallResult.Error(context.getString(R.string.installer_unavailable))
         } catch (e: Exception) {
             reportException(e, "Native install")
             InstallResult.Error(e.message ?: context.getString(R.string.installer_launch_failed))

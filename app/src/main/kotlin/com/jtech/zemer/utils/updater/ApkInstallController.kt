@@ -1,5 +1,6 @@
 package com.jtech.zemer.utils.updater
 
+import android.content.ActivityNotFoundException
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
@@ -14,6 +15,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import timber.log.Timber
 import java.io.File
 
 /** How long the "installing…" heads-up shows before a silent install kills the process. */
@@ -82,7 +84,16 @@ fun rememberApkInstallController(
     controller.launch = { apkFile ->
         if (installerType == InstallerType.NATIVE && !AppInstaller.canInstallPackages(context)) {
             pendingApk = apkFile
-            permissionLauncher.launch(AppInstaller.getInstallPermissionIntent(context))
+            try {
+                permissionLauncher.launch(AppInstaller.getInstallPermissionIntent(context))
+            } catch (e: ActivityNotFoundException) {
+                // Some locked-down ROMs drop the "install unknown apps" screen. Hand the APK to
+                // the system installer anyway (some prompt on their own); if that cannot open
+                // either, installNative returns the manual-download message.
+                Timber.w(e, "No install-permission screen; trying the system installer")
+                pendingApk = null
+                runInstall(apkFile)
+            }
         } else {
             runInstall(apkFile)
         }

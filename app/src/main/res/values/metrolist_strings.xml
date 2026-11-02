@@ -236,6 +236,7 @@
     <string name="shizuku_permission_required">Shizuku permission required</string>
     <string name="shizuku_not_supported_version">Shizuku installer is not supported on this Android version</string>
     <string name="installer_launch_failed">Failed to launch installer</string>
+    <string name="installer_unavailable">This phone can\'t open the app installer. Download the update from ghtrack.zemer.io/download, then open the file and allow installing apps when asked.</string>
     <string name="installer_session_id_failed">Failed to create install session</string>
     <string name="install_success">Update installed successfully</string>
     <string name="install_failed">Installation failed: %1$s</string>
