@@ -1,6 +1,8 @@
 package com.jtech.zemer.net
 
 import com.jtech.zemer.net.ZemerHeaders.withZemerHeaders
+import com.jtech.zemer.sig.InstallCredential
+import com.jtech.zemer.sig.InstallRegistration
 import com.jtech.zemer.sig.SigCanonical
 import com.jtech.zemer.sig.ZemerSig
 import io.ktor.client.HttpClient
@@ -127,6 +129,7 @@ class ZemerHeadersTest {
     @After
     fun tearDown() {
         ZemerSig.signer = null
+        ZemerSig.install = null
         ZemerSig.clockOffsetSec = 0
         UnofficialCopy.reset()
         server.close()
@@ -153,6 +156,49 @@ class ZemerHeadersTest {
             assertEquals(before + 1, seenSnapshot().size)
         }
         Unit
+    }
+
+    @Test
+    fun `a retired install key is dropped for the version key, on both clients`() = runBlocking {
+        val port = server.localPort
+        val installId = "i${ZemerSig.keyId}.abc"
+        fun sentKey(target: String) = seenSnapshot().last { it.target == target }.headers["x-zemer-sig"]
+            ?.split(';')?.first { it.startsWith("k=") }?.substring(2)
+        HttpClient(OkHttp) {
+            engine { config { dns(dns) } }
+            install(ZemerHeaders.KtorPlugin)
+        }.use { client ->
+            ZemerSig.install = InstallCredential(installId, ByteArray(32) { 7 })
+            client.get("http://search.zemer.io:$port/ok-install")
+            assertEquals(installId, sentKey("/ok-install"))
+            assertEquals("a 200 keeps the key", installId, ZemerSig.install?.id)
+            client.get("http://search.zemer.io:$port/update-required")
+            assertEquals(installId, sentKey("/update-required"))
+            assertNull("refused as retired: dropped", ZemerSig.install)
+            client.get("http://search.zemer.io:$port/after")
+            assertEquals("the next request uses the version key", ZemerSig.keyId, sentKey("/after"))
+        }
+        ZemerSig.install = InstallCredential(installId, ByteArray(32) { 7 })
+        okGet("http://stream.zemer.io:$port/update-required-ok")
+        assertNull("OkHttp clients self-heal too", ZemerSig.install)
+    }
+
+    @Test
+    fun `only an update_required refusal of the install key itself drops it`() {
+        val sig = "v=2;k=i40.abc;t=1;n=x;b=y;s=z"
+        assertTrue(InstallRegistration.dropsInstallKey("i40.abc", sig, "update_required"))
+        assertFalse("the version key refused is a real retirement", InstallRegistration.dropsInstallKey("i40.abc", "k=40;t=1;s=z", "update_required"))
+        assertFalse(InstallRegistration.dropsInstallKey("i40.abc", sig, "bad signature"))
+        assertFalse(InstallRegistration.dropsInstallKey("i40.abc", sig, "unofficial_copy"))
+        assertFalse(InstallRegistration.dropsInstallKey("i40.abc", null, "update_required"))
+    }
+
+    @Test
+    fun `re-registration goes at once the first time, then at most hourly`() {
+        val now = 1_793_000_000_000L
+        assertTrue("the first retry of a run (a past overflow bug made this false)", InstallRegistration.retryAllowed(null, now))
+        assertFalse(InstallRegistration.retryAllowed(now - 59 * 60_000, now))
+        assertTrue(InstallRegistration.retryAllowed(now - 60 * 60_000, now))
     }
 
     @Test

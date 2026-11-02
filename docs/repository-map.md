@@ -99,7 +99,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `.github/workflows/ui-audit.yml` | 55 lines | `.yml` |
 | `.gitignore` | 117 lines | `[none]` |
 | `.gitmodules` | 3 lines | `[none]` |
-| `AGENTS.md` | 1205 lines | `.md` |
+| `AGENTS.md` | 1210 lines | `.md` |
 | `LICENSE` | 674 lines | `[none]` |
 | `README.md` | 9 lines | `.md` |
 | `app/.gitignore` | 1 lines | `[none]` |
@@ -286,7 +286,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/main/kotlin/com/jtech/zemer/net/ContentSignature.kt` | 80 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/net/EnvSignals.kt` | 82 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/net/UnofficialCopy.kt` | 58 lines | `.kt` |
-| `app/src/main/kotlin/com/jtech/zemer/net/ZemerHeaders.kt` | 150 lines | `.kt` |
+| `app/src/main/kotlin/com/jtech/zemer/net/ZemerHeaders.kt` | 158 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/net/ZemerHosts.kt` | 23 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/net/ZemerRefusal.kt` | 44 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/offline/OfflineReadProvider.kt` | 170 lines | `.kt` |
@@ -407,7 +407,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/main/kotlin/com/jtech/zemer/search/ZemerStationsModels.kt` | 135 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/sig/InstallCredential.kt` | 35 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/sig/InstallKeyStore.kt` | 61 lines | `.kt` |
-| `app/src/main/kotlin/com/jtech/zemer/sig/InstallRegistration.kt` | 37 lines | `.kt` |
+| `app/src/main/kotlin/com/jtech/zemer/sig/InstallRegistration.kt` | 84 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/sig/NativeSig.kt` | 43 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/sig/SigCanonical.kt` | 93 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/sig/ZemerSig.kt` | 89 lines | `.kt` |
@@ -1058,7 +1058,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/test/kotlin/com/jtech/zemer/net/ContentSignatureTest.kt` | 65 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/net/EnvSignalsTest.kt` | 57 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/net/UnofficialCopyTest.kt` | 62 lines | `.kt` |
-| `app/src/test/kotlin/com/jtech/zemer/net/ZemerHeadersTest.kt` | 424 lines | `.kt` |
+| `app/src/test/kotlin/com/jtech/zemer/net/ZemerHeadersTest.kt` | 470 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/offline/SubsetDecoderTest.kt` | 215 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/offline/SubsetFemaleSynonymsTest.kt` | 57 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/offline/SubsetLiveWhitelistTest.kt` | 121 lines | `.kt` |
