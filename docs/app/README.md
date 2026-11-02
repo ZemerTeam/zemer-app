@@ -15,8 +15,8 @@
 | BuildConfig fields visible in Gradle | `ARCHITECTURE`, `COMMIT_HASH`, `RUN_NUMBER`, `GOOGLE_TOKEN_EXCHANGE_URL`, `CONTENT_MIRROR_URL`, `ZEMER_LYRICS_BASE_URL` |
 | Room schema directory | `app/schemas` |
 | Native build | Yes (see `build-release.md`) |
-| Tracked app paths | `1154` |
-| Tracked app Kotlin files | `857` (`636` in `src/main`, `219` in `src/test`, `2` in `src/androidTest`) |
+| Tracked app paths | `1158` |
+| Tracked app Kotlin files | `861` (`637` in `src/main`, `222` in `src/test`, `2` in `src/androidTest`) |
 | Tracked app resource paths | `214` |
 | Tracked app asset paths | `0` in `src/main` (`3` test fixtures under `src/androidTest/assets`) |
 | Tracked app Room schema files | `36` |
@@ -102,7 +102,7 @@
 | `com.jtech.zemer.ui.screens.statuses` | 4 |
 | `com.jtech.zemer.ui.theme` | 7 |
 | `com.jtech.zemer.ui.utils` | 20 |
-| `com.jtech.zemer.utils` | 41 |
+| `com.jtech.zemer.utils` | 42 |
 | `com.jtech.zemer.utils.markdown` | 1 |
 | `com.jtech.zemer.utils.mp4` | 2 |
 | `com.jtech.zemer.utils.ogg` | 1 |
@@ -169,7 +169,7 @@
 | `com/jtech/zemer/ui/screens/statuses` | 4 |
 | `com/jtech/zemer/ui/theme` | 7 |
 | `com/jtech/zemer/ui/utils` | 20 |
-| `com/jtech/zemer/utils` | 41 |
+| `com/jtech/zemer/utils` | 42 |
 | `com/jtech/zemer/utils/markdown` | 1 |
 | `com/jtech/zemer/utils/mp4` | 2 |
 | `com/jtech/zemer/utils/ogg` | 1 |

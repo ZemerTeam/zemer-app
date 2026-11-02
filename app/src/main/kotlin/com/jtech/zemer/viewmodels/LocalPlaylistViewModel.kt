@@ -12,6 +12,7 @@ import com.jtech.zemer.db.entities.PlaylistSong
 import com.jtech.zemer.extensions.reversed
 import com.jtech.zemer.extensions.toEnum
 import com.jtech.zemer.utils.dataStore
+import com.jtech.zemer.utils.hideFilteredPlaylistSongs
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.SharingStarted
@@ -43,7 +44,7 @@ constructor(
             .stateIn(viewModelScope, SharingStarted.Lazily, null)
     val playlistSongs: StateFlow<List<PlaylistSong>> =
         combine(
-            database.playlistSongs(playlistId),
+            database.playlistSongs(playlistId).hideFilteredPlaylistSongs(database),
             context.dataStore.data
                 .map {
                     it[PlaylistSongSortTypeKey].toEnum(PlaylistSongSortType.CUSTOM) to (it[PlaylistSongSortDescendingKey]
@@ -79,8 +80,9 @@ constructor(
 
     init {
         viewModelScope.launch {
+            // Every stored row, hidden ones included: positions must stay unique across the whole playlist.
             val sortedSongs =
-                playlistSongs.first().sortedWith(compareBy({ it.map.position }, { it.map.id }))
+                database.playlistSongs(playlistId).first().sortedWith(compareBy({ it.map.position }, { it.map.id }))
             database.transaction {
                 sortedSongs.forEachIndexed { index, playlistSong ->
                     if (playlistSong.map.position != index) {

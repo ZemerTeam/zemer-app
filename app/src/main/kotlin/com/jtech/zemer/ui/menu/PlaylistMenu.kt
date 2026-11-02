@@ -52,6 +52,7 @@ import com.jtech.zemer.ui.component.PlaylistListItem
 import kotlinx.coroutines.CoroutineScope
 import com.jtech.zemer.tracking.Tracker
 import com.jtech.zemer.tracking.TrackingActionKind
+import com.jtech.zemer.utils.hideFilteredPlaylistSongs
 
 @Composable
 fun PlaylistMenu(
@@ -74,7 +75,7 @@ fun PlaylistMenu(
 
     LaunchedEffect(Unit) {
         if (autoPlaylist == false) {
-            database.playlistSongs(playlist.id).collect {
+            database.playlistSongs(playlist.id).hideFilteredPlaylistSongs(database).collect {
                 songs = it.map(PlaylistSong::song)
             }
         } else {

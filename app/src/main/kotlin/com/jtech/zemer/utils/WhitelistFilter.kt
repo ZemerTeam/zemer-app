@@ -39,24 +39,29 @@ private suspend fun SongItem.isWhitelisted(
     config: ContentFilterConfig,
     requireAllArtists: Boolean,
     fallbackArtistId: String?,
-): Boolean {
-    if (this.artists.isEmpty()) {
-        // Some YTM artist sections (albums/singles) omit artist data; fall back to the page artist.
-        if (fallbackArtistId != null) {
-            return database.artistMatchesFilters(fallbackArtistId, allowedIds, artistCache, config)
-        }
-        return false
-    }
+): Boolean = creditsPass(artists.map { it.id }, config.filtersEnabled, requireAllArtists, fallbackArtistId) {
+    database.artistMatchesFilters(it, allowedIds, artistCache, config)
+}
 
+/**
+ * Whether an item's artist credits pass. Filters off passes everything, including credits with no ids.
+ * No credits at all falls back to [fallbackArtistId] (some YTM album/singles sections omit artist data, so the
+ * page artist stands in); credits without an id are skipped.
+ */
+internal suspend fun creditsPass(
+    artistIds: List<String?>,
+    filtersEnabled: Boolean,
+    requireAllArtists: Boolean,
+    fallbackArtistId: String?,
+    matches: suspend (String) -> Boolean,
+): Boolean {
+    if (!filtersEnabled) return true
+    if (artistIds.isEmpty()) return fallbackArtistId != null && matches(fallbackArtistId)
     var anyAllowed = false
     var allAllowed = true
-    for (artist in artists) {
-        val artistId = artist.id ?: continue
-        if (database.artistMatchesFilters(artistId, allowedIds, artistCache, config)) {
-            anyAllowed = true
-        } else {
-            allAllowed = false
-        }
+    for (artistId in artistIds) {
+        if (artistId == null) continue
+        if (matches(artistId)) anyAllowed = true else allAllowed = false
     }
     return if (requireAllArtists) allAllowed && anyAllowed else anyAllowed
 }
@@ -73,27 +78,8 @@ private suspend fun AlbumItem.isWhitelisted(
     config: ContentFilterConfig,
     requireAllArtists: Boolean,
     fallbackArtistId: String?,
-): Boolean {
-    val albumArtists = this.artists
-    if (albumArtists.isNullOrEmpty()) {
-        // Albums/singles/EPs sometimes omit artists in the response; trust the page artist when provided.
-        if (fallbackArtistId != null) {
-            return database.artistMatchesFilters(fallbackArtistId, allowedIds, artistCache, config)
-        }
-        return false
-    }
-
-    var anyAllowed = false
-    var allAllowed = true
-    for (artist in albumArtists) {
-        val artistId = artist.id ?: continue
-        if (database.artistMatchesFilters(artistId, allowedIds, artistCache, config)) {
-            anyAllowed = true
-        } else {
-            allAllowed = false
-        }
-    }
-    return if (requireAllArtists) allAllowed && anyAllowed else anyAllowed
+): Boolean = creditsPass(artists.orEmpty().map { it.id }, config.filtersEnabled, requireAllArtists, fallbackArtistId) {
+    database.artistMatchesFilters(it, allowedIds, artistCache, config)
 }
 
 /**
