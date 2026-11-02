@@ -25,6 +25,7 @@ import androidx.compose.ui.unit.TextUnitType
 import androidx.compose.ui.unit.dp
 import com.metrolist.innertube.YouTube
 import com.metrolist.innertube.models.SongItem
+import com.metrolist.innertube.models.YTItem
 import com.jtech.zemer.LocalDatabase
 import com.jtech.zemer.R
 import com.jtech.zemer.constants.ListThumbnailSize
@@ -35,6 +36,7 @@ import com.jtech.zemer.ui.component.CreatePlaylistDialog
 import com.jtech.zemer.ui.component.ListDialog
 import com.jtech.zemer.ui.component.ListItem
 import com.jtech.zemer.ui.component.PlaylistListItem
+import com.jtech.zemer.utils.filterWhitelisted
 import com.jtech.zemer.utils.reportException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -42,6 +44,18 @@ import kotlinx.coroutines.withContext
 import timber.log.Timber
 import java.net.URLDecoder
 import java.nio.charset.StandardCharsets
+
+/**
+ * The song an imported (M3U / CSV) line maps to: the top search hit, only if it passes the content filter.
+ * Never a lower hit that passes (a different song), never an unfiltered one (the import bypassed the whitelist).
+ */
+internal suspend fun importMatch(
+    results: List<YTItem>,
+    contentFilter: suspend (List<YTItem>) -> List<YTItem>,
+): SongItem? {
+    val top = results.firstOrNull() as? SongItem ?: return null
+    return contentFilter(listOf(top)).firstOrNull() as? SongItem
+}
 
 @Composable
 fun AddToPlaylistDialogOnline(
@@ -71,10 +85,9 @@ fun AddToPlaylistDialogOnline(
         val query = if (allArtists.isBlank()) song.title else "${song.title} - $allArtists"
 
         return runCatching {
-            YouTube.search(query, YouTube.SearchFilter.FILTER_SONG)
-                .getOrNull()
-                ?.items
-                ?.firstOrNull() as? SongItem
+            importMatch(YouTube.search(query, YouTube.SearchFilter.FILTER_SONG).getOrNull()?.items.orEmpty()) {
+                it.filterWhitelisted(database)
+            }
         }.onFailure { reportException(it) }
             .getOrNull()
     }
