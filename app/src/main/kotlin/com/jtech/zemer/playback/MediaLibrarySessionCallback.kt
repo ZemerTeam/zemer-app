@@ -47,6 +47,7 @@ import com.jtech.zemer.utils.future
 import com.jtech.zemer.utils.immediateFuture
 import com.jtech.zemer.utils.pendingFuture
 import com.jtech.zemer.utils.reportException
+import com.jtech.zemer.utils.withoutFilteredSongs
 import com.jtech.zemer.utils.withoutFullyBlocked
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
@@ -392,7 +393,7 @@ constructor(
 
                                     else ->
                                         database.playlistSongs(playlistId).map { list ->
-                                            list.map { it.song }
+                                            list.map { it.song }.withoutFilteredSongs(database) { it }
                                         }
                                 }.first().let { songs ->
                                     listOf(shuffleMediaItem(parentId)) +
@@ -490,7 +491,7 @@ constructor(
                 
                 val playlistSongs = database.searchPlaylists(query).first().flatMap { playlist ->
                     database.playlistSongs(playlist.id).first().map { it.song }
-                }
+                }.withoutFilteredSongs(database) { it }
 
                 val allLocalSongs = (localSongs + artistSongs + albumSongs + playlistSongs)
                     .distinctBy { it.id }
@@ -616,7 +617,7 @@ constructor(
                                 includeVideos = context.dataStore.get(VideoDownloadsInMusicKey, true),
                             )
                         else -> database.playlistSongs(playlistId).map { list ->
-                            list.map { it.song }
+                            list.map { it.song }.withoutFilteredSongs(database) { it }
                         }
                     }.first()
 
@@ -687,7 +688,7 @@ constructor(
                     
                     val playlistSongs = database.searchPlaylists(searchQuery).first().flatMap { playlist ->
                         database.playlistSongs(playlist.id).first().map { it.song }
-                    }
+                    }.withoutFilteredSongs(database) { it }
 
                     val allLocalSongs = (localSongs + artistSongs + albumSongs + playlistSongs)
                         .distinctBy { it.id }

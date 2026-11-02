@@ -135,6 +135,7 @@ import com.jtech.zemer.utils.rememberEnumPreference
 import com.jtech.zemer.utils.rememberPreference
 import com.jtech.zemer.utils.remotePlaylistRemovalArgs
 import com.jtech.zemer.utils.reportException
+import com.jtech.zemer.utils.storedMovePositions
 import com.jtech.zemer.viewmodels.LocalPlaylistViewModel
 import com.metrolist.innertube.YouTube
 import com.yalantis.ucrop.UCrop
@@ -348,7 +349,9 @@ fun LocalPlaylistScreen(
 
     LaunchedEffect(reorderableState.isAnyItemDragging) {
         if (!reorderableState.isAnyItemDragging) {
-            dragInfo?.let { (from, to) ->
+            dragInfo?.let { (fromRow, toRow) ->
+                // Rows are visible indices; songs the content filter hides keep their stored positions.
+                val (from, to) = storedMovePositions(songs.map { it.map.position }, fromRow, toRow)
                 database.transaction {
                     move(viewModel.playlistId, from, to)
                 }
@@ -1110,10 +1113,11 @@ fun LocalPlaylistHeader(
                             playlist.playlist.remoteSongCount
                         )
                     else
+                        // The songs shown, which leaves out any the content filter hides.
                         pluralStringResource(
                             R.plurals.n_song,
-                            playlist.songCount,
-                            playlist.songCount
+                            songs.size,
+                            songs.size
                         ),
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Normal,

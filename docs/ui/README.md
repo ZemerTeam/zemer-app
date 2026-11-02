@@ -217,7 +217,7 @@ Every `@Composable fun` per UI file (extension receivers dropped, so `BoxScope.X
 | `app/src/main/kotlin/com/jtech/zemer/ui/menu/LoadingScreen.kt` | 23 | LoadingScreen |
 | `app/src/main/kotlin/com/jtech/zemer/ui/menu/LyricsMenu.kt` | 188 | LyricsMenu |
 | `app/src/main/kotlin/com/jtech/zemer/ui/menu/PlayerMenu.kt` | 524 | PlayerMenu, TempoPitchDialog, ValueAdjuster |
-| `app/src/main/kotlin/com/jtech/zemer/ui/menu/PlaylistMenu.kt` | 232 | PlaylistMenu |
+| `app/src/main/kotlin/com/jtech/zemer/ui/menu/PlaylistMenu.kt` | 233 | PlaylistMenu |
 | `app/src/main/kotlin/com/jtech/zemer/ui/menu/PodcastChannelMenu.kt` | 184 | PodcastChannelMenu, YouTubePodcastMenu, podcastAction, podcastShareAction, PodcastMenuLayout |
 | `app/src/main/kotlin/com/jtech/zemer/ui/menu/ReportContentDialog.kt` | 130 | ReportContentDialog |
 | `app/src/main/kotlin/com/jtech/zemer/ui/menu/SavedStatusMenu.kt` | 113 | SavedStatusMenu |
@@ -291,7 +291,7 @@ Every `@Composable fun` per UI file (extension receivers dropped, so `BoxScope.X
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/playlist/CachePlaylistScreen.kt` | 357 | CachePlaylistScreen |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/playlist/DownloadedContentScreen.kt` | 129 | DownloadedContentScreen |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/playlist/DownloadedVideosScreen.kt` | 320 | DownloadedVideosScreen |
-| `app/src/main/kotlin/com/jtech/zemer/ui/screens/playlist/LocalPlaylistScreen.kt` | 1260 | LocalPlaylistScreen, LocalPlaylistHeader |
+| `app/src/main/kotlin/com/jtech/zemer/ui/screens/playlist/LocalPlaylistScreen.kt` | 1264 | LocalPlaylistScreen, LocalPlaylistHeader |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/playlist/OnlinePlaylistScreen.kt` | 555 | OnlinePlaylistScreen |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/playlist/PlaylistDetailShared.kt` | 220 | PlaylistHeaderShimmer, PlaylistPlayShuffleButtons, PlaylistDetailHeader |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/playlist/TopPlaylistScreen.kt` | 346 | TopPlaylistScreen |
@@ -447,7 +447,7 @@ Key declarations are the first 12 `class`/`object`/`interface`/`fun`/`val`/`var`
 | `app/src/main/kotlin/com/jtech/zemer/ui/menu/LoadingScreen.kt` | 23 | fun LoadingScreen |
 | `app/src/main/kotlin/com/jtech/zemer/ui/menu/LyricsMenu.kt` | 188 | fun LyricsMenu, val context, val database, var showEditDialog, val id, var showReportDialog, val lineExtrasLanguage, val onLineExtrasLanguageChange, var showLineExtrasDialog |
 | `app/src/main/kotlin/com/jtech/zemer/ui/menu/PlayerMenu.kt` | 524 | fun PlayerMenu, val context, val database, val playerConnection, val playerVolume, val isCasting, val isStationBroadcast, val remoteVolume, val activityResultLauncher, val coroutineScope, val downloadUtil, val mediaStoreDownload, … (+22 more) |
-| `app/src/main/kotlin/com/jtech/zemer/ui/menu/PlaylistMenu.kt` | 232 | fun PlaylistMenu, val context, val database, val downloadUtil, val playerConnection, val dbPlaylist, var songs, var showReportDialog, val mediaStoreDownloads, val downloadScope, val dlStatus, val dlProgress |
+| `app/src/main/kotlin/com/jtech/zemer/ui/menu/PlaylistMenu.kt` | 233 | fun PlaylistMenu, val context, val database, val downloadUtil, val playerConnection, val dbPlaylist, var songs, var showReportDialog, val mediaStoreDownloads, val downloadScope, val dlStatus, val dlProgress |
 | `app/src/main/kotlin/com/jtech/zemer/ui/menu/PodcastChannelMenu.kt` | 184 | fun PodcastChannelMenu, fun YouTubePodcastMenu, fun podcastAction, fun podcastShareAction, val context, fun PodcastMenuLayout, val context |
 | `app/src/main/kotlin/com/jtech/zemer/ui/menu/ReportContentDialog.kt` | 130 | fun ReportContentDialog, val context, val scope, var isSubmitting, var selectedReason, var comment, val reasons, val success |
 | `app/src/main/kotlin/com/jtech/zemer/ui/menu/SavedStatusMenu.kt` | 113 | fun SavedStatusMenu |
@@ -531,7 +531,7 @@ Key declarations are the first 12 `class`/`object`/`interface`/`fun`/`val`/`var`
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/playlist/CachePlaylistScreen.kt` | 357 | fun CachePlaylistScreen, val menuState, val playerConnection, val cacheSongsTitle, val haptic, val isPlaying, val mediaMetadata, val cachedSongs, val sortType, val onSortTypeChange, val sortDescending, val onSortDescendingChange, … (+9 more) |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/playlist/DownloadedContentScreen.kt` | 129 | fun DownloadedContentScreen, val blockVideos, val _, val blockPodcasts, val _, val musicCount, val videoCount, val statusCount, val podcastCount |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/playlist/DownloadedVideosScreen.kt` | 320 | fun DownloadedVideosScreen, val menuState, val haptic, val playerConnection, val isPlaying, val mediaMetadata, val videos, val downloadedVideosTitle, val mutableVideos, var isSearching, var query, val focusRequester, … (+12 more) |
-| `app/src/main/kotlin/com/jtech/zemer/ui/screens/playlist/LocalPlaylistScreen.kt` | 1260 | fun LocalPlaylistScreen, val context, val menuState, val database, val haptic, val playerConnection, val isPlaying, val mediaMetadata, val playlist, val songs, val mutableSongs, val sortType, … (+70 more) |
+| `app/src/main/kotlin/com/jtech/zemer/ui/screens/playlist/LocalPlaylistScreen.kt` | 1264 | fun LocalPlaylistScreen, val context, val menuState, val database, val haptic, val playerConnection, val isPlaying, val mediaMetadata, val playlist, val songs, val mutableSongs, val sortType, … (+72 more) |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/playlist/OnlinePlaylistScreen.kt` | 555 | fun OnlinePlaylistScreen, val menuState, val database, val haptic, val playerConnection, val isPlaying, val mediaMetadata, val playlist, val songs, val dbPlaylist, val isLoading, val isLoadingMore, … (+14 more) |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/playlist/PlaylistDetailShared.kt` | 220 | fun PlaylistHeaderShimmer, fun PlaylistPlayShuffleButtons, fun PlaylistDetailHeader |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/playlist/PlaylistHeaderCover.kt` | 16 |  |
