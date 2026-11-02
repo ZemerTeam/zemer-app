@@ -1,6 +1,6 @@
 # Android resource index
 
-Tracked Android resource paths under `app/src/**/res`: `214`.
+Tracked Android resource paths under `app/src/**/res`: `215`.
 
 ## `drawable` (167 paths)
 
@@ -241,10 +241,11 @@ Tracked Android resource paths under `app/src/**/res`: `214`.
 | `app/src/main/res/mipmap-xxxhdpi/ic_launcher_foreground.webp` | 2592 bytes | `` |  |
 | `app/src/main/res/mipmap-xxxhdpi/ic_launcher_round.webp` | 4890 bytes | `` |  |
 
-## `raw` (2 paths)
+## `raw` (3 paths)
 
 | Path | Lines/bytes | XML root | Resource names / metadata |
 | --- | ---: | --- | --- |
+| `app/src/main/res/raw/legal_builtin.json` | 14 lines | `` |  |
 | `app/src/main/res/raw/loading_dots_blue.lottie` | 1221 bytes | `` |  |
 | `app/src/main/res/raw/welcome.lottie` | 2138 bytes | `` |  |
 

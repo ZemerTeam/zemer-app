@@ -1,6 +1,6 @@
 # Non-Kotlin file reference
 
-Every tracked non-Kotlin path outside `docs/` is listed. Text files report line counts; binary files report byte counts; gitlinks are recorded as non-file tracked paths. Total paths: `450`.
+Every tracked non-Kotlin path outside `docs/` is listed. Text files report line counts; binary files report byte counts; gitlinks are recorded as non-file tracked paths. Total paths: `451`.
 
 | Path | Size/status | Type metadata |
 | --- | ---: | --- |
@@ -259,6 +259,7 @@ Every tracked non-Kotlin path outside `docs/` is listed. Text files report line 
 | `app/src/main/res/mipmap-xxxhdpi/ic_launcher.webp` | 1942 bytes | binary `.webp` |
 | `app/src/main/res/mipmap-xxxhdpi/ic_launcher_foreground.webp` | 2592 bytes | binary `.webp` |
 | `app/src/main/res/mipmap-xxxhdpi/ic_launcher_round.webp` | 4890 bytes | binary `.webp` |
+| `app/src/main/res/raw/legal_builtin.json` | 14 lines | text `.json`; JSON keys `privacy, terms` |
 | `app/src/main/res/raw/loading_dots_blue.lottie` | 1221 bytes | binary `.lottie` |
 | `app/src/main/res/raw/welcome.lottie` | 2138 bytes | binary `.lottie` |
 | `app/src/main/res/resources.properties` | 1 lines | text `.properties` |
