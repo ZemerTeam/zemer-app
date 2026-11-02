@@ -139,6 +139,16 @@ class MediaStoreDownloadService : Service() {
         return START_STICKY
     }
 
+    // Android 15+ calls onTimeout once the dataSync foreground time limit is used up; the service must stop
+    // within seconds or the process is killed (ForegroundServiceDidNotStopInTimeException). Failed downloads
+    // offer Retry, which the user can tap once the app is in the foreground again.
+    override fun onTimeout(startId: Int, fgsType: Int) {
+        Timber.w("Download service hit the foreground time limit; failing pending downloads")
+        downloadManager.failAll(getString(R.string.download_stopped_by_system))
+        stopForeground(STOP_FOREGROUND_REMOVE)
+        stopSelf()
+    }
+
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onDestroy() {

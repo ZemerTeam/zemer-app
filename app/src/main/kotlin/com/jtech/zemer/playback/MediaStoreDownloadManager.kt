@@ -325,6 +325,26 @@ constructor(
     }
 
     /**
+     * Fails every queued and running download with [error], so each one offers Retry. Used when Android
+     * ends the download service (the dataSync foreground time limit): the service must stop at once. A
+     * running download is marked only once its job has ended after the cancel, so no late state from it
+     * overwrites FAILED (a stuck DOWNLOADING state would make downloadSong ignore the song).
+     */
+    fun failAll(error: String) {
+        val failed = { id: String ->
+            updateDownloadState(id, DownloadState(songId = id, status = DownloadState.Status.FAILED, error = error))
+        }
+        synchronized(downloadQueue) {
+            downloadQueue.map { it.id }.also { downloadQueue.clear() }
+        }.forEach(failed)
+        activeDownloads.keys.toList().forEach { id ->
+            val job = activeDownloads.remove(id) ?: return@forEach
+            job.invokeOnCompletion { cause -> if (cause is CancellationException) failed(id) }
+            job.cancel()
+        }
+    }
+
+    /**
      * Retry a failed download
      *
      * @param songId The ID of the song to retry
