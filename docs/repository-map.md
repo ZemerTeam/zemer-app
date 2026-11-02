@@ -995,9 +995,9 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/main/res/raw/welcome.lottie` | 2138 bytes | `.lottie` |
 | `app/src/main/res/resources.properties` | 1 lines | `.properties` |
 | `app/src/main/res/values-fr/metrolist_strings.xml` | 282 lines | `.xml` |
-| `app/src/main/res/values-fr/strings.xml` | 401 lines | `.xml` |
+| `app/src/main/res/values-fr/strings.xml` | 398 lines | `.xml` |
 | `app/src/main/res/values-iw/metrolist_strings.xml` | 136 lines | `.xml` |
-| `app/src/main/res/values-iw/strings.xml` | 269 lines | `.xml` |
+| `app/src/main/res/values-iw/strings.xml` | 262 lines | `.xml` |
 | `app/src/main/res/values-ji/metrolist_strings.xml` | 3 lines | `.xml` |
 | `app/src/main/res/values-ji/strings.xml` | 3 lines | `.xml` |
 | `app/src/main/res/values-night/colors.xml` | 6 lines | `.xml` |
