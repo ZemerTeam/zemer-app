@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.datastore.preferences.core.edit
 import com.jtech.zemer.BuildConfig
 import com.jtech.zemer.constants.TrackingDeviceIdKey
+import com.jtech.zemer.db.DatabaseDao
 import com.jtech.zemer.utils.dataStore
 import com.jtech.zemer.utils.getSuspend
 import kotlinx.coroutines.CancellationException
@@ -49,6 +50,7 @@ object Tracker {
     private var queue: TrackingQueue? = null
     private var uploader = TrackingUploader()
     private var appContext: Context? = null
+    private var dao: () -> DatabaseDao? = { null }
 
     /** The install UUID sent as `device`; also put on crash reports so they join the install's history. */
     @Volatile
@@ -62,12 +64,13 @@ object Tracker {
     private var pendingFlushAt = Long.MAX_VALUE
 
     /** Idempotent; called once from [com.jtech.zemer.App.onCreate]. */
-    fun initialize(context: Context) {
+    fun initialize(context: Context, dao: () -> DatabaseDao? = { null }) {
         if (ready.isCompleted) return
         val appContext = context.applicationContext
         scope.launch {
             if (ready.isCompleted) return@launch
             this@Tracker.appContext = appContext
+            this@Tracker.dao = dao
             queue = TrackingQueue(File(appContext.filesDir, QUEUE_FILE))
             deviceId = runCatching {
                 val stored = appContext.dataStore.getSuspend(TrackingDeviceIdKey, "")
@@ -305,7 +308,7 @@ object Tracker {
     private suspend fun info(): JsonObject? {
         val context = appContext ?: return null
         return try {
-            DeviceInfo.collect(context)
+            DeviceInfo.collect(context, dao())
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {

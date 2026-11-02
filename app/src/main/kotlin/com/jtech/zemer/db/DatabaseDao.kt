@@ -21,6 +21,7 @@ import com.jtech.zemer.constants.SongSortType
 import com.jtech.zemer.tracking.Tracker
 import com.jtech.zemer.tracking.TrackingActionKind
 import com.jtech.zemer.db.entities.ActionSnapshotRow
+import com.jtech.zemer.db.entities.LibraryCounts
 import com.jtech.zemer.db.entities.Album
 import com.jtech.zemer.db.entities.AlbumArtistMap
 import com.jtech.zemer.db.entities.AlbumEntity
@@ -1192,6 +1193,17 @@ interface DatabaseDao {
 
     @Query("SELECT COUNT(*) FROM event")
     fun eventCount(): Flow<Int>
+
+    /** Library size for the tracking batch's `info`. */
+    @Query(
+        """
+        SELECT (SELECT COUNT(*) FROM song WHERE inLibrary IS NOT NULL) AS librarySongs,
+               (SELECT COUNT(*) FROM song WHERE isDownloaded = 1) AS downloads,
+               (SELECT COUNT(*) FROM playlist WHERE bookmarkedAt IS NOT NULL) AS playlists,
+               (SELECT COUNT(*) FROM song WHERE liked = 1) AS liked
+        """
+    )
+    suspend fun libraryCounts(): LibraryCounts
 
     /**
      * Listen-history rows for the one-shot telemetry backfill (tracking/PlayHistoryBackfill.kt),

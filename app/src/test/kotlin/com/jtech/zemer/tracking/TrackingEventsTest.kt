@@ -219,6 +219,15 @@ class TrackingEventsTest {
     }
 
     @Test
+    fun `account fields only for a personal login`() {
+        val account = mapOf("accountEmail" to "a@b.io", "accountName" to "A", "dataSyncId" to "ds1")
+        assertEquals(mapOf("accountEmail" to "a@b.io", "accountName" to "A"), personalAccount(account))
+        assertEquals(emptyMap<String, String>(), personalAccount(account + ("dataSyncId" to "")))
+        assertEquals(emptyMap<String, String>(), personalAccount(account - "dataSyncId"))
+        assertEquals(mapOf("accountName" to "A"), personalAccount(account + ("accountEmail" to " ")))
+    }
+
+    @Test
     fun `retry ladder - 30s then 2min then 10min, rate-limit floor 2min`() {
         assertEquals(30_000L, trackingRetryDelayMs(1, rateLimited = false))
         assertEquals(120_000L, trackingRetryDelayMs(2, rateLimited = false))

@@ -765,7 +765,9 @@ detail in `docs/tracking/README.md`. Rules that must not regress:
 - **Identity is one random UUID** (`TrackingDeviceIdKey`, only `UUID.randomUUID()` output - the server
   400s non-canonical ids). **Owner rule (2026-11-02): maximum collection in every Zemer service.** Every
   batch carries an `info` object (`tracking/DeviceInfo`: Build fields, OS, locale, tz, installer, screen,
-  network, carrier, RAM, free storage, and `settingsSnapshot` of the DataStore settings, max 4 KB); the
+  network, carrier, RAM, free storage, battery, Play services / root / Shizuku presence (root is a passive
+  file check, never `su`), `EnvSignals.mask`, install times, library counts, the personal account's email +
+  name, and `settingsSnapshot` of the DataStore settings, max 4 KB; integers as JSON numbers); the
   server adds the request's address, country and network. Never send credentials (cookie, visitorData,
   tokens, signatures; `EXCLUDED_SETTINGS` / `CREDENTIAL_NAME`) and never the relay id (`RelayDeviceIdKey`).
   **Any new collected field updates the onboarding privacy text (`onboarding_privacy_body_telemetry`) in

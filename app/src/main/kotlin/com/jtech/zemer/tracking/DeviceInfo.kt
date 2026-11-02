@@ -2,18 +2,24 @@ package com.jtech.zemer.tracking
 
 import android.app.ActivityManager
 import android.content.Context
+import android.content.pm.PackageManager
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
+import android.os.BatteryManager
 import android.os.Build
 import android.os.StatFs
 import android.telephony.TelephonyManager
 import com.jtech.zemer.BuildConfig
+import com.jtech.zemer.db.DatabaseDao
+import com.jtech.zemer.net.EnvSignals
 import com.jtech.zemer.utils.dataStore
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.first
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
+import java.io.File
 import java.io.IOException
 import java.util.Locale
 import java.util.TimeZone
@@ -24,7 +30,7 @@ import java.util.TimeZone
  */
 internal object DeviceInfo {
 
-    suspend fun collect(context: Context): JsonObject = buildJsonObject {
+    suspend fun collect(context: Context, dao: DatabaseDao?): JsonObject = buildJsonObject {
         put("manufacturer", Build.MANUFACTURER)
         put("brand", Build.BRAND)
         put("model", Build.MODEL)
@@ -54,8 +60,43 @@ internal object DeviceInfo {
         } catch (e: IOException) {
             null
         }
-        prefs?.let { put("settings", settingsSnapshot(it.mapKeys { (key, _) -> key.name })) }
+        val named = prefs?.mapKeys { (key, _) -> key.name }.orEmpty()
+        if (prefs != null) put("settings", settingsSnapshot(named))
+        personalAccount(named).forEach { (k, v) -> put(k, v) }
+        val counts = try {
+            dao?.libraryCounts()
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            null
+        }
+        counts?.let {
+            put("librarySongs", it.librarySongs)
+            put("downloads", it.downloads)
+            put("playlists", it.playlists)
+            put("liked", it.liked)
+        }
+        context.getSystemService(BatteryManager::class.java)?.let { battery ->
+            battery.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY).takeIf { it in 0..100 }?.let { put("batteryPct", it) }
+            put("charging", if (battery.isCharging) 1 else 0)
+        }
+        put("playServices", if (hasPackage(context, PLAY_SERVICES)) 1 else 0)
+        put("shizuku", if (hasPackage(context, SHIZUKU)) 1 else 0)
+        put("rooted", if (SU_PATHS.any { File(it).exists() }) 1 else 0)
+        put("envBits", EnvSignals.mask)
+        runCatching { context.packageManager.getPackageInfo(context.packageName, 0) }.getOrNull()?.let {
+            put("firstInstallAt", it.firstInstallTime)
+            put("lastUpdateAt", it.lastUpdateTime)
+        }
     }
+
+    private fun hasPackage(context: Context, name: String): Boolean =
+        try {
+            context.packageManager.getPackageInfo(name, 0)
+            true
+        } catch (e: PackageManager.NameNotFoundException) {
+            false
+        }
 
     private fun installer(context: Context): String? =
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
@@ -77,9 +118,28 @@ internal object DeviceInfo {
     }
 
     private const val MIB = 1024L * 1024L
+    private const val PLAY_SERVICES = "com.google.android.gms"
+    private const val SHIZUKU = "moe.shizuku.privileged.api"
+
+    // a passive file check: never runs su (that would raise the Magisk grant prompt)
+    private val SU_PATHS = listOf(
+        "/system/bin/su", "/system/xbin/su", "/sbin/su", "/su/bin/su", "/system/sd/xbin/su",
+        "/data/local/su", "/data/local/bin/su", "/data/local/xbin/su", "/debug_ramdisk/su",
+    )
 }
 
-/** Settings keys never sent: credentials, the account's identity and the other install ids. */
+/**
+ * `accountEmail` / `accountName` of a PERSONAL Google login only: the pooled anonymous login has no
+ * dataSyncId, and its shared account must never be attributed to every anonymous install.
+ */
+internal fun personalAccount(prefs: Map<String, Any?>): Map<String, String> {
+    if ((prefs["dataSyncId"] as? String).isNullOrBlank()) return emptyMap()
+    return listOf("accountEmail", "accountName")
+        .mapNotNull { k -> (prefs[k] as? String)?.takeIf { it.isNotBlank() }?.let { k to it } }
+        .toMap()
+}
+
+/** Settings keys never sent: credentials, the account's identity (sent on its own, above) and the other install ids. */
 private val EXCLUDED_SETTINGS = setOf(
     "innerTubeCookie", "visitorData", "dataSyncId", "accountEmail", "accountName", "accountChannelHandle",
     "content_filters_restored_email", "trackingDeviceId", "relayDeviceId", "current_device_id", "device_id",

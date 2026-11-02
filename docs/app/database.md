@@ -14,7 +14,7 @@
 | View count in schema 36 | `3` |
 | Schema files tracked | `36` |
 | DAO file | `app/src/main/kotlin/com/jtech/zemer/db/DatabaseDao.kt` |
-| DAO `fun` declarations found by parser | `232` (`196` distinct names) |
+| DAO `fun` declarations found by parser | `233` (`197` distinct names) |
 
 <!-- /generated:db-facts -->
 
@@ -24,7 +24,7 @@
 
 | Annotation | Count |
 | --- | ---: |
-| `@Query` | 160 |
+| `@Query` | 161 |
 | `@Transaction` | 110 |
 | `@Insert` | 16 |
 | `@Delete` | 11 |
@@ -543,6 +543,7 @@ Every `fun` in `db/DatabaseDao.kt` in source order (overloads repeat the name). 
 | `searchPlaylists` | `query: String, previewSize: Int = Int.MAX_VALUE` | `Flow<List<Playlist>>` |
 | `events` |  | `Flow<List<EventWithSong>>` |
 | `eventCount` |  | `Flow<Int>` |
+| `libraryCounts` |  | `LibraryCounts` |
 | `eventsForBackfill` | `afterId: Long, maxId: Long, limit: Int` | `List<Event>` |
 | `maxEventId` |  | `Long` |
 | `likedSongsForBackfill` |  | `List<ActionSnapshotRow>` |

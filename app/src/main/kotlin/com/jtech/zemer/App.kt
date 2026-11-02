@@ -107,11 +107,11 @@ class App : Application(), SingletonImageLoader.Factory {
         // Hidden-API exemptions for the Shizuku installer are applied lazily on first use
         // (AppInstaller.ensureHiddenApiBypass) so non-Shizuku users don't pay for it at startup.
 
-        // Anonymous usage telemetry (docs/tracking/README.md): fire-and-forget by contract, so a
+        // Usage telemetry (docs/tracking/README.md): fire-and-forget by contract, so a
         // failure here can never affect startup. The lifecycle callbacks own the `open` session
         // semantics and the flush-on-background trigger; the one-shot backfills self-delay
         // (45 s history, 90 s library actions) and no-op forever once their done-flags are set.
-        Tracker.initialize(this)
+        Tracker.initialize(this) { databaseLazy.get() }
         registerActivityLifecycleCallbacks(TrackingLifecycle())
         PlayHistoryBackfill.maybeStart(this) { databaseLazy.get() }
         LibraryActionBackfill.maybeStart(this) { databaseLazy.get() }

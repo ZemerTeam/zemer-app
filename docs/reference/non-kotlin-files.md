@@ -12,7 +12,7 @@ Every tracked non-Kotlin path outside `docs/` is listed. Text files report line 
 | `.github/workflows/ui-audit.yml` | 55 lines | text `.yml` |
 | `.gitignore` | 117 lines | text `[none]` |
 | `.gitmodules` | 3 lines | text `[none]` |
-| `AGENTS.md` | 1199 lines | text `.md` |
+| `AGENTS.md` | 1201 lines | text `.md` |
 | `LICENSE` | 674 lines | text `[none]` |
 | `README.md` | 9 lines | text `.md` |
 | `app/.gitignore` | 1 lines | text `[none]` |
@@ -59,7 +59,7 @@ Every tracked non-Kotlin path outside `docs/` is listed. Text files report line 
 | `app/src/androidTest/assets/sample-flat.m4a` | 5341038 bytes | binary `.m4a` |
 | `app/src/androidTest/assets/sample-opus.webm` | 5878798 bytes | binary `.webm` |
 | `app/src/debug/res/values/app_name.xml` | 4 lines | text `.xml`; XML root `resources` |
-| `app/src/main/AndroidManifest.xml` | 299 lines | text `.xml`; XML root `manifest` |
+| `app/src/main/AndroidManifest.xml` | 301 lines | text `.xml`; XML root `manifest` |
 | `app/src/main/cpp/zemersig/CMakeLists.txt` | 14 lines | text `.txt` |
 | `app/src/main/cpp/zemersig/apk_cert.c` | 100 lines | text `.c` |
 | `app/src/main/cpp/zemersig/apk_cert.h` | 8 lines | text `.h` |
