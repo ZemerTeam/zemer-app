@@ -10,6 +10,7 @@ import android.os.Looper
 import android.provider.Settings
 import android.text.TextUtils
 import com.jtech.zemer.accessibility.ButtonMapperAccessibilityService
+import com.jtech.zemer.extensions.openSettingsScreen
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.mutableStateOf
@@ -47,11 +48,7 @@ object AccessibilityUtils {
     }
 
     fun openAccessibilitySettings(context: Context) {
-        context.startActivity(
-            Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS).apply {
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            }
-        )
+        context.openSettingsScreen(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
     }
 }
 

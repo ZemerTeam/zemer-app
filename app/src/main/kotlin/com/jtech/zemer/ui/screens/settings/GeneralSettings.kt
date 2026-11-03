@@ -23,6 +23,7 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.jtech.zemer.LocalPlayerAwareWindowInsets
 import com.jtech.zemer.R
+import com.jtech.zemer.extensions.openSettingsScreen
 import com.jtech.zemer.ui.component.AppBarTitle
 import com.jtech.zemer.ui.component.BackTopAppBar
 import com.jtech.zemer.ui.component.PreferenceEntry
@@ -53,18 +54,12 @@ fun GeneralSettings(
                         title = { Text(stringResource(R.string.default_link_handler)) },
                         icon = { Icon(painterResource(R.drawable.link), null) },
                         onClick = {
-                            // Open default app settings
+                            val pkg = Uri.parse("package:${context.packageName}")
+                            val appDetails = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, pkg)
                             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                                val intent = Intent(Settings.ACTION_APP_OPEN_BY_DEFAULT_SETTINGS).apply {
-                                    data = Uri.parse("package:${context.packageName}")
-                                }
-                                context.startActivity(intent)
+                                context.openSettingsScreen(Intent(Settings.ACTION_APP_OPEN_BY_DEFAULT_SETTINGS, pkg), appDetails)
                             } else {
-                                // For older Android versions, open app settings
-                                val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
-                                    data = Uri.parse("package:${context.packageName}")
-                                }
-                                context.startActivity(intent)
+                                context.openSettingsScreen(appDetails)
                             }
                         }
                     )

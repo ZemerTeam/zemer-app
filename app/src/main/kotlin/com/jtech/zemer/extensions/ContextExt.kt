@@ -96,6 +96,25 @@ fun Context.openUrlOrCopy(url: String) {
 }
 
 /**
+ * Open the first system settings screen this phone has, in order (flip phones and stripped ROMs lack many of them,
+ * and starting a missing one throws ActivityNotFoundException); with none, say so instead of crashing.
+ */
+fun Context.openSettingsScreen(vararg intents: Intent) {
+    val opened = startFirst(intents.asList()) { startActivity(it.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
+    if (!opened) toast(R.string.settings_screen_unavailable)
+}
+
+/** Starts the first of [candidates] that [start] does not throw on; false when every one throws. */
+internal fun <T> startFirst(candidates: List<T>, start: (T) -> Unit): Boolean = candidates.any {
+    try {
+        start(it)
+        true
+    } catch (_: RuntimeException) {
+        false
+    }
+}
+
+/**
  * Open a link found in user content (a status description/body). If the URL matches one of the app's
  * OWN registered deep links (YouTube, music/video.zemer.io - see the manifest intent filters), it is
  * handed to this app so it opens NATIVELY. Everything else is forced into the external browser and can

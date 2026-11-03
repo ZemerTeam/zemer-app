@@ -36,6 +36,7 @@ import androidx.core.content.ContextCompat
 import androidx.core.net.toUri
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.jtech.zemer.R
+import com.jtech.zemer.extensions.openSettingsScreen
 import com.jtech.zemer.utils.PermissionHelper
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -342,9 +343,7 @@ private fun openSystemAlertSettings(context: Context) {
 }
 
 private fun openAppSettings(context: Context) {
-    val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
-        data = Uri.fromParts("package", context.packageName, null)
-        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-    }
-    context.startActivity(intent)
+    context.openSettingsScreen(
+        Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", context.packageName, null)),
+    )
 }
