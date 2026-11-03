@@ -47,7 +47,6 @@ import com.jtech.zemer.ui.component.OnboardingTextButton
 @Composable
 internal fun DensityScreen(
     onSkip: () -> Unit,
-    onBack: () -> Unit,
 ) {
     val context = LocalContext.current
     val (isConnected, isCheckingNetwork) = rememberOnboardingConnectivity()
@@ -172,12 +171,6 @@ internal fun DensityScreen(
                         modifier = Modifier.fillMaxWidth()
                     )
                 }
-
-                OnboardingTextButton(
-                    text = stringResource(R.string.onboarding_back),
-                    onClick = onBack,
-                    modifier = Modifier.fillMaxWidth(),
-                )
             }
         }
     }
