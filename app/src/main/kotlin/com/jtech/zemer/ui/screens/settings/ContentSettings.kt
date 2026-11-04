@@ -51,6 +51,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.jtech.zemer.LocalPlayerAwareWindowInsets
 import com.jtech.zemer.R
+import com.jtech.zemer.extensions.openSettingsScreen
 import com.jtech.zemer.utils.reportException
 import com.jtech.zemer.ui.component.SyncAccountWarning
 import com.jtech.zemer.ui.component.DefaultDialog
@@ -244,7 +245,7 @@ fun ContentSettings(
                             title = { Text(stringResource(R.string.app_language)) },
                             icon = { Icon(painterResource(R.drawable.language), null) },
                             onClick = {
-                                context.startActivity(
+                                context.openSettingsScreen(
                                     Intent(
                                         Settings.ACTION_APP_LOCALE_SETTINGS,
                                         "package:${context.packageName}".toUri()
