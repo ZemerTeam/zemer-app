@@ -624,7 +624,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/onboarding/OnboardingConnectivity.kt` | 44 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/onboarding/OnboardingNavigation.kt` | 39 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/onboarding/OnboardingSearchBackupScreen.kt` | 100 lines | `.kt` |
-| `app/src/main/kotlin/com/jtech/zemer/ui/screens/onboarding/PermissionsScreen.kt` | 349 lines | `.kt` |
+| `app/src/main/kotlin/com/jtech/zemer/ui/screens/onboarding/PermissionsScreen.kt` | 341 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/onboarding/PrivacyUpdateNotice.kt` | 57 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/onboarding/WelcomeScreen.kt` | 236 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/playlist/AutoPlaylistScreen.kt` | 391 lines | `.kt` |
