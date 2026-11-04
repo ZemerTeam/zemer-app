@@ -48,29 +48,26 @@ fun OnboardingFlow(
 
     LaunchedEffect(Unit) { viewModel.startAutoRestore(contentFiltersAlreadySet) }
 
-    var step by rememberSaveable { mutableStateOf(OnboardingStep.Welcome) }
+    var step by rememberSaveable { mutableStateOf(OnboardingNavigation.firstStep(densityAlreadySet)) }
 
     when (step) {
-        OnboardingStep.Welcome -> WelcomeScreen(
-            onContinue = {
-                step = OnboardingNavigation.afterWelcome(densityAlreadySet, contentFiltersAlreadySet)
-            }
+        OnboardingStep.Density -> DensityScreen(
+            onSkip = { step = OnboardingStep.Welcome },
         )
 
-        OnboardingStep.Density -> DensityScreen(
-            onSkip = { step = OnboardingNavigation.afterDensity(contentFiltersAlreadySet) },
-            onBack = { step = OnboardingStep.Welcome }
+        OnboardingStep.Welcome -> WelcomeScreen(
+            onContinue = { step = OnboardingNavigation.afterWelcome(contentFiltersAlreadySet) }
         )
 
         OnboardingStep.ContentFilters -> ContentFiltersScreen(
             onSkip = { step = OnboardingStep.Permissions },
-            onBack = { step = OnboardingNavigation.backFromContentFilters(densityAlreadySet) },
+            onBack = { step = OnboardingStep.Welcome },
             viewModel = viewModel,
             contentFiltersAlreadySet = contentFiltersAlreadySet
         )
 
         OnboardingStep.Permissions -> PermissionsScreen(
-            onBack = { step = OnboardingNavigation.backFromPermissions(densityAlreadySet, contentFiltersAlreadySet) },
+            onBack = { step = OnboardingNavigation.backFromPermissions(contentFiltersAlreadySet) },
             onComplete = { step = OnboardingStep.BottomNavSetup }
         )
 

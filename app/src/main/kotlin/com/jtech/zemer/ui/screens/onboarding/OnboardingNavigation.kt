@@ -1,7 +1,7 @@
 package com.jtech.zemer.ui.screens.onboarding
 
 /** The ordered onboarding steps. Public so the pure transition logic below is unit-testable. */
-enum class OnboardingStep { Welcome, Density, ContentFilters, Permissions, BottomNavSetup, SearchBackup, Loading }
+enum class OnboardingStep { Density, Welcome, ContentFilters, Permissions, BottomNavSetup, SearchBackup, Loading }
 
 /**
  * Pure step-transition logic for [com.jtech.zemer.ui.screens.OnboardingFlow], lifted out of the
@@ -11,29 +11,18 @@ enum class OnboardingStep { Welcome, Density, ContentFilters, Permissions, Botto
  * `when(step)` render.
  */
 object OnboardingNavigation {
-    /** Welcome -> the first step the user has not already configured. */
-    fun afterWelcome(densityAlreadySet: Boolean, contentFiltersAlreadySet: Boolean): OnboardingStep = when {
-        densityAlreadySet && contentFiltersAlreadySet -> OnboardingStep.Permissions
-        densityAlreadySet -> OnboardingStep.ContentFilters
-        else -> OnboardingStep.Density
-    }
-
-    /** Density (skip/apply) -> content filters, unless those are already set. */
-    fun afterDensity(contentFiltersAlreadySet: Boolean): OnboardingStep =
-        if (contentFiltersAlreadySet) OnboardingStep.Permissions else OnboardingStep.ContentFilters
-
-    /** Content filters back -> Density, unless it was skipped as already-set (then Welcome). */
-    fun backFromContentFilters(densityAlreadySet: Boolean): OnboardingStep =
+    /**
+     * Density comes first: on a small flip phone the Welcome step's agree checkbox and Continue button can sit
+     * off-screen until the display is scaled down. Skipped once a density is set (applying one restarts the app).
+     */
+    fun firstStep(densityAlreadySet: Boolean): OnboardingStep =
         if (densityAlreadySet) OnboardingStep.Welcome else OnboardingStep.Density
 
-    /**
-     * Permissions back -> the last step actually shown before it: ContentFilters if it was shown, else
-     * Density if it was shown, else Welcome. Without this, Back lands on a step that was skipped as
-     * already-set and never displayed.
-     */
-    fun backFromPermissions(densityAlreadySet: Boolean, contentFiltersAlreadySet: Boolean): OnboardingStep = when {
-        !contentFiltersAlreadySet -> OnboardingStep.ContentFilters
-        !densityAlreadySet -> OnboardingStep.Density
-        else -> OnboardingStep.Welcome
-    }
+    /** Welcome -> content filters, unless those are already set. */
+    fun afterWelcome(contentFiltersAlreadySet: Boolean): OnboardingStep =
+        if (contentFiltersAlreadySet) OnboardingStep.Permissions else OnboardingStep.ContentFilters
+
+    /** Permissions back -> ContentFilters if it was shown, else Welcome (never a step skipped as already-set). */
+    fun backFromPermissions(contentFiltersAlreadySet: Boolean): OnboardingStep =
+        if (contentFiltersAlreadySet) OnboardingStep.Welcome else OnboardingStep.ContentFilters
 }
