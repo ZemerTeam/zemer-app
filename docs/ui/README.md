@@ -260,7 +260,7 @@ Every `@Composable fun` per UI file (extension receivers dropped, so `BoxScope.X
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/LoadingScreen.kt` | 187 | LoadingScreen, WhitelistLoadFailed, DisposableLifecycle, DisposableEffectWithLifecycle |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/LoginGateScreen.kt` | 276 | LoginGateScreen |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/LoginScreen.kt` | 274 | LoginScreen |
-| `app/src/main/kotlin/com/jtech/zemer/ui/screens/OnboardingScreen.kt` | 89 | OnboardingFlow |
+| `app/src/main/kotlin/com/jtech/zemer/ui/screens/OnboardingScreen.kt` | 90 | OnboardingFlow |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/PodcastGenreScreen.kt` | 132 | PodcastGenreScreen |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/PodcastGenresScreen.kt` | 95 | PodcastGenresScreen |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/SplashScreen.kt` | 166 | SplashScreen |
@@ -282,12 +282,12 @@ Every `@Composable fun` per UI file (extension receivers dropped, so `BoxScope.X
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/library/LibraryVideosScreen.kt` | 148 | LibraryVideosScreen |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/onboarding/BottomNavSetupScreen.kt` | 118 | BottomNavSetupScreen |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/onboarding/ContentFiltersScreen.kt` | 436 | ContentFiltersScreen, FilterOptionCard |
-| `app/src/main/kotlin/com/jtech/zemer/ui/screens/onboarding/DensityScreen.kt` | 287 | DensityScreen, RestartDialog, CustomDensityDialog |
+| `app/src/main/kotlin/com/jtech/zemer/ui/screens/onboarding/DensityScreen.kt` | 274 | DensityScreen, RestartDialog, CustomDensityDialog, dialogTitle |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/onboarding/OnboardingConnectivity.kt` | 44 | rememberOnboardingConnectivity |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/onboarding/OnboardingSearchBackupScreen.kt` | 100 | OnboardingSearchBackupScreen |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/onboarding/PermissionsScreen.kt` | 350 | PermissionsScreen, PermissionCard |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/onboarding/PrivacyUpdateNotice.kt` | 57 | privacyNoticeBlocking |
-| `app/src/main/kotlin/com/jtech/zemer/ui/screens/onboarding/WelcomeScreen.kt` | 236 | WelcomeScreen, LegalOverlay |
+| `app/src/main/kotlin/com/jtech/zemer/ui/screens/onboarding/WelcomeScreen.kt` | 243 | WelcomeScreen, LegalOverlay |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/playlist/AutoPlaylistScreen.kt` | 391 | AutoPlaylistScreen |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/playlist/CachePlaylistScreen.kt` | 357 | CachePlaylistScreen |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/playlist/DownloadedContentScreen.kt` | 129 | DownloadedContentScreen |
@@ -499,7 +499,7 @@ Key declarations are the first 12 `class`/`object`/`interface`/`fun`/`val`/`var`
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/LoginGateScreen.kt` | 276 | fun LoginGateScreen, val context, val coroutineScope, var isAnonymousLoading, var visitorData, var dataSyncId, var innerTubeCookie, var accountName, var accountEmail, var accountChannelHandle, val gradient, val httpClient, … (+11 more) |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/LoginScreen.kt` | 274 | fun LoginScreen, val context, val coroutineScope, var visitorData, var dataSyncId, var innerTubeCookie, var accountName, var accountEmail, var accountChannelHandle, var hasCompletedLogin, var webView, var webViewMissing, … (+11 more) |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/NavigationBuilder.kt` | 498 | fun podcastsBlockedRedirect, val blocked, fun NavGraphBuilder, val genreId, val genreId, val genreId, val row, val creatorId |
-| `app/src/main/kotlin/com/jtech/zemer/ui/screens/OnboardingScreen.kt` | 89 | fun OnboardingFlow, val context, val viewModel, val uiState, val densityAlreadySet, val prefs, val contentFiltersAlreadySet, var step |
+| `app/src/main/kotlin/com/jtech/zemer/ui/screens/OnboardingScreen.kt` | 90 | fun OnboardingFlow, val context, val viewModel, val uiState, val densityAlreadySet, val contentFiltersAlreadySet, var step |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/PodcastGenreScreen.kt` | 132 | fun PodcastGenreScreen, val state, val gridState, val showTopBarTitle, val uiState, val covers |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/PodcastGenresScreen.kt` | 95 | fun PodcastGenresScreen, val state, val uiState |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/Screens.kt` | 67 | class Screens, val titleId, val iconIdInactive, val iconIdActive, val route, object Home, object Artists, object Podcasts, object KidZone, object Search, object Library, val MainScreens, … (+1 more) |
@@ -522,13 +522,13 @@ Key declarations are the first 12 `class`/`object`/`interface`/`fun`/`val`/`var`
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/library/LibraryVideosScreen.kt` | 148 | fun LibraryVideosScreen, val menuState, val haptic, val playerConnection, val isPlaying, val mediaMetadata, val videos, val videosTitle, val lazyListState |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/onboarding/BottomNavSetupScreen.kt` | 118 | fun BottomNavSetupScreen, val context, var enableBottomNav, val prefs |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/onboarding/ContentFiltersScreen.kt` | 436 | fun ContentFiltersScreen, val context, val scope, val uiState, val authState, val isConnected, val isCheckingNetwork, val enableContentFilters, val onEnableContentFiltersChange, val allowFemaleSingers, val onAllowFemaleSingersChange, val blockVideos, … (+15 more) |
-| `app/src/main/kotlin/com/jtech/zemer/ui/screens/onboarding/DensityScreen.kt` | 287 | fun DensityScreen, val context, val isConnected, val isCheckingNetwork, var selectedDensity, var customDensityValue, var showRestartDialog, var showCustomDensityDialog, val densityOptions, val densityValue, fun RestartDialog, fun CustomDensityDialog, … (+6 more) |
+| `app/src/main/kotlin/com/jtech/zemer/ui/screens/onboarding/DensityScreen.kt` | 274 | fun DensityScreen, val context, val prefs, val storedDensity, var selectedDensity, var customDensityValue, val selectedValue, var showRestartDialog, var showCustomDensityDialog, val densityOptions, val changed, fun RestartDialog, … (+8 more) |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/onboarding/OnboardingConnectivity.kt` | 44 | class OnboardingConnectivity, val isConnected, val isChecking, fun rememberOnboardingConnectivity, val context, var isConnected, var isChecking, val now |
-| `app/src/main/kotlin/com/jtech/zemer/ui/screens/onboarding/OnboardingNavigation.kt` | 28 | class OnboardingStep, object OnboardingNavigation, fun firstStep, fun afterWelcome, fun backFromPermissions |
+| `app/src/main/kotlin/com/jtech/zemer/ui/screens/onboarding/OnboardingNavigation.kt` | 40 | class OnboardingStep, object OnboardingNavigation, fun firstStep, fun afterWelcome, fun backFromPermissions, fun densityChanged |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/onboarding/OnboardingSearchBackupScreen.kt` | 100 | fun OnboardingSearchBackupScreen, var enableBackup |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/onboarding/PermissionsScreen.kt` | 350 | fun PermissionsScreen, val context, val lifecycleOwner, var storageGranted, var notificationsGranted, var nearbyGranted, var backgroundGranted, var accessibilityGranted, var systemAlertGranted, var pipGranted, val storagePermissionLauncher, val notificationLauncher, … (+15 more) |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/onboarding/PrivacyUpdateNotice.kt` | 57 | fun privacyNoticeBlocking, val context, val scope, val agreed, val docs, val pending, val current |
-| `app/src/main/kotlin/com/jtech/zemer/ui/screens/onboarding/WelcomeScreen.kt` | 236 | class LegalKind, fun WelcomeScreen, var legal, var agreed, val isConnected, val isCheckingNetwork, val docs, val context, val scope, val agreeAndContinue, val shown, val composition, … (+4 more) |
+| `app/src/main/kotlin/com/jtech/zemer/ui/screens/onboarding/WelcomeScreen.kt` | 243 | class LegalKind, fun WelcomeScreen, var legal, var agreed, val isConnected, val isCheckingNetwork, val docs, val context, val scope, val agreeAndContinue, val shown, val composition, … (+4 more) |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/playlist/AutoPlaylistScreen.kt` | 391 | fun AutoPlaylistScreen, val context, val coroutineScope, val menuState, val haptic, val playerConnection, val autoPlaylistTitle, val isPlaying, val mediaMetadata, val playlist, val songs, val mutableSongs, … (+19 more) |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/playlist/CachePlaylistScreen.kt` | 357 | fun CachePlaylistScreen, val menuState, val playerConnection, val cacheSongsTitle, val haptic, val isPlaying, val mediaMetadata, val cachedSongs, val sortType, val onSortTypeChange, val sortDescending, val onSortDescendingChange, … (+9 more) |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/playlist/DownloadedContentScreen.kt` | 129 | fun DownloadedContentScreen, val blockVideos, val _, val blockPodcasts, val _, val musicCount, val videoCount, val statusCount, val podcastCount |
