@@ -185,7 +185,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/main/kotlin/com/jtech/zemer/db/DatabaseDao.kt` | 1866 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/db/MusicDatabase.kt` | 647 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/db/SqliteBindLimit.kt` | 14 lines | `.kt` |
-| `app/src/main/kotlin/com/jtech/zemer/db/StagedRestore.kt` | 29 lines | `.kt` |
+| `app/src/main/kotlin/com/jtech/zemer/db/StagedRestore.kt` | 41 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/db/entities/ActionSnapshotRow.kt` | 13 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/db/entities/Album.kt` | 33 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/db/entities/AlbumArtistMap.kt` | 29 lines | `.kt` |
@@ -339,7 +339,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/main/kotlin/com/jtech/zemer/playback/MediaLibrarySessionCallback.kt` | 812 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/playback/MediaStoreDownloadManager.kt` | 1281 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/playback/MediaStoreDownloadService.kt` | 307 lines | `.kt` |
-| `app/src/main/kotlin/com/jtech/zemer/playback/MusicService.kt` | 3312 lines | `.kt` |
+| `app/src/main/kotlin/com/jtech/zemer/playback/MusicService.kt` | 3315 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/playback/NotificationGate.kt` | 40 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/playback/PlaybackErrors.kt` | 64 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/playback/PlaybackNonceRegistry.kt` | 76 lines | `.kt` |
@@ -734,7 +734,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/main/kotlin/com/jtech/zemer/utils/WhitelistCache.kt` | 52 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/utils/WhitelistFetcher.kt` | 107 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/utils/WhitelistFilter.kt` | 316 lines | `.kt` |
-| `app/src/main/kotlin/com/jtech/zemer/utils/YTPlayerUtils.kt` | 809 lines | `.kt` |
+| `app/src/main/kotlin/com/jtech/zemer/utils/YTPlayerUtils.kt` | 810 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/utils/ZemerContentClient.kt` | 371 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/utils/markdown/LiteMarkdown.kt` | 199 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/utils/mp4/AudioRemux.kt` | 129 lines | `.kt` |
@@ -751,7 +751,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/main/kotlin/com/jtech/zemer/viewmodels/AlbumViewModel.kt` | 147 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/viewmodels/ArtistViewModel.kt` | 222 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/viewmodels/AutoPlaylistViewModel.kt` | 72 lines | `.kt` |
-| `app/src/main/kotlin/com/jtech/zemer/viewmodels/BackupRestoreViewModel.kt` | 188 lines | `.kt` |
+| `app/src/main/kotlin/com/jtech/zemer/viewmodels/BackupRestoreViewModel.kt` | 190 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/viewmodels/ButtonSetupViewModel.kt` | 136 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/viewmodels/CachePlaylistViewModel.kt` | 26 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/viewmodels/ContinueListeningViewModel.kt` | 38 lines | `.kt` |
@@ -1024,7 +1024,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/test/kotlin/com/jtech/zemer/constants/PreferenceKeysTest.kt` | 26 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/crash/CrashReportTest.kt` | 186 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/db/SqliteBindLimitTest.kt` | 23 lines | `.kt` |
-| `app/src/test/kotlin/com/jtech/zemer/db/StagedRestoreTest.kt` | 37 lines | `.kt` |
+| `app/src/test/kotlin/com/jtech/zemer/db/StagedRestoreTest.kt` | 46 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/db/entities/LyricsCachePolicyTest.kt` | 83 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/db/entities/ShareLinkTest.kt` | 41 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/extensions/ContextExtLogicTest.kt` | 37 lines | `.kt` |
