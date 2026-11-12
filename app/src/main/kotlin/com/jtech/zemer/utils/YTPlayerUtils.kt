@@ -652,7 +652,8 @@ object YTPlayerUtils {
             val progressiveMp4 = progressive.filter { it.mimeType.contains("mp4") }
             val ordered = (progressiveMp4.ifEmpty { progressive }).sortedBy { it.bitrate }
             val capped = maxVideoBitrateKbps?.let { cap ->
-                ordered.filter { (it.bitrate / 1000) <= cap }
+                // 0 = the response gave no bitrate: an unknown one never satisfies the cap
+                ordered.filter { it.bitrate > 0 && (it.bitrate / 1000) <= cap }
             }.orEmpty()
             val chosen = when {
                 capped.isNotEmpty() -> capped.maxByOrNull { it.bitrate }

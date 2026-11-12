@@ -104,6 +104,8 @@ class BackupRestoreViewModel @Inject constructor(
                     context.startActivity(Intent(context, MainActivity::class.java))
                     exitProcess(0)
                 }.onFailure {
+                    // a restore that failed must not swap its database in at the next start
+                    StagedRestore.discard(context.getDatabasePath(InternalDatabase.DB_NAME))
                     reportException(it)
                     context.toast(R.string.restore_failed)
                 }

@@ -34,4 +34,13 @@ class StagedRestoreTest {
         assertFalse(StagedRestore.apply(db))
         assertEquals("old", db.readText())
     }
+
+    @Test
+    fun `a discarded staged copy is never swapped in`() {
+        val db = dir.newFile("song.db").apply { writeText("old") }
+        StagedRestore.stage(db, "restored".byteInputStream())
+        StagedRestore.discard(db)
+        assertFalse(StagedRestore.apply(db))
+        assertEquals("old", db.readText())
+    }
 }

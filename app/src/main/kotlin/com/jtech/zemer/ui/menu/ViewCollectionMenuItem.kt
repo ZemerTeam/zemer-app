@@ -53,7 +53,7 @@ fun viewCollectionMenuItem(
             // a second tap lands while the first navigation is still in flight: navigating again from the
             // entry that is already leaving crashed ("State must be at least 'CREATED'")
             if (navController.currentBackStackEntry?.lifecycle?.currentState == Lifecycle.State.RESUMED) {
-                viewCollectionRoute(isEpisode, collectionId)?.let { navController.navigate(it) }
+                viewCollectionRoute(isEpisode, collectionId)?.let { navController.navigate(it) { launchSingleTop = true } }
             }
             onDismiss()
         },
