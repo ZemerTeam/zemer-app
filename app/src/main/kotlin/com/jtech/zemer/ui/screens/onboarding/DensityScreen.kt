@@ -10,11 +10,16 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.systemBars
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
 import androidx.compose.material3.MaterialTheme
@@ -29,30 +34,32 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.jtech.zemer.R
 import com.jtech.zemer.constants.DensityScale
-import androidx.datastore.preferences.core.edit
 import com.jtech.zemer.ui.component.DefaultDialog
 import com.jtech.zemer.ui.component.onboardingCardColors
 import com.jtech.zemer.ui.component.OnboardingStepHeader
-import com.jtech.zemer.ui.component.OnboardingActionButton
 import com.jtech.zemer.ui.component.OnboardingPrimaryButton
 import com.jtech.zemer.ui.component.OnboardingTextButton
 
 @Composable
 internal fun DensityScreen(
-    onSkip: () -> Unit,
-    onBack: () -> Unit,
+    onContinue: () -> Unit,
 ) {
     val context = LocalContext.current
-    val (isConnected, isCheckingNetwork) = rememberOnboardingConnectivity()
-    var selectedDensity by rememberSaveable { mutableStateOf(DensityScale.NATIVE) }
-    var customDensityValue by rememberSaveable { mutableStateOf(0.85f) }
+    val prefs = remember { context.getSharedPreferences("metrolist_settings", Context.MODE_PRIVATE) }
+    // the scale in use: the step opens on it, also when Welcome's Back returns here after one was applied
+    val storedDensity = remember { prefs.getFloat("density_scale_factor", DensityScale.NATIVE.value) }
+    var selectedDensity by rememberSaveable { mutableStateOf(DensityScale.fromValue(storedDensity)) }
+    var customDensityValue by rememberSaveable {
+        mutableStateOf(if (DensityScale.fromValue(storedDensity) == DensityScale.CUSTOM) storedDensity else 0.85f)
+    }
+    val selectedValue = if (selectedDensity == DensityScale.CUSTOM) customDensityValue else selectedDensity.value
     var showRestartDialog by rememberSaveable { mutableStateOf(false) }
     var showCustomDensityDialog by rememberSaveable { mutableStateOf(false) }
 
@@ -62,12 +69,16 @@ internal fun DensityScreen(
         modifier = Modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.surface)
+            // on a screen this list fills, keep the title clear of the status bar
+            .windowInsetsPadding(WindowInsets.systemBars)
     ) {
         Column(
             verticalArrangement = Arrangement.spacedBy(8.dp),
             modifier = Modifier
                 .align(Alignment.Center)
                 .fillMaxWidth(0.9f)
+                .verticalScroll(rememberScrollState())
+                .padding(vertical = 8.dp)
         ) {
             OnboardingStepHeader(
                 title = stringResource(R.string.onboarding_density_title),
@@ -127,58 +138,13 @@ internal fun DensityScreen(
 
             Spacer(Modifier.height(8.dp))
 
-            Column(
+            // one button: nothing here needs the network, and an unchanged size is simply continued past
+            val changed = OnboardingNavigation.densityChanged(selectedValue, storedDensity)
+            OnboardingPrimaryButton(
+                text = stringResource(if (changed) R.string.onboarding_apply_density else R.string.onboarding_continue),
+                onClick = { if (changed) showRestartDialog = true else onContinue() },
                 modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(6.dp)
-            ) {
-                if (selectedDensity != DensityScale.NATIVE) {
-                    OnboardingPrimaryButton(
-                        text = if (isCheckingNetwork) stringResource(R.string.network_checking)
-                              else if (!isConnected) stringResource(R.string.network_internet_required)
-                              else stringResource(R.string.onboarding_apply_density),
-                        onClick = {
-                            val densityValue = if (selectedDensity == DensityScale.CUSTOM) {
-                                customDensityValue
-                            } else {
-                                selectedDensity.value
-                            }
-                            context.getSharedPreferences("metrolist_settings", Context.MODE_PRIVATE)
-                                .edit {
-                                    putFloat("density_scale_factor", densityValue)
-                                }
-                            showRestartDialog = true
-                        },
-                        enabled = isConnected && !isCheckingNetwork,
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                }
-
-                OnboardingActionButton(
-                    text = if (isCheckingNetwork) stringResource(R.string.network_checking)
-                          else if (!isConnected) stringResource(R.string.network_internet_required)
-                          else stringResource(R.string.onboarding_skip),
-                    onClick = onSkip,
-                    enabled = isConnected && !isCheckingNetwork,
-                    modifier = Modifier.fillMaxWidth(),
-                )
-
-                if (!isConnected || isCheckingNetwork) {
-                    Text(
-                        text = if (isCheckingNetwork) stringResource(R.string.network_checking_internet)
-                              else stringResource(R.string.network_required_to_continue),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        textAlign = TextAlign.Center,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                }
-
-                OnboardingTextButton(
-                    text = stringResource(R.string.onboarding_back),
-                    onClick = onBack,
-                    modifier = Modifier.fillMaxWidth(),
-                )
-            }
+            )
         }
     }
 
@@ -199,6 +165,9 @@ internal fun DensityScreen(
             onDismiss = { showRestartDialog = false },
             onRestart = {
                 showRestartDialog = false
+                // stored only here, and synchronously: a cancelled restart leaves no scale behind for the next
+                // launch, and the process exits right after
+                prefs.edit(commit = true) { putFloat("density_scale_factor", selectedValue) }
                 restartApp(context)
             }
         )
@@ -213,7 +182,7 @@ private fun RestartDialog(
     DefaultDialog(
         onDismiss = onDismiss,
         horizontalAlignment = Alignment.Start,
-        title = { Text(stringResource(R.string.restart_required)) },
+        title = dialogTitle(R.string.restart_required),
         buttons = {
             OnboardingTextButton(
                 text = stringResource(android.R.string.cancel),
@@ -229,6 +198,7 @@ private fun RestartDialog(
             text = stringResource(R.string.density_restart_message),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.verticalScroll(rememberScrollState()),
         )
     }
 }
@@ -245,7 +215,7 @@ private fun CustomDensityDialog(
     DefaultDialog(
         onDismiss = onDismiss,
         horizontalAlignment = Alignment.Start,
-        title = { Text(stringResource(R.string.custom_density_title)) },
+        title = dialogTitle(R.string.custom_density_title),
         buttons = {
             OnboardingTextButton(
                 text = stringResource(android.R.string.cancel),
@@ -263,26 +233,36 @@ private fun CustomDensityDialog(
             )
         },
     ) {
-        Text(
-            text = stringResource(R.string.custom_density_hint),
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        Spacer(Modifier.height(12.dp))
-        androidx.compose.material3.OutlinedTextField(
-            value = textValue,
-            onValueChange = { newValue ->
-                textValue = newValue.filter { it.isDigit() }
-                val intValue = textValue.toIntOrNull()
-                isError = intValue == null || intValue !in 50..120
-            },
-            label = { Text("%") },
-            isError = isError,
-            singleLine = true,
-            modifier = Modifier.fillMaxWidth()
-        )
+        Column(Modifier.verticalScroll(rememberScrollState())) {
+            Text(
+                text = stringResource(R.string.custom_density_hint),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(Modifier.height(12.dp))
+            androidx.compose.material3.OutlinedTextField(
+                value = textValue,
+                onValueChange = { newValue ->
+                    textValue = newValue.filter { it.isDigit() }
+                    val intValue = textValue.toIntOrNull()
+                    isError = intValue == null || intValue !in 50..120
+                },
+                label = { Text("%") },
+                isError = isError,
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
     }
 }
+
+/**
+ * A dialog title, dropped on a screen too short for it: there the two-line headline left no room for the
+ * buttons, so a phone that most needs this step could not confirm it. The body says the same thing.
+ */
+@Composable
+private fun dialogTitle(titleRes: Int): (@Composable () -> Unit)? =
+    if (LocalConfiguration.current.screenHeightDp < 480) null else ({ Text(stringResource(titleRes)) })
 
 private fun restartApp(context: Context) {
     val intent = context.packageManager.getLaunchIntentForPackage(context.packageName)?.apply {

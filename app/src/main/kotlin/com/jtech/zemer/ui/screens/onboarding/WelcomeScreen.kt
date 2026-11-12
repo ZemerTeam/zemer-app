@@ -6,11 +6,10 @@ import android.graphics.PorterDuffColorFilter
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -53,11 +52,13 @@ import kotlinx.coroutines.launch
 import com.jtech.zemer.ui.component.DefaultDialog
 import com.jtech.zemer.ui.component.MarkdownText
 import com.jtech.zemer.ui.component.OnboardingPrimaryButton
+import com.jtech.zemer.ui.component.OnboardingTextButton
 
 private enum class LegalKind { TOS, PRIVACY }
 
 @Composable
 internal fun WelcomeScreen(
+    onBack: () -> Unit,
     onContinue: () -> Unit,
 ) {
     var legal by remember { mutableStateOf<LegalKind?>(null) }
@@ -91,18 +92,20 @@ internal fun WelcomeScreen(
         )
     )
 
-    Box(
+    BoxWithConstraints(
         modifier = Modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.surface),
         contentAlignment = Alignment.Center
     ) {
+        // fills the screen when it fits; on a screen too short for it the agree row and Continue scroll into reach
         Column(
             modifier = Modifier
                 .fillMaxWidth(0.9f)
-                .fillMaxHeight()
+                .verticalScroll(rememberScrollState())
+                .heightIn(min = maxHeight)
                 .padding(vertical = 48.dp),
-            verticalArrangement = Arrangement.Center,
+            verticalArrangement = Arrangement.SpaceBetween,
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Column(
@@ -120,8 +123,6 @@ internal fun WelcomeScreen(
                 )
                 AppNameTitle(textAlign = TextAlign.Center)
             }
-
-            Spacer(modifier = Modifier.weight(1f))
 
             Column(
                 verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -178,6 +179,12 @@ internal fun WelcomeScreen(
                     onClick = agreeAndContinue,
                     enabled = agreed && isConnected && !isCheckingNetwork,
                     loading = isCheckingNetwork,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+
+                OnboardingTextButton(
+                    text = stringResource(R.string.onboarding_back),
+                    onClick = onBack,
                     modifier = Modifier.fillMaxWidth(),
                 )
 

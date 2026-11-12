@@ -399,7 +399,6 @@
     <string name="onboarding_grant">Grant</string>
     <string name="onboarding_open_settings">Open settings</string>
     <string name="onboarding_back">Back</string>
-    <string name="onboarding_skip">Skip for now</string>
     <string name="onboarding_status_done">Ready</string>
     <string name="onboarding_status_needed">Needed</string>
     <string name="onboarding_permissions_required">These permissions are required for the app to run.</string>
