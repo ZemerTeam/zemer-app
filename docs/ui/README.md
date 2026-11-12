@@ -285,7 +285,7 @@ Every `@Composable fun` per UI file (extension receivers dropped, so `BoxScope.X
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/onboarding/DensityScreen.kt` | 274 | DensityScreen, RestartDialog, CustomDensityDialog, dialogTitle |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/onboarding/OnboardingConnectivity.kt` | 44 | rememberOnboardingConnectivity |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/onboarding/OnboardingSearchBackupScreen.kt` | 100 | OnboardingSearchBackupScreen |
-| `app/src/main/kotlin/com/jtech/zemer/ui/screens/onboarding/PermissionsScreen.kt` | 350 | PermissionsScreen, PermissionCard |
+| `app/src/main/kotlin/com/jtech/zemer/ui/screens/onboarding/PermissionsScreen.kt` | 341 | PermissionsScreen, PermissionCard |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/onboarding/PrivacyUpdateNotice.kt` | 57 | privacyNoticeBlocking |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/onboarding/WelcomeScreen.kt` | 243 | WelcomeScreen, LegalOverlay |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/playlist/AutoPlaylistScreen.kt` | 391 | AutoPlaylistScreen |
@@ -308,9 +308,9 @@ Every `@Composable fun` per UI file (extension receivers dropped, so `BoxScope.X
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/settings/AppearanceSettings.kt` | 1143 | AppearanceSettings |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/settings/BackupAndRestore.kt` | 203 | BackupAndRestore |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/settings/ButtonSetupScreen.kt` | 374 | ButtonSetupScreen, ListeningOverlay, CompletedCard, AssignmentRow, DpadDirectionIcon, PrimingOverlay, AccessibilityPermissionRequired |
-| `app/src/main/kotlin/com/jtech/zemer/ui/screens/settings/ContentSettings.kt` | 663 | ContentSettings, SyncStatusCard |
+| `app/src/main/kotlin/com/jtech/zemer/ui/screens/settings/ContentSettings.kt` | 664 | ContentSettings, SyncStatusCard |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/settings/DonateScreen.kt` | 186 | DonateScreen |
-| `app/src/main/kotlin/com/jtech/zemer/ui/screens/settings/GeneralSettings.kt` | 82 | GeneralSettings |
+| `app/src/main/kotlin/com/jtech/zemer/ui/screens/settings/GeneralSettings.kt` | 77 | GeneralSettings |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/settings/LogViewerScreen.kt` | 378 | LogViewerScreen, ExportRangeDialog, ExportDateTimePicker |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/settings/LyricsProviderDialogs.kt` | 92 | LyricsProviderSelectionDialog, LyricsProviderPriorityDialog |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/settings/OfflineSearchSettings.kt` | 140 | OfflineSearchSettings |
@@ -526,7 +526,7 @@ Key declarations are the first 12 `class`/`object`/`interface`/`fun`/`val`/`var`
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/onboarding/OnboardingConnectivity.kt` | 44 | class OnboardingConnectivity, val isConnected, val isChecking, fun rememberOnboardingConnectivity, val context, var isConnected, var isChecking, val now |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/onboarding/OnboardingNavigation.kt` | 40 | class OnboardingStep, object OnboardingNavigation, fun firstStep, fun afterWelcome, fun backFromPermissions, fun densityChanged |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/onboarding/OnboardingSearchBackupScreen.kt` | 100 | fun OnboardingSearchBackupScreen, var enableBackup |
-| `app/src/main/kotlin/com/jtech/zemer/ui/screens/onboarding/PermissionsScreen.kt` | 350 | fun PermissionsScreen, val context, val lifecycleOwner, var storageGranted, var notificationsGranted, var nearbyGranted, var backgroundGranted, var accessibilityGranted, var systemAlertGranted, var pipGranted, val storagePermissionLauncher, val notificationLauncher, … (+15 more) |
+| `app/src/main/kotlin/com/jtech/zemer/ui/screens/onboarding/PermissionsScreen.kt` | 341 | fun PermissionsScreen, val context, val lifecycleOwner, var storageGranted, var notificationsGranted, var nearbyGranted, var backgroundGranted, var accessibilityGranted, var systemAlertGranted, var pipGranted, val storagePermissionLauncher, val notificationLauncher, … (+13 more) |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/onboarding/PrivacyUpdateNotice.kt` | 57 | fun privacyNoticeBlocking, val context, val scope, val agreed, val docs, val pending, val current |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/onboarding/WelcomeScreen.kt` | 243 | class LegalKind, fun WelcomeScreen, var legal, var agreed, val isConnected, val isCheckingNetwork, val docs, val context, val scope, val agreeAndContinue, val shown, val composition, … (+4 more) |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/playlist/AutoPlaylistScreen.kt` | 391 | fun AutoPlaylistScreen, val context, val coroutineScope, val menuState, val haptic, val playerConnection, val autoPlaylistTitle, val isPlaying, val mediaMetadata, val playlist, val songs, val mutableSongs, … (+19 more) |
@@ -551,9 +551,9 @@ Key declarations are the first 12 `class`/`object`/`interface`/`fun`/`val`/`var`
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/settings/AppearanceSettings.kt` | 1143 | fun AppearanceSettings, val appearanceScrollState, val viewportTopY, val statusGroupTopY, val target, val refreshRateMode, val onRefreshRateModeChange, val floatingMiniPlayerEnabled, val onFloatingMiniPlayerEnabledChange, val hidePlayerThumbnail, val onHidePlayerThumbnailChange, val cropAlbumArt, … (+93 more) |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/settings/BackupAndRestore.kt` | 203 | fun BackupAndRestore, var importedTitle, val importedSongs, var showChoosePlaylistDialogOnline, var isProgressStarted, var progressPercentage, val context, val backupLauncher, val restoreLauncher, val importPlaylistFromCsv, val result, val importM3uLauncherOnline, … (+4 more) |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/settings/ButtonSetupScreen.kt` | 374 | fun ButtonSetupScreen, val viewModel, val accessibilityEnabled, val context, val focusManager, val uiState, val scrollState, val currentStep, val showOverlay, val step, fun ListeningOverlay, fun CompletedCard, … (+5 more) |
-| `app/src/main/kotlin/com/jtech/zemer/ui/screens/settings/ContentSettings.kt` | 663 | class ContentSettingsViewModel, val authManager, val webAuthManager, val syncService, val userPreferencesRepository, val authState, val syncState, val syncStatus, fun signInWithGoogle, fun signInAnonymously, fun signOut, fun performManualSync, … (+56 more) |
+| `app/src/main/kotlin/com/jtech/zemer/ui/screens/settings/ContentSettings.kt` | 664 | class ContentSettingsViewModel, val authManager, val webAuthManager, val syncService, val userPreferencesRepository, val authState, val syncState, val syncStatus, fun signInWithGoogle, fun signInAnonymously, fun signOut, fun performManualSync, … (+56 more) |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/settings/DonateScreen.kt` | 186 | fun DonateScreen, val context, val state, val cardSetup, var amountText, var email, val cents, val darkTheme, val cardWidget, val theme, val paymentLauncher, val clientSecret, … (+1 more) |
-| `app/src/main/kotlin/com/jtech/zemer/ui/screens/settings/GeneralSettings.kt` | 82 | fun GeneralSettings, val context, val intent, val intent |
+| `app/src/main/kotlin/com/jtech/zemer/ui/screens/settings/GeneralSettings.kt` | 77 | fun GeneralSettings, val context, val pkg, val appDetails |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/settings/LogViewerScreen.kt` | 378 | fun LogViewerScreen, val backFocus, val firstFocus, val context, val coroutineScope, val snackbarHostState, val debugLogging, val onDebugLoggingChange, val revision, val entries, var filterText, var showExportRangePicker, … (+18 more) |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/settings/LyricsProviderDialogs.kt` | 92 | class LyricsProviderToggle, val ids, val title, val description, val enabled, val onEnabledChange, fun LyricsProviderSelectionDialog, fun LyricsProviderPriorityDialog, val enabledIds, val byFirstId, val rows, val items, … (+1 more) |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/settings/OfflineSearchSettings.kt` | 140 | fun OfflineSearchSettings, val context, val status, val enabled, val _, val backFocus, val firstFocus, val statusDescription, val lastUpdated |

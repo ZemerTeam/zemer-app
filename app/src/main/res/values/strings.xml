@@ -130,6 +130,7 @@
     <string name="unknown">Unknown</string>
     <string name="copied">Copied to clipboard</string>
     <string name="no_browser_link_copied">No app can open this link, so it was copied to the clipboard</string>
+    <string name="settings_screen_unavailable">This phone doesn\'t have that settings screen</string>
     <string name="login_needs_webview">Signing in needs Android System WebView, which is not available on this device. You can still use Zemer without signing in.</string>
 
 

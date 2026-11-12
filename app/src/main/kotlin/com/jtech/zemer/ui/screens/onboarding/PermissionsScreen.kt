@@ -36,6 +36,7 @@ import androidx.core.content.ContextCompat
 import androidx.core.net.toUri
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.jtech.zemer.R
+import com.jtech.zemer.extensions.openSettingsScreen
 import com.jtech.zemer.utils.PermissionHelper
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -303,15 +304,14 @@ private fun isIgnoringBatteryOptimizations(context: Context): Boolean {
     return pm.isIgnoringBatteryOptimizations(context.packageName)
 }
 
-@SuppressLint("BatteryLife", "UseKtx")
+// the battery step gates Continue, so a phone without the request screen falls back to the list, then app details
+@SuppressLint("BatteryLife")
 private fun openBatterySettings(context: Context) {
-    runCatching {
-        val intent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
-            data = "package:${context.packageName}".toUri()
-            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-        }
-        context.startActivity(intent)
-    }
+    context.openSettingsScreen(
+        Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS, "package:${context.packageName}".toUri()),
+        Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS),
+        appDetailsIntent(context),
+    )
 }
 
 private fun isAccessibilityEnabled(context: Context): Boolean {
@@ -323,28 +323,19 @@ private fun isAccessibilityEnabled(context: Context): Boolean {
 }
 
 private fun openAccessibilitySettings(context: Context) {
-    runCatching {
-        context.startActivity(
-            Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-        )
-    }
+    context.openSettingsScreen(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
 }
 
-@SuppressLint("UseKtx")
 private fun openSystemAlertSettings(context: Context) {
-    runCatching {
-        val intent = Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION).apply {
-            data = "package:${context.packageName}".toUri()
-            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-        }
-        context.startActivity(intent)
-    }
+    context.openSettingsScreen(
+        Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, "package:${context.packageName}".toUri()),
+        appDetailsIntent(context),
+    )
 }
 
 private fun openAppSettings(context: Context) {
-    val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
-        data = Uri.fromParts("package", context.packageName, null)
-        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-    }
-    context.startActivity(intent)
+    context.openSettingsScreen(appDetailsIntent(context))
 }
+
+private fun appDetailsIntent(context: Context) =
+    Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", context.packageName, null))

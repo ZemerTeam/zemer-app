@@ -24,4 +24,14 @@ class ContextExtLogicTest {
         assertTrue("SAPISID=abc123; OTHER=1".cookieHasSession())
         assertTrue("OTHER=1; SAPISID=abc123".cookieHasSession()) // order-independent
     }
+
+    @Test
+    fun `startFirst falls back past a missing settings screen and reports when none opens`() {
+        val started = mutableListOf<String>()
+        val start: (String) -> Unit = { if (it == "missing") throw IllegalStateException(it) else started += it }
+        assertTrue(startFirst(listOf("missing", "details", "other"), start))
+        assertTrue(started == listOf("details"))
+        assertFalse(startFirst(listOf("missing", "missing"), start))
+        assertFalse(startFirst(emptyList(), start))
+    }
 }

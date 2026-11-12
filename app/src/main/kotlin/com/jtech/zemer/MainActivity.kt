@@ -2152,7 +2152,8 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun handleDeepLinkIntent(intent: Intent, navController: NavHostController) {
-        val uri = intent.data ?: intent.extras?.getString(Intent.EXTRA_TEXT)?.toUri() ?: return
+        // shared plain text (or a mailto:/tel: link) parses as an opaque Uri, whose getQueryParameter throws
+        val uri = (intent.data ?: intent.extras?.getString(Intent.EXTRA_TEXT)?.toUri())?.takeIf { it.isHierarchical } ?: return
         val coroutineScope = lifecycleScope
 
         when (val path = uri.pathSegments.firstOrNull()) {
