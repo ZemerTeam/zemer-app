@@ -15,8 +15,8 @@
 | BuildConfig fields visible in Gradle | `ARCHITECTURE`, `COMMIT_HASH`, `RUN_NUMBER`, `GOOGLE_TOKEN_EXCHANGE_URL`, `CONTENT_MIRROR_URL`, `ZEMER_LYRICS_BASE_URL` |
 | Room schema directory | `app/schemas` |
 | Native build | Yes (see `build-release.md`) |
-| Tracked app paths | `1170` |
-| Tracked app Kotlin files | `869` (`642` in `src/main`, `225` in `src/test`, `2` in `src/androidTest`) |
+| Tracked app paths | `1172` |
+| Tracked app Kotlin files | `871` (`643` in `src/main`, `226` in `src/test`, `2` in `src/androidTest`) |
 | Tracked app resource paths | `215` |
 | Tracked app asset paths | `0` in `src/main` (`3` test fixtures under `src/androidTest/assets`) |
 | Tracked app Room schema files | `36` |
@@ -57,7 +57,7 @@
 | `com.jtech.zemer.auth` | 3 |
 | `com.jtech.zemer.constants` | 6 |
 | `com.jtech.zemer.crash` | 4 |
-| `com.jtech.zemer.db` | 4 |
+| `com.jtech.zemer.db` | 5 |
 | `com.jtech.zemer.db.entities` | 34 |
 | `com.jtech.zemer.di` | 7 |
 | `com.jtech.zemer.extensions` | 10 |
@@ -125,7 +125,7 @@
 | `com/jtech/zemer/auth` | 3 |
 | `com/jtech/zemer/constants` | 6 |
 | `com/jtech/zemer/crash` | 4 |
-| `com/jtech/zemer/db` | 4 |
+| `com/jtech/zemer/db` | 5 |
 | `com/jtech/zemer/db/entities` | 34 |
 | `com/jtech/zemer/di` | 7 |
 | `com/jtech/zemer/extensions` | 10 |
