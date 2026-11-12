@@ -1,6 +1,7 @@
 package com.jtech.zemer.playback
 
 import androidx.media3.common.ParserException
+import androidx.media3.datasource.FileDataSource
 import androidx.media3.datasource.HttpDataSource
 import androidx.media3.exoplayer.upstream.Loader
 import java.io.EOFException
@@ -34,6 +35,13 @@ object PlaybackErrors {
      */
     fun isStaleRange(error: Throwable): Boolean = httpStatus(error) == 416
 
+    /**
+     * A read that ran off the end of the cached spans: a cached item is opened by its bare media id, so a hole in
+     * the cache sends that id to the file source, which finds no such file. Fixed the same way as corrupt bytes.
+     */
+    fun isCacheHole(error: Throwable): Boolean =
+        generateSequence(error) { it.cause }.take(MAX_CAUSES).any { it is FileDataSource.FileDataSourceException }
+
     private const val MAX_CAUSES = 10
 }
 
@@ -47,7 +55,8 @@ class CorruptMediaRetry {
     private var lastRetriedMediaId: String? = null
 
     fun shouldRetry(mediaId: String, error: Throwable): Boolean {
-        val refetchFixes = PlaybackErrors.isCorruptMedia(error) || PlaybackErrors.isStaleRange(error)
+        val refetchFixes = PlaybackErrors.isCorruptMedia(error) || PlaybackErrors.isStaleRange(error) ||
+            PlaybackErrors.isCacheHole(error)
         if (!refetchFixes || mediaId == lastRetriedMediaId) return false
         lastRetriedMediaId = mediaId
         return true

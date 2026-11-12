@@ -54,6 +54,17 @@ class LoginCaptureTest {
     }
 
     @Test
+    fun `an incomplete capture is a failure only after a real sign-in`() {
+        assertTrue(LoginCapture.isCaptureFailure("SAPISID=abc; SID=y", ""))
+        assertTrue(LoginCapture.isCaptureFailure("SAPISID=abc; SID=y", null))
+        // the page was reached without signing in: nothing to report
+        assertFalse(LoginCapture.isCaptureFailure("VISITOR_INFO1_LIVE=x", ""))
+        assertFalse(LoginCapture.isCaptureFailure("", ""))
+        assertFalse(LoginCapture.isCaptureFailure(null, null))
+        assertFalse(LoginCapture.isCaptureFailure("SAPISID=abc", "dsid"))
+    }
+
+    @Test
     fun `retry budget allows the page several seconds to expose yt config`() {
         // 20 x 500 ms = 10 s. The victim device needed ~1-3 s; a single 500 ms shot was the bug.
         assertTrue(LoginCapture.MAX_CAPTURE_ATTEMPTS * LoginCapture.CAPTURE_RETRY_DELAY_MS >= 5_000L)

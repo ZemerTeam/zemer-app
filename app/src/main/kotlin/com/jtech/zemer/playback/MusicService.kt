@@ -1885,8 +1885,8 @@ class MusicService :
             return
         }
 
-        // Bytes the extractor cannot parse, or a range past the end of a changed resource (416): drop this item's
-        // cached spans and fetch it fresh, once. A downloaded
+        // Bytes the extractor cannot parse, a range past the end of a changed resource (416), or a read that ran
+        // off the cached spans: drop this item's cached spans and fetch it fresh, once. A downloaded
         // file and RELAY are left to the paths below (a file is not re-fetched here; relay has no cache).
         val failedId = player.currentMediaItem?.mediaId
         // SABR keeps its own stream registry and replay spool, which this cache purge would not reach.
@@ -2977,7 +2977,9 @@ class MusicService :
      */
     private fun discardUnreadablePersistFile(name: String, failure: Throwable) {
         if (failure is FileNotFoundException) return
-        reportException(failure)
+        // a class that no longer exists: the file was written by an old build whose class names were
+        // obfuscated. Nothing to fix; the file is dropped like any other unreadable one.
+        if (failure !is ClassNotFoundException) reportException(failure)
         runCatching { AtomicFile(filesDir.resolve(name)).delete() }
     }
 

@@ -7,6 +7,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.Lifecycle
 import androidx.navigation.NavController
 import com.jtech.zemer.R
 import com.jtech.zemer.ui.component.Material3MenuItemData
@@ -49,7 +50,11 @@ fun viewCollectionMenuItem(
         title = { Text(stringResource(if (isEpisode) R.string.view_podcast else R.string.view_album)) },
         onClick = {
             beforeNavigate()
-            viewCollectionRoute(isEpisode, collectionId)?.let { navController.navigate(it) }
+            // a second tap lands while the first navigation is still in flight: navigating again from the
+            // entry that is already leaving crashed ("State must be at least 'CREATED'")
+            if (navController.currentBackStackEntry?.lifecycle?.currentState == Lifecycle.State.RESUMED) {
+                viewCollectionRoute(isEpisode, collectionId)?.let { navController.navigate(it) }
+            }
             onDismiss()
         },
     )

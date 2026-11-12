@@ -36,4 +36,12 @@ internal object LoginCapture {
      */
     fun isCaptureComplete(cookie: String?, dataSyncId: String?): Boolean =
         cookie?.contains("SAPISID") == true && !dataSyncId.isNullOrBlank()
+
+    /**
+     * An incomplete capture is a bug to report only when the user DID sign in (a SAPISID cookie) and the
+     * dataSyncId still never arrived. Without that cookie the page was simply reached without signing in
+     * (a filtered network, the user leaving the form), which is not an error.
+     */
+    fun isCaptureFailure(cookie: String?, dataSyncId: String?): Boolean =
+        cookie?.contains("SAPISID") == true && dataSyncId.isNullOrBlank()
 }

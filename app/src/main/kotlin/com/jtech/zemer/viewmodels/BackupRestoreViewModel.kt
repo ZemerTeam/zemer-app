@@ -9,6 +9,7 @@ import com.jtech.zemer.MainActivity
 import com.jtech.zemer.R
 import com.jtech.zemer.db.InternalDatabase
 import com.jtech.zemer.db.MusicDatabase
+import com.jtech.zemer.db.StagedRestore
 import com.jtech.zemer.db.entities.ArtistEntity
 import com.jtech.zemer.db.entities.Song
 import com.jtech.zemer.db.entities.SongEntity
@@ -25,7 +26,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.FileInputStream
-import java.io.FileOutputStream
 import java.util.zip.ZipEntry
 import javax.inject.Inject
 import kotlin.system.exitProcess
@@ -83,12 +83,12 @@ class BackupRestoreViewModel @Inject constructor(
                                     }
 
                                     InternalDatabase.DB_NAME -> {
-                                        database.checkpoint()
-                                        database.close()
-                                        FileOutputStream(database.openHelper.writableDatabase.path)
-                                            .use { outputStream ->
-                                                inputStream.copyTo(outputStream)
-                                            }
+                                        // staged, never written over the open database: swapped in by
+                                        // MusicDatabase.newInstance after the restart below
+                                        StagedRestore.stage(
+                                            context.getDatabasePath(InternalDatabase.DB_NAME),
+                                            inputStream,
+                                        )
                                     }
                                 }
                                 entry = tryOrNull { inputStream.nextEntry } // prevent ZipException

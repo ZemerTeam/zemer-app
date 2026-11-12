@@ -141,6 +141,7 @@ abstract class InternalDatabase : RoomDatabase() {
             Timber.d("MusicDatabase.newInstance() called - starting database creation")
             val startTime = System.currentTimeMillis()
             Timber.d("Thread: ${Thread.currentThread().name}")
+            if (StagedRestore.apply(context.getDatabasePath(DB_NAME))) Timber.i("Restored database swapped in")
             val builtDb = try {
                 Room
                     .databaseBuilder(context, InternalDatabase::class.java, DB_NAME)

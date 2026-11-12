@@ -59,7 +59,8 @@ data class PlayerResponse(
             val itag: Int,
             val url: String?,
             val mimeType: String,
-            val bitrate: Int,
+            // some formats arrive without it; a required field failed the whole player response
+            val bitrate: Int = 0,
             val width: Int?,
             val height: Int?,
             val contentLength: Long?,

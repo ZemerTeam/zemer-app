@@ -27,7 +27,8 @@ data class WatchEndpoint(
     ) {
         @Serializable
         data class WatchEndpointMusicConfig(
-            val musicVideoType: String,
+            // YouTube omits it on some items; a required field failed the whole response
+            val musicVideoType: String? = null,
         ) {
             companion object {
                 const val MUSIC_VIDEO_TYPE_OMV = "MUSIC_VIDEO_TYPE_OMV"
