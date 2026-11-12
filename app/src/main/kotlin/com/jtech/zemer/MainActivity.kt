@@ -702,14 +702,17 @@ class MainActivity : ComponentActivity() {
                         val bottomInsetDp = WindowInsets.systemBars.asPaddingValues().calculateBottomPadding()
 
                         // Check onboarding status first, then whitelist sync
-                        val onboardingComplete by dataStore.data.map { it[OnboardingCompleteKey] ?: false }.collectAsState(initial = false)
+                        val onboardingComplete by dataStore.data.map { it[OnboardingCompleteKey] ?: false }.collectAsState(initial = null)
                         val onboardingScope = rememberCoroutineScope()
                         val syncScope = rememberCoroutineScope()
                         val lifecycleOwner = LocalLifecycleOwner.current
 
                         
                         // Show onboarding first (before splash screen)
-                        if (!onboardingComplete) {
+                        // null = not read yet: draw nothing, so an onboarded install never shows the first
+                        // onboarding step for a frame
+                        if (onboardingComplete == null) return@BoxWithConstraints
+                        if (onboardingComplete == false) {
                             OnboardingFlow(
                                 onFinished = {
                                     onboardingScope.launch {

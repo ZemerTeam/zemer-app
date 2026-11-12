@@ -280,7 +280,8 @@ ISO-8601 written with millis (`IsoDateSerializer`), nulls explicit, an absent `b
   The device lookup (`GET /prefs/device`) runs only while this install has no definitive answer yet
   (`needsInstallRestoreCheck`, a marker in `noBackupFilesDir` written on a 200/404, so a fresh install, a data
   clear and a restored app backup all start without it); an ordinary launch never looks the device up, from
-  either the service or the onboarding flow (which is composed briefly on every launch).
+  either the service or the onboarding flow (which `MainActivity` composes only once `OnboardingCompleteKey` has
+  been read as false; until then it draws nothing).
 - **Content reads come only from content.zemer.io** (the Firestore SDK is gone): a failed read keeps the
   last-good local table and reports `fetch_fail` (see §Tracking), all through the one `contentRead` helper (a
   cancellation is rethrown, never reported). With NO local artist list (a first sync that failed or came back
@@ -370,7 +371,7 @@ Every entry is the ONE implementation; files are under `ui/component/` unless st
 - **Sort labels:** `songSortTypeLabel(sortType)` (`ui/component/SortHeader.kt`). **Library grid scroll reset:** `LibraryScrollToTopEffect` (`ui/utils/ScrollUtils.kt`).
 - **Mixed-direction subtitles:** `bidiIsolate(text)` (`utils/StringUtils.kt`, `StringUtilsTest`) wraps one part of a `joinByBullet` line in Unicode first-strong isolates, so a Hebrew artist name followed by English ("1 time") never flips the line RTL and scrambles it; empty stays empty, so `joinByBullet` still drops it.
 - **Channel deep links:** `channelDeepLinkRoute(channelId, artistWhitelisted, podcastWhitelisted)` (`ui/utils/AppNavigation.kt`, tested) - artist page, else podcast channel, else no-op; share links via `VideoLinkBuilder.channelLink`.
-- **Onboarding flow:** `OnboardingNavigation` (`ui/screens/onboarding/`, `OnboardingNavigationTest`) owns the step order and the skip-when-configured transitions (`firstStep`/`afterWelcome`/`backFromPermissions`) so Back never lands on a skipped step; Density is the FIRST step, before the Welcome terms (a small flip phone cannot reach Welcome's Continue until scaled down); `rememberOnboardingConnectivity()` is the one reachability poll.
+- **Onboarding flow:** `OnboardingNavigation` (`ui/screens/onboarding/`, `OnboardingNavigationTest`) owns the step order and the skip-when-configured transitions (`firstStep`/`afterWelcome`/`backFromPermissions`) so Back never lands on a skipped step; Density is the FIRST step, before the Welcome terms (a small flip phone cannot reach Welcome's Continue until scaled down), skipped once any scale is stored (`contains`, so an applied 100% counts) but always reachable through Welcome's Back; it opens on the scale in use, needs no network, and its one button reads Continue for an unchanged size, else Apply & Restart (`densityChanged`), storing the scale only when the restart is confirmed. Density and Welcome both scroll, so no control is out of reach on a short screen; Density's dialogs drop their title under 480dp of height and scroll their body (the two-line headline pushed the buttons off a 320dp screen). `rememberOnboardingConnectivity()` is the one reachability poll.
 
 **Never `runBlocking` on a UI path** (ANR). Use a suspend function + `LaunchedEffect`/`rememberCoroutineScope`, or a `Flow` (`collectAsState`); the DataStore sync accessors (`dataStore[Key]`, `dataStore.get(Key, default)`) must run OFF the main thread. Ratchet `R18-runblocking`. The deliberate blocking sites live outside `ui/` (ExoPlayer's synchronous `createDataSourceFactory`, the download thread, the DataStore primitives).
 

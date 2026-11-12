@@ -33,8 +33,8 @@ fun OnboardingFlow(
     val uiState by viewModel.uiState.collectAsState()
 
     val densityAlreadySet = remember {
-        val prefs = context.getSharedPreferences("metrolist_settings", Context.MODE_PRIVATE)
-        prefs.getFloat("density_scale_factor", 1.0f) != 1.0f
+        // any stored choice counts, 100% included: applying one restarts the app, which must not ask again
+        context.getSharedPreferences("metrolist_settings", Context.MODE_PRIVATE).contains("density_scale_factor")
     }
 
     // Simple check if filters are already set
@@ -52,11 +52,12 @@ fun OnboardingFlow(
 
     when (step) {
         OnboardingStep.Density -> DensityScreen(
-            onSkip = { step = OnboardingStep.Welcome },
+            onContinue = { step = OnboardingStep.Welcome },
         )
 
         OnboardingStep.Welcome -> WelcomeScreen(
-            onContinue = { step = OnboardingNavigation.afterWelcome(contentFiltersAlreadySet) }
+            onBack = { step = OnboardingStep.Density },
+            onContinue = { step = OnboardingNavigation.afterWelcome(contentFiltersAlreadySet) },
         )
 
         OnboardingStep.ContentFilters -> ContentFiltersScreen(
@@ -67,7 +68,7 @@ fun OnboardingFlow(
         )
 
         OnboardingStep.Permissions -> PermissionsScreen(
-            onBack = { step = OnboardingNavigation.backFromPermissions(contentFiltersAlreadySet) },
+            onBack = { step = OnboardingNavigation.backFromPermissions(contentFiltersAlreadySet, uiState.restoredConfig != null) },
             onComplete = { step = OnboardingStep.BottomNavSetup }
         )
 
