@@ -188,7 +188,6 @@ constructor(
     ) {
         Timber.d("downloadVideo called: id=${song.id}, title=${song.song.title}, inputIsVideo=${song.song.isVideo}")
         scope.launch {
-            MediaStoreDownloadService.start(context)
             val currentState = _downloadStates.value[song.id]
             if (currentState?.status == DownloadState.Status.DOWNLOADING ||
                 currentState?.status == DownloadState.Status.COMPLETED
@@ -225,6 +224,8 @@ constructor(
                 )
             }
 
+            // Only once the download is queued: a start with nothing queued has no work to stay up for.
+            MediaStoreDownloadService.start(context)
             processQueue()
         }
     }
@@ -237,7 +238,6 @@ constructor(
     fun downloadSong(song: Song, fromUser: Boolean = false) {
         Timber.d("downloadSong called: id=${song.id}, title=${song.song.title}, isVideo=${song.song.isVideo}")
         scope.launch {
-            MediaStoreDownloadService.start(context)
             val currentState = _downloadStates.value[song.id]
             if (currentState?.status == DownloadState.Status.DOWNLOADING ||
                 currentState?.status == DownloadState.Status.COMPLETED
@@ -296,6 +296,7 @@ constructor(
                 }
             }
 
+            MediaStoreDownloadService.start(context)
             processQueue()
         }
     }

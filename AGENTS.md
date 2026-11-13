@@ -1101,6 +1101,13 @@ detail: `docs/ui/standards.md §12`. Rules:
   (`MediaStoreDownloadManager.failAll`, Retry offered) and stops the service, else the process is killed
   (`ForegroundServiceDidNotStopInTimeException`). A running download is marked from `invokeOnCompletion`, so a
   late write while it unwinds never leaves it stuck DOWNLOADING.
+- **Every start of the download service is answered with `startForeground`:** each `startForegroundService()`
+  call the system still counts as unanswered kills the process (`ForegroundServiceDidNotStartInTimeException`)
+  after its timeout or once the service stops, and the service cannot tell which starts those are (a field crash
+  on Android 14, not reproduced on a stock image). So `onStartCommand` always calls it
+  (re-posting the notification now shown), an idle stop is `stopSelf(lastStartId)` (refused while a newer start is
+  still on its way; that start runs the idle check itself), and the manager starts the service only after the
+  download is QUEUED. Never guard `startForeground` behind an "already started" flag.
 - **Remove deletes the file on every backend:** `MediaStoreHelper.deleteFromMediaStore` routes SAF
   document uris (custom download path) through `DocumentsContract.deleteDocument`.
 - **Downloaded video-songs appear in downloaded MUSIC by default** (`VideoDownloadsInMusicKey`, default
