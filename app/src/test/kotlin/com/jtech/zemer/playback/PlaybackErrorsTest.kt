@@ -71,4 +71,15 @@ class PlaybackErrorsTest {
         assertTrue(retry.shouldRetry("a", hole))
         assertFalse(retry.shouldRetry("a", hole))
     }
+
+    @Test
+    fun `only I-O and parsing error codes are source errors`() {
+        // media3's ERROR_CODE_IO_UNSPECIFIED (an extractor's IOException, e.g. "No ogg page can be found.")
+        assertTrue(PlaybackErrors.isSourceErrorCode(2000))
+        assertTrue(PlaybackErrors.isSourceErrorCode(2005)) // IO_FILE_NOT_FOUND
+        assertTrue(PlaybackErrors.isSourceErrorCode(3001)) // PARSING_CONTAINER_MALFORMED
+        assertFalse(PlaybackErrors.isSourceErrorCode(1000)) // UNSPECIFIED
+        assertFalse(PlaybackErrors.isSourceErrorCode(4001)) // DECODER_INIT_FAILED
+        assertFalse(PlaybackErrors.isSourceErrorCode(5001)) // AUDIO_TRACK_INIT_FAILED
+    }
 }
