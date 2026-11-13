@@ -1901,6 +1901,22 @@ class MusicService :
             return
         }
 
+        // A downloaded file that stops reading or parsing mid-play (damaged, or removed or replaced under the
+        // player): the rest of this play is streamed, restarted here so a fresh extractor reads the stream (a
+        // stream is another container than the file). The file is skipped for the rest of the session and
+        // never deleted: one failed read does not prove it is damaged.
+        if (failedId != null && currentQueue !is StationQueue && playbackSourceIsLocal[failedId] == true &&
+            PlaybackErrors.isSourceErrorCode(error.errorCode) && unreadableLocalFiles.add(failedId)
+        ) {
+            Timber.w("Downloaded file of $failedId failed mid-play; streaming this play instead")
+            playbackSourceIsLocal[failedId] = false
+            runCatching { playerCache.removeResource(failedId) }
+            videoModeController.onPlaybackSourceResolved()
+            player.seekTo(player.currentMediaItemIndex, player.currentPosition)
+            player.prepare()
+            return
+        }
+
         // A video→audio revert (backgrounding, cast/block revert) just re-prepared the bare-id audio,
         // which had to re-fetch bytes from a region the audio cache never held (video bytes live in
         // the isolated video:/videoaudio: namespaces). That fetch can fail transiently — a stale/absent
@@ -1936,7 +1952,7 @@ class MusicService :
                 val mediaStoreUri = withContext(Dispatchers.IO) {
                     database.song(mediaId).first()?.song?.mediaStoreUri
                 }
-                if (mediaStoreUri != null && downloadedFileOpens(mediaStoreUri)) {
+                if (mediaStoreUri != null && mediaId !in unreadableLocalFiles && downloadedFileOpens(mediaStoreUri)) {
                     Timber.w("Player error while a downloaded file exists for $mediaId; handing over to the local file")
                     playbackSourceIsLocal[mediaId] = true
                     runCatching { playerCache.removeResource(mediaId) }
@@ -2086,6 +2102,9 @@ class MusicService :
     /** Whether [mediaId] is currently playing from its downloaded local file (drives the LOCAL video rendition). */
     fun playbackSourceIsLocalFile(mediaId: String): Boolean = playbackSourceIsLocal[mediaId] == true
 
+    /** Ids whose downloaded file failed to read or parse mid-play this session; they stream until the next start. */
+    private val unreadableLocalFiles = java.util.concurrent.ConcurrentHashMap.newKeySet<String>()
+
     /** Whether the downloaded file at [uriString] actually opens. Returns false on ANY failure to open
      *  (ENOENT / null descriptor / FileNotFound / a SecurityException or other resolver error) so that
      *  playback falls back to STREAMING rather than handing ExoPlayer a URI we just failed to open
@@ -2118,8 +2137,16 @@ class MusicService :
      */
     private fun resolveDownloadedFileUri(mediaId: String, position: Long): String? {
         val song = runBlocking(Dispatchers.IO) { database.song(mediaId).first() }
-        val mediaStoreUri = song?.song?.mediaStoreUri ?: return null
-        val fileOpens = downloadedFileOpens(mediaStoreUri)
+        val mediaStoreUri = song?.song?.mediaStoreUri
+        val unreadable = mediaId in unreadableLocalFiles
+        val fileOpens = mediaStoreUri != null && !unreadable && downloadedFileOpens(mediaStoreUri)
+        // An item that STARTED from its file but can no longer read it (removed or replaced mid-play) must not
+        // carry on as a stream under the file's extractor: the stream is another container. Failing the open
+        // sends it to onPlayerError, which restarts the item as a stream.
+        if (position != 0L && !fileOpens && playbackSourceIsLocal[mediaId] == true) {
+            throw java.io.IOException("The downloaded file of $mediaId is no longer readable mid-play")
+        }
+        if (mediaStoreUri == null) return null
         if (position == 0L) {
             playbackSourceIsLocal[mediaId] = fileOpens
             videoModeController.onPlaybackSourceResolved()
@@ -2131,7 +2158,9 @@ class MusicService :
             // Stale "downloaded" row (file gone): stream this play and self-repair, unless a re-download
             // already FAILED this session (else a permanently-dead source re-downloads on every play).
             val liveStatus = downloadUtil.mediaStoreDownloadState(mediaId)?.status
-            if (liveStatus == MediaStoreDownloadManager.DownloadState.Status.FAILED) {
+            if (unreadable) {
+                Timber.w("Downloaded file of $mediaId failed mid-play this session; streaming without re-enqueueing")
+            } else if (liveStatus == MediaStoreDownloadManager.DownloadState.Status.FAILED) {
                 Timber.w("Downloaded file missing for $mediaId but its re-download already FAILED this session; streaming without re-enqueueing")
             } else {
                 Timber.w("Downloaded file missing for $mediaId; re-downloading to self-repair and streaming this play")

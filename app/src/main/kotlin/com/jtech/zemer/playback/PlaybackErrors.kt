@@ -42,6 +42,12 @@ object PlaybackErrors {
     fun isCacheHole(error: Throwable): Boolean =
         generateSequence(error) { it.cause }.take(MAX_CAUSES).any { it is FileDataSource.FileDataSourceException }
 
+    /**
+     * A media3 error code of the source family (I/O 2xxx, parsing 3xxx): the bytes could not be read or parsed.
+     * Decoder, renderer and audio-track failures are not source errors, and another source would not fix them.
+     */
+    fun isSourceErrorCode(errorCode: Int): Boolean = errorCode in 2000..3999
+
     private const val MAX_CAUSES = 10
 }
 
