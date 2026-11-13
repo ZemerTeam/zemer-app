@@ -54,12 +54,12 @@ The following inventory is generated from repository files outside `.git`, `.gra
 
 ### Counts
 
-- Files counted: `1466`
+- Files counted: `1474`
 - By extension:
   - `.kt`: `958`
   - `.xml`: `196`
   - `.mjs`: `110`
-  - `.md`: `64`
+  - `.md`: `72`
   - `.json`: `54`
   - `.webp`: `15`
   - `.c`: `8`
@@ -99,11 +99,11 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `.github/workflows/ui-audit.yml` | 55 lines | `.yml` |
 | `.gitignore` | 117 lines | `[none]` |
 | `.gitmodules` | 3 lines | `[none]` |
-| `AGENTS.md` | 1226 lines | `.md` |
+| `AGENTS.md` | 1231 lines | `.md` |
 | `LICENSE` | 674 lines | `[none]` |
 | `README.md` | 9 lines | `.md` |
 | `app/.gitignore` | 1 lines | `[none]` |
-| `app/build.gradle.kts` | 399 lines | `.kts` |
+| `app/build.gradle.kts` | 402 lines | `.kts` |
 | `app/lint.xml` | 11 lines | `.xml` |
 | `app/proguard-rules.pro` | 230 lines | `.pro` |
 | `app/schemas/com.jtech.zemer.db.InternalDatabase/1.json` | 297 lines | `.json` |
@@ -339,9 +339,9 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/main/kotlin/com/jtech/zemer/playback/MediaLibrarySessionCallback.kt` | 812 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/playback/MediaStoreDownloadManager.kt` | 1282 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/playback/MediaStoreDownloadService.kt` | 316 lines | `.kt` |
-| `app/src/main/kotlin/com/jtech/zemer/playback/MusicService.kt` | 3315 lines | `.kt` |
+| `app/src/main/kotlin/com/jtech/zemer/playback/MusicService.kt` | 3344 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/playback/NotificationGate.kt` | 40 lines | `.kt` |
-| `app/src/main/kotlin/com/jtech/zemer/playback/PlaybackErrors.kt` | 64 lines | `.kt` |
+| `app/src/main/kotlin/com/jtech/zemer/playback/PlaybackErrors.kt` | 70 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/playback/PlaybackNonceRegistry.kt` | 76 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/playback/PlaybackProbe.kt` | 31 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/playback/PlayerConnection.kt` | 420 lines | `.kt` |
@@ -1098,7 +1098,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/test/kotlin/com/jtech/zemer/playback/ForegroundSafeNotificationProviderTest.kt` | 34 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/playback/ListenAccumulatorTest.kt` | 68 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/playback/NotificationGateTest.kt` | 46 lines | `.kt` |
-| `app/src/test/kotlin/com/jtech/zemer/playback/PlaybackErrorsTest.kt` | 74 lines | `.kt` |
+| `app/src/test/kotlin/com/jtech/zemer/playback/PlaybackErrorsTest.kt` | 85 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/playback/PlaybackNonceRegistryTest.kt` | 134 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/playback/PlayerVideoUiLogicTest.kt` | 128 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/playback/QueueContinuationTest.kt` | 42 lines | `.kt` |
@@ -1279,6 +1279,8 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `docs/app/README.md` | 199 lines | `.md` |
 | `docs/app/database.md` | 661 lines | `.md` |
 | `docs/app/playback.md` | 121 lines | `.md` |
+| `docs/app/playback.md` | 121 lines | `.md` |
+| `docs/app/playback.md` | 121 lines | `.md` |
 | `docs/app/preferences-sync-auth.md` | 225 lines | `.md` |
 | `docs/app/viewmodels.md` | 134 lines | `.md` |
 | `docs/build-release.md` | 62 lines | `.md` |
@@ -1313,6 +1315,10 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `docs/recognize_music/03-entry-points-and-ui.md` | 80 lines | `.md` |
 | `docs/recognize_music/README.md` | 73 lines | `.md` |
 | `docs/reference/kotlin-files.md` | 971 lines | `.md` |
+| `docs/reference/kotlin-files.md` | 971 lines | `.md` |
+| `docs/reference/kotlin-files.md` | 971 lines | `.md` |
+| `docs/reference/non-kotlin-files.md` | 457 lines | `.md` |
+| `docs/reference/non-kotlin-files.md` | 457 lines | `.md` |
 | `docs/reference/non-kotlin-files.md` | 457 lines | `.md` |
 | `docs/reference/resource-index.md` | 318 lines | `.md` |
 | `docs/remote_cipher_config/01-concepts-and-format.md` | 135 lines | `.md` |
@@ -1320,7 +1326,9 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `docs/remote_cipher_config/03-extraction-and-self-heal.md` | 102 lines | `.md` |
 | `docs/remote_cipher_config/04-operations.md` | 131 lines | `.md` |
 | `docs/remote_cipher_config/README.md` | 60 lines | `.md` |
-| `docs/repository-map.md` | 1559 lines | `.md` |
+| `docs/repository-map.md` | 1567 lines | `.md` |
+| `docs/repository-map.md` | 1567 lines | `.md` |
+| `docs/repository-map.md` | 1567 lines | `.md` |
 | `docs/sabr/README.md` | 375 lines | `.md` |
 | `docs/stations/README.md` | 67 lines | `.md` |
 | `docs/status/README.md` | 93 lines | `.md` |
@@ -1334,7 +1342,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `docs/whitelist/README.md` | 238 lines | `.md` |
 | `docs/zemer_playlists/README.md` | 94 lines | `.md` |
 | `gradle.properties` | 26 lines | `.properties` |
-| `gradle/libs.versions.toml` | 148 lines | `.toml` |
+| `gradle/libs.versions.toml` | 149 lines | `.toml` |
 | `gradle/wrapper/gradle-wrapper.jar` | 45457 bytes | `.jar` |
 | `gradle/wrapper/gradle-wrapper.properties` | 8 lines | `.properties` |
 | `gradlew` | 248 lines | `[none]` |

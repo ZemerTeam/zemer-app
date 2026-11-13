@@ -1081,7 +1081,12 @@ detail: `docs/ui/standards.md §12`. Rules:
   use the file when it opens; if gone, **stream this play AND re-enqueue a download** - never crash,
   never clear `isDownloaded` - but skip the re-enqueue when `downloadUtil.mediaStoreDownloadState(id)` is
   already FAILED this session (else every play re-downloads). `downloadedFileOpens` returns false on ANY
-  open failure so playback streams.
+  open failure so playback streams. **A file that fails mid-play is never continued as a stream under the
+  same extractor** (the stream is another container; a seek then died with "No ogg page can be found"): a
+  later open of an item that started from its file and can no longer read it throws, and `onPlayerError`
+  answers a source error (`PlaybackErrors.isSourceErrorCode`) on a local item by restarting the item as a
+  stream at its position, once; the id then streams for the rest of the session (`unreadableLocalFiles`),
+  with no re-download and no delete (one failed read does not prove the file is damaged).
 - **Every DAO `WHERE x IN (:list)` goes through `db/SqliteBindLimit.chunks`** (a `...Chunk` `@Query` + a
   splitting default method): Android < 11 binds at most 999 variables (`SqliteBindLimitTest`).
 - **`database.query {}` is fire-and-forget** - never split one logical mutation across two `query {}`
