@@ -204,7 +204,10 @@ class MediaStoreDownloadService : Service() {
             ongoing = null
             // Not while a newer start is still on its way: stopping before it has had its startForeground
             // kills the app. The system refuses this stop then, and that start runs the idle check itself.
-            stopSelf(lastStartId)
+            // [states] is a debounced snapshot, so the id is read BEFORE the live state is checked: a download
+            // queued since then either shows in the live state or arrived with a newer start id.
+            val startId = lastStartId
+            if (downloadManager.downloadStates.value.values.none { it.isActive() }) stopSelf(startId)
             return
         }
 
