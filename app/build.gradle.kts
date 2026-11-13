@@ -287,6 +287,9 @@ dependencies {
     implementation(libs.concurrent.futures)
 
     implementation(libs.activity)
+    // Declared so the version is ours: without it the app ran whatever Stripe and Hilt pulled in (2.9.7,
+    // whose NavHost can keep composing a destroyed entry after a predictive back).
+    implementation(libs.navigation)
     implementation(libs.hilt.navigation)
     implementation(libs.datastore)
 
