@@ -45,7 +45,11 @@ class MediaStoreDownloadService : Service() {
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private lateinit var notificationManager: NotificationManager
-    private var hasStartedForeground = false
+    // The progress notification now shown, so a repeated start re-posts it instead of "Preparing".
+    @Volatile
+    private var ongoing: Notification? = null
+    @Volatile
+    private var lastStartId = 0
     private var lastCompletedCount = 0
 
     companion object {
@@ -86,26 +90,19 @@ class MediaStoreDownloadService : Service() {
         scope.launch {
             downloadManager.downloadStates
                 .debounce(250) // Update at most 4 times per second
-                .onEach { states ->
-                    updateNotification(states)
-
-                    if (states.values.none { it.status == MediaStoreDownloadManager.DownloadState.Status.DOWNLOADING ||
-                                it.status == MediaStoreDownloadManager.DownloadState.Status.QUEUED }) {
-                        stopSelf()
-                    }
-                }
+                .onEach { states -> updateNotification(states) }
                 .collect()
         }
     }
 
     /**
-     * Ensures the service is running in foreground mode.
-     * MUST be called immediately in onCreate and onStartCommand to avoid ANR.
+     * Enters foreground mode. MUST run in onCreate and in EVERY onStartCommand: a startForegroundService()
+     * call the system still counts as unanswered kills the app (ForegroundServiceDidNotStartInTimeException),
+     * and the service cannot tell which starts those are, so it answers every one.
      */
     private fun ensureForegroundService() {
-        if (hasStartedForeground) return
         runCatching {
-            val notification = createInitialNotification()
+            val notification = ongoing ?: createInitialNotification()
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                 startForeground(
                     NOTIFICATION_ID,
@@ -115,7 +112,6 @@ class MediaStoreDownloadService : Service() {
             } else {
                 startForeground(NOTIFICATION_ID, notification)
             }
-            hasStartedForeground = true
         }.onFailure {
             Timber.e(it, "Failed to enter foreground; stopping service to avoid ANR")
             stopSelf()
@@ -125,6 +121,7 @@ class MediaStoreDownloadService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         // CRITICAL: Must call startForeground immediately to avoid ANR
         ensureForegroundService()
+        lastStartId = startId
 
         // Handle cancel action from notification
         when (intent?.action) {
@@ -135,6 +132,10 @@ class MediaStoreDownloadService : Service() {
                 }
             }
         }
+
+        // A start that arrives with nothing left to do (its downloads already failed) gets no state change
+        // to stop it, so it stops itself.
+        if (downloadManager.downloadStates.value.values.none { it.isActive() }) stopSelf(startId)
 
         return START_STICKY
     }
@@ -177,11 +178,12 @@ class MediaStoreDownloadService : Service() {
             .build()
     }
 
+    private fun MediaStoreDownloadManager.DownloadState.isActive() =
+        status == MediaStoreDownloadManager.DownloadState.Status.DOWNLOADING ||
+            status == MediaStoreDownloadManager.DownloadState.Status.QUEUED
+
     private suspend fun updateNotification(states: Map<String, MediaStoreDownloadManager.DownloadState>) {
-        val activeDownloads = states.values.filter {
-            it.status == MediaStoreDownloadManager.DownloadState.Status.DOWNLOADING ||
-            it.status == MediaStoreDownloadManager.DownloadState.Status.QUEUED
-        }
+        val activeDownloads = states.values.filter { it.isActive() }
 
         val completedCount = states.values.count { it.status == MediaStoreDownloadManager.DownloadState.Status.COMPLETED }
 
@@ -199,7 +201,13 @@ class MediaStoreDownloadService : Service() {
                 )
             }
             lastCompletedCount = completedCount
-            stopSelf()
+            ongoing = null
+            // Not while a newer start is still on its way: stopping before it has had its startForeground
+            // kills the app. The system refuses this stop then, and that start runs the idle check itself.
+            // [states] is a debounced snapshot, so the id is read BEFORE the live state is checked: a download
+            // queued since then either shows in the live state or arrived with a newer start id.
+            val startId = lastStartId
+            if (downloadManager.downloadStates.value.values.none { it.isActive() }) stopSelf(startId)
             return
         }
 
@@ -211,6 +219,7 @@ class MediaStoreDownloadService : Service() {
             createMultipleDownloadsNotification(activeDownloads)
         }
 
+        ongoing = notification
         notificationManager.notify(NOTIFICATION_ID, notification)
     }
 
