@@ -26,6 +26,7 @@ import com.metrolist.innertube.models.YouTubeClient.Companion.WEB_REMIX
 import com.metrolist.innertube.models.response.PlayerResponse
 import com.metrolist.innertube.utils.ResilientDns
 import com.metrolist.innertube.utils.parseCookieString
+import io.ktor.client.plugins.ClientRequestException
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -244,7 +245,7 @@ object YTPlayerUtils {
             ).onFailure {
                 // Distinguish thrown request/parse failures from genuine playability rejections
                 // (both otherwise surface as a null response downstream).
-                Timber.tag(TAG).e(it, "player() request FAILED for main client %s", mainClient.clientName)
+                logPlayerRequestFailure(it, mainClient)
             }.getOrNull()
         Timber.tag(TAG).d( "Main response status: ${mainPlayerResponse?.playabilityStatus?.status ?: "request failed"}")
         var audioConfig = mainPlayerResponse?.playerConfig?.audioConfig
@@ -287,7 +288,7 @@ object YTPlayerUtils {
                     ).onFailure {
                         // A thrown network/HTTP/deserialization failure is not the same signal as
                         // a "Status NOT OK" playability rejection — log which one it was.
-                        Timber.tag(TAG).e(it, "player() request FAILED for %s", client.clientName)
+                        logPlayerRequestFailure(it, client)
                     }.getOrNull()
             }
 
@@ -555,6 +556,21 @@ object YTPlayerUtils {
         return YouTube.player(videoId, playlistId, client = WEB_REMIX) // non-web fallbacks do not work with history
     }
 
+    /**
+     * One client's /player failure. A 401 is YouTube refusing this session's credentials for this client
+     * (an expired or signed-out cookie): the next client is tried, and a play no client can serve still
+     * ends in the resolver's own reported error, so it is a breadcrumb. Anything else (a parse break, an
+     * unexpected status) is reported.
+     */
+    private fun logPlayerRequestFailure(failure: Throwable, client: YouTubeClient) {
+        val unauthorized = (failure as? ClientRequestException)?.response?.status?.value == 401
+        if (unauthorized) {
+            Timber.tag(TAG).w(failure, "player() request FAILED for %s", client.clientName)
+        } else {
+            Timber.tag(TAG).e(failure, "player() request FAILED for %s", client.clientName)
+        }
+    }
+
     private fun clientNeedsNTransform(client: YouTubeClient): Boolean =
         client.useWebPoTokens || client.clientName in listOf("WEB", "WEB_REMIX", "WEB_CREATOR", "TVHTML5")
 
@@ -636,7 +652,8 @@ object YTPlayerUtils {
             val progressiveMp4 = progressive.filter { it.mimeType.contains("mp4") }
             val ordered = (progressiveMp4.ifEmpty { progressive }).sortedBy { it.bitrate }
             val capped = maxVideoBitrateKbps?.let { cap ->
-                ordered.filter { (it.bitrate / 1000) <= cap }
+                // 0 = the response gave no bitrate: an unknown one never satisfies the cap
+                ordered.filter { it.bitrate > 0 && (it.bitrate / 1000) <= cap }
             }.orEmpty()
             val chosen = when {
                 capped.isNotEmpty() -> capped.maxByOrNull { it.bitrate }

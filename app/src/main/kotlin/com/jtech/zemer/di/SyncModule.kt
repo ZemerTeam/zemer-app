@@ -2,7 +2,9 @@ package com.jtech.zemer.di
 
 import android.content.Context
 import androidx.datastore.core.DataStore
+import androidx.datastore.core.handlers.ReplaceFileCorruptionHandler
 import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.emptyPreferences
 import androidx.datastore.preferences.preferencesDataStore
 import com.jtech.zemer.utils.dataStore
 import com.jtech.zemer.auth.UserAuthManager
@@ -18,7 +20,8 @@ import dagger.hilt.components.SingletonComponent
 import javax.inject.Singleton
 
 private val Context.syncDataStore: DataStore<Preferences> by preferencesDataStore(
-    name = "sync_preferences"
+    name = "sync_preferences",
+    corruptionHandler = ReplaceFileCorruptionHandler { emptyPreferences() },
 )
 
 /**

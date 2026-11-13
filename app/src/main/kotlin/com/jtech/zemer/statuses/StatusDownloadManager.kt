@@ -72,7 +72,7 @@ class StatusDownloadManager @Inject constructor(
             mediaUri = uri.toString(),
             savedAt = System.currentTimeMillis(),
         ).also { store.add(it) }
-    }.onFailure { reportException(it) }
+    }.onFailure { if (it !is MissingStatusMedia) reportException(it) }
 
     /** Delete the saved gallery file and drop the index record. */
     suspend fun remove(download: StatusDownload) {
@@ -86,7 +86,8 @@ class StatusDownloadManager @Inject constructor(
         url: String?,
         onProgress: (Float) -> Unit = {},
     ): Pair<ByteArray, String> = withContext(Dispatchers.IO) {
-        requireNotNull(url) { "status media url was null" }
+        // the platform listed the status without its media: the save fails (the caller says so), not a bug
+        if (url == null) throw MissingStatusMedia()
         http.newCall(Request.Builder().url(url).build()).execute().use { response ->
             require(response.isSuccessful) { "status media fetch failed: HTTP ${response.code}" }
             val body = response.body ?: error("empty status media body")
@@ -116,3 +117,6 @@ class StatusDownloadManager @Inject constructor(
         }
     }
 }
+
+/** A status whose media path the platform did not send: nothing to save, and nothing to report. */
+internal class MissingStatusMedia : Exception("status media url was null")

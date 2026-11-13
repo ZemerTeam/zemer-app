@@ -1885,8 +1885,8 @@ class MusicService :
             return
         }
 
-        // Bytes the extractor cannot parse, or a range past the end of a changed resource (416): drop this item's
-        // cached spans and fetch it fresh, once. A downloaded
+        // Bytes the extractor cannot parse, a range past the end of a changed resource (416), or a read that ran
+        // off the cached spans: drop this item's cached spans and fetch it fresh, once. A downloaded
         // file and RELAY are left to the paths below (a file is not re-fetched here; relay has no cache).
         val failedId = player.currentMediaItem?.mediaId
         // SABR keeps its own stream registry and replay spool, which this cache purge would not reach.
@@ -1959,6 +1959,9 @@ class MusicService :
 
     /** The shared tail of [onPlayerError] once no local-file recovery is possible or found. */
     private fun handleUnrecoverablePlayerError(error: PlaybackException) {
+        // PlayerConnection leaves a cache hole to the refetch above; one that was not refetched (a second
+        // hole in a row, SABR, a station) is reported here. In RELAY it already reports every error.
+        if (relayModeNow != true && PlaybackErrors.isCacheHole(error)) reportException(error)
         // RELAY: surface the relay's own HTTP errors with the contracted user messages (server doc §4).
         // A video-URL 404 for an audio-only id is handled earlier by videoModeController.onPlayerError
         // (revert to audio), so it never reaches here. Runs on the main thread (see onPlayerError).
@@ -2977,7 +2980,9 @@ class MusicService :
      */
     private fun discardUnreadablePersistFile(name: String, failure: Throwable) {
         if (failure is FileNotFoundException) return
-        reportException(failure)
+        // a class that no longer exists: the file was written by an old build whose class names were
+        // obfuscated. Nothing to fix; the file is dropped like any other unreadable one.
+        if (failure !is ClassNotFoundException) reportException(failure)
         runCatching { AtomicFile(filesDir.resolve(name)).delete() }
     }
 

@@ -156,7 +156,7 @@ fun LoginScreen(
 
                                     if (!LoginCapture.isCaptureComplete(innerTubeCookie, dataSyncId)) {
                                         android.util.Log.e("LoginScreen", "Login capture incomplete after $attempt attempts (cookie=${innerTubeCookie.isNotEmpty()}, dataSyncId=${dataSyncId.isNotEmpty()})")
-                                        reportException(IllegalStateException("Login capture incomplete: cookie=${innerTubeCookie.isNotEmpty()}, dataSyncId=${dataSyncId.isNotEmpty()}"))
+                                        if (LoginCapture.isCaptureFailure(innerTubeCookie, dataSyncId)) reportException(IllegalStateException("Login capture incomplete: cookie=${innerTubeCookie.isNotEmpty()}, dataSyncId=${dataSyncId.isNotEmpty()}"))
                                         // Friendly, non-technical message; allow a later page-finish to retry.
                                         context.toast(context.getString(R.string.sign_in_not_finished), long = true)
                                         hasCompletedLogin = false

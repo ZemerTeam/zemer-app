@@ -8,7 +8,9 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import androidx.media3.datasource.FileDataSource
 import java.io.EOFException
+import java.io.FileNotFoundException
 import java.io.IOException
 
 class PlaybackErrorsTest {
@@ -54,5 +56,19 @@ class PlaybackErrorsTest {
         // a range past the end of a changed resource is refetched the same way
         assertTrue(retry.shouldRetry("c", http(416)))
         assertFalse(retry.shouldRetry("c", http(416)))
+    }
+
+    @Test
+    fun `a read that ran off the cached spans is refetched once`() {
+        val hole = IOException(
+            "Source error",
+            FileDataSource.FileDataSourceException(FileNotFoundException("zMCnjU3P4Is: open failed: ENOENT"), 2005),
+        )
+        assertTrue(PlaybackErrors.isCacheHole(hole))
+        assertFalse(PlaybackErrors.isCacheHole(IOException("Source error", FileNotFoundException("gone"))))
+        assertFalse(PlaybackErrors.isCacheHole(http(403)))
+        val retry = CorruptMediaRetry()
+        assertTrue(retry.shouldRetry("a", hole))
+        assertFalse(retry.shouldRetry("a", hole))
     }
 }

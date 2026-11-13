@@ -118,7 +118,7 @@ export const SCHEMA = {
   },
   WatchEndpoint: { watchEndpointMusicSupportedConfigs: opt("WEMSC") }, // videoId etc. all defaulted
   WEMSC: { watchEndpointMusicConfig: req("WEMC") },
-  WEMC: { musicVideoType: req() },
+  WEMC: { musicVideoType: opt() },
   BrowseEndpoint: { browseId: req(), browseEndpointContextSupportedConfigs: opt("BECSC") },
   BECSC: { browseEndpointContextMusicConfig: req("BECMC") },
   BECMC: { pageType: req() },
