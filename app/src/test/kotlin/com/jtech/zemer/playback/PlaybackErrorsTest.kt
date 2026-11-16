@@ -59,6 +59,19 @@ class PlaybackErrorsTest {
     }
 
     @Test
+    fun `a later play of a refetched item is refetched again, a repeat of it is not`() {
+        val retry = CorruptMediaRetry()
+        assertTrue(retry.shouldRetry("a", http(416)))
+        // still on the same item (a repeat, a rendition swap): the limit holds
+        retry.onItemChanged("a")
+        assertFalse(retry.shouldRetry("a", http(416)))
+        // another item played in between
+        retry.onItemChanged("b")
+        retry.onItemChanged("a")
+        assertTrue(retry.shouldRetry("a", http(416)))
+    }
+
+    @Test
     fun `a read that ran off the cached spans is refetched once`() {
         val hole = IOException(
             "Source error",
