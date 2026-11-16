@@ -677,6 +677,7 @@ constructor(
                     CoverArtEmbedder.embedMetadataIntoFile(
                         context = context,
                         audioFile = tempFile,
+                        extension = saveExtension,
                         thumbnailUrl = song.song.thumbnailUrl,
                         httpClient = httpClient,
                         title = title,

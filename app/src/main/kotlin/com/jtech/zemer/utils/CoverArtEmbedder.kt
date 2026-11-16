@@ -43,11 +43,13 @@ object CoverArtEmbedder {
     /**
      * Embed metadata into [audioFile] in place. Returns true on success. For a WebM/Opus
      * input the on-disk file is REPLACED with a tagged `.ogg`; [onContainerChanged] is
-     * invoked with the new extension so the caller can update the MediaStore entry.
+     * invoked with the new extension so the caller can update the MediaStore entry. [extension] is the real
+     * container when the file's name does not say it (a relay/SABR download is written to a `.webm` temp file).
      */
     suspend fun embedMetadataIntoFile(
         context: Context,
         audioFile: File,
+        extension: String = audioFile.extension,
         thumbnailUrl: String?,
         httpClient: OkHttpClient,
         title: String? = null,
@@ -62,12 +64,12 @@ object CoverArtEmbedder {
         val scratch = mutableListOf<File>()
         try {
             val artwork = downloadArtworkOrNull(thumbnailUrl, httpClient)
-            val ext = audioFile.extension.lowercase()
+            val ext = extension.lowercase()
             when {
                 ext in MP4_EXTENSIONS ->
                     embedMp4(context, audioFile, artwork, title, artist, album, year, lyrics, albumArtist, trackNumber, scratch)
                 ext in OPUS_EXTENSIONS ->
-                    embedOpus(context, audioFile, artwork, title, artist, album, year, lyrics, albumArtist, trackNumber, scratch, onContainerChanged)
+                    embedOpus(context, audioFile, ext, artwork, title, artist, album, year, lyrics, albumArtist, trackNumber, scratch, onContainerChanged)
                 else -> false
             }
         } catch (e: Exception) {
@@ -105,6 +107,7 @@ object CoverArtEmbedder {
     private fun embedOpus(
         context: Context,
         audioFile: File,
+        ext: String,
         artwork: ByteArray?,
         title: String?, artist: String?, album: String?, year: Int?, lyrics: String?,
         albumArtist: String?, trackNumber: Int?,
@@ -112,7 +115,6 @@ object CoverArtEmbedder {
         onContainerChanged: ((String) -> Unit)?,
     ): Boolean {
         if (!AudioRemux.oggMuxSupported) return false
-        val ext = audioFile.extension.lowercase()
         // A real Ogg is tagged directly; WebM/Opus is rewrapped to Ogg first.
         val ogg = if (ext == "ogg") audioFile else
             File(context.cacheDir, "ogg_${System.currentTimeMillis()}.ogg").also { scratch.add(it) }
