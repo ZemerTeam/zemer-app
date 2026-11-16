@@ -99,6 +99,7 @@ fun PlayerMenu(
         rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { }
     val coroutineScope = rememberCoroutineScope()
     val downloadUtil = LocalDownloadUtil.current
+    val storageGate = rememberStoragePermissionGate()
 
     val mediaStoreDownload by downloadUtil.getMediaStoreDownload(mediaMetadata.id)
         .collectAsState(initial = null)
@@ -338,6 +339,7 @@ fun PlayerMenu(
                         mediaStoreDownload?.status == MediaStoreDownloadManager.DownloadState.Status.FAILED
                     downloadMenuItem(
                         kind = DownloadMenuLogic.songRow(downloadStatus, downloadFailed, songIsVideo, blockVideos),
+                        storageGate = storageGate,
                         progress = downloadProgress,
                         error = mediaStoreDownload?.error,
                         onDownload = {

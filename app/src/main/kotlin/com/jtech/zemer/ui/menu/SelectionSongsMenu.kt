@@ -64,6 +64,7 @@ fun SelectionSongMenu(
     val context = LocalContext.current
     val database = LocalDatabase.current
     val downloadUtil = LocalDownloadUtil.current
+    val storageGate = rememberStoragePermissionGate()
     val coroutineScope = rememberCoroutineScope()
     val playerConnection = LocalPlayerConnection.current ?: return
     val selectionQueueTitle = stringResource(R.string.queue_selection)
@@ -313,6 +314,7 @@ fun SelectionSongMenu(
                         val dlProgress = DownloadStateResolver.aggregateProgress(songSelection, mediaStoreDownloads)
                         downloadMenuItem(
                             kind = DownloadMenuLogic.collectionRow(dlStatus),
+                            storageGate = storageGate,
                             progress = dlProgress,
                             onDownload = { songSelection.forEach { downloadUtil.downloadToMediaStore(it) } },
                             onCancel = { songSelection.forEach { downloadUtil.cancelMediaStoreDownload(it.id) } },
@@ -400,6 +402,7 @@ fun SelectionMediaMetadataMenu(
     val context = LocalContext.current
     val database = LocalDatabase.current
     val downloadUtil = LocalDownloadUtil.current
+    val storageGate = rememberStoragePermissionGate()
     val coroutineScope = rememberCoroutineScope()
     val playerConnection = LocalPlayerConnection.current ?: return
     val selectionQueueTitle = stringResource(R.string.queue_selection)
@@ -565,6 +568,7 @@ fun SelectionMediaMetadataMenu(
                         val dlProgress = DownloadStateResolver.aggregateProgressByIds(ids, mediaStoreDownloads, persistedDownloaded)
                         downloadMenuItem(
                             kind = DownloadMenuLogic.collectionRow(dlStatus),
+                            storageGate = storageGate,
                             progress = dlProgress,
                             onDownload = {
                                 // Online MediaMetadata aren't Room entities yet — persist each, then

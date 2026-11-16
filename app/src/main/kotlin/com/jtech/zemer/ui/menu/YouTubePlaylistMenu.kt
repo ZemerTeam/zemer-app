@@ -92,6 +92,7 @@ fun YouTubePlaylistMenu(
     val context = LocalContext.current
     val database = LocalDatabase.current
     val downloadUtil = LocalDownloadUtil.current
+    val storageGate = rememberStoragePermissionGate()
     val playerConnection = LocalPlayerConnection.current ?: return
     val dbPlaylist by database.playlistByBrowseId(playlist.id).collectAsState(initial = null)
 
@@ -389,6 +390,7 @@ fun YouTubePlaylistMenu(
                         val dlProgress = DownloadStateResolver.aggregateProgressByIds(ids, mediaStoreDownloads, persistedDownloaded)
                         downloadMenuItem(
                             kind = DownloadMenuLogic.collectionRow(dlStatus),
+                            storageGate = storageGate,
                             progress = dlProgress,
                             onDownload = {
                                 // Online SongItems aren't Room entities yet — persist each, then download.

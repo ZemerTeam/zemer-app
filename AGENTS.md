@@ -1102,7 +1102,9 @@ detail: `docs/ui/standards.md §12`. Rules:
   MediaStore save on API 29+; only an audio download to a custom folder does not) fails at once when that volume is
   missing or unmounted (`MediaStoreHelper.canSaveDownload`, warn-logged, nothing fetched); a device state, not a bug.
   So does a MediaStore save before Android 10 without the storage permission (`missingStoragePermission`; the row
-  reads "Storage permission required").
+  reads "Storage permission required"). Every menu's Download and Retry ask for the permission first
+  (`downloadMenuItem`'s required `storageGate`, `rememberStoragePermissionGate`) and run whatever the answer, so the
+  manager decides and a failed row asks again.
 - **A failed save throws its real cause** (`MediaStoreHelper.saveFileToMediaStore` / `saveToMediaStore`): never
   swallow it into null, which reported every cause as "Failed to save file to MediaStore". Before Android 10 a path
   can have one MediaStore entry only (a second insert returns null), so the entry of an earlier install or attempt

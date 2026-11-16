@@ -2,8 +2,6 @@
 
 package com.jtech.zemer.ui.menu
 
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.PaddingValues
@@ -54,7 +52,6 @@ import com.jtech.zemer.db.entities.Song
 import com.jtech.zemer.extensions.isPersonalAccountSignedIn
 import com.jtech.zemer.extensions.toMediaItem
 import com.jtech.zemer.extensions.shareText
-import com.jtech.zemer.extensions.toast
 import com.jtech.zemer.models.toMediaMetadata
 import com.jtech.zemer.playback.DownloadMenuLogic
 import com.jtech.zemer.playback.DownloadStateResolver
@@ -73,7 +70,6 @@ import com.jtech.zemer.ui.component.SongListItem
 import com.jtech.zemer.ui.component.TextFieldDialog
 import com.jtech.zemer.ui.utils.ShowMediaInfo
 import com.jtech.zemer.ui.utils.navigateToArtist
-import com.jtech.zemer.utils.PermissionHelper
 import com.jtech.zemer.utils.VideoLinkBuilder
 import com.jtech.zemer.utils.rememberPreference
 import com.jtech.zemer.viewmodels.CachePlaylistViewModel
@@ -113,23 +109,7 @@ fun SongMenu(
     val cacheViewModel = hiltViewModel<CachePlaylistViewModel>()
     val (blockVideos, _) = rememberPreference(BlockVideosKey, false)
 
-    // Track whether user requested video download (for permission callback)
-    var pendingVideoDownload by remember { mutableStateOf(false) }
-
-    val permissionLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.RequestMultiplePermissions()
-    ) { permissions ->
-        if (permissions.values.all { it }) {
-            if (pendingVideoDownload) {
-                downloadUtil.downloadVideoToMediaStore(song)
-            } else {
-                downloadUtil.downloadToMediaStore(song)
-            }
-            onDismiss()
-        } else {
-            context.toast(context.getString(R.string.storage_permission_required), long = true)
-        }
-    }
+    val storageGate = rememberStoragePermissionGate()
 
     val rotationAnimation by animateFloatAsState(
         targetValue = refetchIconDegree,
@@ -473,16 +453,12 @@ fun SongMenu(
                         mediaStoreDownload?.status == com.jtech.zemer.playback.MediaStoreDownloadManager.DownloadState.Status.FAILED
                     downloadMenuItem(
                         kind = DownloadMenuLogic.songRow(downloadStatus, downloadFailed, song.song.isVideo, blockVideos),
+                        storageGate = storageGate,
                         progress = downloadProgress,
                         error = mediaStoreDownload?.error,
                         onDownload = {
-                            pendingVideoDownload = song.song.isVideo
-                            if (PermissionHelper.hasMediaStoreWritePermission(context)) {
-                                if (song.song.isVideo) downloadUtil.downloadVideoToMediaStore(song)
-                                else downloadUtil.downloadToMediaStore(song)
-                            } else {
-                                permissionLauncher.launch(PermissionHelper.getRequiredWritePermissions())
-                            }
+                            if (song.song.isVideo) downloadUtil.downloadVideoToMediaStore(song)
+                            else downloadUtil.downloadToMediaStore(song)
                         },
                         onCancel = { downloadUtil.cancelMediaStoreDownload(song.id) },
                         onRetry = { downloadUtil.retryMediaStoreDownload(song.id) },

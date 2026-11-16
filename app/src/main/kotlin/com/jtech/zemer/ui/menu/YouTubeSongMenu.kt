@@ -100,6 +100,7 @@ fun YouTubeSongMenu(
     val database = LocalDatabase.current
     val playerConnection = LocalPlayerConnection.current ?: return
     val downloadUtil = LocalDownloadUtil.current
+    val storageGate = rememberStoragePermissionGate()
     val librarySong by database.song(song.id).collectAsState(initial = null)
     val mediaStoreDownload by downloadUtil.getMediaStoreDownload(song.id).collectAsState(initial = null)
     val coroutineScope = rememberCoroutineScope()
@@ -407,6 +408,7 @@ fun YouTubeSongMenu(
                         mediaStoreDownload?.status == MediaStoreDownloadManager.DownloadState.Status.FAILED
                     downloadMenuItem(
                         kind = DownloadMenuLogic.songRow(downloadStatus, downloadFailed, songIsVideo, blockVideos),
+                        storageGate = storageGate,
                         progress = downloadProgress,
                         error = mediaStoreDownload?.error,
                         onDownload = {
