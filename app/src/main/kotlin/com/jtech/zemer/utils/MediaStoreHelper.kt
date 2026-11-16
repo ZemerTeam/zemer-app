@@ -18,6 +18,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import timber.log.Timber
 import java.io.File
+import java.io.IOException
 import java.io.InputStream
 
 /**
@@ -62,6 +63,13 @@ class MediaStoreHelper(private val context: Context) {
          */
         internal fun canSaveDownload(primaryVolumePresent: Boolean, video: Boolean, customPath: Boolean): Boolean =
             primaryVolumePresent || (customPath && !video)
+
+        /**
+         * Whether a save needs the storage permission: before Android 10 a MediaStore save writes a path in
+         * shared storage. An audio download to a custom folder goes through the folder's own grant.
+         */
+        internal fun needsStoragePermission(sdk: Int, video: Boolean, customPath: Boolean): Boolean =
+            sdk < Build.VERSION_CODES.Q && (video || !customPath)
     }
 
     private val customDownloadPathKey = CustomDownloadPathKey
@@ -78,6 +86,24 @@ class MediaStoreHelper(private val context: Context) {
             customPath = context.dataStore[customDownloadPathKey]?.isNotBlank() == true,
         )
 
+    /** A save that [needsStoragePermission] on a device where it is not granted. Call off the main thread. */
+    fun missingStoragePermission(video: Boolean): Boolean =
+        needsStoragePermission(
+            sdk = Build.VERSION.SDK_INT,
+            video = video,
+            customPath = context.dataStore[customDownloadPathKey]?.isNotBlank() == true,
+        ) && !PermissionHelper.hasMediaStoreWritePermission(context)
+
+    /**
+     * Before Android 10 a path can have one MediaStore entry only, and the insert of a second returns null: an
+     * entry left by an earlier install or a failed attempt is removed first (Android 10+ does it by relative path).
+     */
+    private fun deleteLegacyEntry(collection: Uri, file: File) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
+            context.contentResolver.delete(collection, "${MediaStore.MediaColumns.DATA} = ?", arrayOf(file.absolutePath))
+        }
+    }
+
     /**
      * Save a downloaded audio file to MediaStore in the Music/Zemer folder
      *
@@ -88,7 +114,8 @@ class MediaStoreHelper(private val context: Context) {
      * @param artist Artist name for metadata
      * @param album Album name for metadata (optional)
      * @param durationMs Duration in milliseconds (optional)
-     * @return Uri of the saved file, or null if save failed
+     * @return Uri of the saved file
+     * @throws Exception the real failure, so the download reports what went wrong
      */
     suspend fun saveToMediaStore(
         inputStream: InputStream,
@@ -98,7 +125,8 @@ class MediaStoreHelper(private val context: Context) {
         artist: String,
         album: String? = null,
         durationMs: Long? = null
-    ): Uri? = withContext(Dispatchers.IO) {
+    ): Uri = withContext(Dispatchers.IO) {
+        var inserted: Uri? = null
         try {
             val sanitizedFileName = sanitizeFileName(fileName)
             val contentResolver = context.contentResolver
@@ -150,20 +178,16 @@ class MediaStoreHelper(private val context: Context) {
                 MediaStore.Audio.Media.EXTERNAL_CONTENT_URI
             }
 
+            targetFile?.let { deleteLegacyEntry(audioCollection, it) }
             val audioUri = contentResolver.insert(audioCollection, contentValues)
-
-            if (audioUri == null) {
-                return@withContext null
-            }
+                ?: throw IOException("MediaStore refused the entry for $relativePath/$sanitizedFileName")
+            inserted = audioUri
 
             // Write the actual file content
             contentResolver.openOutputStream(audioUri)?.use { outputStream ->
                 inputStream.copyTo(outputStream)
                 outputStream.flush()
-            } ?: run {
-                contentResolver.delete(audioUri, null, null)
-                return@withContext null
-            }
+            } ?: throw IOException("MediaStore opened no stream for $audioUri")
 
             // Mark file as ready (remove IS_PENDING flag)
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
@@ -175,7 +199,9 @@ class MediaStoreHelper(private val context: Context) {
             audioUri
 
         } catch (e: Exception) {
-            null
+            // A half-written entry would show as a broken song and, before Android 10, block the retry's insert.
+            inserted?.let { runCatching { context.contentResolver.delete(it, null, null) } }
+            throw e
         }
     }
 
@@ -244,6 +270,7 @@ class MediaStoreHelper(private val context: Context) {
             } else {
                 MediaStore.Video.Media.EXTERNAL_CONTENT_URI
             }
+            contentValues.getAsString(MediaStore.Video.Media.DATA)?.let { deleteLegacyEntry(videoCollection, File(it)) }
 
             val videoUri = contentResolver.insert(videoCollection, contentValues)
 
@@ -358,7 +385,8 @@ class MediaStoreHelper(private val context: Context) {
      * @param artist Artist name
      * @param album Album name (optional)
      * @param durationMs Duration in milliseconds (optional)
-     * @return Uri of the saved file, or null if save failed
+     * @return Uri of the saved file
+     * @throws Exception the real failure, so the download reports what went wrong
      */
     suspend fun saveFileToMediaStore(
         tempFile: File,
@@ -368,50 +396,36 @@ class MediaStoreHelper(private val context: Context) {
         artist: String,
         album: String? = null,
         durationMs: Long? = null
-    ): Uri? = withContext(Dispatchers.IO) {
-        try {
-            if (!tempFile.exists()) {
-                return@withContext null
-            }
+    ): Uri = withContext(Dispatchers.IO) {
+        if (tempFile.length() == 0L) throw IOException("Nothing to save: the downloaded file is missing or empty")
 
-            val fileSize = tempFile.length()
+        val sanitizedFileName = sanitizeFileName(fileName)
 
-            if (fileSize == 0L) {
-                return@withContext null
-            }
+        // Only save to custom path if one is configured, otherwise use MediaStore
+        val hasCustomPath = context.dataStore[customDownloadPathKey]?.isNotBlank() == true
 
-            val sanitizedFileName = sanitizeFileName(fileName)
-            val sanitizedArtist = sanitizeFolderName(artist)
-            val sanitizedAlbum = album?.takeIf { it.isNotBlank() }?.let { sanitizeFolderName(it) }
-
-            // Only save to custom path if one is configured, otherwise use MediaStore
-            val hasCustomPath = context.dataStore[customDownloadPathKey]?.isNotBlank() == true
-
-            if (hasCustomPath) {
-                // Save to custom path only
-                saveToCustomPath(
-                    tempFile = tempFile,
+        if (hasCustomPath) {
+            // Save to custom path only
+            saveToCustomPath(
+                tempFile = tempFile,
+                mimeType = mimeType,
+                sanitizedFileName = sanitizedFileName,
+                sanitizedArtist = sanitizeFolderName(artist),
+                sanitizedAlbum = album?.takeIf { it.isNotBlank() }?.let { sanitizeFolderName(it) },
+            ) ?: throw IOException("The custom download folder cannot be written to")
+        } else {
+            // Save to MediaStore (default Music/Zemer folder)
+            tempFile.inputStream().use { inputStream ->
+                saveToMediaStore(
+                    inputStream = inputStream,
+                    fileName = sanitizedFileName,
                     mimeType = mimeType,
-                    sanitizedFileName = sanitizedFileName,
-                    sanitizedArtist = sanitizedArtist,
-                    sanitizedAlbum = sanitizedAlbum
+                    title = title,
+                    artist = artist,
+                    album = album,
+                    durationMs = durationMs
                 )
-            } else {
-                // Save to MediaStore (default Music/Zemer folder)
-                tempFile.inputStream().use { inputStream ->
-                    saveToMediaStore(
-                        inputStream = inputStream,
-                        fileName = sanitizedFileName,
-                        mimeType = mimeType,
-                        title = title,
-                        artist = artist,
-                        album = album,
-                        durationMs = durationMs
-                    )
-                }
             }
-        } catch (e: Exception) {
-            null
         }
     }
 
@@ -600,7 +614,7 @@ class MediaStoreHelper(private val context: Context) {
             }
         } catch (e: Exception) {
             targetFile.delete()
-            null
+            throw e
         }
     }
 
