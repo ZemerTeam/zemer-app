@@ -1101,6 +1101,12 @@ detail: `docs/ui/standards.md §12`. Rules:
 - **No shared storage volume = fail up front:** a download whose save needs the primary shared volume (every
   MediaStore save on API 29+; only an audio download to a custom folder does not) fails at once when that volume is
   missing or unmounted (`MediaStoreHelper.canSaveDownload`, warn-logged, nothing fetched); a device state, not a bug.
+  So does a MediaStore save before Android 10 without the storage permission (`missingStoragePermission`; the row
+  reads "Storage permission required").
+- **A failed save throws its real cause** (`MediaStoreHelper.saveFileToMediaStore` / `saveToMediaStore`): never
+  swallow it into null, which reported every cause as "Failed to save file to MediaStore". Before Android 10 a path
+  can have one MediaStore entry only (a second insert returns null), so the entry of an earlier install or attempt
+  is deleted first (`deleteLegacyEntry`), and an entry whose write failed is deleted again.
 - **The dataSync time limit stops the service at once:** Android 15+ calls `MediaStoreDownloadService.onTimeout`
   when the dataSync foreground budget (~6 h per 24 h) runs out; it fails every queued and running download
   (`MediaStoreDownloadManager.failAll`, Retry offered) and stops the service, else the process is killed

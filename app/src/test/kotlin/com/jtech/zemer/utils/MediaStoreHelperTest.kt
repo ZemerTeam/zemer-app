@@ -19,4 +19,13 @@ class MediaStoreHelperTest {
         assertFalse(MediaStoreHelper.canSaveDownload(primaryVolumePresent = false, video = true, customPath = true))
         assertTrue(MediaStoreHelper.canSaveDownload(primaryVolumePresent = false, video = false, customPath = true))
     }
+
+    @Test
+    fun `only a MediaStore save before Android 10 needs the storage permission`() {
+        assertTrue(MediaStoreHelper.needsStoragePermission(sdk = 28, video = false, customPath = false))
+        assertTrue(MediaStoreHelper.needsStoragePermission(sdk = 28, video = true, customPath = true))
+        assertFalse(MediaStoreHelper.needsStoragePermission(sdk = 28, video = false, customPath = true))
+        assertFalse(MediaStoreHelper.needsStoragePermission(sdk = 29, video = false, customPath = false))
+        assertFalse(MediaStoreHelper.needsStoragePermission(sdk = 36, video = true, customPath = false))
+    }
 }

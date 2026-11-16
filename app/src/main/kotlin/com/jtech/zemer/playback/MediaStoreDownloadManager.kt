@@ -471,15 +471,22 @@ constructor(
             val videoDownload = isVideoDownload && !relayMode
 
             // No shared storage volume (missing or unmounted) is a device state: fail without fetching a file
-            // that cannot be saved, and without reporting it.
-            if (!mediaStoreHelper.canSaveDownload(video = videoDownload)) {
-                Timber.w("Shared storage unavailable; not downloading ${song.id}")
+            // that cannot be saved, and without reporting it. So is a missing storage permission before Android 10,
+            // where the save writes a shared-storage path: the row says what is missing.
+            val cannotSave = when {
+                !mediaStoreHelper.canSaveDownload(video = videoDownload) -> "Storage unavailable"
+                mediaStoreHelper.missingStoragePermission(video = videoDownload) ->
+                    context.getString(R.string.storage_permission_required)
+                else -> null
+            }
+            if (cannotSave != null) {
+                Timber.w("$cannotSave; not downloading ${song.id}")
                 updateDownloadState(
                     song.id,
                     DownloadState(
                         songId = song.id,
                         status = DownloadState.Status.FAILED,
-                        error = "Storage unavailable",
+                        error = cannotSave,
                         retryAttempt = retryAttempt,
                     ),
                 )
