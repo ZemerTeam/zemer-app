@@ -1643,6 +1643,7 @@ class MusicService :
         // A REAL track change ends the departed listen's watch-time session (final=1) and arms the
         // next one — after the own-swap early-return above, so an audio↔video swap keeps its session.
         watchTimeReporter.onTransition()
+        corruptMediaRetry.onItemChanged(mediaItem?.mediaId)
 
         lastPlaybackSpeed = -1.0f // force update song
 
@@ -1975,9 +1976,11 @@ class MusicService :
 
     /** The shared tail of [onPlayerError] once no local-file recovery is possible or found. */
     private fun handleUnrecoverablePlayerError(error: PlaybackException) {
-        // PlayerConnection leaves a cache hole to the refetch above; one that was not refetched (a second
-        // hole in a row, SABR, a station) is reported here. In RELAY it already reports every error.
-        if (relayModeNow != true && PlaybackErrors.isCacheHole(error)) reportException(error)
+        // PlayerConnection leaves a cache hole and a stale range (416) to the refetch above; one that was not
+        // refetched (a second in a row, SABR, a station) is reported here. In RELAY it already reports every error.
+        if (relayModeNow != true && (PlaybackErrors.isCacheHole(error) || PlaybackErrors.isStaleRange(error))) {
+            reportException(error)
+        }
         // RELAY: surface the relay's own HTTP errors with the contracted user messages (server doc §4).
         // A video-URL 404 for an audio-only id is handled earlier by videoModeController.onPlayerError
         // (revert to audio), so it never reaches here. Runs on the main thread (see onPlayerError).

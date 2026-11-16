@@ -67,4 +67,12 @@ class CorruptMediaRetry {
         lastRetriedMediaId = mediaId
         return true
     }
+
+    /**
+     * The player moved to [mediaId]. Once another item took over, a later play of the retried one gets its retry
+     * again; staying on the same item (a repeat, a rendition swap) keeps the one-retry limit, so nothing loops.
+     */
+    fun onItemChanged(mediaId: String?) {
+        if (mediaId != lastRetriedMediaId) lastRetriedMediaId = null
+    }
 }
