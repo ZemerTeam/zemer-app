@@ -1127,7 +1127,9 @@ detail: `docs/ui/standards.md §12`. Rules:
   The opt-out lives on `DownloadedVideosScreen`, reachable even when videos are blocked.
 
 **Audio format + metadata embedding (pure Kotlin, no NDK).**
-- **Routing is `utils/CoverArtEmbedder`** (`supportsEmbedding` + embed) by extension: MP4/M4A →
+- **Routing is `utils/CoverArtEmbedder`** (`supportsEmbedding` + embed) by the SNIFFED extension the caller passes
+  (a relay/SABR download is written to a `.webm` temp file whatever its container; routing by that name sent an
+  M4A down the Opus path, untagged and counted as an Ogg refusal): MP4/M4A →
   `AudioRemux.flattenMp4` then `utils/mp4/Mp4MetadataWriter` (ilst atoms incl. `covr`, `aART`, `trkn`,
   lyrics); WebM/Ogg Opus → `AudioRemux.webmOpusToOgg` then `utils/ogg/OggOpusTagger` (OpusTags +
   `METADATA_BLOCK_PICTURE`). **The Ogg tagger STREAMS page by page** (`PageReader` over a
