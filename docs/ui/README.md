@@ -211,23 +211,24 @@ Every `@Composable fun` per UI file (extension receivers dropped, so `BoxScope.X
 | `app/src/main/kotlin/com/jtech/zemer/ui/component/shimmer/TextPlaceholder.kt` | 33 | TextPlaceholder |
 | `app/src/main/kotlin/com/jtech/zemer/ui/menu/AddToPlaylistDialog.kt` | 198 | AddToPlaylistDialog |
 | `app/src/main/kotlin/com/jtech/zemer/ui/menu/AddToPlaylistDialogOnline.kt` | 218 | AddToPlaylistDialogOnline |
-| `app/src/main/kotlin/com/jtech/zemer/ui/menu/AlbumMenu.kt` | 370 | AlbumMenu |
+| `app/src/main/kotlin/com/jtech/zemer/ui/menu/AlbumMenu.kt` | 372 | AlbumMenu |
 | `app/src/main/kotlin/com/jtech/zemer/ui/menu/ArtistMenu.kt` | 262 | ArtistMenu |
 | `app/src/main/kotlin/com/jtech/zemer/ui/menu/CustomThumbnailMenu.kt` | 63 | CustomThumbnailMenu |
+| `app/src/main/kotlin/com/jtech/zemer/ui/menu/DownloadMenuItems.kt` | 103 | rememberStoragePermissionGate |
 | `app/src/main/kotlin/com/jtech/zemer/ui/menu/LoadingScreen.kt` | 23 | LoadingScreen |
 | `app/src/main/kotlin/com/jtech/zemer/ui/menu/LyricsMenu.kt` | 188 | LyricsMenu |
-| `app/src/main/kotlin/com/jtech/zemer/ui/menu/PlayerMenu.kt` | 524 | PlayerMenu, TempoPitchDialog, ValueAdjuster |
-| `app/src/main/kotlin/com/jtech/zemer/ui/menu/PlaylistMenu.kt` | 233 | PlaylistMenu |
+| `app/src/main/kotlin/com/jtech/zemer/ui/menu/PlayerMenu.kt` | 526 | PlayerMenu, TempoPitchDialog, ValueAdjuster |
+| `app/src/main/kotlin/com/jtech/zemer/ui/menu/PlaylistMenu.kt` | 235 | PlaylistMenu |
 | `app/src/main/kotlin/com/jtech/zemer/ui/menu/PodcastChannelMenu.kt` | 184 | PodcastChannelMenu, YouTubePodcastMenu, podcastAction, podcastShareAction, PodcastMenuLayout |
 | `app/src/main/kotlin/com/jtech/zemer/ui/menu/ReportContentDialog.kt` | 130 | ReportContentDialog |
 | `app/src/main/kotlin/com/jtech/zemer/ui/menu/SavedStatusMenu.kt` | 113 | SavedStatusMenu |
-| `app/src/main/kotlin/com/jtech/zemer/ui/menu/SelectionSongsMenu.kt` | 595 | SelectionSongMenu, SelectionMediaMetadataMenu |
-| `app/src/main/kotlin/com/jtech/zemer/ui/menu/SongMenu.kt` | 553 | SongMenu |
+| `app/src/main/kotlin/com/jtech/zemer/ui/menu/SelectionSongsMenu.kt` | 599 | SelectionSongMenu, SelectionMediaMetadataMenu |
+| `app/src/main/kotlin/com/jtech/zemer/ui/menu/SongMenu.kt` | 529 | SongMenu |
 | `app/src/main/kotlin/com/jtech/zemer/ui/menu/VideoQualityMenu.kt` | 72 | VideoQualityMenu |
-| `app/src/main/kotlin/com/jtech/zemer/ui/menu/YouTubeAlbumMenu.kt` | 358 | YouTubeAlbumMenu |
+| `app/src/main/kotlin/com/jtech/zemer/ui/menu/YouTubeAlbumMenu.kt` | 360 | YouTubeAlbumMenu |
 | `app/src/main/kotlin/com/jtech/zemer/ui/menu/YouTubeArtistMenu.kt` | 204 | YouTubeArtistMenu |
-| `app/src/main/kotlin/com/jtech/zemer/ui/menu/YouTubePlaylistMenu.kt` | 450 | YouTubePlaylistMenu |
-| `app/src/main/kotlin/com/jtech/zemer/ui/menu/YouTubeSongMenu.kt` | 504 | YouTubeSongMenu |
+| `app/src/main/kotlin/com/jtech/zemer/ui/menu/YouTubePlaylistMenu.kt` | 452 | YouTubePlaylistMenu |
+| `app/src/main/kotlin/com/jtech/zemer/ui/menu/YouTubeSongMenu.kt` | 506 | YouTubeSongMenu |
 | `app/src/main/kotlin/com/jtech/zemer/ui/player/CastBottomSheet.kt` | 467 | CastPicker, CastDownloadDialog, CastHeader, CastFcastSection, CastCircleButton, CastCenteredColumn, CenteredText, CastDownloadProgress, CastDownloadSuccessEffect, CastSpinnerText, CastDeviceRow |
 | `app/src/main/kotlin/com/jtech/zemer/ui/player/CastButton.kt` | 93 | rememberCastButtonState, CastIcon, CastButton |
 | `app/src/main/kotlin/com/jtech/zemer/ui/player/LyricsScreen.kt` | 259 | LyricsScreen, TopBar, LyricsPane, Transport |
@@ -440,27 +441,27 @@ Key declarations are the first 12 `class`/`object`/`interface`/`fun`/`val`/`var`
 | `app/src/main/kotlin/com/jtech/zemer/ui/component/shimmer/TextPlaceholder.kt` | 33 | fun TextPlaceholder |
 | `app/src/main/kotlin/com/jtech/zemer/ui/menu/AddToPlaylistDialog.kt` | 198 | fun AddToPlaylistDialog, val database, val coroutineScope, var playlists, val _, var showCreatePlaylistDialog, var showDuplicateDialog, var selectedPlaylist, var songIds, var duplicates, fun commitAddToPlaylist |
 | `app/src/main/kotlin/com/jtech/zemer/ui/menu/AddToPlaylistDialogOnline.kt` | 218 | fun importMatch, val top, fun AddToPlaylistDialogOnline, val database, val context, val coroutineScope, var playlists, var showCreatePlaylistDialog, fun findFirstSong, val allArtists, val query, fun processSongs, … (+5 more) |
-| `app/src/main/kotlin/com/jtech/zemer/ui/menu/AlbumMenu.kt` | 370 | fun AlbumMenu, val context, val database, val downloadUtil, val playerConnection, val scope, val libraryAlbum, val album, var songs, var showReportDialog, val coroutineScope, val mediaStoreDownloads, … (+9 more) |
+| `app/src/main/kotlin/com/jtech/zemer/ui/menu/AlbumMenu.kt` | 372 | fun AlbumMenu, val context, val database, val downloadUtil, val storageGate, val playerConnection, val scope, val libraryAlbum, val album, var songs, var showReportDialog, val coroutineScope, … (+10 more) |
 | `app/src/main/kotlin/com/jtech/zemer/ui/menu/ArtistMenu.kt` | 262 | fun ArtistMenu, val context, var showReportDialog, val database, val playerConnection, val artistState, val artist, val songs, val songs |
 | `app/src/main/kotlin/com/jtech/zemer/ui/menu/CustomThumbnailMenu.kt` | 63 | fun CustomThumbnailMenu |
-| `app/src/main/kotlin/com/jtech/zemer/ui/menu/DownloadMenuItems.kt` | 70 | fun downloadMenuItem, val pct |
+| `app/src/main/kotlin/com/jtech/zemer/ui/menu/DownloadMenuItems.kt` | 103 | fun downloadMenuItem, val pct, fun rememberStoragePermissionGate, val context, val pending, val launcher |
 | `app/src/main/kotlin/com/jtech/zemer/ui/menu/LibraryMenuItems.kt` | 34 | fun libraryMenuItem |
 | `app/src/main/kotlin/com/jtech/zemer/ui/menu/LoadingScreen.kt` | 23 | fun LoadingScreen |
 | `app/src/main/kotlin/com/jtech/zemer/ui/menu/LyricsMenu.kt` | 188 | fun LyricsMenu, val context, val database, var showEditDialog, val id, var showReportDialog, val lineExtrasLanguage, val onLineExtrasLanguageChange, var showLineExtrasDialog |
-| `app/src/main/kotlin/com/jtech/zemer/ui/menu/PlayerMenu.kt` | 524 | fun PlayerMenu, val context, val database, val playerConnection, val playerVolume, val isCasting, val isStationBroadcast, val remoteVolume, val activityResultLauncher, val coroutineScope, val downloadUtil, val mediaStoreDownload, … (+22 more) |
-| `app/src/main/kotlin/com/jtech/zemer/ui/menu/PlaylistMenu.kt` | 233 | fun PlaylistMenu, val context, val database, val downloadUtil, val playerConnection, val dbPlaylist, var songs, var showReportDialog, val mediaStoreDownloads, val downloadScope, val dlStatus, val dlProgress |
+| `app/src/main/kotlin/com/jtech/zemer/ui/menu/PlayerMenu.kt` | 526 | fun PlayerMenu, val context, val database, val playerConnection, val playerVolume, val isCasting, val isStationBroadcast, val remoteVolume, val activityResultLauncher, val coroutineScope, val downloadUtil, val storageGate, … (+23 more) |
+| `app/src/main/kotlin/com/jtech/zemer/ui/menu/PlaylistMenu.kt` | 235 | fun PlaylistMenu, val context, val database, val downloadUtil, val storageGate, val playerConnection, val dbPlaylist, var songs, var showReportDialog, val mediaStoreDownloads, val downloadScope, val dlStatus, … (+1 more) |
 | `app/src/main/kotlin/com/jtech/zemer/ui/menu/PodcastChannelMenu.kt` | 184 | fun PodcastChannelMenu, fun YouTubePodcastMenu, fun podcastAction, fun podcastShareAction, val context, fun PodcastMenuLayout, val context |
 | `app/src/main/kotlin/com/jtech/zemer/ui/menu/ReportContentDialog.kt` | 130 | fun ReportContentDialog, val context, val scope, var isSubmitting, var selectedReason, var comment, val reasons, val success |
 | `app/src/main/kotlin/com/jtech/zemer/ui/menu/SavedStatusMenu.kt` | 113 | fun SavedStatusMenu |
-| `app/src/main/kotlin/com/jtech/zemer/ui/menu/SelectionSongsMenu.kt` | 595 | fun SelectionSongMenu, val context, val database, val downloadUtil, val coroutineScope, val playerConnection, val selectionQueueTitle, val syncUtils, var showReportDialog, var targetSong, val allInLibrary, val likeableSongs, … (+31 more) |
-| `app/src/main/kotlin/com/jtech/zemer/ui/menu/SongMenu.kt` | 553 | fun SongMenu, val context, val database, val playerConnection, val songState, val song, val downloadUtil, val mediaStoreDownload, val coroutineScope, val syncUtils, val scope, var refetchIconDegree, … (+26 more) |
+| `app/src/main/kotlin/com/jtech/zemer/ui/menu/SelectionSongsMenu.kt` | 599 | fun SelectionSongMenu, val context, val database, val downloadUtil, val storageGate, val coroutineScope, val playerConnection, val selectionQueueTitle, val syncUtils, var showReportDialog, var targetSong, val allInLibrary, … (+33 more) |
+| `app/src/main/kotlin/com/jtech/zemer/ui/menu/SongMenu.kt` | 529 | fun SongMenu, val context, val database, val playerConnection, val songState, val song, val downloadUtil, val mediaStoreDownload, val coroutineScope, val syncUtils, val scope, var refetchIconDegree, … (+25 more) |
 | `app/src/main/kotlin/com/jtech/zemer/ui/menu/VideoQualityMenu.kt` | 72 | fun VideoQualityMenu |
 | `app/src/main/kotlin/com/jtech/zemer/ui/menu/ViewCollectionMenuItem.kt` | 61 | fun viewCollectionRoute, fun viewCollectionMenuItem |
-| `app/src/main/kotlin/com/jtech/zemer/ui/menu/YouTubeAlbumMenu.kt` | 358 | fun YouTubeAlbumMenu, val context, val database, val downloadUtil, val playerConnection, val album, val coroutineScope, val zemerRepository, val options, val mediaStoreDownloads, var showChoosePlaylistDialog, var showErrorPlaylistAddDialog, … (+8 more) |
+| `app/src/main/kotlin/com/jtech/zemer/ui/menu/YouTubeAlbumMenu.kt` | 360 | fun YouTubeAlbumMenu, val context, val database, val downloadUtil, val storageGate, val playerConnection, val album, val coroutineScope, val zemerRepository, val options, val mediaStoreDownloads, var showChoosePlaylistDialog, … (+9 more) |
 | `app/src/main/kotlin/com/jtech/zemer/ui/menu/YouTubeArtistMenu.kt` | 204 | fun YouTubeArtistMenu, val context, var showReportDialog, val database, val playerConnection, val libraryArtist, val libraryArtist |
 | `app/src/main/kotlin/com/jtech/zemer/ui/menu/YouTubeItemMenu.kt` | 66 | fun ytItemMenu |
-| `app/src/main/kotlin/com/jtech/zemer/ui/menu/YouTubePlaylistMenu.kt` | 450 | fun YouTubePlaylistMenu, val context, val database, val downloadUtil, val playerConnection, val dbPlaylist, var showChoosePlaylistDialog, var showErrorPlaylistAddDialog, val notAddedList, val allSongs, val playlistEntity, val currentPlaylist, … (+9 more) |
-| `app/src/main/kotlin/com/jtech/zemer/ui/menu/YouTubeSongMenu.kt` | 504 | fun YouTubeSongMenu, val context, val database, val playerConnection, val downloadUtil, val librarySong, val mediaStoreDownload, val coroutineScope, val syncUtils, var showReportDialog, val blockVideos, val _, … (+20 more) |
+| `app/src/main/kotlin/com/jtech/zemer/ui/menu/YouTubePlaylistMenu.kt` | 452 | fun YouTubePlaylistMenu, val context, val database, val downloadUtil, val storageGate, val playerConnection, val dbPlaylist, var showChoosePlaylistDialog, var showErrorPlaylistAddDialog, val notAddedList, val allSongs, val playlistEntity, … (+10 more) |
+| `app/src/main/kotlin/com/jtech/zemer/ui/menu/YouTubeSongMenu.kt` | 506 | fun YouTubeSongMenu, val context, val database, val playerConnection, val downloadUtil, val storageGate, val librarySong, val mediaStoreDownload, val coroutineScope, val syncUtils, var showReportDialog, val blockVideos, … (+21 more) |
 | `app/src/main/kotlin/com/jtech/zemer/ui/player/CastBottomSheet.kt` | 467 | val FCAST_DOWNLOADS_URL, fun castFailureMessageRes, fun shareFcast, fun copyFcast, fun CastPicker, val service, val handler, val connectedDevice, val devices, val libState, val context, val refreshing, … (+22 more) |
 | `app/src/main/kotlin/com/jtech/zemer/ui/player/CastButton.kt` | 93 | fun openCastPicker, class CastButtonState, val connected, val onClick, fun rememberCastButtonState, val playerConnection, val menuState, val connectedDevice, val castEnabled, fun CastIcon, fun CastButton, val state |
 | `app/src/main/kotlin/com/jtech/zemer/ui/player/EpisodeSpeed.kt` | 35 | val EPISODE_SPEEDS, fun episodeSpeedLabel, fun nextEpisodeSpeed, val nearest, val EPISODE_SKIP_MS, fun episodeSkipTarget, val target |
