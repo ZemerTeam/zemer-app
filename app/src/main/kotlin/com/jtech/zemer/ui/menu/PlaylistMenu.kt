@@ -66,6 +66,7 @@ fun PlaylistMenu(
     val context = LocalContext.current
     val database = LocalDatabase.current
     val downloadUtil = LocalDownloadUtil.current
+    val storageGate = rememberStoragePermissionGate()
     val playerConnection = LocalPlayerConnection.current ?: return
     val dbPlaylist by database.playlist(playlist.id).collectAsState(initial = playlist)
     var songs by remember { mutableStateOf(emptyList<Song>()) }
@@ -212,6 +213,7 @@ fun PlaylistMenu(
                         val dlProgress = DownloadStateResolver.aggregateProgress(songs, mediaStoreDownloads)
                         downloadMenuItem(
                             kind = DownloadMenuLogic.collectionRow(dlStatus),
+                            storageGate = storageGate,
                             progress = dlProgress,
                             onDownload = { songs.forEach { downloadUtil.downloadToMediaStore(it) } },
                             onCancel = { songs.forEach { downloadUtil.cancelMediaStoreDownload(it.id) } },

@@ -76,6 +76,7 @@ fun YouTubeAlbumMenu(
     val context = LocalContext.current
     val database = LocalDatabase.current
     val downloadUtil = LocalDownloadUtil.current
+    val storageGate = rememberStoragePermissionGate()
     val playerConnection = LocalPlayerConnection.current ?: return
     val album by database.albumWithSongs(albumItem.id).collectAsState(initial = null)
     val coroutineScope = rememberCoroutineScope()
@@ -310,6 +311,7 @@ fun YouTubeAlbumMenu(
                     val dlProgress = DownloadStateResolver.aggregateProgress(songs, mediaStoreDownloads)
                     downloadMenuItem(
                         kind = DownloadMenuLogic.collectionRow(dlStatus),
+                        storageGate = storageGate,
                         progress = dlProgress,
                         // Fetch-if-empty: the album loads async, so a first tap before it arrived used
                         // to be a no-op ("press once does nothing, twice works"). Resolve the songs at
