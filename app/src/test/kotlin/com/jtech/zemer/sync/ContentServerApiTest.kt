@@ -17,6 +17,7 @@ import org.junit.Assert.fail
 import org.junit.Before
 import org.junit.Test
 import java.net.InetAddress
+import java.net.InetSocketAddress
 import java.net.ServerSocket
 import java.net.Socket
 import kotlin.concurrent.thread
@@ -189,12 +190,17 @@ class ContentServerApiTest {
 
     @Test
     fun `an unreachable server throws an IOException`() = runBlocking {
-        server.close()
-        try {
-            api.devicePrefs("abc")
-            fail("expected a connection failure")
-        } catch (e: java.io.IOException) {
-            // expected (connection refused)
+        // A port bound but never listening refuses every connect, and nothing else can take it while it is held
+        // (a closed server's freed port could be handed to a parallel test's server, which then answered).
+        Socket().use { held ->
+            held.bind(InetSocketAddress(InetAddress.getByName("127.0.0.1"), 0))
+            val unreachable = ContentServerApi("http://127.0.0.1:${held.localPort}/", HttpClient(CIO))
+            try {
+                unreachable.devicePrefs("abc")
+                fail("expected a connection failure")
+            } catch (e: java.io.IOException) {
+                // expected (connection refused)
+            }
         }
     }
 }
