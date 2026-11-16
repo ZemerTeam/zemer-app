@@ -1158,7 +1158,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/test/kotlin/com/jtech/zemer/statuses/StatusesApiTest.kt` | 267 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/statuses/YidStatusApiTest.kt` | 81 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/sync/ContentReportRepositoryTest.kt` | 92 lines | `.kt` |
-| `app/src/test/kotlin/com/jtech/zemer/sync/ContentServerApiTest.kt` | 200 lines | `.kt` |
+| `app/src/test/kotlin/com/jtech/zemer/sync/ContentServerApiTest.kt` | 206 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/sync/DeviceFiltersChangedTest.kt` | 33 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/sync/PodcastSyncLogicTest.kt` | 171 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/sync/ReportRetryTest.kt` | 57 lines | `.kt` |
