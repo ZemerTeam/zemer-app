@@ -66,6 +66,22 @@ fun repeatModeContentDescriptionRes(repeatMode: Int): Int =
 fun shuffleIconRes(shuffleEnabled: Boolean): Int =
     if (shuffleEnabled) R.drawable.shuffle_on else R.drawable.shuffle
 
+/**
+ * Removes the queue items [windows] stand for. A selection keeps tap order and its indices go stale as the queue
+ * moves (a song ends, radio appends), so each is found by its uid in the live timeline and removed from the
+ * highest index down; one no longer in the queue is skipped.
+ */
+fun Player.removeQueueItems(windows: Collection<Timeline.Window>) {
+    if (!isCommandAvailable(Player.COMMAND_CHANGE_MEDIA_ITEMS)) return
+    currentTimeline.windowIndicesOf(windows.mapTo(HashSet()) { it.uid }).forEach(::removeMediaItem)
+}
+
+/** The indices of the windows whose uid is in [uids], highest first. */
+fun Timeline.windowIndicesOf(uids: Set<Any>): List<Int> {
+    val window = Timeline.Window()
+    return (windowCount - 1 downTo 0).filter { getWindow(it, window).uid in uids }
+}
+
 fun Player.getQueueWindows(): List<Timeline.Window> {
     val timeline = currentTimeline
     if (timeline.isEmpty) {

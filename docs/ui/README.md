@@ -222,7 +222,7 @@ Every `@Composable fun` per UI file (extension receivers dropped, so `BoxScope.X
 | `app/src/main/kotlin/com/jtech/zemer/ui/menu/PodcastChannelMenu.kt` | 184 | PodcastChannelMenu, YouTubePodcastMenu, podcastAction, podcastShareAction, PodcastMenuLayout |
 | `app/src/main/kotlin/com/jtech/zemer/ui/menu/ReportContentDialog.kt` | 130 | ReportContentDialog |
 | `app/src/main/kotlin/com/jtech/zemer/ui/menu/SavedStatusMenu.kt` | 113 | SavedStatusMenu |
-| `app/src/main/kotlin/com/jtech/zemer/ui/menu/SelectionSongsMenu.kt` | 599 | SelectionSongMenu, SelectionMediaMetadataMenu |
+| `app/src/main/kotlin/com/jtech/zemer/ui/menu/SelectionSongsMenu.kt` | 594 | SelectionSongMenu, SelectionMediaMetadataMenu |
 | `app/src/main/kotlin/com/jtech/zemer/ui/menu/SongMenu.kt` | 529 | SongMenu |
 | `app/src/main/kotlin/com/jtech/zemer/ui/menu/VideoQualityMenu.kt` | 72 | VideoQualityMenu |
 | `app/src/main/kotlin/com/jtech/zemer/ui/menu/YouTubeAlbumMenu.kt` | 360 | YouTubeAlbumMenu |
@@ -240,7 +240,7 @@ Every `@Composable fun` per UI file (extension receivers dropped, so `BoxScope.X
 | `app/src/main/kotlin/com/jtech/zemer/ui/player/PlayerTransport.kt` | 272 | PlayerSeekBar, PlayerTransportRow, TransportSkipButton |
 | `app/src/main/kotlin/com/jtech/zemer/ui/player/PlayerVideoFullscreen.kt` | 317 | PlayerVideoFullscreen |
 | `app/src/main/kotlin/com/jtech/zemer/ui/player/PlayerVideoSurface.kt` | 112 | PlayerVideoSurface |
-| `app/src/main/kotlin/com/jtech/zemer/ui/player/Queue.kt` | 943 | Queue, QueuePillButton |
+| `app/src/main/kotlin/com/jtech/zemer/ui/player/Queue.kt` | 946 | Queue, QueuePillButton |
 | `app/src/main/kotlin/com/jtech/zemer/ui/player/StationLiveBar.kt` | 70 | StationLiveBar, StationLiveBadge |
 | `app/src/main/kotlin/com/jtech/zemer/ui/player/Thumbnail.kt` | 592 | Thumbnail |
 | `app/src/main/kotlin/com/jtech/zemer/ui/player/VideoModePill.kt` | 139 | VideoModePill, VideoModeSegment |
@@ -453,7 +453,7 @@ Key declarations are the first 12 `class`/`object`/`interface`/`fun`/`val`/`var`
 | `app/src/main/kotlin/com/jtech/zemer/ui/menu/PodcastChannelMenu.kt` | 184 | fun PodcastChannelMenu, fun YouTubePodcastMenu, fun podcastAction, fun podcastShareAction, val context, fun PodcastMenuLayout, val context |
 | `app/src/main/kotlin/com/jtech/zemer/ui/menu/ReportContentDialog.kt` | 130 | fun ReportContentDialog, val context, val scope, var isSubmitting, var selectedReason, var comment, val reasons, val success |
 | `app/src/main/kotlin/com/jtech/zemer/ui/menu/SavedStatusMenu.kt` | 113 | fun SavedStatusMenu |
-| `app/src/main/kotlin/com/jtech/zemer/ui/menu/SelectionSongsMenu.kt` | 599 | fun SelectionSongMenu, val context, val database, val downloadUtil, val storageGate, val coroutineScope, val playerConnection, val selectionQueueTitle, val syncUtils, var showReportDialog, var targetSong, val allInLibrary, … (+33 more) |
+| `app/src/main/kotlin/com/jtech/zemer/ui/menu/SelectionSongsMenu.kt` | 594 | fun SelectionSongMenu, val context, val database, val downloadUtil, val storageGate, val coroutineScope, val playerConnection, val selectionQueueTitle, val syncUtils, var showReportDialog, var targetSong, val allInLibrary, … (+32 more) |
 | `app/src/main/kotlin/com/jtech/zemer/ui/menu/SongMenu.kt` | 529 | fun SongMenu, val context, val database, val playerConnection, val songState, val song, val downloadUtil, val mediaStoreDownload, val coroutineScope, val syncUtils, val scope, var refetchIconDegree, … (+25 more) |
 | `app/src/main/kotlin/com/jtech/zemer/ui/menu/VideoQualityMenu.kt` | 72 | fun VideoQualityMenu |
 | `app/src/main/kotlin/com/jtech/zemer/ui/menu/ViewCollectionMenuItem.kt` | 61 | fun viewCollectionRoute, fun viewCollectionMenuItem |
@@ -474,7 +474,7 @@ Key declarations are the first 12 `class`/`object`/`interface`/`fun`/`val`/`var`
 | `app/src/main/kotlin/com/jtech/zemer/ui/player/PlayerTransport.kt` | 272 | fun PlayerSeekBar, val value, val valueRange, val latest, val onValueChange, val onValueChangeFinished, fun PlayerTransportRow, val skipPrevInteraction, val playPauseInteraction, val skipNextInteraction, val playPressed, val maxPlayButtonWidth, … (+10 more) |
 | `app/src/main/kotlin/com/jtech/zemer/ui/player/PlayerVideoFullscreen.kt` | 317 | fun PlayerVideoFullscreen, val playerConnection, val isPlaying, val playbackState, val canSkipPrevious, val canSkipNext, val videoQualities, val currentVideoQuality, var position, var duration, var sliderPosition, var controlsVisible, … (+6 more) |
 | `app/src/main/kotlin/com/jtech/zemer/ui/player/PlayerVideoSurface.kt` | 112 | fun PlayerVideoSurface, val playerConnection, val context, val surfaceView, var aspect, val player, fun apply, val w, val h, val listener, fun onVideoSizeChanged, val playbackState |
-| `app/src/main/kotlin/com/jtech/zemer/ui/player/Queue.kt` | 943 | fun Queue, val context, val haptic, val menuState, val bottomSheetPageState, val playerConnection, val isPlaying, val isStationBroadcast, val repeatMode, val shuffleModeEnabled, val currentWindowIndex, val rawMediaMetadata, … (+39 more) |
+| `app/src/main/kotlin/com/jtech/zemer/ui/player/Queue.kt` | 946 | fun Queue, val context, val haptic, val menuState, val bottomSheetPageState, val playerConnection, val isPlaying, val isStationBroadcast, val repeatMode, val shuffleModeEnabled, val currentWindowIndex, val rawMediaMetadata, … (+39 more) |
 | `app/src/main/kotlin/com/jtech/zemer/ui/player/StationLiveBar.kt` | 70 | fun StationLiveBar, fun StationLiveBadge |
 | `app/src/main/kotlin/com/jtech/zemer/ui/player/Thumbnail.kt` | 592 | fun Thumbnail, val playerConnection, val context, val mediaMetadata, val error, val queueTitle, val videoQualities, val currentVideoQuality, val swipeThumbnailPref, val isStationBroadcast, val swipeThumbnail, val hidePlayerThumbnail, … (+54 more) |
 | `app/src/main/kotlin/com/jtech/zemer/ui/player/VideoModePill.kt` | 139 | val SegmentSize, val SegmentGap, val ThumbPadding, fun VideoModePill, val thumbOffset, fun VideoModeSegment, val tint |
