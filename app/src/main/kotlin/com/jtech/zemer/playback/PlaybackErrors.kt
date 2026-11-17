@@ -48,6 +48,9 @@ object PlaybackErrors {
      */
     fun isSourceErrorCode(errorCode: Int): Boolean = errorCode in 2000..3999
 
+    /** Fixed by purging the item's cached spans and fetching it fresh ([CorruptMediaRetry]). */
+    fun refetchFixes(error: Throwable): Boolean = isCorruptMedia(error) || isStaleRange(error) || isCacheHole(error)
+
     private const val MAX_CAUSES = 10
 }
 
@@ -61,9 +64,7 @@ class CorruptMediaRetry {
     private var lastRetriedMediaId: String? = null
 
     fun shouldRetry(mediaId: String, error: Throwable): Boolean {
-        val refetchFixes = PlaybackErrors.isCorruptMedia(error) || PlaybackErrors.isStaleRange(error) ||
-            PlaybackErrors.isCacheHole(error)
-        if (!refetchFixes || mediaId == lastRetriedMediaId) return false
+        if (!PlaybackErrors.refetchFixes(error) || mediaId == lastRetriedMediaId) return false
         lastRetriedMediaId = mediaId
         return true
     }

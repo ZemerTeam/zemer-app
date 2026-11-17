@@ -86,6 +86,18 @@ class PlaybackErrorsTest {
     }
 
     @Test
+    fun `bad bytes, a stale range and a cache hole are what a refetch fixes`() {
+        val hole = IOException("Source error", FileDataSource.FileDataSourceException(FileNotFoundException("x"), 2005))
+        assertTrue(PlaybackErrors.refetchFixes(mkvVarint))
+        assertTrue(PlaybackErrors.refetchFixes(IOException("Source error", ParserException.createForMalformedContainer("bad", null))))
+        assertTrue(PlaybackErrors.refetchFixes(http(416)))
+        assertTrue(PlaybackErrors.refetchFixes(hole))
+        // an expired URL is re-resolved, not refetched; a plain network failure is neither
+        assertFalse(PlaybackErrors.refetchFixes(http(403)))
+        assertFalse(PlaybackErrors.refetchFixes(IOException("down")))
+    }
+
+    @Test
     fun `only I-O and parsing error codes are source errors`() {
         // media3's ERROR_CODE_IO_UNSPECIFIED (an extractor's IOException, e.g. "No ogg page can be found.")
         assertTrue(PlaybackErrors.isSourceErrorCode(2000))
