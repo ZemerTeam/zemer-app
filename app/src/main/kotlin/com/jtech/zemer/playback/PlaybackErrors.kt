@@ -51,6 +51,9 @@ object PlaybackErrors {
     /** Fixed by purging the item's cached spans and fetching it fresh ([CorruptMediaRetry]). */
     fun refetchFixes(error: Throwable): Boolean = isCorruptMedia(error) || isStaleRange(error) || isCacheHole(error)
 
+    /** The service reports a [refetchFixes] error that reached it (PlayerConnection leaves those out); RELAY reports every error itself. */
+    fun serviceReports(error: Throwable, relayMode: Boolean?): Boolean = relayMode != true && refetchFixes(error)
+
     private const val MAX_CAUSES = 10
 }
 

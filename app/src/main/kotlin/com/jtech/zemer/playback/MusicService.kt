@@ -1911,7 +1911,7 @@ class MusicService :
         ) {
             Timber.w("Downloaded file of $failedId failed mid-play; streaming this play instead")
             // PlayerConnection leaves this to the service (a refetch class); a damaged download stays visible.
-            if (relayModeNow != true && PlaybackErrors.refetchFixes(error)) reportException(error)
+            if (PlaybackErrors.serviceReports(error, relayModeNow)) reportException(error)
             playbackSourceIsLocal[failedId] = false
             runCatching { playerCache.removeResource(failedId) }
             videoModeController.onPlaybackSourceResolved()
@@ -1980,9 +1980,7 @@ class MusicService :
     private fun handleUnrecoverablePlayerError(error: PlaybackException) {
         // PlayerConnection leaves what a refetch fixes to the refetch above; one that was not refetched (a second
         // in a row, SABR, a station) is reported here. In RELAY it already reports every error.
-        if (relayModeNow != true && PlaybackErrors.refetchFixes(error)) {
-            reportException(error)
-        }
+        if (PlaybackErrors.serviceReports(error, relayModeNow)) reportException(error)
         // RELAY: surface the relay's own HTTP errors with the contracted user messages (server doc §4).
         // A video-URL 404 for an audio-only id is handled earlier by videoModeController.onPlayerError
         // (revert to audio), so it never reaches here. Runs on the main thread (see onPlayerError).

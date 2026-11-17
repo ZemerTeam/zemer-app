@@ -98,6 +98,17 @@ class PlaybackErrorsTest {
     }
 
     @Test
+    fun `the service reports what a refetch fixes, outside RELAY`() {
+        assertTrue(PlaybackErrors.serviceReports(mkvVarint, relayMode = false))
+        // the cold-start window (mode not read yet) is not RELAY
+        assertTrue(PlaybackErrors.serviceReports(mkvVarint, relayMode = null))
+        // RELAY: PlayerConnection already reports every error
+        assertFalse(PlaybackErrors.serviceReports(mkvVarint, relayMode = true))
+        // anything else is PlayerConnection's to report
+        assertFalse(PlaybackErrors.serviceReports(http(403), relayMode = false))
+    }
+
+    @Test
     fun `only I-O and parsing error codes are source errors`() {
         // media3's ERROR_CODE_IO_UNSPECIFIED (an extractor's IOException, e.g. "No ogg page can be found.")
         assertTrue(PlaybackErrors.isSourceErrorCode(2000))
