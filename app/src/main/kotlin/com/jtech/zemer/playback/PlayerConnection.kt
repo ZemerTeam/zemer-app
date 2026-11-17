@@ -378,11 +378,11 @@ class PlayerConnection(
         if (playbackError != null) {
             // An expired stream URL is re-resolved by the service (not in RELAY); if that fails for good, the
             // resolver's own error is the one reported.
-            // A hole in the cached spans and a stale range (416) are refetched by the service the same way; one it
-            // does not refetch is reported by the service's own fallback.
+            // Bytes that do not parse, a hole in the cached spans and a stale range (416) are refetched by the
+            // service; one it does not refetch, or a downloaded file that fails, is reported by the service, after
+            // its own breadcrumbs.
             val recovered = service.reResolvesExpiredUrls &&
-                (PlaybackErrors.isExpiredStreamUrl(playbackError) || PlaybackErrors.isCacheHole(playbackError) ||
-                    PlaybackErrors.isStaleRange(playbackError))
+                (PlaybackErrors.isExpiredStreamUrl(playbackError) || PlaybackErrors.refetchFixes(playbackError))
             if (!recovered) reportException(playbackError)
             clearPreparing()
         }
