@@ -671,6 +671,9 @@ fun Queue(
                                                 }
                                                 selectedSongs.clear()
                                                 selectedSongs.add(window.mediaItem.metadata!!)
+                                                // Delete removes these: an earlier selection's items must not ride along.
+                                                selectedItems.clear()
+                                                selectedItems.add(currentItem)
                                             },
                                         ),
                                 )
