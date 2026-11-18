@@ -99,7 +99,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `.github/workflows/ui-audit.yml` | 55 lines | `.yml` |
 | `.gitignore` | 117 lines | `[none]` |
 | `.gitmodules` | 3 lines | `[none]` |
-| `AGENTS.md` | 1241 lines | `.md` |
+| `AGENTS.md` | 1246 lines | `.md` |
 | `LICENSE` | 674 lines | `[none]` |
 | `README.md` | 9 lines | `.md` |
 | `app/.gitignore` | 1 lines | `[none]` |
@@ -339,7 +339,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/main/kotlin/com/jtech/zemer/playback/MediaLibrarySessionCallback.kt` | 812 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/playback/MediaStoreDownloadManager.kt` | 1290 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/playback/MediaStoreDownloadService.kt` | 316 lines | `.kt` |
-| `app/src/main/kotlin/com/jtech/zemer/playback/MusicService.kt` | 3347 lines | `.kt` |
+| `app/src/main/kotlin/com/jtech/zemer/playback/MusicService.kt` | 3383 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/playback/NotificationGate.kt` | 40 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/playback/PlaybackErrors.kt` | 82 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/playback/PlaybackNonceRegistry.kt` | 76 lines | `.kt` |
@@ -365,7 +365,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/main/kotlin/com/jtech/zemer/playback/queues/ListQueue.kt` | 38 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/playback/queues/LocalAlbumRadio.kt` | 62 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/playback/queues/Queue.kt` | 93 lines | `.kt` |
-| `app/src/main/kotlin/com/jtech/zemer/playback/queues/StationQueue.kt` | 160 lines | `.kt` |
+| `app/src/main/kotlin/com/jtech/zemer/playback/queues/StationQueue.kt` | 181 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/playback/queues/YouTubeQueue.kt` | 73 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/playback/queues/ZemerRadioQueue.kt` | 126 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/playback/relay/RelayDataSourceFactory.kt` | 64 lines | `.kt` |
@@ -407,7 +407,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/main/kotlin/com/jtech/zemer/search/ZemerSearchModels.kt` | 422 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/search/ZemerSearchOptions.kt` | 31 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/search/ZemerSearchRepository.kt` | 509 lines | `.kt` |
-| `app/src/main/kotlin/com/jtech/zemer/search/ZemerStationsModels.kt` | 135 lines | `.kt` |
+| `app/src/main/kotlin/com/jtech/zemer/search/ZemerStationsModels.kt` | 209 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/sig/InstallCredential.kt` | 35 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/sig/InstallKeyStore.kt` | 61 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/sig/InstallRegistration.kt` | 84 lines | `.kt` |
@@ -1146,7 +1146,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/test/kotlin/com/jtech/zemer/search/ZemerSearchParametersTest.kt` | 72 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/search/ZemerSearchRetryTest.kt` | 108 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/search/ZemerSearchRoutingTest.kt` | 82 lines | `.kt` |
-| `app/src/test/kotlin/com/jtech/zemer/search/ZemerStationsTest.kt` | 127 lines | `.kt` |
+| `app/src/test/kotlin/com/jtech/zemer/search/ZemerStationsTest.kt` | 200 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/sig/InstallCredentialTest.kt` | 67 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/sig/SigCanonicalTest.kt` | 108 lines | `.kt` |
 | `app/src/test/kotlin/com/jtech/zemer/sig/SigNativeHostTest.kt` | 140 lines | `.kt` |
@@ -1323,7 +1323,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `docs/remote_cipher_config/README.md` | 60 lines | `.md` |
 | `docs/repository-map.md` | 1560 lines | `.md` |
 | `docs/sabr/README.md` | 375 lines | `.md` |
-| `docs/stations/README.md` | 67 lines | `.md` |
+| `docs/stations/README.md` | 72 lines | `.md` |
 | `docs/status/README.md` | 93 lines | `.md` |
 | `docs/status/jewishstatus-api.md` | 71 lines | `.md` |
 | `docs/status/yidstatus-api.md` | 50 lines | `.md` |
