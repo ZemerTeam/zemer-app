@@ -124,4 +124,77 @@ class ZemerStationsTest {
         // Exactly at startMs joins at 0.
         assertEquals(0L, stationOnAirOffsetMs(entry, skewMs = 0, localNowMs = 1_000_000))
     }
+
+    // --- the boundary resync decision ---
+
+    private fun slot(onAir: Long? = null, untilStart: Long? = null) = StationSlotState(onAir, untilStart)
+
+    @Test
+    fun `a dead on-air slot waits for the next queued slot instead of re-tuning`() {
+        // The on-air slot failed here (offset null, start unknown); the next one starts in 90 s.
+        val slots = listOf(slot(), slot(untilStart = 90_000), slot(untilStart = 300_000))
+        assertEquals(StationResync.WaitFor(1, 90_000), stationResync(slots, currentIndex = 0, currentPositionMs = 0))
+        // The same after skipOnError already moved to that slot.
+        assertEquals(StationResync.WaitFor(1, 90_000), stationResync(slots, currentIndex = 1, currentPositionMs = 0))
+    }
+
+    @Test
+    fun `an on-air slot is kept within the drift and seeked to beyond it`() {
+        val slots = listOf(slot(onAir = 60_000))
+        assertEquals(StationResync.Stay, stationResync(slots, currentIndex = 0, currentPositionMs = 58_000))
+        assertEquals(StationResync.Seek(0, 60_000), stationResync(slots, currentIndex = 0, currentPositionMs = 10_000))
+        // Behind the broadcast: the on-air slot is a later one.
+        val behind = listOf(slot(untilStart = -200_000), slot(onAir = 5_000))
+        assertEquals(StationResync.Seek(1, 5_000), stationResync(behind, currentIndex = 0, currentPositionMs = 0))
+    }
+
+    @Test
+    fun `ahead of the broadcast waits on the current slot, or plays on when it starts within the drift`() {
+        assertEquals(StationResync.WaitFor(0, 20_000), stationResync(listOf(slot(untilStart = 20_000)), 0, 0))
+        assertEquals(StationResync.Stay, stationResync(listOf(slot(untilStart = 2_000)), 0, 0))
+    }
+
+    @Test
+    fun `re-tunes only when nothing queued is on-air or still to come`() {
+        // Every queued slot has ended (paused past the runway), or the only upcoming slot is unplayable.
+        val ended = listOf(slot(untilStart = -500_000), slot(untilStart = -200_000))
+        assertEquals(StationResync.Retune, stationResync(ended, 0, 0))
+        assertEquals(StationResync.Retune, stationResync(listOf(slot(), slot()), 0, 0))
+        assertEquals(StationResync.Retune, stationResync(emptyList(), -1, 0))
+    }
+
+    @Test
+    fun `re-tunes are at least the minimum interval apart`() {
+        assertEquals(0L, stationRetuneDelayMs(lastRetuneAtMs = null, nowMs = 1_000))
+        assertEquals(4_000L, stationRetuneDelayMs(lastRetuneAtMs = 10_000, nowMs = 11_000))
+        assertEquals(STATION_RETUNE_MIN_INTERVAL_MS, stationRetuneDelayMs(lastRetuneAtMs = 10_000, nowMs = 10_000))
+        assertEquals(0L, stationRetuneDelayMs(lastRetuneAtMs = 10_000, nowMs = 16_000))
+        // A burst of decisions 12 ms apart (the field report) can start at most one re-tune per window.
+        var last: Long? = null
+        var retunes = 0
+        for (now in 0L until 60_000L step 12) {
+            if (stationRetuneDelayMs(last, now) == 0L) { retunes++; last = now }
+        }
+        assertEquals(12, retunes)
+    }
+
+    @Test
+    fun `tune-in leaves out a dying, blocked or already failed now and failed next entries`() {
+        val now = ZemerStationEntry(videoId = "dead", startMs = 1_000_000, endMs = 1_224_000)
+        val next = listOf(
+            ZemerStationEntry(videoId = "n1", startMs = 1_224_000, endMs = 1_400_000),
+            ZemerStationEntry(videoId = "n2", startMs = 1_400_000, endMs = 1_600_000),
+        )
+        val plain = stationTuneInPlan(now, next, skewMs = 0, localNowMs = 1_100_000) { false }
+        assertEquals(now, plain.joinNow)
+        assertEquals(listOf("dead", "n1", "n2"), plain.entries.map { it.videoId })
+
+        val failed = stationTuneInPlan(now, next, skewMs = 0, localNowMs = 1_100_000) { it.videoId == "dead" }
+        assertNull(failed.joinNow)
+        assertEquals(listOf("n1", "n2"), failed.entries.map { it.videoId })
+
+        val dying = stationTuneInPlan(now, next, skewMs = 0, localNowMs = 1_220_000) { it.videoId == "n2" }
+        assertNull(dying.joinNow)
+        assertEquals(listOf("n1"), dying.entries.map { it.videoId })
+    }
 }

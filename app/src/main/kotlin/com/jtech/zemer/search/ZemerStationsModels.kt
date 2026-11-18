@@ -133,3 +133,77 @@ const val STATION_DYING_TRACK_MS = 5_000L
 
 /** Tolerated broadcast drift before a boundary correction (handoff §4: "~3s"). */
 const val STATION_MAX_DRIFT_MS = 3_000L
+
+/** The shortest gap between two re-tunes of a station: a re-tune that cannot help must never spin. */
+const val STATION_RETUNE_MIN_INTERVAL_MS = 5_000L
+
+/**
+ * §4 tune-in: the `now` entry to join at its live offset (null when it is dying or excluded) and the
+ * entries to queue. [excluded] covers the blocked-ids table and slots that already failed to stream on
+ * this device, so a re-tune never rejoins a slot it just gave up on.
+ */
+fun stationTuneInPlan(
+    now: ZemerStationEntry?,
+    next: List<ZemerStationEntry>,
+    skewMs: Long,
+    localNowMs: Long,
+    excluded: (ZemerStationEntry) -> Boolean,
+): StationTuneInPlan {
+    val joinNow = now
+        ?.takeUnless { stationShouldSkipDyingTrack(it, skewMs, localNowMs) }
+        ?.takeUnless(excluded)
+    return StationTuneInPlan(joinNow, listOfNotNull(joinNow) + next.filterNot(excluded))
+}
+
+data class StationTuneInPlan(val joinNow: ZemerStationEntry?, val entries: List<ZemerStationEntry>)
+
+/** One queued slot as the resync sees it: its live offset when on-air and playable, and how long until it starts. */
+data class StationSlotState(val onAirOffsetMs: Long?, val msUntilStart: Long?)
+
+/** What the boundary resync does. */
+sealed interface StationResync {
+    /** Already on the on-air slot, within the tolerated drift (or about to start): leave it. */
+    data object Stay : StationResync
+
+    /** Queued slot [index] is on-air: seek to [positionMs] in it. */
+    data class Seek(val index: Int, val positionMs: Long) : StationResync
+
+    /** Nothing playable is on-air; queued slot [index] starts in [untilStartMs]: hold there until then. */
+    data class WaitFor(val index: Int, val untilStartMs: Long) : StationResync
+
+    /** Nothing queued is on-air or still to come (paused past the runway, stale schedule): re-tune. */
+    data object Retune : StationResync
+}
+
+/**
+ * The bidirectional resync decision over the queued [slots] from [currentIndex] on: seek to the first
+ * on-air slot when behind or drifted; otherwise hold for the first queued slot that has not started,
+ * which is a later slot when the on-air one could not be played here (its offset is null); re-tune
+ * only when nothing queued is on-air or upcoming.
+ */
+fun stationResync(
+    slots: List<StationSlotState>,
+    currentIndex: Int,
+    currentPositionMs: Long,
+    maxDriftMs: Long = STATION_MAX_DRIFT_MS,
+): StationResync {
+    val from = currentIndex.coerceAtLeast(0)
+    for (index in from until slots.size) {
+        val live = slots[index].onAirOffsetMs ?: continue
+        val inPlace = index == currentIndex && kotlin.math.abs(currentPositionMs - live) <= maxDriftMs
+        return if (inPlace) StationResync.Stay else StationResync.Seek(index, live)
+    }
+    for (index in from until slots.size) {
+        val untilStart = slots[index].msUntilStart?.takeIf { it > 0 } ?: continue
+        val startsSoon = index == currentIndex && untilStart <= maxDriftMs
+        return if (startsSoon) StationResync.Stay else StationResync.WaitFor(index, untilStart)
+    }
+    return StationResync.Retune
+}
+
+/** How long to hold a re-tune so two re-tunes are at least [minIntervalMs] apart (0 = re-tune now). */
+fun stationRetuneDelayMs(
+    lastRetuneAtMs: Long?,
+    nowMs: Long,
+    minIntervalMs: Long = STATION_RETUNE_MIN_INTERVAL_MS,
+): Long = lastRetuneAtMs?.let { (minIntervalMs - (nowMs - it)).coerceAtLeast(0L) } ?: 0L
