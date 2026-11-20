@@ -2,10 +2,12 @@ package com.jtech.zemer.ui.screens
 
 import android.annotation.SuppressLint
 import android.content.Intent
+import android.net.Uri
 import android.view.View
 import android.webkit.CookieManager
 import android.webkit.JavascriptInterface
 import android.webkit.WebResourceRequest
+import android.webkit.WebResourceResponse
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.activity.compose.BackHandler
@@ -47,6 +49,7 @@ import com.jtech.zemer.extensions.toast
 import com.metrolist.innertube.YouTube
 import kotlinx.coroutines.launch
 import timber.log.Timber
+import java.io.ByteArrayInputStream
 
 @SuppressLint("SetJavaScriptEnabled")
 @OptIn(ExperimentalMaterial3Api::class)
@@ -97,25 +100,24 @@ fun LoginScreen(
             }
             created.apply {
                 webViewClient = object : WebViewClient() {
-                    override fun shouldOverrideUrlLoading(view: WebView?, request: android.webkit.WebResourceRequest?): Boolean {
-                        val url = request?.url?.toString()
+                    // Every request, frames and subresources included (a link only reaches
+                    // shouldOverrideUrlLoading from the top frame; Google's Help panel is a frame).
+                    override fun shouldInterceptRequest(view: WebView?, request: WebResourceRequest?): WebResourceResponse? {
+                        val url = request?.url ?: return null
+                        if (LoginWebPolicy.allows(url.scheme, url.host, url.path)) return null
+                        Timber.tag("LoginScreen").d("Blocked request: %s://%s%s", url.scheme, url.host, url.path)
+                        return WebResourceResponse("text/plain", "utf-8", 403, "Forbidden", emptyMap(), ByteArrayInputStream(ByteArray(0)))
+                    }
 
-                        // Block specific URLs
-                        val blockedUrls = listOf(
-                            "support.google.com",
-                            "policies.google.com"
-                        )
+                    override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
+                        val url = request?.url ?: return true
+                        if (LoginWebPolicy.allows(url.scheme, url.host, url.path)) return false
+                        if (request.isForMainFrame) coroutineScope.launch { context.toast(context.getString(R.string.blocked)) }
+                        return true
+                    }
 
-                        if (url != null && blockedUrls.any { url.contains(it) }) {
-                            android.util.Log.d("LoginScreen", "Blocked URL: $url")
-                            // Show "Blocked" message
-                            coroutineScope.launch {
-                                context.toast(context.getString(R.string.blocked))
-                            }
-                            return true // Block the URL
-                        }
-
-                        return false // Allow the URL
+                    override fun onPageStarted(view: WebView, url: String?, favicon: android.graphics.Bitmap?) {
+                        view.visibility = if (LoginWebPolicy.isLanding(url?.let { Uri.parse(it).host })) View.INVISIBLE else View.VISIBLE
                     }
 
                     override fun onPageFinished(view: WebView, url: String?) {
