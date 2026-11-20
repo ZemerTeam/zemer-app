@@ -182,7 +182,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/main/kotlin/com/jtech/zemer/crash/CrashScrubber.kt` | 23 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/crash/CrashUploader.kt` | 77 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/db/Converters.kt` | 20 lines | `.kt` |
-| `app/src/main/kotlin/com/jtech/zemer/db/DatabaseDao.kt` | 1866 lines | `.kt` |
+| `app/src/main/kotlin/com/jtech/zemer/db/DatabaseDao.kt` | 1880 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/db/MusicDatabase.kt` | 647 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/db/SqliteBindLimit.kt` | 14 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/db/StagedRestore.kt` | 41 lines | `.kt` |
@@ -339,7 +339,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/main/kotlin/com/jtech/zemer/playback/MediaLibrarySessionCallback.kt` | 812 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/playback/MediaStoreDownloadManager.kt` | 1290 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/playback/MediaStoreDownloadService.kt` | 316 lines | `.kt` |
-| `app/src/main/kotlin/com/jtech/zemer/playback/MusicService.kt` | 3383 lines | `.kt` |
+| `app/src/main/kotlin/com/jtech/zemer/playback/MusicService.kt` | 3371 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/playback/NotificationGate.kt` | 40 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/playback/PlaybackErrors.kt` | 82 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/playback/PlaybackNonceRegistry.kt` | 76 lines | `.kt` |
@@ -1280,7 +1280,7 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `build.gradle.kts` | 36 lines | `.kts` |
 | `docs/README.md` | 44 lines | `.md` |
 | `docs/app/README.md` | 199 lines | `.md` |
-| `docs/app/database.md` | 661 lines | `.md` |
+| `docs/app/database.md` | 662 lines | `.md` |
 | `docs/app/playback.md` | 121 lines | `.md` |
 | `docs/app/preferences-sync-auth.md` | 225 lines | `.md` |
 | `docs/app/viewmodels.md` | 134 lines | `.md` |

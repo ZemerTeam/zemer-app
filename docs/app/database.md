@@ -14,7 +14,7 @@
 | View count in schema 36 | `3` |
 | Schema files tracked | `36` |
 | DAO file | `app/src/main/kotlin/com/jtech/zemer/db/DatabaseDao.kt` |
-| DAO `fun` declarations found by parser | `233` (`197` distinct names) |
+| DAO `fun` declarations found by parser | `234` (`198` distinct names) |
 
 <!-- /generated:db-facts -->
 
@@ -25,7 +25,7 @@
 | Annotation | Count |
 | --- | ---: |
 | `@Query` | 161 |
-| `@Transaction` | 110 |
+| `@Transaction` | 111 |
 | `@Insert` | 16 |
 | `@Delete` | 11 |
 | `@Upsert` | 7 |
@@ -582,6 +582,7 @@ Every `fun` in `db/DatabaseDao.kt` in source order (overloads repeat the name). 
 | `insert` | `map: RelatedSongMap` | `Unit` |
 | `insert` | `playCountEntity: PlayCountEntity` | `Long` |
 | `insert` | `mediaMetadata: MediaMetadata, block: (SongEntity) -> SongEntity = { it }` | `Unit` |
+| `insertRelatedSongs` | `songId: String, related: List<MediaMetadata>` | `Unit` |
 | `insert` | `albumPage: AlbumPage` | `Unit` |
 | `update` | `song: Song, mediaMetadata: MediaMetadata` | `Unit` |
 | `update` | `song: SongEntity` | `Unit` |
