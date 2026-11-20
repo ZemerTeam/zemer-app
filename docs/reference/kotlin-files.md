@@ -445,7 +445,7 @@ Every tracked Kotlin file is listed with hard metadata extracted from the file t
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/LoginCapture.kt` | 47 | `com.jtech.zemer.ui.screens` | no | 0 | 8 |  |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/LoginGateRedirect.kt` | 17 | `com.jtech.zemer.ui.screens` | no | 0 | 3 |  |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/LoginGateScreen.kt` | 276 | `com.jtech.zemer.ui.screens` | yes | 57 | 23 | androidx.compose, androidx.datastore, androidx.navigation, io.ktor, kotlinx.coroutines, kotlinx.serialization |
-| `app/src/main/kotlin/com/jtech/zemer/ui/screens/LoginScreen.kt` | 274 | `com.jtech.zemer.ui.screens` | yes | 47 | 23 | android.annotation, android.content, android.view, android.webkit, androidx.activity, androidx.compose, androidx.navigation, kotlinx.coroutines, timber.log |
+| `app/src/main/kotlin/com/jtech/zemer/ui/screens/LoginScreen.kt` | 276 | `com.jtech.zemer.ui.screens` | yes | 50 | 25 | android.annotation, android.content, android.net, android.view, android.webkit, androidx.activity, androidx.compose, androidx.navigation, java.io, kotlinx.coroutines, timber.log |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/NavigationBuilder.kt` | 498 | `com.jtech.zemer.ui.screens` | no | 51 | 8 | androidx.compose, androidx.navigation |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/OnboardingScreen.kt` | 90 | `com.jtech.zemer.ui.screens` | yes | 23 | 7 | android.content, androidx.compose, androidx.hilt |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/PodcastGenreScreen.kt` | 132 | `com.jtech.zemer.ui.screens` | yes | 33 | 6 | androidx.compose, androidx.hilt, androidx.navigation |
