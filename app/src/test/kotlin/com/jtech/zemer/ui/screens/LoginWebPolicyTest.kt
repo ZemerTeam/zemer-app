@@ -19,6 +19,7 @@ class LoginWebPolicyTest {
             "https://accounts.youtube.com/accounts/SetSID",
             "https://music.youtube.com/",
             "https://consent.youtube.com/m",
+            "https://gds.google.com/web/recoveryoptions",
             "https://signaler-pa.googleapis.com/punctual/v1/chooseServer",
             "https://www.gstatic.com/_/mss/boq-identity/_/js/k=boq-identity",
             "https://fonts.googleapis.com/css2",

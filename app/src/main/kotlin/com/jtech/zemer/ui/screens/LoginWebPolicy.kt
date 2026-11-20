@@ -12,6 +12,8 @@ object LoginWebPolicy {
         "accounts.youtube.com",
         "music.youtube.com",
         "consent.youtube.com",
+        // Google's own after-sign-in prompts (confirm recovery info and the like).
+        "gds.google.com",
         // The push channel a tap-Yes prompt's approval arrives on (an API, no pages).
         "signaler-pa.googleapis.com",
         "www.gstatic.com",
@@ -20,15 +22,11 @@ object LoginWebPolicy {
         "fonts.googleapis.com",
     )
 
-    // www.google.com is a search engine: only its captcha is needed.
-    private val pathPrefixes = mapOf("www.google.com" to "/recaptcha/")
-
     fun allows(scheme: String?, host: String?, path: String?): Boolean {
         if (!scheme.equals("https", ignoreCase = true) || host == null) return false
         val h = host.lowercase()
-        if (h in hosts) return true
-        val prefix = pathPrefixes[h] ?: return false
-        return path.orEmpty().startsWith(prefix)
+        // www.google.com is a search engine: only its captcha is needed.
+        return h in hosts || (h == "www.google.com" && path.orEmpty().startsWith("/recaptcha/"))
     }
 
     /** The landing page: the WebView is hidden there, since the login is only captured from it. */

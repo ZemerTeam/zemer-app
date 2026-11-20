@@ -80,6 +80,7 @@ fun LoginScreen(
     var webViewMissing by remember { mutableStateOf(!webViewInstalled()) }
     var captureFailed by remember { mutableStateOf(false) }
     var onLanding by remember { mutableStateOf(false) }
+    var canGoBack by remember { mutableStateOf(false) }
 
     if (webViewMissing) {
         Box(
@@ -111,19 +112,32 @@ fun LoginScreen(
                         val url = request?.url ?: return null
                         if (LoginWebPolicy.allows(url.scheme, url.host, url.path)) return null
                         Timber.tag("LoginScreen").d("Blocked request: %s://%s%s", url.scheme, url.host, url.path)
+                        // A main-frame request here bypassed shouldOverrideUrlLoading (a form POST): say so and
+                        // step back rather than leave a blank page.
+                        if (request.isForMainFrame) view?.post {
+                            context.toast(R.string.blocked)
+                            if (view.canGoBack()) view.goBack()
+                        }
                         return WebResourceResponse("text/plain", "utf-8", 403, "Forbidden", emptyMap(), ByteArrayInputStream(ByteArray(0)))
                     }
 
                     override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
                         val url = request?.url ?: return true
                         if (LoginWebPolicy.allows(url.scheme, url.host, url.path)) return false
-                        if (request.isForMainFrame) coroutineScope.launch { context.toast(context.getString(R.string.blocked)) }
+                        if (request.isForMainFrame) context.toast(R.string.blocked)
                         return true
                     }
 
                     override fun onPageStarted(view: WebView, url: String?, favicon: android.graphics.Bitmap?) {
+                        // Every page is a fresh attempt: a stale failure panel never sits over Google's page.
+                        captureFailed = false
                         onLanding = LoginWebPolicy.isLanding(url?.let { Uri.parse(it).host })
+                        // Set here, synchronously at page start, so not one frame of YouTube Music is drawn.
                         view.visibility = if (onLanding) View.INVISIBLE else View.VISIBLE
+                    }
+
+                    override fun doUpdateVisitedHistory(view: WebView, url: String?, isReload: Boolean) {
+                        canGoBack = view.canGoBack()
                     }
 
                     override fun onPageFinished(view: WebView, url: String?) {
@@ -246,7 +260,7 @@ fun LoginScreen(
     )
 
     // In place of the hidden landing: the loader while the login is captured, the retry panel if it fails.
-    if (onLanding || captureFailed) {
+    if (onLanding) {
         Box(
             modifier = Modifier
                 .windowInsetsPadding(LocalPlayerAwareWindowInsets.current)
@@ -269,7 +283,9 @@ fun LoginScreen(
         colors = zemerTopAppBarColors(),
     )
 
-    BackHandler(enabled = webView?.canGoBack() == true) {
+    // Not on the hidden landing: going back there reaches a signed-in Google page that redirects straight
+    // back, so Back leaves the screen instead.
+    BackHandler(enabled = canGoBack && !onLanding) {
         webView?.goBack()
     }
 }
