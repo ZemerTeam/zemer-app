@@ -25,7 +25,12 @@ the *program*; audio still streams from YouTube + the cipher. Contract:
   error skips, `STATE_ENDED`: seeks forward when behind, WAITS (pause until `startMs`) when ahead,
   and re-tunes from scratch when nothing queued is on-air. Never a mid-track jump; never a backward
   seek into a played or unplayable slot (a failed stream is `markUnplayable`d and produces no play
-  event - the zero-play-time guard).
+  event - the zero-play-time guard). The decision itself is the pure `stationResync`
+  (`ZemerStationsTest`): an unplayable on-air slot waits for the next queued slot instead of
+  re-tuning into it; a re-tune carries the failed ids (`stationTuneInPlan`) and waits at least
+  `STATION_RETUNE_MIN_INTERVAL_MS` after the previous one. Nothing is resynced until the queue's own
+  tune-in has landed (`StationQueue.tunedIn`): before that the player holds the previous items, and
+  an empty schedule read as "nothing on-air" chained re-tunes without end.
 - **Runway**: `next` entries queue ahead; the top-up ignores the Auto-load-more preference and
   repeat is forced OFF at station start. Blocked ids are dropped client-side (`BlockedIdsCache`).
 

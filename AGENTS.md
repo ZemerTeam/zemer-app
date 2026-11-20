@@ -501,7 +501,12 @@ same moment. Map + design: `docs/stations/README.md`. Rules that must not regres
   offset when drifted, WAIT - pause until startMs - when the slot hasn't started, full re-tune when nothing
   queued is on-air; never a mid-track jump,
   never a backward seek into a played/unplayable slot), invoked from boundaries, pause-resume, error
-  skips and STATE_ENDED. **Pause = stop, resume = rejoin live.**
+  skips and STATE_ENDED. **Pause = stop, resume = rejoin live.** The decision is the pure, tested
+  `stationResync`. An unplayable on-air slot WAITS for the next queued slot (re-tuning would rejoin it);
+  a re-tune carries the failed ids into the new queue (`stationTuneInPlan`) and is spaced
+  `STATION_RETUNE_MIN_INTERVAL_MS` apart. **The resync no-ops until the queue's tune-in has landed
+  (`StationQueue.tunedIn`)**: the player still holds the previous items, and re-tuning on that empty
+  schedule chained every landing load into another re-tune (~430 `/station` calls a minute).
 - A broadcast is NEVER persisted (`saveQueueToDisk` guard), and a queue MUTATION (Play next / Add to
   queue) EXITS broadcast mode (`exitStationOnQueueMutation` - else station state latches and queue
   persistence dies for the process).

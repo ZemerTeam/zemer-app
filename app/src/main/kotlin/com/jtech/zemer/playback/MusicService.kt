@@ -12,6 +12,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.ServiceInfo
 import android.os.Build
+import android.os.SystemClock
 import android.media.AudioFocusRequest
 import android.media.AudioManager
 import android.media.audiofx.AudioEffect
@@ -142,6 +143,11 @@ import com.jtech.zemer.playback.queues.EmptyQueue
 import com.jtech.zemer.playback.queues.Queue
 import com.jtech.zemer.playback.queues.StationQueue
 import com.jtech.zemer.search.STATION_MAX_DRIFT_MS
+import com.jtech.zemer.search.STATION_RETUNE_MIN_INTERVAL_MS
+import com.jtech.zemer.search.StationResync
+import com.jtech.zemer.search.StationSlotState
+import com.jtech.zemer.search.stationResync
+import com.jtech.zemer.search.stationRetuneDelayMs
 import com.jtech.zemer.playback.queues.YouTubeQueue
 import com.jtech.zemer.playback.queues.ZemerRadioQueue
 import com.jtech.zemer.playback.queues.continuationItemsToAppend
@@ -2953,44 +2959,74 @@ class MusicService :
      *  - if the landing slot has NOT started yet (we ran ahead: an error/blocked skip started it
      *    early), it WAITS - pauses and resumes exactly at the slot's startMs (the addendum's
      *    sanctioned handling), so one bad slot can never leave the listener permanently ahead;
-     *  - if NOTHING queued is on-air (paused past the runway, stale schedule), it re-tunes from
-     *    scratch - the exact flow a card tap runs, which also recovers STATE_ENDED.
+     *  - if the on-air slot cannot be played here, it waits for the next queued slot the same way;
+     *  - if NOTHING queued is on-air or still to come (paused past the runway, stale schedule), it
+     *    re-tunes ([retuneStation]) - the flow a card tap runs, which also recovers STATE_ENDED.
+     * The decision is the pure [stationResync].
      */
     private fun resyncStationPlayback(station: StationQueue) {
+        // Its tune-in is still loading: the player holds the previous items, the next load re-syncs.
+        if (!station.tunedIn) return
         val nowMs = System.currentTimeMillis()
-        val startIndex = player.currentMediaItemIndex.coerceAtLeast(0)
-        for (index in startIndex until player.mediaItemCount) {
+        val slots = (0 until player.mediaItemCount).map { index ->
             val mediaId = player.getMediaItemAt(index).mediaId
-            val live = station.onAirOffsetMs(mediaId, nowMs) ?: continue
-            val positionInSlot = if (index == player.currentMediaItemIndex) player.currentPosition else Long.MIN_VALUE
-            if (index != player.currentMediaItemIndex || kotlin.math.abs(positionInSlot - live) > STATION_MAX_DRIFT_MS) {
-                player.seekTo(index, live)
-            }
-            return
+            StationSlotState(station.onAirOffsetMs(mediaId, nowMs), station.msUntilSlotStarts(mediaId, nowMs))
         }
-        // Nothing from here on is on-air. If the CURRENT slot merely hasn't started (we're ahead
-        // after an error/blocked skip), hold playback until its startMs instead of drifting ahead.
-        val currentId = player.currentMediaItem?.mediaId
-        val untilStart = currentId?.let { station.msUntilSlotStarts(it, nowMs) }
-        if (untilStart != null && untilStart > 0) {
-            if (untilStart > STATION_MAX_DRIFT_MS) {
-                player.pause()
-                player.seekTo(0)
-                stationWaitJob?.cancel()
-                stationWaitJob = scope.launch(SilentHandler) {
-                    delay(untilStart)
-                    if (currentQueue === station && player.currentMediaItem?.mediaId == currentId) {
-                        player.play()
+        when (val action = stationResync(slots, player.currentMediaItemIndex, player.currentPosition)) {
+            StationResync.Stay -> Unit
+            is StationResync.Seek -> player.seekTo(action.index, action.positionMs)
+            // Nothing playable is on-air: hold on the next slot until its startMs instead of drifting
+            // ahead. That is the current slot when we are ahead (after an error/blocked skip), or a later
+            // one when the on-air slot cannot be played here (re-tuning would only rejoin it).
+            is StationResync.WaitFor -> {
+                if (action.index != player.currentMediaItemIndex) {
+                    player.seekTo(action.index, 0)
+                    // the failed slot left the player idle (skipOnError pauses once its budget is spent)
+                    if (player.playbackState == STATE_IDLE) player.prepare()
+                    if (action.untilStartMs <= STATION_MAX_DRIFT_MS) player.play()
+                }
+                if (action.untilStartMs > STATION_MAX_DRIFT_MS) {
+                    val slotId = player.getMediaItemAt(action.index).mediaId
+                    player.pause()
+                    player.seekTo(0)
+                    stationWaitJob?.cancel()
+                    stationWaitJob = scope.launch(SilentHandler) {
+                        delay(action.untilStartMs)
+                        if (currentQueue === station && player.currentMediaItem?.mediaId == slotId) {
+                            player.play()
+                        }
                     }
                 }
             }
-            return
+            // Past the whole runway (long pause / stale schedule): re-tune exactly like a card tap.
+            StationResync.Retune -> retuneStation(station)
         }
-        // Past the whole runway (long pause / stale schedule): re-tune exactly like a card tap.
-        playQueue(StationQueue(station.stationId, this))
     }
 
     private var stationWaitJob: Job? = null
+
+    /** When the last re-tune started (elapsed realtime), for the minimum gap between re-tunes. */
+    private var lastStationRetuneAtMs: Long? = null
+
+    /**
+     * Re-tunes [station] (one `/station` fetch), never sooner than [STATION_RETUNE_MIN_INTERVAL_MS] after
+     * the previous re-tune: a request inside that window is held and runs once at its end. The new queue
+     * inherits the slots that already failed here, so it does not rejoin a dead on-air slot.
+     */
+    private fun retuneStation(station: StationQueue) {
+        val nowMs = SystemClock.elapsedRealtime()
+        val delayMs = stationRetuneDelayMs(lastStationRetuneAtMs, nowMs)
+        if (delayMs > 0) {
+            stationWaitJob?.cancel()
+            stationWaitJob = scope.launch(SilentHandler) {
+                delay(delayMs)
+                if (currentQueue === station) retuneStation(station)
+            }
+            return
+        }
+        lastStationRetuneAtMs = nowMs
+        playQueue(StationQueue(station.stationId, this, station.unplayableIds()))
+    }
 
     /**
      * A queue mutation (Play next / Add to queue) is incompatible with a broadcast - it turns the

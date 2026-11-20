@@ -10,9 +10,9 @@ import com.jtech.zemer.search.ZemerResultMapper.toSongItem
 import com.jtech.zemer.search.ZemerStationEntry
 import com.jtech.zemer.search.stationJoinPositionMs
 import com.jtech.zemer.search.stationOnAirOffsetMs
-import com.jtech.zemer.search.stationShouldSkipDyingTrack
 import com.jtech.zemer.search.stationSkewMs
 import com.jtech.zemer.search.stationStartPositionMs
+import com.jtech.zemer.search.stationTuneInPlan
 import com.jtech.zemer.tracking.PlaySource
 import com.jtech.zemer.utils.BlockedIdsCache
 import com.jtech.zemer.utils.ContentFilterState
@@ -43,6 +43,8 @@ import java.io.IOException
 class StationQueue(
     val stationId: String,
     context: Context,
+    /** Slots that already failed to stream on this device, carried over by a re-tune so it never rejoins them. */
+    unplayable: Set<String> = emptySet(),
 ) : Queue {
     override val preloadItem: MediaMetadata? = null
     override val playSource: String = PlaySource.station(stationId)
@@ -64,6 +66,15 @@ class StationQueue(
     var stationTitle: String? = null
         private set
 
+    /**
+     * True once the tune-in has landed. Until then the player still holds the previous items, so their
+     * transitions and errors say nothing about this broadcast (an empty schedule reads as "nothing
+     * on-air", and re-tuning on that chained every landing load into another re-tune).
+     */
+    @Volatile
+    var tunedIn = false
+        private set
+
     override suspend fun getInitialStatus(): Queue.Status = withContext(IO) {
         val tuneIn = repository.stationTuneIn(stationId)
             ?: throw IOException("Zemer station $stationId is offline")
@@ -71,13 +82,14 @@ class StationQueue(
         skewMs = stationSkewMs(tuneIn.serverTimeMs, receivedAt)
         stationTitle = tuneIn.station.title
 
-        // §4: don't join a dying track — start from the first `next` entry (at/near its own start).
-        val joinNow = tuneIn.now
-            ?.takeUnless { stationShouldSkipDyingTrack(it, skewMs, receivedAt) }
-            ?.takeUnless { entryIsBlocked(it) }
-        val entries = listOfNotNull(joinNow) + tuneIn.next.filterNot { entryIsBlocked(it) }
+        // §4: don't join a dying track — start from the first `next` entry (at/near its own start). Nor a
+        // blocked one, nor a slot that already failed here (a re-tune would only fail on it again).
+        val (joinNow, entries) = stationTuneInPlan(tuneIn.now, tuneIn.next, skewMs, receivedAt) {
+            entryIsBlocked(it) || isUnplayable(it.videoId)
+        }
         if (entries.isEmpty()) throw IOException("Zemer station $stationId served no playable entries")
         remember(entries)
+        tunedIn = true
 
         Queue.Status(
             title = tuneIn.station.title,
@@ -114,26 +126,35 @@ class StationQueue(
      * nothing queued is on-air.
      */
     fun onAirOffsetMs(mediaId: String, localNowMs: Long): Long? {
-        if (synchronized(scheduleLock) { mediaId in unplayable }) return null
+        if (isUnplayable(mediaId)) return null
         val entry = synchronized(scheduleLock) { schedule[mediaId] } ?: return null
         return stationOnAirOffsetMs(entry, skewMs, localNowMs)
     }
 
-    /** Milliseconds until the queued [mediaId]'s slot starts (negative/zero = already started). */
+    /**
+     * Milliseconds until the queued [mediaId]'s slot starts (negative/zero = already started; null when
+     * unknown or marked unplayable, so the resync never waits for a slot it cannot play).
+     */
     fun msUntilSlotStarts(mediaId: String, localNowMs: Long): Long? {
+        if (isUnplayable(mediaId)) return null
         val entry = synchronized(scheduleLock) { schedule[mediaId] } ?: return null
         return -stationJoinPositionMs(entry, skewMs, localNowMs)
     }
 
     /**
-     * A slot that failed to stream on THIS device (CDN 403, region block). Excluded from on-air
-     * resolution so the resync can never seek back into it and re-fail in a loop.
+     * A slot that failed to stream on THIS device (CDN 403, region block, unavailable video). Excluded
+     * from on-air resolution so the resync can never seek back into it and re-fail in a loop, and
+     * carried into a re-tune ([unplayableIds]).
      */
     fun markUnplayable(mediaId: String) {
         synchronized(scheduleLock) { unplayable.add(mediaId) }
     }
 
-    private val unplayable = HashSet<String>()
+    fun unplayableIds(): Set<String> = synchronized(scheduleLock) { unplayable.toSet() }
+
+    private fun isUnplayable(mediaId: String): Boolean = synchronized(scheduleLock) { mediaId in unplayable }
+
+    private val unplayable = HashSet(unplayable)
 
     private fun remember(entries: List<ZemerStationEntry>) {
         synchronized(scheduleLock) {
