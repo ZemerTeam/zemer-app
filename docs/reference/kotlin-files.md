@@ -31,7 +31,7 @@ Every tracked Kotlin file is listed with hard metadata extracted from the file t
 | `app/src/main/kotlin/com/jtech/zemer/crash/CrashScrubber.kt` | 23 | `com.jtech.zemer.crash` | no | 0 | 7 |  |
 | `app/src/main/kotlin/com/jtech/zemer/crash/CrashUploader.kt` | 77 | `com.jtech.zemer.crash` | no | 13 | 18 | io.ktor, java.io, java.util, kotlinx.serialization, timber.log |
 | `app/src/main/kotlin/com/jtech/zemer/db/Converters.kt` | 20 | `com.jtech.zemer.db` | no | 4 | 3 | androidx.room, java.time |
-| `app/src/main/kotlin/com/jtech/zemer/db/DatabaseDao.kt` | 1866 | `com.jtech.zemer.db` | no | 67 | 260 | androidx.room, androidx.sqlite, java.text, java.time, java.util, kotlinx.coroutines |
+| `app/src/main/kotlin/com/jtech/zemer/db/DatabaseDao.kt` | 1880 | `com.jtech.zemer.db` | no | 67 | 261 | androidx.room, androidx.sqlite, java.text, java.time, java.util, kotlinx.coroutines |
 | `app/src/main/kotlin/com/jtech/zemer/db/MusicDatabase.kt` | 647 | `com.jtech.zemer.db` | no | 44 | 82 | android.annotation, android.content, android.database, androidx.core, androidx.room, androidx.sqlite, java.time, java.util, timber.log |
 | `app/src/main/kotlin/com/jtech/zemer/db/SqliteBindLimit.kt` | 14 | `com.jtech.zemer.db` | no | 0 | 2 |  |
 | `app/src/main/kotlin/com/jtech/zemer/db/StagedRestore.kt` | 41 | `com.jtech.zemer.db` | no | 2 | 8 | java.io |
@@ -188,7 +188,7 @@ Every tracked Kotlin file is listed with hard metadata extracted from the file t
 | `app/src/main/kotlin/com/jtech/zemer/playback/MediaLibrarySessionCallback.kt` | 812 | `com.jtech.zemer.playback` | no | 60 | 80 | android.content, android.net, android.os, androidx.annotation, androidx.core, androidx.media3, com.google, dagger.hilt, javax.inject, kotlinx.coroutines |
 | `app/src/main/kotlin/com/jtech/zemer/playback/MediaStoreDownloadManager.kt` | 1290 | `com.jtech.zemer.playback` | no | 72 | 154 | android.content, android.media, android.net, androidx.core, androidx.datastore, dagger.hilt, java.io, java.time, java.util, javax.inject, kotlin.math, kotlinx.coroutines, okhttp3.OkHttpClient, okhttp3.Request, timber.log |
 | `app/src/main/kotlin/com/jtech/zemer/playback/MediaStoreDownloadService.kt` | 316 | `com.jtech.zemer.playback` | no | 27 | 52 | android.app, android.content, android.os, androidx.core, dagger.hilt, javax.inject, kotlin.math, kotlinx.coroutines, timber.log |
-| `app/src/main/kotlin/com/jtech/zemer/playback/MusicService.kt` | 3383 | `com.jtech.zemer.playback` | no | 200 | 356 | android.app, android.content, android.database, android.media, android.net, android.os, androidx.core, androidx.datastore, androidx.media3, com.zemer, dagger.hilt, java.io, java.time, java.util, javax.inject, kotlin.time, kotlinx.coroutines, okhttp3.OkHttpClient, org.fcast, timber.log |
+| `app/src/main/kotlin/com/jtech/zemer/playback/MusicService.kt` | 3371 | `com.jtech.zemer.playback` | no | 199 | 356 | android.app, android.content, android.database, android.media, android.net, android.os, androidx.core, androidx.datastore, androidx.media3, com.zemer, dagger.hilt, java.io, java.time, java.util, javax.inject, kotlin.time, kotlinx.coroutines, okhttp3.OkHttpClient, org.fcast, timber.log |
 | `app/src/main/kotlin/com/jtech/zemer/playback/NotificationGate.kt` | 40 | `com.jtech.zemer.playback` | no | 0 | 2 |  |
 | `app/src/main/kotlin/com/jtech/zemer/playback/PlaybackErrors.kt` | 82 | `com.jtech.zemer.playback` | no | 5 | 14 | androidx.media3, java.io |
 | `app/src/main/kotlin/com/jtech/zemer/playback/PlaybackNonceRegistry.kt` | 76 | `com.jtech.zemer.playback` | no | 1 | 13 |  |
