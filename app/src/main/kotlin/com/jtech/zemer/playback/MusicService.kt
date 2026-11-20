@@ -115,7 +115,6 @@ import com.jtech.zemer.db.MusicDatabase
 import com.jtech.zemer.db.entities.Event
 import com.jtech.zemer.db.entities.FormatEntity
 import com.jtech.zemer.db.entities.LyricsEntity
-import com.jtech.zemer.db.entities.RelatedSongMap
 import com.jtech.zemer.di.DownloadCache
 import com.jtech.zemer.di.PlayerCache
 import com.jtech.zemer.extensions.SilentHandler
@@ -1138,18 +1137,7 @@ class MusicService :
             val relatedEndpoint = nextResult?.relatedEndpoint ?: return
             val relatedPage = YouTube.related(relatedEndpoint).getOrNull() ?: return
             val filteredSongs = relatedPage.songs.filterWhitelisted(database).filterIsInstance<SongItem>()
-            database.query {
-                filteredSongs
-                    .map(SongItem::toMediaMetadata)
-                    .onEach(::insert)
-                    .map {
-                        RelatedSongMap(
-                            songId = mediaId,
-                            relatedSongId = it.id
-                        )
-                    }
-                    .forEach(::insert)
-            }
+            database.query { insertRelatedSongs(mediaId, filteredSongs.map(SongItem::toMediaMetadata)) }
         }
     }
 

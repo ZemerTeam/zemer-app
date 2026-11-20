@@ -1426,6 +1426,20 @@ interface DatabaseDao {
         }
     }
 
+    /**
+     * Store [related] as the related songs of [songId], only while [songId]'s row exists. The row can be
+     * deleted while the related page loads (an artist the server removed); a map to it then fails its
+     * foreign key, which IGNORE does not cover, and that crashed the disk thread.
+     */
+    @Transaction
+    fun insertRelatedSongs(songId: String, related: List<MediaMetadata>) {
+        if (getSongByIdBlocking(songId) == null) return
+        related.forEach {
+            insert(it)
+            insert(RelatedSongMap(songId = songId, relatedSongId = it.id))
+        }
+    }
+
     @Transaction
     fun insert(albumPage: AlbumPage) {
         // IGNORE conflict: an existing row keeps its metadata (the update() overload owns refresh).
