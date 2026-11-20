@@ -2,7 +2,7 @@
 
 Every tracked Kotlin file is listed with hard metadata extracted from the file text: line count, package, whether it declares any `@Composable`, import count, top-level declaration count (`Decls` - a high value flags a god-file), and the external import roots it depends on. Declaration counting is regex-based (after stripping comments and string literals). For the actual declaration names, read the file or use your editor's outline - they are not duplicated here.
 
-## `app` Kotlin files (872)
+## `app` Kotlin files (874)
 
 | File | Lines | Package | Compose | Imports | Decls | External import roots |
 | --- | ---: | --- | --- | ---: | ---: | --- |
@@ -445,7 +445,8 @@ Every tracked Kotlin file is listed with hard metadata extracted from the file t
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/LoginCapture.kt` | 47 | `com.jtech.zemer.ui.screens` | no | 0 | 8 |  |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/LoginGateRedirect.kt` | 17 | `com.jtech.zemer.ui.screens` | no | 0 | 3 |  |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/LoginGateScreen.kt` | 276 | `com.jtech.zemer.ui.screens` | yes | 57 | 23 | androidx.compose, androidx.datastore, androidx.navigation, io.ktor, kotlinx.coroutines, kotlinx.serialization |
-| `app/src/main/kotlin/com/jtech/zemer/ui/screens/LoginScreen.kt` | 274 | `com.jtech.zemer.ui.screens` | yes | 47 | 23 | android.annotation, android.content, android.view, android.webkit, androidx.activity, androidx.compose, androidx.navigation, kotlinx.coroutines, timber.log |
+| `app/src/main/kotlin/com/jtech/zemer/ui/screens/LoginScreen.kt` | 319 | `com.jtech.zemer.ui.screens` | yes | 52 | 30 | android.annotation, android.content, android.net, android.view, android.webkit, androidx.activity, androidx.compose, androidx.navigation, java.io, kotlinx.coroutines, timber.log |
+| `app/src/main/kotlin/com/jtech/zemer/ui/screens/LoginWebPolicy.kt` | 34 | `com.jtech.zemer.ui.screens` | no | 0 | 5 |  |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/NavigationBuilder.kt` | 498 | `com.jtech.zemer.ui.screens` | no | 51 | 8 | androidx.compose, androidx.navigation |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/OnboardingScreen.kt` | 90 | `com.jtech.zemer.ui.screens` | yes | 23 | 7 | android.content, androidx.compose, androidx.hilt |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/PodcastGenreScreen.kt` | 132 | `com.jtech.zemer.ui.screens` | yes | 33 | 6 | androidx.compose, androidx.hilt, androidx.navigation |
@@ -825,6 +826,7 @@ Every tracked Kotlin file is listed with hard metadata extracted from the file t
 | `app/src/test/kotlin/com/jtech/zemer/ui/screens/KidZoneTabTest.kt` | 27 | `com.jtech.zemer.ui.screens` | no | 2 | 3 | org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/ui/screens/LoginCaptureTest.kt` | 72 | `com.jtech.zemer.ui.screens` | no | 5 | 2 | org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/ui/screens/LoginGateRedirectTest.kt` | 30 | `com.jtech.zemer.ui.screens` | no | 3 | 1 | org.junit |
+| `app/src/test/kotlin/com/jtech/zemer/ui/screens/LoginWebPolicyTest.kt` | 60 | `com.jtech.zemer.ui.screens` | no | 3 | 6 | org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/ui/screens/artist/ArtistHeaderTest.kt` | 14 | `com.jtech.zemer.ui.screens.artist` | no | 2 | 1 | org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/ui/screens/artist/ArtistSectionScreenTest.kt` | 36 | `com.jtech.zemer.ui.screens.artist` | no | 4 | 6 | org.junit |
 | `app/src/test/kotlin/com/jtech/zemer/ui/screens/onboarding/OnboardingNavigationTest.kt` | 42 | `com.jtech.zemer.ui.screens.onboarding` | no | 4 | 5 | org.junit |

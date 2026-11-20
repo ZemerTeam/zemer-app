@@ -2,10 +2,12 @@ package com.jtech.zemer.ui.screens
 
 import android.annotation.SuppressLint
 import android.content.Intent
+import android.net.Uri
 import android.view.View
 import android.webkit.CookieManager
 import android.webkit.JavascriptInterface
 import android.webkit.WebResourceRequest
+import android.webkit.WebResourceResponse
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.activity.compose.BackHandler
@@ -38,6 +40,8 @@ import com.jtech.zemer.constants.InnerTubeCookieKey
 import com.jtech.zemer.constants.VisitorDataKey
 import com.jtech.zemer.ui.component.AppBarTitle
 import com.jtech.zemer.ui.component.BackNavigationIcon
+import com.jtech.zemer.ui.component.ErrorRetryState
+import com.jtech.zemer.ui.component.ZemerLoadingSection
 import com.jtech.zemer.ui.component.InlineErrorPanel
 import com.jtech.zemer.ui.component.zemerTopAppBarColors
 import com.jtech.zemer.ui.utils.backToMain
@@ -47,6 +51,7 @@ import com.jtech.zemer.extensions.toast
 import com.metrolist.innertube.YouTube
 import kotlinx.coroutines.launch
 import timber.log.Timber
+import java.io.ByteArrayInputStream
 
 @SuppressLint("SetJavaScriptEnabled")
 @OptIn(ExperimentalMaterial3Api::class)
@@ -64,7 +69,8 @@ fun LoginScreen(
     var accountChannelHandle by rememberPreference(AccountChannelHandleKey, "")
     var hasCompletedLogin by remember { mutableStateOf(false) }
 
-    var webView: WebView? = null
+    // Remembered: a plain local reset to null on every recomposition, so Retry and Back did nothing.
+    var webView by remember { mutableStateOf<WebView?>(null) }
 
     // Cookie clearing should only happen during logout, not before login (it interferes with the
     // Google login flow).
@@ -72,6 +78,9 @@ fun LoginScreen(
     // Some filtered phones ship without Android System WebView: constructing one there throws, which crashed
     // this screen. The probe catches the usual case, the factory's catch a provider that fails to load.
     var webViewMissing by remember { mutableStateOf(!webViewInstalled()) }
+    var captureFailed by remember { mutableStateOf(false) }
+    var onLanding by remember { mutableStateOf(false) }
+    var canGoBack by remember { mutableStateOf(false) }
 
     if (webViewMissing) {
         Box(
@@ -97,25 +106,38 @@ fun LoginScreen(
             }
             created.apply {
                 webViewClient = object : WebViewClient() {
-                    override fun shouldOverrideUrlLoading(view: WebView?, request: android.webkit.WebResourceRequest?): Boolean {
-                        val url = request?.url?.toString()
-
-                        // Block specific URLs
-                        val blockedUrls = listOf(
-                            "support.google.com",
-                            "policies.google.com"
-                        )
-
-                        if (url != null && blockedUrls.any { url.contains(it) }) {
-                            android.util.Log.d("LoginScreen", "Blocked URL: $url")
-                            // Show "Blocked" message
-                            coroutineScope.launch {
-                                context.toast(context.getString(R.string.blocked))
-                            }
-                            return true // Block the URL
+                    // Every request, frames and subresources included (a link only reaches
+                    // shouldOverrideUrlLoading from the top frame; Google's Help panel is a frame).
+                    override fun shouldInterceptRequest(view: WebView?, request: WebResourceRequest?): WebResourceResponse? {
+                        val url = request?.url ?: return null
+                        if (LoginWebPolicy.allows(url.scheme, url.host, url.path)) return null
+                        Timber.tag("LoginScreen").d("Blocked request: %s://%s%s", url.scheme, url.host, url.path)
+                        // A main-frame request here bypassed shouldOverrideUrlLoading (a form POST): say so and
+                        // step back rather than leave a blank page.
+                        if (request.isForMainFrame) view?.post {
+                            context.toast(R.string.blocked)
+                            if (view.canGoBack()) view.goBack()
                         }
+                        return WebResourceResponse("text/plain", "utf-8", 403, "Forbidden", emptyMap(), ByteArrayInputStream(ByteArray(0)))
+                    }
 
-                        return false // Allow the URL
+                    override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
+                        val url = request?.url ?: return true
+                        if (LoginWebPolicy.allows(url.scheme, url.host, url.path)) return false
+                        if (request.isForMainFrame) context.toast(R.string.blocked)
+                        return true
+                    }
+
+                    override fun onPageStarted(view: WebView, url: String?, favicon: android.graphics.Bitmap?) {
+                        // Every page is a fresh attempt: a stale failure panel never sits over Google's page.
+                        captureFailed = false
+                        onLanding = LoginWebPolicy.isLanding(url?.let { Uri.parse(it).host })
+                        // Set here, synchronously at page start, so not one frame of YouTube Music is drawn.
+                        view.visibility = if (onLanding) View.INVISIBLE else View.VISIBLE
+                    }
+
+                    override fun doUpdateVisitedHistory(view: WebView, url: String?, isReload: Boolean) {
+                        canGoBack = view.canGoBack()
                     }
 
                     override fun onPageFinished(view: WebView, url: String?) {
@@ -157,8 +179,9 @@ fun LoginScreen(
                                     if (!LoginCapture.isCaptureComplete(innerTubeCookie, dataSyncId)) {
                                         android.util.Log.e("LoginScreen", "Login capture incomplete after $attempt attempts (cookie=${innerTubeCookie.isNotEmpty()}, dataSyncId=${dataSyncId.isNotEmpty()})")
                                         if (LoginCapture.isCaptureFailure(innerTubeCookie, dataSyncId)) reportException(IllegalStateException("Login capture incomplete: cookie=${innerTubeCookie.isNotEmpty()}, dataSyncId=${dataSyncId.isNotEmpty()}"))
-                                        // Friendly, non-technical message; allow a later page-finish to retry.
-                                        context.toast(context.getString(R.string.sign_in_not_finished), long = true)
+                                        // The landing stays hidden (it is YouTube Music), so the panel below says so
+                                        // and offers a retry; a later page-finish may still complete the capture.
+                                        captureFailed = true
                                         hasCompletedLogin = false
                                         return@launch
                                     }
@@ -231,10 +254,28 @@ fun LoginScreen(
                 }, "Android")
                 webView = this
                 // Original login URL
-                loadUrl("https://accounts.google.com/ServiceLogin?continue=https%3A%2F%2Fmusic.youtube.com")
+                loadUrl(LOGIN_URL)
             }
         }
     )
+
+    // In place of the hidden landing: the loader while the login is captured, the retry panel if it fails.
+    if (onLanding) {
+        Box(
+            modifier = Modifier
+                .windowInsetsPadding(LocalPlayerAwareWindowInsets.current)
+                .fillMaxSize(),
+            contentAlignment = Alignment.Center,
+        ) {
+            if (!captureFailed) ZemerLoadingSection() else ErrorRetryState(
+                message = stringResource(R.string.sign_in_not_finished),
+                onRetry = {
+                    captureFailed = false
+                    webView?.loadUrl(LOGIN_URL)
+                },
+            )
+        }
+    }
 
     TopAppBar(
         title = { AppBarTitle(stringResource(R.string.login)) },
@@ -242,10 +283,14 @@ fun LoginScreen(
         colors = zemerTopAppBarColors(),
     )
 
-    BackHandler(enabled = webView?.canGoBack() == true) {
+    // Not on the hidden landing: going back there reaches a signed-in Google page that redirects straight
+    // back, so Back leaves the screen instead.
+    BackHandler(enabled = canGoBack && !onLanding) {
         webView?.goBack()
     }
 }
+
+private const val LOGIN_URL = "https://accounts.google.com/ServiceLogin?continue=https%3A%2F%2Fmusic.youtube.com"
 
 // The provider package is null when no WebView is installed; a probe failure is not proof, so the factory decides.
 private fun webViewInstalled(): Boolean = runCatching { WebView.getCurrentWebViewPackage() != null }.getOrDefault(true)

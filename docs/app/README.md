@@ -15,8 +15,8 @@
 | BuildConfig fields visible in Gradle | `ARCHITECTURE`, `COMMIT_HASH`, `RUN_NUMBER`, `GOOGLE_TOKEN_EXCHANGE_URL`, `CONTENT_MIRROR_URL`, `ZEMER_LYRICS_BASE_URL` |
 | Room schema directory | `app/schemas` |
 | Native build | Yes (see `build-release.md`) |
-| Tracked app paths | `1173` |
-| Tracked app Kotlin files | `872` (`643` in `src/main`, `227` in `src/test`, `2` in `src/androidTest`) |
+| Tracked app paths | `1175` |
+| Tracked app Kotlin files | `874` (`644` in `src/main`, `228` in `src/test`, `2` in `src/androidTest`) |
 | Tracked app resource paths | `215` |
 | Tracked app asset paths | `0` in `src/main` (`3` test fixtures under `src/androidTest/assets`) |
 | Tracked app Room schema files | `36` |
@@ -91,7 +91,7 @@
 | `com.jtech.zemer.ui.component.shimmer` | 6 |
 | `com.jtech.zemer.ui.menu` | 23 |
 | `com.jtech.zemer.ui.player` | 18 |
-| `com.jtech.zemer.ui.screens` | 31 |
+| `com.jtech.zemer.ui.screens` | 32 |
 | `com.jtech.zemer.ui.screens.artist` | 2 |
 | `com.jtech.zemer.ui.screens.library` | 8 |
 | `com.jtech.zemer.ui.screens.onboarding` | 9 |
@@ -159,7 +159,7 @@
 | `com/jtech/zemer/ui/component/shimmer` | 6 |
 | `com/jtech/zemer/ui/menu` | 23 |
 | `com/jtech/zemer/ui/player` | 18 |
-| `com/jtech/zemer/ui/screens` | 31 |
+| `com/jtech/zemer/ui/screens` | 32 |
 | `com/jtech/zemer/ui/screens/artist` | 2 |
 | `com/jtech/zemer/ui/screens/library` | 8 |
 | `com/jtech/zemer/ui/screens/onboarding` | 9 |
