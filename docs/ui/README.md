@@ -260,7 +260,7 @@ Every `@Composable fun` per UI file (extension receivers dropped, so `BoxScope.X
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/LatestReleasesScreen.kt` | 104 | LatestReleasesScreen |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/LoadingScreen.kt` | 187 | LoadingScreen, WhitelistLoadFailed, DisposableLifecycle, DisposableEffectWithLifecycle |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/LoginGateScreen.kt` | 276 | LoginGateScreen |
-| `app/src/main/kotlin/com/jtech/zemer/ui/screens/LoginScreen.kt` | 303 | LoginScreen |
+| `app/src/main/kotlin/com/jtech/zemer/ui/screens/LoginScreen.kt` | 319 | LoginScreen |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/OnboardingScreen.kt` | 90 | OnboardingFlow |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/PodcastGenreScreen.kt` | 132 | PodcastGenreScreen |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/PodcastGenresScreen.kt` | 95 | PodcastGenresScreen |
@@ -498,8 +498,8 @@ Key declarations are the first 12 `class`/`object`/`interface`/`fun`/`val`/`var`
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/LoginCapture.kt` | 47 | object LoginCapture, val EXTRACT_VISITOR_DATA_JS, val EXTRACT_DATA_SYNC_ID_JS, val CAPTURE_RETRY_DELAY_MS, val MAX_CAPTURE_ATTEMPTS, fun cleanDataSyncId, fun isCaptureComplete, fun isCaptureFailure |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/LoginGateRedirect.kt` | 17 | object LoginGateRedirect, val ROUTE, fun shouldRedirect |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/LoginGateScreen.kt` | 276 | fun LoginGateScreen, val context, val coroutineScope, var isAnonymousLoading, var visitorData, var dataSyncId, var innerTubeCookie, var accountName, var accountEmail, var accountChannelHandle, val gradient, val httpClient, … (+11 more) |
-| `app/src/main/kotlin/com/jtech/zemer/ui/screens/LoginScreen.kt` | 303 | fun LoginScreen, val context, val coroutineScope, var visitorData, var dataSyncId, var innerTubeCookie, var accountName, var accountEmail, var accountChannelHandle, var hasCompletedLogin, var webView, var webViewMissing, … (+16 more) |
-| `app/src/main/kotlin/com/jtech/zemer/ui/screens/LoginWebPolicy.kt` | 36 | object LoginWebPolicy, val hosts, val pathPrefixes, fun allows, val h, val prefix, fun isLanding |
+| `app/src/main/kotlin/com/jtech/zemer/ui/screens/LoginScreen.kt` | 319 | fun LoginScreen, val context, val coroutineScope, var visitorData, var dataSyncId, var innerTubeCookie, var accountName, var accountEmail, var accountChannelHandle, var hasCompletedLogin, var webView, var webViewMissing, … (+18 more) |
+| `app/src/main/kotlin/com/jtech/zemer/ui/screens/LoginWebPolicy.kt` | 34 | object LoginWebPolicy, val hosts, fun allows, val h, fun isLanding |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/NavigationBuilder.kt` | 498 | fun podcastsBlockedRedirect, val blocked, fun NavGraphBuilder, val genreId, val genreId, val genreId, val row, val creatorId |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/OnboardingScreen.kt` | 90 | fun OnboardingFlow, val context, val viewModel, val uiState, val densityAlreadySet, val contentFiltersAlreadySet, var step |
 | `app/src/main/kotlin/com/jtech/zemer/ui/screens/PodcastGenreScreen.kt` | 132 | fun PodcastGenreScreen, val state, val gridState, val showTopBarTitle, val uiState, val covers |
