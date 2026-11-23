@@ -2,20 +2,21 @@
 
 Every tracked Kotlin file is listed with hard metadata extracted from the file text: line count, package, whether it declares any `@Composable`, import count, top-level declaration count (`Decls` - a high value flags a god-file), and the external import roots it depends on. Declaration counting is regex-based (after stripping comments and string literals). For the actual declaration names, read the file or use your editor's outline - they are not duplicated here.
 
-## `app` Kotlin files (875)
+## `app` Kotlin files (876)
 
 | File | Lines | Package | Compose | Imports | Decls | External import roots |
 | --- | ---: | --- | --- | ---: | ---: | --- |
+| `app/src/androidTest/kotlin/com/dpi/DensityHealTest.kt` | 42 | `com.dpi` | no | 8 | 9 | android.content, android.webkit, androidx.test, kotlin.math, org.junit |
 | `app/src/androidTest/kotlin/com/jtech/zemer/OpusDevicePipelineTest.kt` | 108 | `com.jtech.zemer` | no | 7 | 29 | android.util, androidx.test, java.io, org.junit |
 | `app/src/androidTest/kotlin/com/jtech/zemer/db/RelatedSongsInsertTest.kt` | 52 | `com.jtech.zemer.db` | no | 12 | 9 | android.database, androidx.room, androidx.test, org.junit |
 | `app/src/androidTest/kotlin/com/jtech/zemer/db/StatsQueriesTest.kt` | 98 | `com.jtech.zemer.db` | no | 15 | 14 | androidx.room, androidx.test, java.time, kotlinx.coroutines, org.junit |
 | `app/src/main/kotlin/com/dpi/ActivityLifecycleManager.kt` | 127 | `com.dpi` | no | 9 | 28 | android.annotation, android.app, android.os, java.util, timber.log |
 | `app/src/main/kotlin/com/dpi/BaseLifecycleContentProvider.kt` | 36 | `com.dpi` | no | 4 | 7 | android.content, android.database, android.net |
-| `app/src/main/kotlin/com/dpi/DensityConfiguration.kt` | 121 | `com.dpi` | no | 7 | 14 | android.annotation, android.app, android.content, android.util, timber.log |
+| `app/src/main/kotlin/com/dpi/DensityConfiguration.kt` | 136 | `com.dpi` | no | 8 | 15 | android.annotation, android.app, android.content, android.os, android.util, timber.log |
 | `app/src/main/kotlin/com/dpi/DensityMath.kt` | 25 | `com.dpi` | no | 1 | 3 | kotlin.math |
-| `app/src/main/kotlin/com/dpi/DensityScaler.kt` | 80 | `com.dpi` | no | 4 | 13 | android.app, android.content, timber.log |
+| `app/src/main/kotlin/com/dpi/DensityScaler.kt` | 86 | `com.dpi` | no | 5 | 14 | android.app, android.content, timber.log |
 | `app/src/main/kotlin/com/jtech/zemer/App.kt` | 421 | `com.jtech.zemer` | no | 65 | 29 | android.app, android.content, android.os, android.util, android.webkit, androidx.datastore, coil3.ImageLoader, coil3.PlatformContext, coil3.SingletonImageLoader, coil3.disk, coil3.network, coil3.request, coil3.svg, com.zemer, dagger.hilt, java.util, javax.inject, kotlinx.coroutines, okhttp3.Dispatcher, okhttp3.OkHttpClient, timber.log |
-| `app/src/main/kotlin/com/jtech/zemer/MainActivity.kt` | 2430 | `com.jtech.zemer` | no | 314 | 246 | android.annotation, android.content, android.os, android.view, androidx.activity, androidx.compose, androidx.core, androidx.datastore, androidx.hilt, androidx.lifecycle, androidx.media3, androidx.navigation, coil3.compose, coil3.imageLoader, coil3.request, coil3.toBitmap, com.google, com.valentinilk, dagger.hilt, java.net, java.util, javax.inject, kotlinx.coroutines, timber.log |
+| `app/src/main/kotlin/com/jtech/zemer/MainActivity.kt` | 2435 | `com.jtech.zemer` | no | 315 | 247 | android.annotation, android.content, android.os, android.view, androidx.activity, androidx.compose, androidx.core, androidx.datastore, androidx.hilt, androidx.lifecycle, androidx.media3, androidx.navigation, coil3.compose, coil3.imageLoader, coil3.request, coil3.toBitmap, com.google, com.valentinilk, dagger.hilt, java.net, java.util, javax.inject, kotlinx.coroutines, timber.log |
 | `app/src/main/kotlin/com/jtech/zemer/ResumePlaybackActivity.kt` | 25 | `com.jtech.zemer` | no | 5 | 3 | android.app, android.content, android.os |
 | `app/src/main/kotlin/com/jtech/zemer/accessibility/ButtonMapperAccessibilityService.kt` | 45 | `com.jtech.zemer.accessibility` | no | 7 | 6 | android.accessibilityservice, android.annotation, android.view |
 | `app/src/main/kotlin/com/jtech/zemer/auth/AuthState.kt` | 33 | `com.jtech.zemer.auth` | no | 0 | 13 |  |

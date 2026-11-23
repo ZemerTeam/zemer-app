@@ -3,6 +3,7 @@ package com.dpi
 import android.app.Activity
 import android.content.Context
 import android.content.res.Configuration
+import android.content.res.Resources
 import timber.log.Timber
 
 /**
@@ -61,6 +62,11 @@ class DensityScaler : BaseLifecycleContentProvider() {
          */
         fun reapply(activity: Activity) {
             active?.applyDensityToActivity(activity)
+        }
+
+        /** See [DensityConfiguration.heal]: for an activity's `getResources()`, never via `activity.resources`. */
+        fun heal(resources: Resources) {
+            active?.heal(resources)
         }
 
         /**
