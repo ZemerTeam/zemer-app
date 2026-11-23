@@ -4,6 +4,7 @@ import android.annotation.SuppressLint
 import android.content.ComponentName
 import android.content.Intent
 import android.content.res.Configuration
+import android.content.res.Resources
 import android.content.ServiceConnection
 import android.os.Build
 import android.os.Bundle
@@ -413,6 +414,10 @@ class MainActivity : ComponentActivity() {
         }
         ButtonMapperBridge.register(this)
     }
+
+    // The cipher / PoToken / sign-in WebView's first load drops the density override (#654); a dialog
+    // window reads its density from here, so it is healed on read (a cheap no-op when correct).
+    override fun getResources(): Resources = super.getResources().also { DensityScaler.heal(it) }
 
     override fun onConfigurationChanged(newConfig: Configuration) {
         // This Activity opts into configChanges (orientation|screenSize|...), so a rotation — incl.

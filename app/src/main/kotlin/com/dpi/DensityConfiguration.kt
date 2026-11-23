@@ -5,6 +5,7 @@ import android.app.Activity
 import android.content.Context
 import android.content.res.Configuration
 import android.content.res.Resources
+import android.os.Looper
 import android.util.Log
 import timber.log.Timber
 
@@ -75,12 +76,26 @@ internal class DensityConfiguration(
      */
     private fun updateDensityDpi(resources: Resources) {
         val nativeDpi = Resources.getSystem().configuration.densityDpi
+        val target = DensityMath.targetDpi(resources.configuration.densityDpi, nativeDpi, densityScale) ?: return
         val config = Configuration(resources.configuration)
-        val target = DensityMath.targetDpi(config.densityDpi, nativeDpi, densityScale) ?: return
         config.densityDpi = target
         Timber.tag(TAG).i("Updated densityDpi to: $target")
         @Suppress("DEPRECATION")
         resources.updateConfiguration(config, resources.displayMetrics)
+    }
+
+    /**
+     * Re-applies to [resources] on the main thread, a cheap no-op when it is already at the target.
+     * A WebView's first load in the process rebuilds the app's Resources and drops the override
+     * (#654) with no callback to any hook above, so a window created afterwards (a dialog) read 100%.
+     */
+    fun heal(resources: Resources) {
+        if (Looper.myLooper() != Looper.getMainLooper()) return
+        try {
+            updateDensityDpi(resources)
+        } catch (e: Exception) {
+            Timber.tag(TAG).w(e, "Failed to heal density")
+        }
     }
 
     /**
