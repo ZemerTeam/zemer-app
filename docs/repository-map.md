@@ -162,11 +162,11 @@ The following inventory is generated from repository files outside `.git`, `.gra
 | `app/src/main/ic_launcher-playstore.png` | 23742 bytes | `.png` |
 | `app/src/main/kotlin/com/dpi/ActivityLifecycleManager.kt` | 127 lines | `.kt` |
 | `app/src/main/kotlin/com/dpi/BaseLifecycleContentProvider.kt` | 36 lines | `.kt` |
-| `app/src/main/kotlin/com/dpi/DensityConfiguration.kt` | 121 lines | `.kt` |
+| `app/src/main/kotlin/com/dpi/DensityConfiguration.kt` | 136 lines | `.kt` |
 | `app/src/main/kotlin/com/dpi/DensityMath.kt` | 25 lines | `.kt` |
-| `app/src/main/kotlin/com/dpi/DensityScaler.kt` | 80 lines | `.kt` |
+| `app/src/main/kotlin/com/dpi/DensityScaler.kt` | 86 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/App.kt` | 421 lines | `.kt` |
-| `app/src/main/kotlin/com/jtech/zemer/MainActivity.kt` | 2430 lines | `.kt` |
+| `app/src/main/kotlin/com/jtech/zemer/MainActivity.kt` | 2435 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/ResumePlaybackActivity.kt` | 25 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/accessibility/ButtonMapperAccessibilityService.kt` | 45 lines | `.kt` |
 | `app/src/main/kotlin/com/jtech/zemer/auth/AuthState.kt` | 33 lines | `.kt` |
