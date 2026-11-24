@@ -138,7 +138,7 @@ Every `@Composable fun` per UI file (extension receivers dropped, so `BoxScope.X
 | `app/src/main/kotlin/com/jtech/zemer/ui/component/CastVolumeKeyHandler.kt` | 71 | castVolumeKeyModifier |
 | `app/src/main/kotlin/com/jtech/zemer/ui/component/ChartRankCell.kt` | 233 | ChartRankCell, Marker, MarkerLabel, rememberChartRankMetrics, chartAnchorLabel |
 | `app/src/main/kotlin/com/jtech/zemer/ui/component/ChipsRow.kt` | 165 | ChipsRow, ContentTabChipsRow |
-| `app/src/main/kotlin/com/jtech/zemer/ui/component/CreatePlaylistDialog.kt` | 123 | CreatePlaylistDialog |
+| `app/src/main/kotlin/com/jtech/zemer/ui/component/CreatePlaylistDialog.kt` | 132 | CreatePlaylistDialog |
 | `app/src/main/kotlin/com/jtech/zemer/ui/component/Dialog.kt` | 393 | dialogContainerColor, DefaultDialog, ActionPromptDialog, ListDialog, InfoLabel, TextFieldDialog |
 | `app/src/main/kotlin/com/jtech/zemer/ui/component/DownloadStatusUi.kt` | 170 | rememberSongDownloadStatus, rememberSongDownloadStatus, rememberSongDownloadProgress, rememberAggregateDownloadStatus, rememberAggregateDownloadProgress, DownloadStatusIcon, SongDownloadBadge, AggregateDownloadButton |
 | `app/src/main/kotlin/com/jtech/zemer/ui/component/DraggableScrollBarOverlay.kt` | 254 | DraggableScrollbar |
@@ -366,7 +366,7 @@ Key declarations are the first 12 `class`/`object`/`interface`/`fun`/`val`/`var`
 | `app/src/main/kotlin/com/jtech/zemer/ui/component/CastVolumeKeyHandler.kt` | 71 | fun castVolumeKeyModifier, val handler, val preview, val focusRequester, fun onCastVolumeKeyEvent, val native |
 | `app/src/main/kotlin/com/jtech/zemer/ui/component/ChartRankCell.kt` | 233 | fun ChartRankCell, val description, fun Marker, fun MarkerLabel, val ART_LEADING_SPACE, val SLOT_MARGIN, class ChartRankMetrics, val rankWidth, val markerSlot, val total, fun rememberChartRankMetrics, val measurer, … (+11 more) |
 | `app/src/main/kotlin/com/jtech/zemer/ui/component/ChipsRow.kt` | 165 | val ChipsRowTopPadding, val ChipsRowBottomPadding, val scrollState, val revealScope, var revealedInitialChip, val focusChipIndex, val revealLeadPx, var isFocused, val borderColor, val target |
-| `app/src/main/kotlin/com/jtech/zemer/ui/component/CreatePlaylistDialog.kt` | 123 | fun CreatePlaylistDialog, val database, val coroutineScope, var syncedPlaylist, val context, val isSignedIn, val isSyncEnabled, val browseId |
+| `app/src/main/kotlin/com/jtech/zemer/ui/component/CreatePlaylistDialog.kt` | 132 | fun CreatePlaylistDialog, val database, val coroutineScope, var syncedPlaylist, val context, val isSignedIn, val isSyncEnabled, val browseId |
 | `app/src/main/kotlin/com/jtech/zemer/ui/component/Dialog.kt` | 393 | fun dialogContainerColor, fun DefaultDialog, fun ActionPromptDialog, fun ListDialog, fun InfoLabel, fun TextFieldDialog, val legacyFieldState, val focusRequester, val isValid |
 | `app/src/main/kotlin/com/jtech/zemer/ui/component/DownloadStatusUi.kt` | 170 | fun rememberSongDownloadStatus, val live, fun rememberSongDownloadStatus, fun rememberSongDownloadProgress, val live, fun rememberAggregateDownloadStatus, val live, fun rememberAggregateDownloadProgress, val live, fun RowScope, fun RowScope, val status, … (+6 more) |
 | `app/src/main/kotlin/com/jtech/zemer/ui/component/DraggableScrollBarOverlay.kt` | 254 | val MIN_ITEMS_FOR_FAST_SCROLL, fun DraggableScrollbar, val density, val coroutineScope, var isDragging, var lastScrollTime, var smoothedY, var smoothedThumbY, var lastThumbPosition, val animatedThumbY, val isUserScrolling, val isScrollable, … (+41 more) |

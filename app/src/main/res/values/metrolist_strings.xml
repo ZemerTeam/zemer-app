@@ -166,6 +166,7 @@
     <string name="disable">Disable</string>
 
     <string name="not_logged_in_youtube">Not logged in to YouTube</string>
+    <string name="playlist_sync_create_failed">Couldn\'t create the playlist on YouTube. It was saved on this device only.</string>
     <string name="signed_in_as">Signed in as</string>
 
 
