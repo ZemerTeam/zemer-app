@@ -22,6 +22,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
 import com.jtech.zemer.LocalDatabase
 import com.jtech.zemer.R
 import com.jtech.zemer.db.entities.PlaylistEntity
@@ -32,6 +33,7 @@ import com.metrolist.innertube.YouTube
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
+import timber.log.Timber
 import java.time.LocalDateTime
 import java.util.logging.Logger
 
@@ -65,7 +67,14 @@ fun CreatePlaylistDialog(
         onDone = { playlistName ->
             coroutineScope.launch(Dispatchers.IO) {
                 val browseId = if (syncedPlaylist && isSignedIn) {
-                    YouTube.createPlaylist(playlistName)
+                    // A rejected login (401) or a network failure keeps the playlist on the device. No
+                    // suspension from here on: the dialog's scope is cancelled once it closes.
+                    YouTube.createPlaylist(playlistName).onFailure {
+                        Timber.tag("CreatePlaylistDialog").w(it, "Synced playlist create failed")
+                        ContextCompat.getMainExecutor(context).execute {
+                            context.toast(R.string.playlist_sync_create_failed, long = true)
+                        }
+                    }.getOrNull()
                 } else if (syncedPlaylist) {
                     Logger.getLogger("CreatePlaylistDialog").warning("Not signed in")
                     return@launch
