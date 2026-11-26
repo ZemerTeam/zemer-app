@@ -15,8 +15,8 @@
 | BuildConfig fields visible in Gradle | `ARCHITECTURE`, `COMMIT_HASH`, `RUN_NUMBER`, `GOOGLE_TOKEN_EXCHANGE_URL`, `CONTENT_MIRROR_URL`, `ZEMER_LYRICS_BASE_URL` |
 | Room schema directory | `app/schemas` |
 | Native build | Yes (see `build-release.md`) |
-| Tracked app paths | `1177` |
-| Tracked app Kotlin files | `876` (`644` in `src/main`, `228` in `src/test`, `4` in `src/androidTest`) |
+| Tracked app paths | `1178` |
+| Tracked app Kotlin files | `877` (`644` in `src/main`, `229` in `src/test`, `4` in `src/androidTest`) |
 | Tracked app resource paths | `215` |
 | Tracked app asset paths | `0` in `src/main` (`3` test fixtures under `src/androidTest/assets`) |
 | Tracked app Room schema files | `36` |

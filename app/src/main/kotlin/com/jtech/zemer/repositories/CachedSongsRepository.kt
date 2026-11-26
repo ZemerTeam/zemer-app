@@ -62,10 +62,8 @@ class CachedSongsRepository @Inject constructor(
         }
 
         val completeSongs = songs.filter { song ->
-            val contentLength = song.format?.contentLength
-            contentLength != null &&
-                playerCache.isCached(song.song.id, 0, contentLength) &&
-                !song.song.isDownloaded
+            !song.song.isDownloaded &&
+                fullyCached(song.format?.contentLength) { playerCache.isCached(song.song.id, 0, it) }
         }
 
         if (completeSongs.isNotEmpty()) {
@@ -92,5 +90,14 @@ class CachedSongsRepository @Inject constructor(
     fun removeSongFromCache(songId: String) {
         playerCache.removeResource(songId)
         refresh()
+    }
+
+    companion object {
+        /**
+         * A stored length of C.LENGTH_UNSET (-1) or 0 is not a known length: SimpleCache.isCached
+         * throws on a negative one, which crashed this background scan on every launch.
+         */
+        fun fullyCached(contentLength: Long?, isCached: (Long) -> Boolean): Boolean =
+            contentLength != null && contentLength > 0 && isCached(contentLength)
     }
 }
